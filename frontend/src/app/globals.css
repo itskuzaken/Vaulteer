@@ -1,0 +1,59 @@
+@import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+
+:root {
+  /* Custom UI Colors */
+  --primary-red: #bb3031;
+  --dark: #1a1a1a;
+  --medium-dark: #484848;
+  --gray: #878787;
+  --light: #fafafa;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --background: #1a1a1a;
+    --foreground: #fafafa;
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: "Poppins", Arial, Helvetica, sans-serif;
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Smooth slide for mobile nav drawer */
+.mobile-nav-drawer {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* Custom background opacity utility */
+.bg-opacity-50 {
+  --tw-bg-opacity: 0.5;
+  background-color: rgb(26 26 26 / var(--tw-bg-opacity));
+}
+
+/* Mobile-first: xs and sm are default, md and lg are for larger screens */
+/* No changes needed here for Tailwind, just use md: and lg: in your JSX/classes */
+
+/* 
+  Tailwind CSS is mobile-first by default.
+  Use base classes for mobile, then md: and lg: for tablet/desktop overrides in your JSX.
+  Example: 
+    p-2 md:p-4 lg:p-8
+    text-base md:text-lg lg:text-xl
+*/
