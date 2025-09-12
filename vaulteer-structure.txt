@@ -1,4 +1,4 @@
-RedVault
+Vaulteer
 ├── backend
 │   ├── firebase-service-account.json
 │   ├── routes

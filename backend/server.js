@@ -62,7 +62,7 @@ let poolReady = false;
       host: process.env.DB_HOST || "localhost",
       user: process.env.DB_USER || "root",
       password: process.env.DB_PASS || "",
-      database: process.env.DB_NAME || "redvault_db",
+  database: process.env.DB_NAME || "vaulteer_db",
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
@@ -73,7 +73,7 @@ let poolReady = false;
 
     // --- Auto-migration: ensure users.name column exists ---
     try {
-      const dbName = process.env.DB_NAME || "redvault_db";
+  const dbName = process.env.DB_NAME || "vaulteer_db";
       const [rows] = await pool.query(
         `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
          WHERE TABLE_SCHEMA = ? AND TABLE_NAME='users' AND COLUMN_NAME='name'`,

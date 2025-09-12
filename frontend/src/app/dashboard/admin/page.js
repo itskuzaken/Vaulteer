@@ -206,7 +206,7 @@ function AdminDashboard() {
             )}
           </svg>
         </button>
-        <div className="text-xl font-bold">RedVault Dashboard</div>
+  <div className="text-xl font-bold">Vaulteer Dashboard</div>
       </div>
       {/* Main content area */}
       <div className="flex-1 flex pt-16">
