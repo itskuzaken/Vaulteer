@@ -1,0 +1,76 @@
+RedVault
+├── backend
+│   ├── firebase-service-account.json
+│   ├── routes
+│   │   └── searchRoutes.js
+│   └── server.js
+├── frontend
+│   ├── public
+│   │   ├── VOLUINTEERS.png
+│   │   ├── bagani-logo.png
+│   │   └── hero-banner.jpg
+│   ├── src
+│   │   ├── app
+│   │   │   ├── dashboard
+│   │   │   │   └── admin
+│   │   │   │       └── page.js
+│   │   │   ├── layout.js
+│   │   │   ├── page.js
+│   │   │   └── volunteer
+│   │   │       └── signup
+│   │   │           └── page.js
+│   │   ├── components
+│   │   │   ├── Header.js
+│   │   │   ├── modals
+│   │   │   │   ├── DeleteStaffModal.js
+│   │   │   │   ├── DeleteVolunteerModal.js
+│   │   │   │   ├── LogoutModal.js
+│   │   │   │   ├── StaffInfoModal.js
+│   │   │   │   ├── UserFilterModal.js
+│   │   │   │   └── VolunteerInfoModal.js
+│   │   │   ├── navigation
+│   │   │   │   ├── Event
+│   │   │   │   │   ├── ArchivedEvents.js
+│   │   │   │   │   ├── CreateEvent.js
+│   │   │   │   │   ├── PublishedEvents.js
+│   │   │   │   ├── Form
+│   │   │   │   │   └── FormSubmission.js
+│   │   │   │   ├── Overview
+│   │   │   │   │   └── AdminOverview.js
+│   │   │   │   ├── Post
+│   │   │   │   │   ├── ArchivedPosts.js
+│   │   │   │   │   ├── CreateAnnouncement.js
+│   │   │   │   │   ├── CreatePost.js
+│   │   │   │   │   ├── PublishedPosts.js
+│   │   │   │   │   └── ScheduledPosts.js
+│   │   │   │   ├── Settings
+│   │   │   │   │   ├── Appearance.js
+│   │   │   │   │   ├── GeneralSettings.js
+│   │   │   │   │   └── UserAccountSettings.js
+│   │   │   │   ├── Staff
+│   │   │   │   │   └── ViewAllStaff.js
+│   │   │   │   └── Volunteer
+│   │   │   │       ├── ApplicationApproval.js
+│   │   │   │       └── ViewAllVolunteers.js
+│   │   │   ├── search
+│   │   │   │   └── DebouncedSearchBar.js
+│   │   │   └── sidebar
+│   │   │       ├── AdminSidebar.js
+│   │   │       ├── StaffSidebar.js
+│   │   │       └── VolunteerSidebar.js
+│   │   ├── filters
+│   │   │   └── UserFilter.js
+│   │   ├── services
+│   │   │   ├── applicantsService.js
+│   │   │   ├── auth
+│   │   │   │   ├── login.js
+│   │   │   │   ├── logout.js
+│   │   │   │   └── signup.js
+│   │   │   ├── filterService.js
+│   │   │   ├── firebase.js
+│   │   │   ├── searchService.js
+│   │   │   └── userService.js
+│   │   └── utils
+│   │       └── getLocalNetworkAddress.js
+│   └── styles
+│       └── globals.css
