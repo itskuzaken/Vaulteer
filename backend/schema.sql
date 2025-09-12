@@ -1,9 +1,9 @@
--- Active: 1741790363851@@127.0.0.1@3306@redvault_db
+-- Active: 1741790363851@@127.0.0.1@3306@vaulteer_db
 -- Roles table
 
-CREATE DATABASE IF NOT EXISTS redvault_db;
+CREATE DATABASE IF NOT EXISTS vaulteer_db;
 
-USE redvault_db;
+USE vaulteer_db;
 
 CREATE TABLE roles (
     role_id INT AUTO_INCREMENT PRIMARY KEY,

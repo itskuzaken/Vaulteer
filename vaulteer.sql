@@ -23,7 +23,7 @@ SET time_zone = "+00:00";
 ;
 
 --
--- Database: `redvault_db`
+-- Database: `vaulteer_db`
 --
 
 -- --------------------------------------------------------
