@@ -1,0 +1,44 @@
+{
+  "name": "vaulteer",
+  "version": "1.0.0",
+  "description": "Full-stack application with Node.js backend and Next.js frontend",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "start": "concurrently \"npm run backend:start\" \"npm run frontend:start\"",
+    "backend:dev": "cd backend && nodemon server.js",
+    "backend:start": "cd backend && node server.js",
+    "frontend:dev": "cd frontend && next dev --turbopack",
+    "frontend:start": "cd frontend && next build && next start",
+    "frontend:build": "cd frontend && next build",
+    "frontend:lint": "cd frontend && next lint",
+    "install:all": "npm install",
+    "clean": "rm -rf node_modules backend/node_modules frontend/node_modules"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "mysql2": "^3.14.3",
+    "next": "15.4.6",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "concurrently": "^8.2.2",
+    "eslint": "^9",
+    "eslint-config-next": "15.4.6",
+    "nodemon": "^3.1.10",
+    "tailwindcss": "^4"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

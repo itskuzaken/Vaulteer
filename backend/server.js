@@ -19,5 +19,3 @@ app.use("/api/users", usersRouter);
 app.get("/", (req, res) => res.json({ message: "Vaulteer backend running" }));
 
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-// railway deployment

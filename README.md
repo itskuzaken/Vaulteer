@@ -12,7 +12,7 @@ vaulteer/
 │   ├── lib/               # Database utilities
 │   ├── routes/            # API routes
 │   └── package.json       # Backend dependencies
-├── frontend/              # Next.js React application  
+├── frontend/              # Next.js React application
 │   ├── src/
 │   │   ├── app/          # Next.js App Router pages
 │   │   ├── components/   # React components
@@ -32,19 +32,22 @@ vaulteer/
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/itskuzaken/Vaulteer.git
    cd Vaulteer
    ```
 
 2. **Install all dependencies**
+
    ```bash
    npm run install:all
    ```
 
 3. **Set up environment variables**
-   
+
    Create `.env` file in the `backend/` directory:
+
    ```env
    PORT=3306
    DB_HOST=localhost
@@ -55,11 +58,13 @@ vaulteer/
    ```
 
 4. **Start development servers**
+
    ```bash
    npm run dev
    ```
 
    This will start both:
+
    - **Backend**: http://localhost:3306
    - **Frontend**: http://localhost:3000
 
@@ -90,6 +95,7 @@ vaulteer/
 ## 🛠️ Technology Stack
 
 ### Backend
+
 - **Node.js** - Runtime environment
 - **Express** - Web framework
 - **MySQL2** - Database driver
@@ -98,6 +104,7 @@ vaulteer/
 - **nodemon** - Development auto-restart
 
 ### Frontend
+
 - **Next.js 15.4.6** - React framework with App Router
 - **React 19.1.0** - UI library
 - **Tailwind CSS 4** - Utility-first CSS framework
@@ -119,6 +126,7 @@ vaulteer/
 #### Option 1: Traditional Hosting
 
 1. **Build the frontend**
+
    ```bash
    cd frontend
    npm run build
@@ -133,6 +141,7 @@ vaulteer/
 #### Option 2: Railway Deployment
 
 1. **Deploy backend to Railway**
+
    ```bash
    cd backend
    # Connect to Railway and deploy
@@ -150,8 +159,9 @@ vaulteer/
 #### Option 3: Docker Deployment
 
 Create `docker-compose.yml` in root:
+
 ```yaml
-version: '3.8'
+version: "3.8"
 services:
   backend:
     build: ./backend
@@ -159,7 +169,7 @@ services:
       - "3306:3306"
     environment:
       - NODE_ENV=production
-    
+
   frontend:
     build: ./frontend
     ports:
@@ -169,6 +179,7 @@ services:
 ```
 
 Run with:
+
 ```bash
 docker-compose up --build
 ```
@@ -178,6 +189,7 @@ docker-compose up --build
 #### Production Environment Variables
 
 **Backend (.env)**:
+
 ```env
 NODE_ENV=production
 PORT=3306
@@ -189,12 +201,14 @@ FRONTEND_URL=https://your-frontend-domain.com
 ```
 
 **Frontend**:
+
 - Configure `NEXT_PUBLIC_API_URL` to point to production backend
 - Set up build environment on hosting platform
 
 ## 🗃️ Database Setup
 
 1. **Create MySQL database**
+
    ```sql
    CREATE DATABASE vaulteer_db;
    ```
