@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { initPool, getPool } = require("../src/db/pool");
+const { initPool, getPool } = require("../db/pool");
 
 // Allow mapping string roles to numeric role_id (fallback if you don't want extra query)
 const ROLE_MAP = { volunteer: 3, staff: 2, applicant: 4 };
