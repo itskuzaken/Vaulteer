@@ -211,6 +211,13 @@ function Header() {
 }
 
 function Footer() {
+  const pathname = usePathname();
+  const isDashboard = pathname.startsWith("/dashboard");
+  const isVolunteerSignup = pathname.startsWith("/volunteer/signup");
+
+  // Hide footer on dashboard routes and volunteer signup page
+  if (isDashboard || isVolunteerSignup) return null;
+
   return (
     <footer className="w-full bg-[var(--primary-red)] text-white py-6 mt-8">
       <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -261,7 +268,11 @@ export default function RootLayout({ children }) {
         ""; // fallback for SSR
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <link
           href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap"

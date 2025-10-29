@@ -20,19 +20,19 @@ const lanAddress = CONFIG.LAN_ADDRESS || detectedLan;
 const allowedOrigins = [
   "http://localhost:3000",
   `http://${lanAddress}:3000`,
-  ...CONFIG.FRONTEND_ORIGINS,
+  CONFIG.FRONTEND_URL,
 ].filter(Boolean);
 
 const corsMiddleware = cors({
   origin: (origin, callback) => {
     // Allow non-browser requests (no origin header)
     if (!origin) return callback(null, true);
-    
+
     // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
-    
+
     // Reject others
     return callback(new Error("CORS not allowed for origin: " + origin));
   },

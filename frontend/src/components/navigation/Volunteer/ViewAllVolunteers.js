@@ -365,12 +365,12 @@ export default function ViewAllVolunteers() {
       />
 
       <div className="flex-1 flex justify-center">
-        <div className="w-full bg-white border border-[var(--color-border-default)] rounded-2xl shadow-sm p-4 md:p-6 transition-all duration-300">
+        <div className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 md:p-6 transition-all duration-300">
           {/* Header with Responsive Search and Filters */}
-          <div className="mb-6 border-b border-[var(--color-border-default)] pb-4">
+          <div className="mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
             {/* Mobile/Tablet: All in a row */}
             <div className="flex flex-row items-center gap-2 w-full md:hidden">
-              <h1 className=" text-lg flex-shrink-0 text-[var(--color-brand-primary)] font-semibold tracking-tight">
+              <h1 className="text-lg flex-shrink-0 text-red-600 dark:text-red-400 font-semibold tracking-tight">
                 Volunteers
               </h1>
               <div className="flex flex-row items-center gap-2 flex-1 min-w-0 justify-end">
@@ -390,7 +390,7 @@ export default function ViewAllVolunteers() {
             </div>
             {/* Desktop: Title left, search/filter right */}
             <div className="hidden md:flex flex-row items-center justify-between w-full gap-3 flex-wrap">
-              <h1 className="md:text-xl lg:text-2xl font-semibold text-[var(--color-brand-primary)] tracking-tight">
+              <h1 className="md:text-xl lg:text-2xl font-semibold text-red-600 dark:text-red-400 tracking-tight">
                 Volunteers
               </h1>
               <div className="flex flex-row items-center gap-2">

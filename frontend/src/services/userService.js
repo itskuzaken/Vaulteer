@@ -32,7 +32,44 @@ async function fetchWithAuth(url, options = {}) {
 
 // Fetch all users by role with optional filter query
 export async function getUsersByRole(role, filterQuery = "") {
-  return await fetchWithAuth(`${API_BASE}/${role}s${filterQuery}`);
+  // Map role to the new backend endpoints
+  const endpoint =
+    role === "volunteer"
+      ? "volunteers"
+      : role === "staff"
+      ? "staffs"
+      : role === "applicant"
+      ? "applicants"
+      : role === "admin"
+      ? "admins"
+      : `roles/${role}`;
+
+  return await fetchWithAuth(`${API_BASE}/users/${endpoint}${filterQuery}`);
+}
+
+// Get all users
+export async function getAllUsers() {
+  return await fetchWithAuth(`${API_BASE}/users`);
+}
+
+// Get volunteers
+export async function getVolunteers() {
+  return await fetchWithAuth(`${API_BASE}/users/volunteers`);
+}
+
+// Get staff members
+export async function getStaffs() {
+  return await fetchWithAuth(`${API_BASE}/users/staffs`);
+}
+
+// Get applicants (alternative to applicantsService)
+export async function getApplicants() {
+  return await fetchWithAuth(`${API_BASE}/users/applicants`);
+}
+
+// Get admins
+export async function getAdmins() {
+  return await fetchWithAuth(`${API_BASE}/users/admins`);
 }
 
 // Create a new user

@@ -1,9 +1,10 @@
 :root {
-  /* Color Tokens */
-  --color-brand-primary: #bb3031;
-  --color-brand-primary-hover: #a2292a;
+  /* Color Tokens - Red Theme */
+  --color-brand-primary: #d32f2f;
+  --color-brand-primary-hover: #b71c1c;
+  --color-brand-primary-light: #ffcdd2;
   --color-surface-base: #ffffff;
-  --color-surface-alt: #fef2f2; /* subtle tint */
+  --color-surface-alt: #fff5f5; /* subtle red tint */
   --color-surface-muted: #fafafa;
   --color-border-default: #e5e7eb; /* gray-200 */
   --color-border-strong: #d1d5db; /* gray-300 */
@@ -14,10 +15,10 @@
   --color-accent-success-bg: #ecfdf5;
   --color-accent-warn: #b45309; /* amber-700 */
   --color-accent-warn-bg: #fffbeb;
-  --color-accent-error: #b91c1c; /* red-700 */
-  --color-accent-error-bg: #fef2f2;
-  --color-accent-info: #1d4ed8; /* blue-700 */
-  --color-accent-info-bg: #eff6ff;
+  --color-accent-error: #d32f2f; /* red-700 - matches primary */
+  --color-accent-error-bg: #fff5f5;
+  --color-accent-info: #d32f2f; /* red-700 - matches primary */
+  --color-accent-info-bg: #fff5f5;
 
   /* Spacing Scale (reference) */
   --space-1: 2px;
@@ -41,7 +42,7 @@
   --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.12),
     0 2px 4px -2px rgba(0, 0, 0, 0.08);
-  --focus-ring: 0 0 0 3px rgba(187, 48, 49, 0.35);
+  --focus-ring: 0 0 0 3px rgba(211, 47, 47, 0.35);
 
   /* Typography Scale */
   --font-size-title: 1.875rem; /* 30px ~ text-2xl */
