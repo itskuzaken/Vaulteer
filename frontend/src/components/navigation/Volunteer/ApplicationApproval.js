@@ -350,10 +350,10 @@ export default function ApplicationApproval() {
         loading={!!approvingId}
       />
       <div className="flex-1 flex justify-center">
-        <div className="w-full bg-white border border-[var(--color-border-default)] rounded-2xl shadow-sm p-4 md:p-6">
-          <div className="mb-6 border-b border-[var(--color-border-default)] pb-4">
+        <div className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 md:p-6">
+          <div className="mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
             <div className="flex flex-col md:flex-row md:items-center gap-3 md:justify-between">
-              <h1 className="text-xl md:text-2xl font-semibold text-[var(--color-brand-primary)] tracking-tight">
+              <h1 className="text-xl md:text-2xl font-semibold text-green-600 dark:text-green-400 tracking-tight">
                 Application Approval
               </h1>
               <div className="flex flex-row items-center gap-2 w-full md:w-auto">

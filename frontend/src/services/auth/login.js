@@ -5,6 +5,7 @@ import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase";
 import { useRouter } from "next/navigation";
 import { getCurrentUser } from "../userService";
+import { logActions } from "../activityLogService";
 
 export default function Login({ onClose }) {
   const [isModalOpen, setModalOpen] = useState(true);
@@ -43,22 +44,63 @@ export default function Login({ onClose }) {
           volunteer: "/dashboard/volunteer",
         }[userInfo.role];
 
+        // Log successful login
+        try {
+          await logActions.loginSuccess({
+            role: userInfo.role,
+            email: userInfo.email,
+            name: userInfo.name,
+          });
+        } catch (logError) {
+          // Don't block login if logging fails
+          console.error("Failed to log login activity:", logError);
+        }
+
         router.push(roleRoute);
         closeModal();
       } else {
         // User has no record in the database or no recognized role
         setNotRegistered(true);
+
+        // Log failed login - user not registered
+        try {
+          await logActions.loginFailure(
+            "User not registered or invalid role",
+            user.email
+          );
+        } catch (logError) {
+          console.error("Failed to log failed login:", logError);
+        }
       }
     } catch (error) {
+      let errorMessage = "Login failed. Please try again.";
+      let logReason = "Unknown error";
+
       if (error.code === "auth/unauthorized-domain") {
-        setLoginError(
-          "Login failed: Unauthorized domain. Please contact support."
-        );
-      } else if (
+        errorMessage =
+          "Login failed: Unauthorized domain. Please contact support.";
+        logReason = "Unauthorized domain";
+      } else if (error.code === "auth/popup-closed-by-user") {
+        logReason = "User closed popup";
+      } else if (error.code === "auth/cancelled-popup-request") {
+        logReason = "Popup request cancelled";
+      } else {
+        logReason = error.message || "Authentication error";
+      }
+
+      // Log failed login attempt (except for user-cancelled actions)
+      if (
         error.code !== "auth/popup-closed-by-user" &&
         error.code !== "auth/cancelled-popup-request"
       ) {
-        setLoginError("Login failed. Please try again.");
+        setLoginError(errorMessage);
+
+        // Log failed login
+        try {
+          await logActions.loginFailure(logReason);
+        } catch (logError) {
+          console.error("Failed to log failed login:", logError);
+        }
       }
     }
   };

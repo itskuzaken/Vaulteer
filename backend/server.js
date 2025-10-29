@@ -9,6 +9,10 @@ const applicantsRoute = require("./routes/applicants");
 const usersRoute = require("./routes/users");
 const searchRoute = require("./routes/search");
 const meRoute = require("./routes/me");
+const activityLogsRoute = require("./routes/activityLogsRoutes");
+const statsRoute = require("./routes/statsRoutes");
+const notificationRoute = require("./routes/notificationRoutes");
+const profileRoute = require("./routes/profileRoutes");
 
 if (!admin.apps.length) {
   try {
@@ -40,6 +44,10 @@ app.use("/api/applicants", applicantsRoute);
 app.use("/api/users", usersRoute);
 app.use("/api/me", meRoute);
 app.use("/api", searchRoute);
+app.use("/api/logs", activityLogsRoute);
+app.use("/api/stats", statsRoute);
+app.use("/api/notifications", notificationRoute);
+app.use("/api/profile", profileRoute);
 
 app.get("/api", (req, res) => {
   res.json({
@@ -51,19 +59,23 @@ app.get("/api", (req, res) => {
       applicants: "/api/applicants",
       users: "/api/users",
       search: "/api/users/search",
+      logs: "/api/logs",
+      profile: "/api/profile",
+      notifications: "/api/notifications",
     },
     time: new Date().toISOString(),
   });
 });
 
-app.use("/api/*", (req, res) => {
+// 404 handler for all unmatched /api routes (must be last)
+app.use("/api", (req, res) => {
   res.status(404).json({ error: "Endpoint not found" });
 });
 
 async function start() {
   try {
     await initPool();
-    
+
     app.listen(CONFIG.PORT, "0.0.0.0", () => {
       console.log("\n🚀 Vaulteer Server");
       console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);

@@ -1,53 +1,63 @@
+"use client";
+
 import React, { useState } from "react";
+import { IoFunnelOutline } from "react-icons/io5";
 import UserFilterModal from "../modals/UserFilterModal";
 
 /**
- * ResponsiveFilterButton - same as in ViewAllStaff
+ * Modern Filter Button with smooth animations
  */
-function ResponsiveFilterButton({ onClick, isActive }) {
+function ModernFilterButton({ onClick, isActive, hasActiveFilters }) {
   return (
     <button
-      className={`p-2 bg-white border border-[#bb3031] text-[#bb3031] rounded hover:bg-[#bb3031] hover:text-white transition flex items-center focus:outline-none focus:ring-2 focus:ring-[#bb3031]`}
+      className={`
+        relative
+        p-2.5
+        bg-white dark:bg-gray-800
+        border-2 
+        ${
+          isActive
+            ? "border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20"
+            : hasActiveFilters
+            ? "border-red-500 dark:border-red-400"
+            : "border-gray-300 dark:border-gray-600"
+        }
+        text-gray-700 dark:text-gray-300
+        rounded-lg
+        transition-all duration-200
+        hover:bg-gray-50 dark:hover:bg-gray-700
+        hover:border-red-500 dark:hover:border-red-400
+        hover:scale-105
+        focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400
+        flex items-center justify-center
+        shadow-sm hover:shadow-md
+      `}
       onClick={onClick}
-      aria-label="Open filter"
+      aria-label="Open filters"
+      aria-pressed={isActive}
       type="button"
-      style={{
-        boxShadow:
-          "0 1px 2px rgba(187,48,49,0.08), 0 1.5px 6px rgba(187,48,49,0.08)",
-        width: 40,
-        height: 40,
-        minWidth: 40,
-        minHeight: 40,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        outline: isActive ? "2px solid #bb3031" : undefined,
-      }}
-      tabIndex={0}
     >
-      <svg
-        className="w-5 h-5 md:w-6 md:h-6"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={2}
-        viewBox="0 0 24 24"
-      >
-        <path
-          d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707l-6.414 6.414A1 1 0 0013 13.414V19a1 1 0 01-1.447.894l-4-2A1 1 0 017 17v-3.586a1 1 0 00-.293-.707L3.293 6.707A1 1 0 013 6V4z"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
+      <IoFunnelOutline
+        size={20}
+        className={`transition-colors ${
+          isActive ? "text-red-600 dark:text-red-400" : ""
+        }`}
+      />
+
+      {/* Active filter indicator */}
+      {hasActiveFilters && !isActive && (
+        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse" />
+      )}
     </button>
   );
 }
 
 /**
- * UserFilter - role-aware filter trigger component.
+ * UserFilter - Modern role-aware filter trigger component.
  * Props:
  *   filters: { status, orderBy, nameOrder, dateOrder }
  *   onChange: (newFilters) => void
- *   role: string ('volunteer' | 'staff')
+ *   role: string ('volunteer' | 'staff' | 'applicant')
  *   className: string (optional)
  */
 export default function UserFilter({
@@ -57,6 +67,13 @@ export default function UserFilter({
   className = "",
 }) {
   const [modalOpen, setModalOpen] = useState(false);
+
+  // Check if any filters are active
+  const hasActiveFilters =
+    filters.status !== "" ||
+    filters.orderBy !== "date" ||
+    filters.nameOrder !== "name_asc" ||
+    filters.dateOrder !== "date_desc";
 
   // Handler for applying filters from modal
   const handleApply = (newFilters) => {
@@ -77,9 +94,10 @@ export default function UserFilter({
 
   return (
     <div className={className}>
-      <ResponsiveFilterButton
+      <ModernFilterButton
         onClick={() => setModalOpen(true)}
         isActive={modalOpen}
+        hasActiveFilters={hasActiveFilters}
       />
       <UserFilterModal
         open={modalOpen}

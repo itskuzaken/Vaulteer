@@ -2,18 +2,30 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
 
 :root {
-  /* Custom UI Colors */
-  --primary-red: #bb3031;
+  /* Custom UI Colors - Red Theme */
+  --primary-red: #d32f2f;
+  --primary-red-hover: #b71c1c;
+  --primary-red-light: #ffcdd2;
   --dark: #1a1a1a;
   --medium-dark: #484848;
   --gray: #878787;
   --light: #fafafa;
+
+  /* Modern Design System Colors */
+  --background: #ffffff;
+  --foreground: #1a1a1a;
+  --card-bg: #ffffff;
+  --border: #e5e7eb;
+  --hover: #f3f4f6;
 }
 
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --background: #1a1a1a;
-    --foreground: #fafafa;
+    --background: #0f172a;
+    --foreground: #f1f5f9;
+    --card-bg: #1e293b;
+    --border: #334155;
+    --hover: #334155;
   }
 }
 
@@ -22,6 +34,25 @@
 }
 .no-scrollbar::-webkit-scrollbar {
   display: none;
+}
+
+/* Custom Scrollbar for main areas */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
 }
 
 body {
@@ -33,6 +64,14 @@ body {
   min-height: 100vh;
   width: 100%;
   overflow-x: hidden;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.2s;
+  transition-timing-function: ease-in-out;
 }
 
 /* Smooth slide for mobile nav drawer */
@@ -47,8 +86,384 @@ body {
   background-color: rgb(26 26 26 / var(--tw-bg-opacity));
 }
 
+/* Modern Card Styling */
+.modern-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.modern-card:hover {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-in {
+  animation: slideInFromTop 0.2s ease-out;
+}
+
+.fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+.slide-in-from-top-2 {
+  animation: slideInFromTop 0.2s ease-out;
+}
+
+.slide-in-from-left {
+  animation: slideInFromLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scale-in {
+  animation: scaleIn 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-right {
+  animation: slideRight 0.2s ease-out;
+}
+
+/* Smooth sidebar transitions */
+.sidebar-transition {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease,
+    background-color 0.2s ease;
+}
+
+/* Main content area transitions */
+.main-content-transition {
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: margin-left, width;
+}
+
+/* Header adaptive transitions */
+.header-transition {
+  transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    background-color 0.2s ease;
+}
+
+/* Content wrapper smooth scaling */
+.content-wrapper-transition {
+  transition: max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Text fade for sidebar labels */
+.label-fade {
+  transition: opacity 0.25s ease-in-out,
+    max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Icon transitions - stays fixed in position */
+.icon-smooth {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+  will-change: transform;
+}
+
+/* Perfect square active indicator - left-aligned with border */
+.active-square {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  border-radius: 0.5rem;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.12) 0%,
+    rgba(37, 99, 235, 0.18) 100%
+  );
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15),
+    inset 0 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+/* Active highlight for expanded state */
+.active-full {
+  background: linear-gradient(
+    135deg,
+    rgba(59, 130, 246, 0.12) 0%,
+    rgba(37, 99, 235, 0.18) 100%
+  );
+  border: 2px solid rgba(59, 130, 246, 0.25);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.12);
+}
+
+/* Icon container - fixed size, prevents shift during collapse */
+.icon-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+}
+
+.icon-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+
+/* Prevents layout shift during animations */
+.no-layout-shift {
+  will-change: opacity, transform;
+  backface-visibility: hidden;
+  transform: translateZ(0);
+}
+
+/* Sidebar icon stability - prevents any movement during collapse/expand */
+.sidebar-icon-stable {
+  position: relative;
+  flex-shrink: 0;
+  transition: none; /* NO transitions on position/margin/padding */
+}
+
+/* Focus visible improvements */
+*:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
 /* Mobile-first: xs and sm are default, md and lg are for larger screens */
-/* No changes needed here for Tailwind, just use md: and lg: in your JSX/classes */
+/* Responsive layout utilities */
+
+/* Ensure main content doesn't overflow on mobile */
+@media (max-width: 1023px) {
+  .main-content-wrapper {
+    width: 100% !important;
+    margin-left: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .main-content-adaptive {
+    padding: 1rem !important;
+  }
+
+  .content-container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+}
+
+/* Desktop sidebar spacing - Collapsed State */
+@media (min-width: 1024px) {
+  .sidebar-collapsed {
+    width: 80px;
+  }
+
+  .sidebar-expanded {
+    width: 288px;
+  }
+
+  .main-content-collapsed {
+    margin-left: 80px !important;
+    width: calc(100% - 80px) !important;
+  }
+
+  .main-content-expanded {
+    margin-left: 288px !important;
+    width: calc(100% - 288px) !important;
+  }
+
+  /* Adaptive padding based on sidebar state */
+  .main-content-collapsed-padding {
+    padding: 1.5rem !important;
+  }
+
+  .main-content-expanded-padding {
+    padding: 2rem !important;
+  }
+}
+
+/* Tablet optimization (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .main-content-adaptive {
+    padding: 1.5rem !important;
+  }
+
+  .content-container {
+    max-width: 100%;
+    padding: 0 0.5rem;
+  }
+}
+
+/* Large desktop optimization (≥1440px) */
+@media (min-width: 1440px) {
+  .content-container-large {
+    max-width: 1536px; /* Wider on large screens */
+  }
+
+  .main-content-expanded-padding-lg {
+    padding: 2.5rem !important;
+  }
+}
+
+/* Smooth content reflow */
+.content-adaptive * {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Prevent layout shift for cards and widgets */
+.dashboard-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, opacity;
+}
+
+/* Real-time Stats Card Animations */
+@keyframes pulse-ring {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse-ring {
+  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes number-update {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-4px);
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-number-update {
+  animation: number-update 0.6s ease-out;
+}
+
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  }
+}
+
+.animate-glow {
+  animation: glow 2s ease-in-out infinite;
+}
+
+/* Realtime update indicator */
+.realtime-indicator {
+  position: relative;
+}
+
+.realtime-indicator::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
 
 /* 
   Tailwind CSS is mobile-first by default.
@@ -57,3 +472,105 @@ body {
     p-2 md:p-4 lg:p-8
     text-base md:text-lg lg:text-xl
 */
+
+/* =====================================================
+   SIDEBAR & DASHBOARD ANIMATIONS
+   ===================================================== */
+
+/* Smooth slide-in animation for menu subsections */
+@keyframes slideInFromTop {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade-in animation for general elements */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Enhanced slide-in for mobile sidebar */
+@keyframes slideInFromLeft {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* Sidebar transition utilities */
+.sidebar-transition {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease-in-out;
+  will-change: width, margin-left, opacity;
+}
+
+/* Icon centering utilities */
+.icon-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Prevent layout shift during transitions */
+.prevent-shift {
+  backface-visibility: hidden;
+  transform: translateZ(0);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Responsive breakpoint utilities (for reference) */
+/* 
+  Mobile: < 640px (sm)
+  Tablet: 640px - 1023px (sm to lg)
+  Desktop: ≥ 1024px (lg)
+  
+  Use Tailwind classes:
+  - sm:  ≥ 640px
+  - md:  ≥ 768px
+  - lg:  ≥ 1024px
+  - xl:  ≥ 1280px
+  - 2xl: ≥ 1536px
+*/
+
+/* Mobile optimizations */
+@media (max-width: 767px) {
+  /* Ensure touch-friendly hit areas (minimum 44x44px) */
+  button,
+  a {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  /* Optimize font sizes for mobile readability */
+  body {
+    font-size: 0.875rem; /* 14px */
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Auto-collapse sidebar for better content space */
+  .dashboard-sidebar {
+    width: 5rem; /* 80px - collapsed state */
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1024px) {
+  /* Full sidebar by default */
+  .dashboard-sidebar {
+    width: 18rem; /* 288px - expanded state */
+  }
+}

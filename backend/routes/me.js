@@ -37,11 +37,11 @@ router.get(
        WHERE u.uid = ? LIMIT 1`,
       [req.firebaseUid]
     );
-    
+
     if (!results.length) {
       return res.status(403).json({ error: "User not found in DB" });
     }
-    
+
     const user = results[0];
     res.json({
       user_id: user.user_id,

@@ -6,7 +6,7 @@ let ready = false;
 
 async function initPool() {
   if (pool) return pool;
-  
+
   pool = mysql.createPool({
     host: CONFIG.DB_HOST,
     user: CONFIG.DB_USER,
@@ -15,20 +15,23 @@ async function initPool() {
     waitForConnections: true,
     connectionLimit: CONFIG.DB_CONN_LIMIT,
     queueLimit: 0,
+    timezone: "+08:00", // Force UTC+8 timezone (Asia/Manila, Singapore, etc.)
   });
 
   try {
     await pool.query("SELECT 1");
     ready = true;
-    console.log("✓ MySQL pool initialized");
-    
+    console.log(
+      `✓ Connected to database: ${CONFIG.DB_NAME} at ${CONFIG.DB_HOST}`
+    );
+
     // Auto-migration: ensure users.name column exists
     const [rows] = await pool.query(
       `SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
        WHERE TABLE_SCHEMA = ? AND TABLE_NAME='users' AND COLUMN_NAME='name'`,
       [CONFIG.DB_NAME]
     );
-    
+
     if (rows.length === 0) {
       console.log("[MIGRATION] Adding missing column users.name...");
       await pool.query(
