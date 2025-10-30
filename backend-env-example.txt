@@ -1,0 +1,12 @@
+# Backend Environment Configuration
+# Copy this to backend/.env on your EC2 instance
+
+NODE_ENV=production
+PORT=3001
+DB_HOST=vaulteer-db.c7csay8a2c32.ap-southeast-2.rds.amazonaws.com
+DB_USER=admin
+DB_PASS=vaulteer123
+DB_NAME=vaulteer_db
+DB_CONN_LIMIT=10
+FRONTEND_URL=http://54.206.138.130
+FIREBASE_SERVICE_ACCOUNT=./firebase-service-account.json
