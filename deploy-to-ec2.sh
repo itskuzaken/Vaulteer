@@ -260,16 +260,29 @@ cd backend
 pm2 start server.js --name vaulteer-backend
 cd ..
 
-# Start frontend
-log "Starting frontend application..."
+# Start frontend (build and start properly)
+log "Building and starting frontend application..."
 cd frontend
+npm run build
 pm2 start npm --name vaulteer-frontend -- start
 cd ..
 
-# Configure PM2 startup
+# Wait for applications to start
+log "Waiting for applications to start..."
+sleep 15
+
+# Check if applications are running
+log "Checking application status..."
+pm2 list
+
+# Configure PM2 startup (with error handling)
 log "Configuring PM2 auto-startup..."
-sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME
-pm2 save
+if sudo env PATH=$PATH:/usr/bin /usr/lib/node_modules/pm2/bin/pm2 startup systemd -u $USER --hp $HOME; then
+    pm2 save
+    log "PM2 auto-startup configured successfully"
+else
+    warn "PM2 auto-startup configuration failed, but continuing..."
+fi
 
 # Setup log rotation
 pm2 install pm2-logrotate
@@ -283,6 +296,9 @@ pm2 set pm2-logrotate:compress true
 
 log "Step 8: Verifying deployment..."
 
+# Temporarily disable strict error handling for verification
+set +e
+
 # Wait a moment for services to start
 sleep 10
 
@@ -293,15 +309,30 @@ pm2 logs --lines 20
 
 # Test backend health
 log "Testing backend health..."
-curl -s http://localhost:3001/api/health || warn "Backend health check failed"
+if curl -s http://localhost:3001/api/health; then
+    log "✅ Backend health check passed"
+else
+    error "❌ Backend health check failed"
+fi
 
 # Test frontend
 log "Testing frontend..."
-curl -s -I http://localhost:3000 | head -1 || warn "Frontend check failed"
+if curl -s -I http://localhost:3000 | head -1; then
+    log "✅ Frontend check passed"
+else
+    error "❌ Frontend check failed"
+fi
 
 # Test Nginx
 log "Testing Nginx configuration..."
-curl -s -I http://localhost | head -1 || warn "Nginx check failed"
+if curl -s -I http://localhost | head -1; then
+    log "✅ Nginx check passed"
+else
+    error "❌ Nginx check failed"
+fi
+
+# Re-enable strict error handling
+set -e
 
 # ===========================================
 # STEP 9: SETUP MONITORING & LOGS
