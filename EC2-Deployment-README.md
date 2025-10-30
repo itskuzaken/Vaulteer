@@ -3,6 +3,7 @@
 ## 🚀 Quick Deployment
 
 ### Prerequisites
+
 - SSH access to your EC2 instance
 - Firebase service account JSON file
 - Database already configured (RDS)
@@ -10,11 +11,13 @@
 ### One-Command Deployment
 
 1. **Connect to your EC2 instance:**
+
    ```bash
    ssh -i your-key.pem ubuntu@54.206.138.130
    ```
 
 2. **Download and run the deployment script:**
+
    ```bash
    wget https://raw.githubusercontent.com/itskuzaken/Vaulteer/main/deploy-to-ec2.sh
    chmod +x deploy-to-ec2.sh
@@ -22,6 +25,7 @@
    ```
 
 3. **Upload Firebase credentials:**
+
    ```bash
    # From your local machine
    scp firebase-service-account.json ubuntu@54.206.138.130:/var/www/vaulteer/backend/
@@ -38,6 +42,7 @@
 If you prefer manual deployment, follow these steps:
 
 ### Step 1: System Setup
+
 ```bash
 # Update system
 sudo apt update && sudo apt upgrade -y
@@ -57,6 +62,7 @@ sudo ufw allow 'Nginx Full'
 ```
 
 ### Step 2: Clone Repository
+
 ```bash
 sudo mkdir -p /var/www/vaulteer
 sudo chown -R $USER:$USER /var/www/vaulteer
@@ -65,6 +71,7 @@ git clone https://github.com/itskuzaken/Vaulteer.git .
 ```
 
 ### Step 3: Install Dependencies
+
 ```bash
 # Backend
 cd backend
@@ -80,6 +87,7 @@ cd ..
 ### Step 4: Configure Environment
 
 #### Backend (.env)
+
 ```bash
 NODE_ENV=production
 PORT=3001
@@ -93,6 +101,7 @@ FIREBASE_SERVICE_ACCOUNT=./firebase-service-account.json
 ```
 
 #### Frontend (.env.local)
+
 ```bash
 NEXT_PUBLIC_API_BASE=http://localhost:3001/api
 NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
@@ -188,6 +197,7 @@ server {
 ```
 
 Enable the site:
+
 ```bash
 sudo ln -sf /etc/nginx/sites-available/vaulteer /etc/nginx/sites-enabled/
 sudo rm -f /etc/nginx/sites-enabled/default
@@ -293,6 +303,7 @@ sudo certbot --nginx -d your-domain.com
 ### Common Issues
 
 1. **Port conflicts:**
+
    ```bash
    sudo netstat -tlnp | grep :300
    sudo lsof -i :3000
@@ -300,6 +311,7 @@ sudo certbot --nginx -d your-domain.com
    ```
 
 2. **Nginx errors:**
+
    ```bash
    sudo nginx -t
    sudo systemctl status nginx
@@ -307,12 +319,14 @@ sudo certbot --nginx -d your-domain.com
    ```
 
 3. **Application crashes:**
+
    ```bash
    pm2 logs vaulteer-backend
    pm2 logs vaulteer-frontend
    ```
 
 4. **Database connection issues:**
+
    - Check RDS security group allows EC2 instance
    - Verify credentials in backend/.env
 
@@ -341,6 +355,7 @@ free -h
 ## 📊 Performance Optimization
 
 ### PM2 Configuration
+
 ```bash
 # Set memory limits
 pm2 set vaulteer-backend max_memory_restart 500M
@@ -352,6 +367,7 @@ pm2 set vaulteer-frontend autorestart true
 ```
 
 ### Nginx Optimization
+
 - Gzip compression enabled
 - Static file caching configured
 - Security headers added
@@ -366,6 +382,7 @@ pm2 set vaulteer-frontend autorestart true
 ## 📞 Support
 
 If you encounter issues:
+
 1. Check the logs using commands above
 2. Verify all environment variables
 3. Test individual components
