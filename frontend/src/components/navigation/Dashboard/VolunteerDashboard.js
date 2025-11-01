@@ -38,9 +38,9 @@ export default function VolunteerDashboard({ onNavigate }) {
     }
   }, []);
 
-  const handleQuickAction = (content, subContent = null) => {
+  const handleQuickAction = (contentKey, subContentKey = null) => {
     if (onNavigate) {
-      onNavigate(content, subContent);
+      onNavigate(contentKey, subContentKey);
     }
   };
 
@@ -161,14 +161,14 @@ export default function VolunteerDashboard({ onNavigate }) {
             description="Submit a new HTS form"
             icon={<IoDocumentTextOutline />}
             color="yellow"
-            onClick={() => handleQuickAction("Forms", "Submit Form")}
+            onClick={() => handleQuickAction("forms", "submit-form")}
           />
           <QuickActionCard
             title="View Submissions"
             description="Check your submitted forms"
             icon={<IoEyeOutline />}
             color="blue"
-            onClick={() => handleQuickAction("Forms", "View Submitted")}
+            onClick={() => handleQuickAction("forms", "view-submitted")}
           />
         </div>
       </div>

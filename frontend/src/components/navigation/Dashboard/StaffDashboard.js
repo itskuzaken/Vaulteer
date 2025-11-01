@@ -14,9 +14,9 @@ import { API_BASE } from "../../../config/config";
 export default function StaffDashboard({ onNavigate }) {
   const [showWelcome, setShowWelcome] = useState(true);
 
-  const handleQuickAction = (content, subContent = null) => {
+  const handleQuickAction = (contentKey, subContentKey = null) => {
     if (onNavigate) {
-      onNavigate(content, subContent);
+      onNavigate(contentKey, subContentKey);
     }
   };
 
@@ -134,7 +134,7 @@ export default function StaffDashboard({ onNavigate }) {
             icon={<IoPeopleOutline />}
             color="green"
             onClick={() =>
-              handleQuickAction("Manage Volunteer", "Application Approval")
+              handleQuickAction("manage-volunteer", "application-approval")
             }
           />
           <QuickActionCard
@@ -142,14 +142,14 @@ export default function StaffDashboard({ onNavigate }) {
             description="Share updates with volunteers"
             icon={<IoChatbubbleEllipsesOutline />}
             color="blue"
-            onClick={() => handleQuickAction("Manage Post", "Create Post")}
+            onClick={() => handleQuickAction("manage-post", "create-post")}
           />
           <QuickActionCard
             title="Create Event"
             description="Schedule a new event"
             icon={<IoCalendarOutline />}
             color="yellow"
-            onClick={() => handleQuickAction("Manage Events", "Create Event")}
+            onClick={() => handleQuickAction("manage-events", "create-event")}
           />
         </div>
       </div>

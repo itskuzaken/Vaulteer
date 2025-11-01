@@ -5,6 +5,19 @@ const nextConfig = {
     "http://192.168.68.102:3000",
     "http://192.168.68.102:3001",
   ],
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+        ],
+      },
+    ];
+  },
   // Improve WebSocket HMR connection
   webpackDevMiddleware: (config) => {
     config.watchOptions = {
@@ -12,9 +25,6 @@ const nextConfig = {
       aggregateTimeout: 300,
     };
     return config;
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
 };
 

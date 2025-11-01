@@ -1,8 +1,8 @@
+"use client";
+
 import { useEffect, useState, useRef } from "react";
-import { deleteUser, updateUser } from "../../../services/userService";
+import { useRouter } from "next/navigation";
 import { searchUsersByRoleAndName } from "../../../services/searchService";
-import VolunteerInfoModal from "../../modals/VolunteerInfoModal";
-import DeleteVolunteerModal from "../../modals/DeleteVolunteerModal";
 import UserFilter from "../../filter/UserFilter";
 import { useFilteredAndSortedUsers } from "../../../hooks/useFilters";
 import { createUserCard } from "../../card/UserCard";
@@ -135,19 +135,15 @@ function AdaptiveSearchBar({
   );
 }
 
-export default function ViewAllVolunteers() {
+export default function ViewAllVolunteers({
+  onNavigate,
+  profileBasePath = "/dashboard/admin/profile",
+}) {
+  const router = useRouter();
   const [allVolunteers, setAllVolunteers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [editingVolunteer, setEditingVolunteer] = useState(null);
-  const [editForm, setEditForm] = useState({ name: "", email: "", role: "" });
-  const [statusEdit, setStatusEdit] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [notification, setNotification] = useState({ message: "", type: "" });
-
-  // Modal state management
-  const [selectedVolunteer, setSelectedVolunteer] = useState(null);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [volunteerToDelete, setVolunteerToDelete] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   // Debounced search state
   const [searchTerm, setSearchTerm] = useState("");
@@ -182,6 +178,7 @@ export default function ViewAllVolunteers() {
   useEffect(() => {
     async function fetchData() {
       setLoading(true);
+      setLoadError(null);
       try {
         let data;
         if (debouncedTerm.trim()) {
@@ -196,174 +193,37 @@ export default function ViewAllVolunteers() {
         setAllVolunteers(data);
       } catch (error) {
         setAllVolunteers([]);
+        setLoadError(
+          error?.message || "Unable to load volunteers at this time."
+        );
       }
       setLoading(false);
     }
     fetchData();
-  }, [debouncedTerm, filters]);
+  }, [debouncedTerm, filters, refreshKey]);
 
   // Use shared filtering/sorting logic
   const filteredVolunteers = useFilteredAndSortedUsers(allVolunteers, filters);
 
-  useEffect(() => {
-    if (notification.message) {
-      const timer = setTimeout(() => {
-        setNotification({ message: "", type: "" });
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
-
-  // Open Info Modal
   const handleVolunteerCardClick = (volunteer) => {
-    setSelectedVolunteer(volunteer);
-    setEditingVolunteer(null);
-    setShowDeleteModal(false);
-    setVolunteerToDelete(null);
-  };
-
-  // Open edit mode in Info Modal
-  const handleEditClick = (volunteer) => {
-    setEditingVolunteer(volunteer);
-    setEditForm({
-      name: volunteer.name,
-      email: volunteer.email,
-      role: "volunteer",
-    });
-    setStatusEdit(
-      volunteer.status === "active" || volunteer.status === "inactive"
-        ? volunteer.status
-        : "active"
-    );
-  };
-
-  const handleEditChange = (e) => {
-    setEditForm((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
-  };
-
-  const handleEditSave = async () => {
-    setSaving(true);
-    try {
-      await updateUser(editingVolunteer.id, {
-        ...editForm,
-        status: statusEdit,
-      });
-      setAllVolunteers((prev) =>
-        prev.map((v) =>
-          v.id === editingVolunteer.id
-            ? { ...v, ...editForm, status: statusEdit }
-            : v
-        )
-      );
-      setEditingVolunteer(null);
-      setSelectedVolunteer(null);
-      setNotification({ message: "Volunteer updated.", type: "success" });
-    } catch (error) {
-      alert("Failed to update user.");
+    if (!volunteer?.id) {
+      return;
     }
-    setSaving(false);
-  };
-
-  const handleEditCancel = () => {
-    setEditingVolunteer(null);
-  };
-
-  // Delete flow: open Delete modal, close Info modal
-  const handleDeleteClick = (volunteer) => {
-    setVolunteerToDelete(volunteer);
-    setShowDeleteModal(true);
-    setSelectedVolunteer(null);
-  };
-
-  // Cancel delete: close Delete modal, reopen Info modal
-  const handleDeleteCancel = () => {
-    setShowDeleteModal(false);
-    setSelectedVolunteer(volunteerToDelete);
-    setVolunteerToDelete(null);
-  };
-
-  // Confirm delete: close both modals, delete
-  const handleDeleteConfirm = async () => {
-    if (!volunteerToDelete) return;
-    setShowDeleteModal(false);
-    setSelectedVolunteer(null);
-    try {
-      await deleteUser(volunteerToDelete.id);
-      setAllVolunteers((prev) =>
-        prev.filter((v) => v.id !== volunteerToDelete.id)
-      );
-      setNotification({
-        message: `${volunteerToDelete.name} has been deleted.`,
-        type: "success",
+    if (typeof onNavigate === "function") {
+      onNavigate("profile", null, {
+        extraParams: {
+          userId: volunteer.id,
+        },
       });
-    } catch (error) {
-      setNotification({
-        message: "Failed to delete user.",
-        type: "error",
-      });
+      return;
     }
-    setVolunteerToDelete(null);
-  };
 
-  // Close Info Modal
-  const handleCloseVolunteerModal = () => {
-    setSelectedVolunteer(null);
-    setEditingVolunteer(null);
+    const basePath = profileBasePath || "/dashboard/admin/profile";
+    router.push(`${basePath}?userId=${encodeURIComponent(volunteer.id)}`);
   };
 
   return (
     <div className="flex flex-col w-full gap-6">
-      {/* Notification */}
-      {notification.message && (
-        <div
-          className={`fixed top-6 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded shadow-lg text-white ${
-            notification.type === "success"
-              ? "bg-green-700"
-              : "bg-[var(--color-brand-primary)]"
-          }`}
-        >
-          {notification.message}
-          <button
-            className="ml-4 text-white font-bold"
-            onClick={() => setNotification({ message: "", type: "" })}
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      <DeleteVolunteerModal
-        isOpen={showDeleteModal}
-        volunteer={volunteerToDelete}
-        onCancel={handleDeleteCancel}
-        onDelete={handleDeleteConfirm}
-      />
-
-      {/* Volunteer Info/Action Modal */}
-      <VolunteerInfoModal
-        isOpen={!!selectedVolunteer}
-        volunteer={selectedVolunteer}
-        editingVolunteer={editingVolunteer}
-        editForm={editForm}
-        statusEdit={statusEdit}
-        saving={saving}
-        onEditClick={handleEditClick}
-        onEditChange={handleEditChange}
-        onStatusChange={setStatusEdit}
-        onEditSave={handleEditSave}
-        onEditCancel={handleEditCancel}
-        onDeleteClick={handleDeleteClick}
-        onClose={handleCloseVolunteerModal}
-        showDeleteModal={showDeleteModal}
-        volunteerToDelete={volunteerToDelete}
-        onDeleteCancel={handleDeleteCancel}
-        onDeleteConfirm={handleDeleteConfirm}
-      />
-
       <div className="flex-1 flex justify-center">
         <div className="w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-md p-4 md:p-6 transition-all duration-300">
           {/* Header with Responsive Search and Filters */}
@@ -412,6 +272,16 @@ export default function ViewAllVolunteers() {
           <div>
             {loading ? (
               <SkeletonList count={6} />
+            ) : loadError ? (
+              <div className="text-center text-sm md:text-base text-red-500 py-12">
+                <div className="mb-2 font-semibold">{loadError}</div>
+                <button
+                  onClick={() => setRefreshKey((prev) => prev + 1)}
+                  className="btn-outline text-xs"
+                >
+                  Retry
+                </button>
+              </div>
             ) : !filteredVolunteers.length ? (
               <div className="text-center text-sm md:text-base text-gray-500 py-12">
                 <div className="mb-2 font-semibold text-[var(--color-text-subtle)]">

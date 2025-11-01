@@ -95,6 +95,10 @@ export async function deleteUser(userId) {
   });
 }
 
+export async function getUserById(userId) {
+  return await fetchWithAuth(`${API_BASE}/users/${userId}`);
+}
+
 // Get current user info and role
 export async function getCurrentUser() {
   return await fetchWithAuth(`${API_BASE}/me`);

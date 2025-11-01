@@ -218,23 +218,35 @@ export const logActions = {
       severity: "INFO",
     }),
 
-  loginFailure: (reason, email = null) =>
-    createActivityLog({
-      type: "AUTH",
-      action: "LOGIN_FAILED",
-      description: `Login attempt failed: ${reason}`,
-      metadata: {
-        reason,
-        email,
-        loginMethod: "Google OAuth",
-        timestamp: new Date().toISOString(),
-        localTime: new Date().toLocaleString(),
-      },
-      severity: "MEDIUM",
-    }).catch((error) => {
-      // Silent fail for login failures when user is not authenticated
+  loginFailure: async (reason, email = null) => {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+
+    if (!currentUser) {
+      console.warn(
+        "Skipping failed login activity log because there is no authenticated user"
+      );
+      return;
+    }
+
+    try {
+      await createActivityLog({
+        type: "AUTH",
+        action: "LOGIN_FAILED",
+        description: `Login attempt failed: ${reason}`,
+        metadata: {
+          reason,
+          email,
+          loginMethod: "Google OAuth",
+          timestamp: new Date().toISOString(),
+          localTime: new Date().toLocaleString(),
+        },
+        severity: "MEDIUM",
+      });
+    } catch (error) {
       console.warn("Could not log failed login attempt:", error);
-    }),
+    }
+  },
 
   logout: () =>
     createActivityLog({

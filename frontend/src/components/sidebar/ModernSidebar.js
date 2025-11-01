@@ -1,27 +1,13 @@
 // @ts-nocheck
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import {
-  IoDocumentTextOutline,
-  IoChatbubbleEllipsesOutline,
-  IoPeopleOutline,
-  IoPersonOutline,
-  IoCalendarOutline,
-  IoCreateOutline,
-  IoCheckmarkDoneOutline,
-  IoArchiveOutline,
-  IoTimeOutline,
-  IoMegaphoneOutline,
-  IoEyeOutline,
-  IoCheckmarkCircleOutline,
-  IoAddCircleOutline,
   IoChevronDownOutline,
-  IoAnalyticsOutline,
-  IoGridOutline,
   IoMenuOutline,
   IoCloseOutline,
 } from "react-icons/io5";
+import { getDashboardMenu } from "../../config/dashboardNavigationConfig";
 
 export default function ModernSidebar({
   role = "admin",
@@ -31,180 +17,165 @@ export default function ModernSidebar({
   selectedSubContent,
   onContentChange,
   onSubContentChange,
-  onExpandRequest, // New prop to request sidebar expansion
-  onToggleSidebar, // New prop to toggle sidebar collapse
-  roleColors, // New prop for role-based colors
-  isMobile = false, // New prop to detect mobile mode
+  onExpandRequest,
+  onToggleSidebar,
+  roleColors,
+  isMobile = false,
 }) {
-  const [expandedMenu, setExpandedMenu] = useState(null);
+  const menuItems = useMemo(() => {
+    const rawMenu = getDashboardMenu(role) || {};
+    return Object.entries(rawMenu).reduce((acc, [key, value]) => {
+      acc[key] = {
+        ...value,
+        subSections: Array.isArray(value?.subSections) ? value.subSections : [],
+      };
+      return acc;
+    }, {});
+  }, [role]);
+  const [expandedMenus, setExpandedMenus] = useState([]);
+  const [viewportWidth, setViewportWidth] = useState(null);
+  const hasHydratedExpandedState = useRef(false);
+  const storageKey = useMemo(() => `modern-sidebar-expanded:${role}`, [role]);
 
-  // Auto-expand menu when a sub-content is selected
   useEffect(() => {
-    if (selectedSubContent) {
-      const menuItems = getMenuItems();
-      // Find which menu contains this sub-content
-      for (const [menuKey, menu] of Object.entries(menuItems)) {
-        if (menu.subSections.includes(selectedSubContent)) {
-          setExpandedMenu(menuKey);
-          break;
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const updateWidth = () => {
+      setViewportWidth(window.innerWidth);
+    };
+
+    updateWidth();
+    window.addEventListener("resize", updateWidth);
+    return () => window.removeEventListener("resize", updateWidth);
+  }, []);
+
+  const isTouchLayout =
+    isMobile || (viewportWidth !== null && viewportWidth < 1024);
+  const showCloseIcon = isTouchLayout && !collapsed;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const saved = window.localStorage.getItem(storageKey);
+    if (!saved) {
+      hasHydratedExpandedState.current = true;
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        hasHydratedExpandedState.current = true;
+        setExpandedMenus(parsed.filter((key) => Boolean(menuItems[key])));
+      }
+    } catch (error) {
+      console.warn("Failed to parse sidebar expanded state", error);
+      window.localStorage.removeItem(storageKey);
+      hasHydratedExpandedState.current = true;
+    }
+  }, [menuItems, storageKey]);
+
+  useEffect(() => {
+    setExpandedMenus((current) => {
+      const next = new Set(current);
+
+      if (selectedSubContent) {
+        for (const [menuKey, menu] of Object.entries(menuItems)) {
+          if (menu.subSections.some((sub) => sub.key === selectedSubContent)) {
+            next.add(menuKey);
+          }
         }
       }
+
+      if (selectedContent && menuItems[selectedContent]?.subSections.length) {
+        next.add(selectedContent);
+      }
+
+      // Clean up stale menu keys when role changes
+      for (const key of Array.from(next)) {
+        if (!menuItems[key]) {
+          next.delete(key);
+        }
+      }
+
+      return Array.from(next);
+    });
+  }, [menuItems, selectedContent, selectedSubContent]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
     }
-  }, [selectedSubContent, role]);
 
-  // Define menu structure based on role
-  const getMenuItems = () => {
-    if (role === "admin") {
-      return {
-        Dashboard: {
-          icon: <IoGridOutline className="w-5 h-5" />,
-          subSections: [],
-        },
-        "HTS Form": {
-          icon: <IoDocumentTextOutline className="w-5 h-5" />,
-          subSections: ["Form Submission"],
-        },
-        "Manage Post": {
-          icon: <IoChatbubbleEllipsesOutline className="w-5 h-5" />,
-          subSections: [
-            "Create Post",
-            "Published Posts",
-            "Archived Posts",
-            "Scheduled Posts",
-            "Create Announcement",
-          ],
-        },
-        "Manage Volunteer": {
-          icon: <IoPeopleOutline className="w-5 h-5" />,
-          subSections: ["View All Volunteers", "Application Approval"],
-        },
-        "Manage Staff": {
-          icon: <IoPersonOutline className="w-5 h-5" />,
-          subSections: ["View All Staff"],
-        },
-        "Manage Events": {
-          icon: <IoCalendarOutline className="w-5 h-5" />,
-          subSections: ["Create Event", "Published Events", "Archived Events"],
-        },
-        "Activity Logs": {
-          icon: <IoAnalyticsOutline className="w-5 h-5" />,
-          subSections: [],
-        },
-      };
-    } else if (role === "staff") {
-      return {
-        Dashboard: {
-          icon: <IoGridOutline className="w-5 h-5" />,
-          subSections: [],
-        },
-        "HTS Form": {
-          icon: <IoDocumentTextOutline className="w-5 h-5" />,
-          subSections: ["Form Submission"],
-        },
-        "Manage Post": {
-          icon: <IoChatbubbleEllipsesOutline className="w-5 h-5" />,
-          subSections: [
-            "Create Post",
-            "Published Posts",
-            "Archived Posts",
-            "Scheduled Posts",
-            "Create Announcement",
-          ],
-        },
-        "Manage Volunteer": {
-          icon: <IoPeopleOutline className="w-5 h-5" />,
-          subSections: ["View All Volunteers", "Application Approval"],
-        },
-        "Manage Events": {
-          icon: <IoCalendarOutline className="w-5 h-5" />,
-          subSections: ["Create Event", "Published Events", "Archived Events"],
-        },
-        "My Activity": {
-          icon: <IoAnalyticsOutline className="w-5 h-5" />,
-          subSections: [],
-        },
-      };
-    } else {
-      // volunteer
-      return {
-        Dashboard: {
-          icon: <IoGridOutline className="w-5 h-5" />,
-          subSections: [],
-        },
-        Forms: {
-          icon: <IoDocumentTextOutline className="w-5 h-5" />,
-          subSections: ["Submit Form", "View Submitted"],
-        },
-        "My Activity": {
-          icon: <IoAnalyticsOutline className="w-5 h-5" />,
-          subSections: [],
-        },
-      };
+    if (!hasHydratedExpandedState.current) {
+      return;
     }
-  };
 
-  const menuItems = getMenuItems();
-
-  const subSectionIcons = {
-    "Form Submission": <IoDocumentTextOutline className="w-5 h-5" />,
-    "Submit Form": <IoCreateOutline className="w-5 h-5" />,
-    "View Submitted": <IoEyeOutline className="w-5 h-5" />,
-    "Create Post": <IoCreateOutline className="w-5 h-5" />,
-    "Published Posts": <IoCheckmarkDoneOutline className="w-5 h-5" />,
-    "Archived Posts": <IoArchiveOutline className="w-5 h-5" />,
-    "Scheduled Posts": <IoTimeOutline className="w-5 h-5" />,
-    "Create Announcement": <IoMegaphoneOutline className="w-5 h-5" />,
-    "View All Volunteers": <IoEyeOutline className="w-5 h-5" />,
-    "Application Approval": <IoCheckmarkCircleOutline className="w-5 h-5" />,
-    "View All Staff": <IoPeopleOutline className="w-5 h-5" />,
-    "Create Event": <IoAddCircleOutline className="w-5 h-5" />,
-    "Published Events": <IoCheckmarkDoneOutline className="w-5 h-5" />,
-    "Archived Events": <IoArchiveOutline className="w-5 h-5" />,
-  };
+    window.localStorage.setItem(storageKey, JSON.stringify(expandedMenus));
+  }, [expandedMenus, storageKey]);
 
   const handleMenuClick = (menuKey) => {
     const menu = menuItems[menuKey];
+    if (!menu) {
+      return;
+    }
 
-    // Auto-expand sidebar if collapsed when clicking an icon
     if (collapsed && onExpandRequest) {
       onExpandRequest();
     }
 
-    if (menu.subSections.length === 0) {
-      // No subsections, navigate directly
-      onContentChange(menuKey);
-      onSubContentChange && onSubContentChange(null);
-      onNavigate && onNavigate();
-      setExpandedMenu(null);
-    } else {
-      // Has subsections, toggle expand
-      const isCurrentlyExpanded = expandedMenu === menuKey;
-      setExpandedMenu(isCurrentlyExpanded ? null : menuKey);
-
-      // Also set this as the selected content when expanding
-      if (!isCurrentlyExpanded) {
-        onContentChange(menuKey);
+    if (!menu.subSections.length) {
+      onContentChange?.(menuKey);
+      onSubContentChange?.(null);
+      onNavigate?.(menuKey, null);
+      if (isTouchLayout) {
+        onToggleSidebar?.();
       }
+      return;
     }
+
+    setExpandedMenus((current) => {
+      const next = new Set(current);
+      if (next.has(menuKey)) {
+        next.delete(menuKey);
+      } else {
+        next.add(menuKey);
+      }
+      return Array.from(next);
+    });
+    onContentChange?.(menuKey);
+
+    // Parent navigation is intentionally suppressed when toggling dropdowns.
   };
 
-  const handleSubMenuClick = (subMenu) => {
-    // Auto-expand sidebar if collapsed when clicking a submenu
+  const handleSubMenuClick = (menuKey, subKey) => {
     if (collapsed && onExpandRequest) {
       onExpandRequest();
     }
 
-    onSubContentChange && onSubContentChange(subMenu);
-    onNavigate && onNavigate();
+    onContentChange?.(menuKey);
+    onSubContentChange?.(subKey);
+    onNavigate?.(menuKey, subKey);
+    if (isTouchLayout) {
+      onToggleSidebar?.();
+    }
   };
 
   const isMenuActive = (menuKey) => {
-    return selectedContent === menuKey;
+    if (selectedContent === menuKey) {
+      return true;
+    }
+    const menu = menuItems[menuKey];
+    if (!menu) {
+      return false;
+    }
+    return menu.subSections.some((sub) => sub.key === selectedSubContent);
   };
-
-  const isSubMenuActive = (subMenu) => {
-    return selectedSubContent === subMenu;
-  };
+  const isSubMenuActive = (subKey) => selectedSubContent === subKey;
 
   return (
     <nav className="space-y-1 px-2 py-3">
@@ -222,7 +193,13 @@ export default function ModernSidebar({
           style={{
             minHeight: "3rem", // 48px in rem
           }}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={
+            showCloseIcon
+              ? "Close sidebar"
+              : collapsed
+              ? "Expand sidebar"
+              : "Collapse sidebar"
+          }
         >
           {/* Icon Container - Perfectly Centered */}
           <div
@@ -241,8 +218,8 @@ export default function ModernSidebar({
                 transform: !collapsed ? "rotate(0deg)" : "rotate(180deg)",
               }}
             >
-              {/* Show Close icon on mobile, Menu icon on desktop */}
-              {window.innerWidth < 1024 && !collapsed ? (
+              {/* Show Close icon on touch/mobile layouts when expanded */}
+              {showCloseIcon ? (
                 <IoCloseOutline className="w-6 h-6" />
               ) : (
                 <IoMenuOutline className="w-6 h-6" />
@@ -286,14 +263,16 @@ export default function ModernSidebar({
       {/* Menu Items */}
       {Object.entries(menuItems).map(([menuKey, menu]) => {
         const hasSubSections = menu.subSections.length > 0;
-        const isExpanded = expandedMenu === menuKey;
+        const isExpanded = expandedMenus.includes(menuKey);
         const isActive = isMenuActive(menuKey);
+        const MenuIcon = menu.icon;
 
         return (
           <div key={menuKey} className="mb-1">
             {/* Main Menu Item */}
             <div className="group relative">
               <button
+                type="button"
                 onClick={() => handleMenuClick(menuKey)}
                 className={`
                   w-full flex items-center rounded-lg overflow-hidden relative
@@ -308,6 +287,11 @@ export default function ModernSidebar({
                 style={{
                   minHeight: "3rem", // 48px in rem
                 }}
+                aria-expanded={hasSubSections ? isExpanded : undefined}
+                aria-controls={
+                  hasSubSections ? `${menuKey}-submenu` : undefined
+                }
+                aria-haspopup={hasSubSections ? "true" : undefined}
               >
                 {/* Active Indicator - Unified for both modes */}
                 {isActive && (
@@ -356,7 +340,7 @@ export default function ModernSidebar({
                       height: "1.5rem",
                     }}
                   >
-                    {menu.icon}
+                    {MenuIcon && <MenuIcon className="w-5 h-5" />}
                   </span>
                 </div>
 
@@ -369,7 +353,7 @@ export default function ModernSidebar({
                     }}
                   >
                     <span className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                      {menuKey}
+                      {menu.label}
                     </span>
                   </div>
                 )}
@@ -402,13 +386,13 @@ export default function ModernSidebar({
                   <div className="bg-gray-900 dark:bg-gray-700 text-white rounded-lg shadow-lg overflow-hidden">
                     {/* Main Label - Prominent at top */}
                     <div className="px-3 py-2 font-semibold text-sm whitespace-nowrap bg-gray-800 dark:bg-gray-600">
-                      {menuKey}
+                      {menu.label}
                     </div>
 
                     {/* Subsections - Below label */}
                     {hasSubSections && (
                       <div className="px-3 py-2 text-xs text-gray-300 whitespace-nowrap">
-                        {menu.subSections.join(", ")}
+                        {menu.subSections.map((sub) => sub.label).join(", ")}
                       </div>
                     )}
                   </div>
@@ -421,14 +405,21 @@ export default function ModernSidebar({
 
             {/* Subsections with staggered animation */}
             {!collapsed && hasSubSections && isExpanded && (
-              <div className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 dark:border-gray-700 pl-3 animate-in slide-in-from-top-1 fade-in duration-200">
+              <div
+                id={`${menuKey}-submenu`}
+                className="ml-4 mt-1 space-y-1 border-l-2 border-gray-200 dark:border-gray-700 pl-3 animate-in slide-in-from-top-1 fade-in duration-200"
+                role="group"
+                aria-label={`${menu.label} submenu`}
+              >
                 {menu.subSections.map((subMenu, index) => {
-                  const isSubActive = isSubMenuActive(subMenu);
+                  const isSubActive = isSubMenuActive(subMenu.key);
+                  const SubIcon = subMenu.icon;
 
                   return (
                     <button
-                      key={subMenu}
-                      onClick={() => handleSubMenuClick(subMenu)}
+                      key={subMenu.key}
+                      type="button"
+                      onClick={() => handleSubMenuClick(menuKey, subMenu.key)}
                       className="w-full flex items-center rounded-lg overflow-hidden relative transition-all duration-150 ease-in-out p-2"
                       style={{
                         animationDelay: `${index * 30}ms`,
@@ -460,7 +451,7 @@ export default function ModernSidebar({
                           transform: isSubActive ? "scale(1.05)" : "scale(1)",
                         }}
                       >
-                        {subSectionIcons[subMenu]}
+                        {SubIcon && <SubIcon className="w-5 h-5" />}
                       </span>
 
                       {/* Text */}
@@ -471,7 +462,7 @@ export default function ModernSidebar({
                             : "text-gray-600 dark:text-gray-400"
                         }`}
                       >
-                        {subMenu}
+                        {subMenu.label}
                       </span>
                     </button>
                   );

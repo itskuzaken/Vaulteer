@@ -53,7 +53,7 @@ function Header() {
       } sticky top-0 text-white flex justify-between items-center p-2 shadow-md z-50`}
     >
       {/* Left: Hamburger (mobile) + Logo */}
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2" suppressHydrationWarning>
         <button
           className="sm:hidden flex items-center justify-center p-2 rounded focus:outline-none focus:ring-2 focus:ring-[var(--primary-red)]"
           aria-label={
