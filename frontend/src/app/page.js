@@ -34,7 +34,7 @@ export default function HomePage() {
   };
 
   return (
-    <div className="w-full mx-auto font-sans bg-white">
+    <div className="w-full mx-auto font-sans bg-white" suppressHydrationWarning>
       {/* Home / Hero Section */}
       <section
         id="home"

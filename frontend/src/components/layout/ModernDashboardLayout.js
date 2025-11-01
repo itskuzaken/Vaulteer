@@ -11,6 +11,9 @@ import {
   IoPersonOutline,
 } from "react-icons/io5";
 import NotificationBell from "../notifications/NotificationBell";
+import { getComprehensiveUserProfile } from "../../services/profileService";
+import { API_BASE } from "../../config/config";
+import { getAuth } from "firebase/auth";
 
 export default function ModernDashboardLayout({
   children,
@@ -26,11 +29,49 @@ export default function ModernDashboardLayout({
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const [dbProfile, setDbProfile] = useState(null);
+  const [userId, setUserId] = useState(null);
   const userMenuRef = useRef(null);
 
   // Track mount state for responsive calculations
   useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  // Fetch user ID and profile data from database
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const auth = getAuth();
+      const firebaseUser = auth.currentUser;
+
+      if (!firebaseUser) return;
+
+      try {
+        // First get the user ID from /api/me
+        const token = await firebaseUser.getIdToken();
+        const meResponse = await fetch(`${API_BASE}/me`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (meResponse.ok) {
+          const meData = await meResponse.json();
+          const currentUserId = meData.user_id;
+          setUserId(currentUserId);
+
+          // Then fetch comprehensive profile
+          const profileData = await getComprehensiveUserProfile(currentUserId);
+          setDbProfile(profileData);
+        }
+      } catch (error) {
+        console.error("Error fetching user profile for dashboard:", error);
+        // Fallback to Firebase displayName if database fetch fails
+      }
+    };
+
+    fetchUserProfile();
   }, []);
 
   // Role-based accent colors
@@ -62,6 +103,20 @@ export default function ModernDashboardLayout({
   };
 
   const currentColors = roleColors[role.toLowerCase()] || roleColors.admin;
+
+  // Function to get full name from database profile
+  const getFullName = () => {
+    if (dbProfile?.profile) {
+      const { first_name, middle_initial, last_name } = dbProfile.profile;
+      if (first_name && last_name) {
+        return middle_initial
+          ? `${first_name} ${middle_initial}. ${last_name}`
+          : `${first_name} ${last_name}`;
+      }
+    }
+    // Fallback to database user name, then user prop displayName
+    return "Unknown User";
+  };
 
   // Close mobile sidebar and user menu on resize to desktop
   // Auto-collapse sidebar on tablet and below
@@ -147,6 +202,8 @@ export default function ModernDashboardLayout({
     };
   }, [mobileSidebarOpen]);
 
+  const originalSidebarNavigate = sidebar?.props?.onNavigate;
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Desktop Sidebar */}
@@ -161,12 +218,13 @@ export default function ModernDashboardLayout({
         }}
       >
         {/* Sidebar Content */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
           {React.cloneElement(sidebar, {
             collapsed: !sidebarOpen,
             onExpandRequest: handleExpandRequest,
             onToggleSidebar: () => setSidebarOpen(!sidebarOpen),
             roleColors: currentColors,
+            isMobile: false,
           })}
         </div>
       </aside>
@@ -183,10 +241,14 @@ export default function ModernDashboardLayout({
           {/* Sidebar */}
           <aside className="absolute inset-y-0 left-0 w-72 bg-white dark:bg-gray-800 shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
             {/* Mobile Sidebar Content */}
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto no-scrollbar">
               {React.cloneElement(sidebar, {
                 collapsed: false,
-                onNavigate: () => setMobileSidebarOpen(false),
+                isMobile: true,
+                onNavigate: (...args) => {
+                  originalSidebarNavigate?.(...args);
+                  setMobileSidebarOpen(false);
+                },
                 onExpandRequest: handleMobileExpandRequest,
                 onToggleSidebar: () => setMobileSidebarOpen(false),
                 roleColors: currentColors,
@@ -252,7 +314,7 @@ export default function ModernDashboardLayout({
                   >
                     <div className="hidden md:block text-right">
                       <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                        {user.displayName || "User"}
+                        {getFullName()}
                       </p>
                       <p
                         className={`text-xs ${currentColors.text} capitalize font-medium`}
@@ -263,7 +325,7 @@ export default function ModernDashboardLayout({
                     {user.photoURL ? (
                       <img
                         src={user.photoURL}
-                        alt={user.displayName || "User"}
+                        alt={getFullName()}
                         className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 ${currentColors.border} object-cover transition-transform duration-200`}
                         onError={(e) => {
                           e.target.onerror = null;
@@ -280,7 +342,7 @@ export default function ModernDashboardLayout({
                             : ""
                         }`}
                       >
-                        {(user.displayName || "U").charAt(0).toUpperCase()}
+                        {getFullName().charAt(0).toUpperCase()}
                       </div>
                     )}
                   </button>
@@ -291,7 +353,7 @@ export default function ModernDashboardLayout({
                       {/* User Info in Dropdown (Mobile) */}
                       <div className="md:hidden px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-800">
                         <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-                          {user.displayName || "User"}
+                          {getFullName()}
                         </p>
                         <p
                           className={`text-xs ${currentColors.text} capitalize font-medium`}

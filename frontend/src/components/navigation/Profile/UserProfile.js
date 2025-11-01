@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { getAuth } from "firebase/auth";
 import {
   getCurrentUserId,
@@ -21,6 +22,8 @@ import {
   isValidPhone,
 } from "../../UserProfile/ProfileUtils";
 import { logActions } from "../../../services/activityLogService";
+import { updateUser as updateUserAPI } from "../../../services/userService";
+import { useDashboardUser } from "../../../hooks/useDashboardUser";
 
 import ProfileHeader from "../../UserProfile/ProfileHeader";
 import PersonalDetails from "../../UserProfile/PersonalDetails";
@@ -31,8 +34,42 @@ import AvailableDays from "../../UserProfile/AvailableDays";
 import ActivitySummary from "../../UserProfile/ActivitySummary";
 import Achievements from "../../UserProfile/Achievements";
 
+const dedupeByKey = (items, key) => {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  return Array.from(
+    new Map(
+      items.map((item, index) => {
+        const dedupeKey =
+          item && Object.prototype.hasOwnProperty.call(item, key)
+            ? item[key]
+            : `__${index}`;
+        return [dedupeKey, item];
+      })
+    ).values()
+  );
+};
+
+const normalizeComprehensiveData = (data) => {
+  if (!data) {
+    return null;
+  }
+
+  const normalized = { ...data };
+  normalized.trainings = dedupeByKey(normalized.trainings, "training_id");
+  normalized.availableDays = dedupeByKey(normalized.availableDays, "day_id");
+  normalized.workingDays = dedupeByKey(normalized.workingDays, "day_id");
+  normalized.schoolDays = dedupeByKey(normalized.schoolDays, "day_id");
+  return normalized;
+};
+
 export default function UserProfile() {
+  const searchParams = useSearchParams();
+
   const [user, setUser] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [userId, setUserId] = useState(null);
   const [comprehensiveData, setComprehensiveData] = useState(null);
   const [activitySummary, setActivitySummary] = useState(null);
@@ -44,6 +81,7 @@ export default function UserProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [statusUpdating, setStatusUpdating] = useState(false);
 
   // Edited data for each section
   const [editedPersonalProfile, setEditedPersonalProfile] = useState({});
@@ -57,6 +95,39 @@ export default function UserProfile() {
   // Original data for cancel functionality
   const [originalData, setOriginalData] = useState(null);
 
+  const latestRequestRef = useRef(0);
+  const lastLoadedUserIdRef = useRef(null);
+
+  const resetEditingState = useCallback(() => {
+    setIsEditing(false);
+    setSaving(false);
+    setEditedPersonalProfile({});
+    setEditedWorkProfile({});
+    setEditedStudentProfile({});
+    setEditedTrainings([]);
+    setEditedAvailableDays([]);
+    setEditedWorkingDays([]);
+    setEditedSchoolDays([]);
+  }, []);
+
+  const requestedUserIdParam = searchParams.get("userId");
+  const normalizedRequestedUserId = requestedUserIdParam?.trim() || null;
+
+  const { user: dashboardUser } = useDashboardUser();
+
+  useEffect(() => {
+    if (dashboardUser?.user_id) {
+      setCurrentUserId(String(dashboardUser.user_id));
+    }
+    if (dashboardUser?.email && !user) {
+      const auth = getAuth();
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        setUser(currentUser);
+      }
+    }
+  }, [dashboardUser, user]);
+
   useEffect(() => {
     const auth = getAuth();
     const currentUser = auth.currentUser;
@@ -68,72 +139,154 @@ export default function UserProfile() {
     }
 
     setUser(currentUser);
-    initializeProfile();
-  }, []);
 
-  const initializeProfile = async () => {
-    try {
-      setLoading(true);
+    let isActive = true;
+
+    const resolveCurrentUserId = async () => {
+      try {
+        const id = await getCurrentUserId();
+        if (isActive) {
+          setCurrentUserId(String(id));
+        }
+      } catch (err) {
+        console.error("Error resolving current user ID:", err);
+        if (isActive) {
+          setCurrentUserId(null);
+          if (!normalizedRequestedUserId) {
+            setError(err?.message || "Unable to determine current user");
+            setLoading(false);
+          }
+        }
+      }
+    };
+
+    resolveCurrentUserId();
+
+    return () => {
+      isActive = false;
+      latestRequestRef.current = 0;
+    };
+  }, [normalizedRequestedUserId]);
+
+  const reloadProfileData = useCallback(
+    async (id, options = {}) => {
+      if (!user) {
+        return false;
+      }
+
+      const normalizedId = String(id || "").trim();
+      if (!normalizedId) {
+        return false;
+      }
+
+      const { showLoader = true, clearExisting = showLoader } = options;
+      const requestId = Date.now();
+      latestRequestRef.current = requestId;
+      lastLoadedUserIdRef.current = normalizedId;
+
+      if (showLoader) {
+        setLoading(true);
+      }
+
       setError(null);
+      setSuccess(null);
+      resetEditingState();
+      setUserId(normalizedId);
 
-      const id = await getCurrentUserId();
-      setUserId(id);
+      if (clearExisting) {
+        setComprehensiveData(null);
+        setActivitySummary(null);
+        setOriginalData(null);
+        setProfileCompletion(0);
+      }
 
-      await Promise.all([
-        loadComprehensiveProfile(id),
-        loadActivitySummary(id),
-      ]);
-    } catch (err) {
-      setError(err.message);
-      console.error("Error initializing profile:", err);
-    } finally {
-      setLoading(false);
+      try {
+        const [profileResponse, summaryResponse] = await Promise.all([
+          fetchComprehensiveProfile(normalizedId),
+          fetchActivitySummary(normalizedId),
+        ]);
+
+        if (latestRequestRef.current !== requestId) {
+          return false;
+        }
+
+        const normalizedProfile = normalizeComprehensiveData(profileResponse);
+
+        setComprehensiveData(normalizedProfile);
+        setOriginalData(deepClone(normalizedProfile));
+        setActivitySummary(summaryResponse);
+
+        if (normalizedProfile?.profile) {
+          const completion = calculateProfileCompletion(
+            normalizedProfile.profile
+          );
+          setProfileCompletion(completion);
+        } else {
+          setProfileCompletion(0);
+        }
+
+        return true;
+      } catch (err) {
+        if (latestRequestRef.current !== requestId) {
+          return false;
+        }
+
+        console.error("Error loading profile:", err);
+        lastLoadedUserIdRef.current = null;
+        setError(err?.message || "Failed to load profile");
+        return false;
+      } finally {
+        if (showLoader && latestRequestRef.current === requestId) {
+          setLoading(false);
+        }
+      }
+    },
+    [resetEditingState, user]
+  );
+
+  const targetUserId = normalizedRequestedUserId || currentUserId;
+
+  useEffect(() => {
+    if (!user) {
+      return;
     }
-  };
 
-  const loadComprehensiveProfile = async (id) => {
-    const data = await fetchComprehensiveProfile(id);
-
-    // Deduplicate arrays to prevent duplicate entries
-    if (data.trainings) {
-      data.trainings = Array.from(
-        new Map(data.trainings.map((item) => [item.training_id, item])).values()
-      );
-    }
-    if (data.availableDays) {
-      data.availableDays = Array.from(
-        new Map(data.availableDays.map((item) => [item.day_id, item])).values()
-      );
-    }
-    if (data.workingDays) {
-      data.workingDays = Array.from(
-        new Map(data.workingDays.map((item) => [item.day_id, item])).values()
-      );
-    }
-    if (data.schoolDays) {
-      data.schoolDays = Array.from(
-        new Map(data.schoolDays.map((item) => [item.day_id, item])).values()
-      );
+    if (!targetUserId) {
+      return;
     }
 
-    setComprehensiveData(data);
-
-    // Calculate profile completion
-    if (data.profile) {
-      const completion = calculateProfileCompletion(data.profile);
-      setProfileCompletion(completion);
+    if (String(targetUserId) === lastLoadedUserIdRef.current) {
+      return;
     }
 
-    // Store original data for cancel functionality
-    setOriginalData(deepClone(data));
-  };
+    reloadProfileData(targetUserId, { showLoader: true });
+  }, [user, targetUserId, reloadProfileData]);
 
-  const loadActivitySummary = async (id) => {
-    const summary = await fetchActivitySummary(id);
-    setActivitySummary(summary);
-  };
+  const currentUserRole = dashboardUser?.role || null;
+
+  const canEditProfile = useMemo(() => {
+    if (!userId) {
+      return false;
+    }
+    if (currentUserRole === "admin") {
+      return true;
+    }
+    if (!currentUserId) {
+      return false;
+    }
+    return String(currentUserId) === String(userId);
+  }, [currentUserId, currentUserRole, userId]);
+
+  const canManageStatus = useMemo(
+    () => currentUserRole === "admin",
+    [currentUserRole]
+  );
 
   const handleEditClick = () => {
+    if (!canEditProfile || !comprehensiveData) {
+      return;
+    }
+
     // Initialize edit data with current values
     setEditedPersonalProfile(deepClone(comprehensiveData.profile || {}));
     setEditedWorkProfile(deepClone(comprehensiveData.workProfile || {}));
@@ -163,20 +316,17 @@ export default function UserProfile() {
     setComprehensiveData(deepClone(originalData));
 
     // Reset edited data
-    setEditedPersonalProfile({});
-    setEditedWorkProfile({});
-    setEditedStudentProfile({});
-    setEditedTrainings([]);
-    setEditedAvailableDays([]);
-    setEditedWorkingDays([]);
-    setEditedSchoolDays([]);
-
-    setIsEditing(false);
+    resetEditingState();
     setError(null);
     setSuccess(null);
   };
 
   const handleSaveClick = async () => {
+    if (!canEditProfile) {
+      setError("You do not have permission to edit this profile.");
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
@@ -263,7 +413,10 @@ export default function UserProfile() {
       }
 
       // Reload profile data
-      await loadComprehensiveProfile(userId);
+      await reloadProfileData(userId, {
+        showLoader: false,
+        clearExisting: false,
+      });
 
       setIsEditing(false);
       setSuccess("Profile updated successfully!");
@@ -275,6 +428,38 @@ export default function UserProfile() {
       console.error("Error saving profile:", err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleStatusChange = async (nextStatus) => {
+    if (!canManageStatus || !isEditing || !userId) {
+      return;
+    }
+
+    const targetStatus = (nextStatus || "").trim().toLowerCase();
+    if (!targetStatus || !["active", "inactive"].includes(targetStatus)) {
+      return;
+    }
+
+    if (comprehensiveData?.user?.status === targetStatus) {
+      return;
+    }
+
+    try {
+      setStatusUpdating(true);
+      setError(null);
+      await updateUserAPI(userId, { status: targetStatus });
+      await reloadProfileData(userId, {
+        showLoader: false,
+        clearExisting: false,
+      });
+      setSuccess("Status updated successfully!");
+      setTimeout(() => setSuccess(null), 5000);
+    } catch (err) {
+      console.error("Failed to update status:", err);
+      setError(err?.message || "Failed to update status");
+    } finally {
+      setStatusUpdating(false);
     }
   };
 
@@ -313,7 +498,15 @@ export default function UserProfile() {
           </p>
           <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <button
-            onClick={initializeProfile}
+            onClick={() => {
+              const fallbackId =
+                normalizedRequestedUserId || userId || currentUserId;
+              if (fallbackId) {
+                reloadProfileData(fallbackId, { showLoader: true });
+              } else {
+                setError("Unable to retry without a user identifier.");
+              }
+            }}
             className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
           >
             Try Again
@@ -376,6 +569,10 @@ export default function UserProfile() {
         onSaveClick={handleSaveClick}
         onCancelClick={handleCancelEdit}
         saving={saving}
+        canEdit={canEditProfile}
+        canManageStatus={canManageStatus}
+        onStatusChange={handleStatusChange}
+        statusUpdating={statusUpdating}
       />
 
       {/* Personal Details */}

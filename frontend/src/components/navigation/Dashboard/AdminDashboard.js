@@ -16,9 +16,9 @@ import { API_BASE } from "../../../config/config";
 export default function AdminDashboard({ onNavigate }) {
   const [showWelcome, setShowWelcome] = useState(true);
 
-  const handleQuickAction = (content, subContent = null) => {
+  const handleQuickAction = (contentKey, subContentKey = null) => {
     if (onNavigate) {
-      onNavigate(content, subContent);
+      onNavigate(contentKey, subContentKey);
     }
   };
 
@@ -148,21 +148,21 @@ export default function AdminDashboard({ onNavigate }) {
             description="Share updates with your team"
             icon={<IoChatbubbleEllipsesOutline />}
             color="blue"
-            onClick={() => handleQuickAction("Manage Post", "Create Post")}
+            onClick={() => handleQuickAction("manage-post", "create-post")}
           />
           <QuickActionCard
             title="Create Event"
             description="Schedule a new event"
             icon={<IoAddCircleOutline />}
             color="green"
-            onClick={() => handleQuickAction("Manage Events", "Create Event")}
+            onClick={() => handleQuickAction("manage-events", "create-event")}
           />
           <QuickActionCard
             title="Review Forms"
             description="Check submitted forms"
             icon={<IoDocumentTextOutline />}
             color="yellow"
-            onClick={() => handleQuickAction("HTS Form", "Form Submission")}
+            onClick={() => handleQuickAction("hts-form", "form-submission")}
           />
         </div>
       </div>

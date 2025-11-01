@@ -18,7 +18,11 @@ const CONFIG = {
   DB_PASS: req("DB_PASS", ""),
   DB_NAME: req("DB_NAME", "vaulteer_db"),
   DB_CONN_LIMIT: parseInt(req("DB_CONN_LIMIT", "10"), 10),
-  FRONTEND_URL: req("FRONTEND_URL", "http://localhost:3000"),
+  FRONTEND_URL: req(
+    "FRONTEND_URL",
+    "http://localhost:3000",
+    "http://192.168.68.102:3000"
+  ),
 };
 
 module.exports = { CONFIG };
