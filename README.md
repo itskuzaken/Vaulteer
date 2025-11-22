@@ -5,11 +5,13 @@ A full-stack web application for managing volunteers, staff, and applicants with
 ## Features
 
 - **Role-based Authentication**: Admin, Staff, Volunteer, and Applicant roles
-- **Dashboard Management**: Separate dashboards for different user roles
+- **Dashboard Management**: Separate dashboards for different user roles with consistent UI design
 - **User Management**: CRUD operations for users, applicants, and staff
-- **Search & Filtering**: Advanced search and filter capabilities
-- **Activity Logging**: Track user activities and system events
-- **Notifications**: Real-time notifications system
+- **Event Management**: Create, publish, archive, and manage events with streamlined UI
+- **Gamification System**: Points, badges, streaks, and leaderboards to encourage engagement
+- **Search & Filtering**: Advanced search and filter capabilities across users and events
+- **Activity Logging**: Comprehensive audit trails for all system activities
+- **Notifications**: Real-time notifications system with inbox and toast messages
 - **Firebase Authentication**: Secure authentication with Google OAuth
 - **MySQL Database**: Relational database for data persistence
 
@@ -36,7 +38,40 @@ A full-stack web application for managing volunteers, staff, and applicants with
 - **MySQL** - Primary database
 - **AWS RDS** - Cloud database hosting
 
-### DevOps & Deployment
+### Additional Libraries
+
+- **date-fns** - Date formatting and manipulation
+- **react-icons** - Icon components
+- **react-hot-toast** - Toast notifications
+- **react-datepicker** - Date picker components
+
+## Gamification System
+
+Vaulteer includes a comprehensive gamification system to encourage volunteer participation:
+
+### Features
+
+- **Points System**: Earn points for various activities (event registration +10, attendance +40, hosting +25)
+- **Badge System**: Unlock badges based on achievements (First Steps, Community Pillar, Weeklong Warrior)
+- **Streaks**: Maintain weekly attendance streaks for bonus points
+- **Leaderboards**: View top contributors and rankings
+- **Real-time Updates**: Points and badges awarded instantly with notifications
+
+### Reward Rules
+
+- **Event Registration**: +10 points (waitlist +5)
+- **Event Attendance**: +40 points
+- **Event Hosting**: +25 points for published events
+- **Late Cancellation**: -5 points penalty
+- **Waitlist Promotion**: +8 points
+- **Weekly Streaks**: +5 points per consecutive day
+- **Badge Bonuses**: Additional points for unlocking achievements
+
+### API Endpoints
+
+- `GET /api/gamification/summary` - User gamification stats
+- `GET /api/gamification/leaderboard` - Top contributors
+- `POST /api/gamification/recalculate` - Admin recalculation (admin only)
 
 - **AWS** - Cloud platform
 - **Elastic Beanstalk** - Backend deployment
@@ -315,6 +350,23 @@ node run-migration.js
 - `GET /api/logs` - Get activity logs
 - `POST /api/logs` - Create activity log
 
+### Gamification
+
+- `GET /api/gamification/summary` - Get user gamification stats
+- `GET /api/gamification/leaderboard` - Get leaderboard rankings
+- `POST /api/gamification/recalculate` - Recalculate user stats (admin only)
+
+### Events
+
+- `GET /api/events` - List events with filtering and pagination
+- `POST /api/events` - Create new event
+- `PUT /api/events/:id` - Update event
+- `DELETE /api/events/:id` - Delete event
+- `POST /api/events/:id/publish` - Publish event
+- `POST /api/events/:id/archive` - Archive event
+- `POST /api/events/:id/join` - Join event
+- `POST /api/events/:id/leave` - Leave event
+
 ## Security Considerations
 
 1. **Environment Variables**: Never commit sensitive data to version control
@@ -363,13 +415,25 @@ node run-migration.js
    - Check Node.js version compatibility
    - Verify all dependencies are installed
 
-## Contributing
+## Recent Updates
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Run tests and linting
-5. Submit a pull request
+### v1.1.0 - Dashboard UI Consistency & Gamification (November 2025)
+
+- **UI Improvements**: Refactored ManageEvents component to match consistent design patterns across ViewAllStaff, ViewAllVolunteers, and ApplicationApproval dashboards
+- **Event Management**: Enhanced event cards with hover effects, capacity indicators, and improved pagination
+- **Gamification System**: 
+  - Backend implementation complete with points, badges, and streaks
+  - Database schema updated with gamification tables
+  - Centralized activity logging for all gamification events
+- **Activity Logging**: Refactored to use standardized logging helpers for consistent audit trails
+- **Performance**: Optimized event list rendering and pagination
+
+### v1.0.0 - Initial Release
+
+- Complete volunteer management system with role-based dashboards
+- Firebase authentication integration
+- MySQL database with AWS RDS deployment
+- Full CRUD operations for users, events, and applicants
 
 ## License
 
