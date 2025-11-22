@@ -56,6 +56,15 @@ function StaffViewAllVolunteers(props) {
   );
 }
 
+function StaffApplicationApproval(props) {
+  return (
+    <ApplicationApproval
+      profileBasePath="/dashboard/staff/profile"
+      {...props}
+    />
+  );
+}
+
 const staffSubRoutes = {
   "form-submission": {
     key: "form-submission",
@@ -111,7 +120,8 @@ const staffSubRoutes = {
     key: "application-approval",
     label: "Application Approval",
     parent: "manage-volunteer",
-    component: ApplicationApproval,
+    component: StaffApplicationApproval,
+    withNavigate: true,
   },
   "general-settings": {
     key: "general-settings",

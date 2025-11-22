@@ -12,6 +12,7 @@ export default function ApplicantAdminControls({
   applicantId,
   currentStatus,
   onStatusChange,
+  currentUserRole = "staff", // Default to staff, will be passed from parent
 }) {
   const [statuses, setStatuses] = useState([]);
   const [history, setHistory] = useState([]);
@@ -32,9 +33,10 @@ export default function ApplicantAdminControls({
     "rejected", // Can only reach after interview or any stage
   ];
 
-  // Get allowed next statuses based on current status
+  // Get allowed next statuses based on current status and user role
   const getAllowedNextStatuses = (current) => {
     const normalized = (current || "").toLowerCase();
+    const isAdmin = currentUserRole?.toLowerCase() === "admin";
 
     switch (normalized) {
       case "pending":
@@ -42,7 +44,8 @@ export default function ApplicantAdminControls({
       case "under_review":
         return ["interview_scheduled", "rejected"];
       case "interview_scheduled":
-        return ["approved", "rejected"]; // Only after interview can approve
+        // Only admin can approve/reject from interview stage
+        return isAdmin ? ["approved", "rejected"] : [];
       case "approved":
         return []; // Final state, no changes allowed
       case "rejected":

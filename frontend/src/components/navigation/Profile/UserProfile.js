@@ -335,7 +335,7 @@ export default function UserProfile() {
     isViewingSelf && targetUserStatus !== "deactivated";
 
   const canManageStatus = useMemo(
-    () => currentUserRole === "admin",
+    () => ["admin", "staff"].includes(currentUserRole),
     [currentUserRole]
   );
 
@@ -911,6 +911,7 @@ export default function UserProfile() {
         <ApplicantAdminControls
           applicantId={profileUserUid}
           currentStatus={comprehensiveData.user.application_status}
+          currentUserRole={currentUserRole}
           onStatusChange={handleApplicantStatusChange}
         />
       )}
