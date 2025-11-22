@@ -49,6 +49,7 @@ vaulteer.sql
 vaulteer-structure.txt
 vaulteer_db.sql
 backend/schema.sql
+backend/firebase-service-account.json
 
 # project documents (ignored)
 /document/
