@@ -410,7 +410,7 @@ export default function VolunteerSignupPage() {
               Data Privacy Notice
             </h2>
             <div
-              className="bg-red-50 border border-red-200 rounded p-4 mb-4 text-gray-700 text-sm"
+              className="bg-red-50 border border-red-200 rounded p-4 mb-4 text-gray-800 text-sm"
               dangerouslySetInnerHTML={{
                 __html: `
                 Bagani Community Center, as a registered community-based and Non-Government Organization (NGO) in Negros Island Region (NIR), aims to continuously recruit and train volunteers who will whole-heartedly devote their precious time and effort in community-building.<br>
@@ -459,12 +459,12 @@ export default function VolunteerSignupPage() {
                  `,
               }}
             />
-            <div className="mb-2 font-semibold">
+            <div className="mb-2 font-semibold text-gray-900">
               Do you agree and give consent to Bagani Community Center to
               gather, store, and process your Personal Data?
             </div>
             <div className="flex flex-col gap-2">
-              <label className="inline-flex items-center">
+              <label className="inline-flex items-center text-gray-800 cursor-pointer">
                 <input
                   type="radio"
                   name="consent"
@@ -476,7 +476,7 @@ export default function VolunteerSignupPage() {
                 />
                 I Agree
               </label>
-              <label className="inline-flex items-center">
+              <label className="inline-flex items-center text-gray-800 cursor-pointer">
                 <input
                   type="radio"
                   name="consent"
@@ -521,7 +521,7 @@ export default function VolunteerSignupPage() {
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Last Name <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -529,7 +529,7 @@ export default function VolunteerSignupPage() {
                   name="lastName"
                   value={form.lastName}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.lastName ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -538,7 +538,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   First Name <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -546,7 +546,7 @@ export default function VolunteerSignupPage() {
                   name="firstName"
                   value={form.firstName}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.firstName ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -555,7 +555,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Middle Initial
                 </label>
                 <input
@@ -563,12 +563,12 @@ export default function VolunteerSignupPage() {
                   name="middleInitial"
                   value={form.middleInitial}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
                   maxLength={1}
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Nickname / Alias <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -576,7 +576,7 @@ export default function VolunteerSignupPage() {
                   name="nickname"
                   value={form.nickname}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.nickname ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -585,7 +585,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Birthdate <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -593,7 +593,7 @@ export default function VolunteerSignupPage() {
                   name="birthdate"
                   value={form.birthdate}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.birthdate ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -602,11 +602,11 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Gender Identity <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="gender"
@@ -617,7 +617,7 @@ export default function VolunteerSignupPage() {
                     />
                     Male
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="gender"
@@ -628,7 +628,7 @@ export default function VolunteerSignupPage() {
                     />
                     Female
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="gender"
@@ -639,7 +639,7 @@ export default function VolunteerSignupPage() {
                     />
                     Prefer not to say
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="gender"
@@ -656,7 +656,7 @@ export default function VolunteerSignupPage() {
                         value={form.genderOther}
                         onChange={handleChange}
                         placeholder="Please specify"
-                        className={`ml-2 border rounded px-2 py-1 ${
+                        className={`ml-2 border rounded px-2 py-1 text-gray-900 ${
                           errors.genderOther
                             ? "border-red-500"
                             : "border-gray-300"
@@ -711,7 +711,7 @@ export default function VolunteerSignupPage() {
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Mobile Number <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -719,7 +719,7 @@ export default function VolunteerSignupPage() {
                   name="mobileNumber"
                   value={form.mobileNumber}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.mobileNumber ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="09XXXXXXXXX"
@@ -730,7 +730,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Current City/Municipality of Residence{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -739,7 +739,7 @@ export default function VolunteerSignupPage() {
                   name="city"
                   value={form.city}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.city ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="e.g. Bacolod City"
@@ -750,7 +750,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Social Media Account: Facebook
                 </label>
                 <input
@@ -758,13 +758,13 @@ export default function VolunteerSignupPage() {
                   name="facebook"
                   value={form.facebook}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
                   placeholder="https://facebook.com/yourprofile"
                   pattern="https?://.+"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Social Media Account: Twitter
                 </label>
                 <input
@@ -772,13 +772,13 @@ export default function VolunteerSignupPage() {
                   name="twitter"
                   value={form.twitter}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
                   placeholder="https://twitter.com/yourprofile"
                   pattern="https?://.+"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Social Media Account: Instagram
                 </label>
                 <input
@@ -786,13 +786,13 @@ export default function VolunteerSignupPage() {
                   name="instagram"
                   value={form.instagram}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
                   placeholder="https://instagram.com/yourprofile"
                   pattern="https?://.+"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Social Media Account: Tiktok
                 </label>
                 <input
@@ -800,7 +800,7 @@ export default function VolunteerSignupPage() {
                   name="tiktok"
                   value={form.tiktok}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
                   placeholder="https://tiktok.com/@yourprofile"
                   pattern="https?://.+"
                 />
@@ -842,16 +842,16 @@ export default function VolunteerSignupPage() {
             <h2 className="text-xl font-bold text-red-700 mb-2">
               Student/Employment Profile
             </h2>
-            <p className="mb-4 text-gray-700">
+            <p className="mb-4 text-gray-800">
               We gather this information to determine to which committee or role
               you are most able to contribute.
             </p>
             <div className="flex flex-col gap-4">
-              <label className="font-semibold mb-1">
+              <label className="font-semibold mb-1 text-gray-900">
                 Current Status: <span className="text-red-600">*</span>
               </label>
               <div className="flex flex-col gap-2">
-                <label className="inline-flex items-center">
+                <label className="inline-flex items-center text-gray-800 cursor-pointer">
                   <input
                     type="radio"
                     name="currentStatus"
@@ -862,7 +862,7 @@ export default function VolunteerSignupPage() {
                   />
                   Working Professional
                 </label>
-                <label className="inline-flex items-center">
+                <label className="inline-flex items-center text-gray-800 cursor-pointer">
                   <input
                     type="radio"
                     name="currentStatus"
@@ -873,7 +873,7 @@ export default function VolunteerSignupPage() {
                   />
                   Student
                 </label>
-                <label className="inline-flex items-center">
+                <label className="inline-flex items-center text-gray-800 cursor-pointer">
                   <input
                     type="radio"
                     name="currentStatus"
@@ -927,7 +927,7 @@ export default function VolunteerSignupPage() {
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Position <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -935,7 +935,7 @@ export default function VolunteerSignupPage() {
                   name="position"
                   value={form.position}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.position ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -944,7 +944,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Industry <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -952,7 +952,7 @@ export default function VolunteerSignupPage() {
                   name="industry"
                   value={form.industry}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.industry ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -961,17 +961,17 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">Company</label>
+                <label className="block font-semibold mb-1 text-gray-900">Company</label>
                 <input
                   type="text"
                   name="company"
                   value={form.company}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Working Days <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
@@ -984,7 +984,7 @@ export default function VolunteerSignupPage() {
                     "Saturday",
                     "Sunday",
                   ].map((day) => (
-                    <label key={day} className="inline-flex items-center">
+                    <label key={day} className="inline-flex items-center text-gray-800 cursor-pointer">
                       <input
                         type="checkbox"
                         name="workingDays"
@@ -1002,11 +1002,11 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   General Work Shift <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="workShift"
@@ -1017,7 +1017,7 @@ export default function VolunteerSignupPage() {
                     />
                     Day shift (8AM - 10AM start of shift)
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="workShift"
@@ -1028,7 +1028,7 @@ export default function VolunteerSignupPage() {
                     />
                     Mid shift (1PM - 3PM start of shift)
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="workShift"
@@ -1039,7 +1039,7 @@ export default function VolunteerSignupPage() {
                     />
                     Night shift (6PM onwards start of shift)
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="workShift"
@@ -1056,7 +1056,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Other Skills, Hobbies, or Passions{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1064,7 +1064,7 @@ export default function VolunteerSignupPage() {
                   name="workOtherSkills"
                   value={form.workOtherSkills}
                   onChange={handleChange}
-                  className={`w-full border border-gray-300 rounded px-3 py-2${
+                  className={`w-full border border-gray-300 rounded px-3 py-2 text-gray-900${
                     errors.workOtherSkills ? " border-red-500" : ""
                   }`}
                   rows={2}
@@ -1114,7 +1114,7 @@ export default function VolunteerSignupPage() {
             </h2>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Name of your School and Location{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1123,7 +1123,7 @@ export default function VolunteerSignupPage() {
                   name="school"
                   value={form.school}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.school ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -1132,7 +1132,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Course / Major <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -1140,7 +1140,7 @@ export default function VolunteerSignupPage() {
                   name="course"
                   value={form.course}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.course ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -1149,7 +1149,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Year of Expected Graduation{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1158,7 +1158,7 @@ export default function VolunteerSignupPage() {
                   name="graduation"
                   value={form.graduation}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.graduation ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="e.g. 2025"
@@ -1168,7 +1168,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   School Days <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
@@ -1181,7 +1181,7 @@ export default function VolunteerSignupPage() {
                     "Saturday",
                     "Sunday",
                   ].map((day) => (
-                    <label key={day} className="inline-flex items-center">
+                    <label key={day} className="inline-flex items-center text-gray-800 cursor-pointer">
                       <input
                         type="checkbox"
                         name="schoolDays"
@@ -1199,7 +1199,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Other Skills, Hobbies, or Passions{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1207,7 +1207,7 @@ export default function VolunteerSignupPage() {
                   name="studentOtherSkills"
                   value={form.studentOtherSkills}
                   onChange={handleChange}
-                  className={`w-full border border-gray-300 rounded px-3 py-2${
+                  className={`w-full border border-gray-300 rounded px-3 py-2 text-gray-900${
                     errors.studentOtherSkills ? " border-red-500" : ""
                   }`}
                   rows={2}
@@ -1255,13 +1255,13 @@ export default function VolunteerSignupPage() {
             <h2 className="text-xl font-bold text-red-700 mb-2">
               Volunteer Profile
             </h2>
-            <p className="mb-4 text-gray-700">
+            <p className="mb-4 text-gray-800">
               We gather this information to determine to which committee or role
               you are most able to contribute.
             </p>
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   What aspect / role in the organization are you most inclined
                   to contribute to? <span className="text-red-600">*</span>
                 </label>
@@ -1273,7 +1273,7 @@ export default function VolunteerSignupPage() {
                     "Organization Development",
                     "Information Technology",
                   ].map((role) => (
-                    <label key={role} className="inline-flex items-center">
+                    <label key={role} className="inline-flex items-center text-gray-800 cursor-pointer">
                       <input
                         type="checkbox"
                         name="volunteerRoles"
@@ -1287,7 +1287,7 @@ export default function VolunteerSignupPage() {
                       {role}
                     </label>
                   ))}
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="checkbox"
                       name="volunteerRoles"
@@ -1303,7 +1303,7 @@ export default function VolunteerSignupPage() {
                         name="volunteerOtherRole"
                         value={form.volunteerOtherRole}
                         onChange={handleChange}
-                        className="ml-2 border rounded px-2 py-1"
+                        className="ml-2 border rounded px-2 py-1 text-gray-900"
                         placeholder="Please specify"
                       />
                     )}
@@ -1316,7 +1316,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   Which Days are you most available for volunteering?{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1330,7 +1330,7 @@ export default function VolunteerSignupPage() {
                     "Saturday",
                     "Sunday",
                   ].map((day) => (
-                    <label key={day} className="inline-flex items-center">
+                    <label key={day} className="inline-flex items-center text-gray-800 cursor-pointer">
                       <input
                         type="checkbox"
                         name="volunteerDays"
@@ -1350,12 +1350,12 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   How often do you have time to volunteer?{" "}
                   <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="volunteerFrequency"
@@ -1366,7 +1366,7 @@ export default function VolunteerSignupPage() {
                     />
                     Always (daily)
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="volunteerFrequency"
@@ -1377,7 +1377,7 @@ export default function VolunteerSignupPage() {
                     />
                     Often (3 or more times a week)
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="volunteerFrequency"
@@ -1388,7 +1388,7 @@ export default function VolunteerSignupPage() {
                     />
                     Seldom (3 times a month)
                   </label>
-                  <label className="inline-flex items-center">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
                     <input
                       type="radio"
                       name="volunteerFrequency"
@@ -1400,7 +1400,7 @@ export default function VolunteerSignupPage() {
                     Rarely (once every few months)
                   </label>
                 </div>
-                <span className="text-xs text-gray-500">
+                <span className="text-xs text-gray-600">
                   This does not affect your application status. We value any
                   contribution of time.
                 </span>
@@ -1411,7 +1411,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   What kind of trainings were you able to complete?{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1423,7 +1423,7 @@ export default function VolunteerSignupPage() {
                     "Community-Based HIV Screening",
                     "Case Management / Life Coaching",
                   ].map((training) => (
-                    <label key={training} className="inline-flex items-center">
+                    <label key={training} className="inline-flex items-center text-gray-800 cursor-pointer">
                       <input
                         type="checkbox"
                         name="volunteerTrainings"
@@ -1445,7 +1445,7 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1">
+                <label className="block font-semibold mb-1 text-gray-900">
                   In 5–10 sentences, please write the reason why you want to be
                   a volunteer of Bagani? <span className="text-red-600">*</span>
                 </label>
@@ -1453,7 +1453,7 @@ export default function VolunteerSignupPage() {
                   name="volunteerReason"
                   value={form.volunteerReason}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
                   rows={4}
                   placeholder="Your answer..."
                 />
@@ -1500,7 +1500,7 @@ export default function VolunteerSignupPage() {
             <h2 className="text-xl font-bold text-red-700 mb-2">
               Declaration of Volunteer Commitment
             </h2>
-            <div className="mb-4 text-gray-700">
+            <div className="mb-4 text-gray-800">
               In my intention to volunteer for Bagani Community Center, I commit
               to the following:
               <ul className="list-disc pl-6 mt-2 mb-2">
@@ -1529,11 +1529,11 @@ export default function VolunteerSignupPage() {
               not intended to be legally binding, except for cases that breach
               any laws within the jurisdiction of the Philippines.
             </div>
-            <div className="mb-2 font-semibold">
+            <div className="mb-2 font-semibold text-gray-900">
               Do you agree with the Declaration of Volunteer Commitment?
             </div>
             <div className="flex flex-col gap-2">
-              <label className="inline-flex items-center">
+              <label className="inline-flex items-center text-gray-800 cursor-pointer">
                 <input
                   type="radio"
                   name="declarationCommitment"
@@ -1545,7 +1545,7 @@ export default function VolunteerSignupPage() {
                 />
                 I Agree
               </label>
-              <label className="inline-flex items-center">
+              <label className="inline-flex items-center text-gray-800 cursor-pointer">
                 <input
                   type="radio"
                   name="declarationCommitment"
