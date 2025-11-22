@@ -9,6 +9,7 @@ const {
   getAllApplicationStatuses,
   updateApplicantStatus,
   getApplicantStatusHistory,
+  createApplicantWithProfile,
 } = require("../repositories/applicantRepository");
 const { getPool } = require("../db/pool");
 
@@ -41,6 +42,71 @@ async function getCurrentUserIdFromFirebaseUid(firebaseUid) {
   return rows[0].user_id;
 }
 
+// POST /api/applicants - Create new volunteer application
+router.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    const { user, form } = req.body;
+
+    // Validate required user fields
+    if (!user || !user.uid || !user.name || !user.email) {
+      return res.status(400).json({
+        error: "Missing required user information (uid, name, email)",
+      });
+    }
+
+    // Validate required form fields
+    const requiredFields = [
+      "firstName",
+      "lastName",
+      "birthdate",
+      "gender",
+      "consent",
+      "mobileNumber",
+      "city",
+      "currentStatus",
+      "declarationCommitment",
+      "volunteerReason",
+      "volunteerFrequency",
+    ];
+
+    const missingFields = requiredFields.filter((field) => !form[field]);
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        error: `Missing required form fields: ${missingFields.join(", ")}`,
+      });
+    }
+
+    // Validate declaration commitment is "agree"
+    if (form.declarationCommitment !== "agree") {
+      return res.status(400).json({
+        error: "Declaration of commitment must be agreed to",
+      });
+    }
+
+    try {
+      const result = await createApplicantWithProfile(user, form);
+      res.status(201).json(result);
+    } catch (error) {
+      console.error("[POST /api/applicants] Error:", error);
+
+      // Handle duplicate application
+      if (error.message.includes("already submitted")) {
+        return res.status(409).json({
+          error: "Application already submitted",
+          message: error.message,
+        });
+      }
+
+      // Generic error
+      res.status(500).json({
+        error: "Failed to submit application",
+        message: error.message,
+      });
+    }
+  })
+);
+
 // Get all application statuses
 router.get(
   "/statuses",
@@ -66,6 +132,13 @@ router.put(
   "/:id/status",
   authenticate,
   asyncHandler(async (req, res) => {
+    // Check if user has staff or admin role
+    const userRole = req.authenticatedUser?.role?.toLowerCase();
+    if (!userRole || !["admin", "staff"].includes(userRole)) {
+      return res.status(403).json({ 
+        error: "Forbidden: Only admin and staff can update applicant status" 
+      });
+    }
     console.log("[PUT /:id/status] Request received");
     console.log("[PUT /:id/status] params.id:", req.params.id);
     console.log("[PUT /:id/status] body:", req.body);
@@ -79,6 +152,14 @@ router.put(
     if (!status) {
       console.log("[PUT /:id/status] ERROR: Status is missing");
       return res.status(400).json({ error: "Status is required" });
+    }
+
+    // Staff can only move to intermediate statuses, admin can approve/reject
+    const restrictedStatuses = ["approved", "rejected"];
+    if (userRole === "staff" && restrictedStatuses.includes(status.toLowerCase())) {
+      return res.status(403).json({
+        error: "Forbidden: Only admin can approve or reject applications"
+      });
     }
 
     try {

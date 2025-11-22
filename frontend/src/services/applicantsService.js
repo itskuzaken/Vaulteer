@@ -73,3 +73,31 @@ export async function rejectApplicant(userId) {
 export async function getApplicantById(userId) {
   return await fetchWithAuth(`${API_BASE}/applicants/${userId}`);
 }
+
+// Submit new volunteer application (public - no auth required)
+export async function submitVolunteerApplication(userData, formData) {
+  const res = await fetch(`${API_BASE}/applicants`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      user: userData,
+      form: formData,
+    }),
+  });
+
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    data = null;
+  }
+
+  if (!res.ok) {
+    const msg = data?.error || data?.message || "Failed to submit application";
+    throw new Error(msg);
+  }
+
+  return data;
+}

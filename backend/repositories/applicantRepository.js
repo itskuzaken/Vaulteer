@@ -245,6 +245,226 @@ async function getApplicantStatusHistory(userId) {
   }
 }
 
+// Create new applicant with complete profile data
+async function createApplicantWithProfile(userData, formData) {
+  const pool = getPool();
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // 1. Get or create user
+    let userId;
+    const [[existingUser]] = await connection.query(
+      `SELECT user_id FROM users WHERE uid = ? LIMIT 1`,
+      [userData.uid]
+    );
+
+    if (existingUser) {
+      userId = existingUser.user_id;
+      // Update user info if needed
+      await connection.query(
+        `UPDATE users SET name = ?, email = ?, updated_at = NOW() WHERE user_id = ?`,
+        [userData.name, userData.email, userId]
+      );
+    } else {
+      // Get applicant role_id
+      const [[applicantRole]] = await connection.query(
+        `SELECT role_id FROM roles WHERE role = 'applicant' LIMIT 1`
+      );
+      if (!applicantRole) throw new Error("Applicant role not found");
+
+      // Create new user
+      const [userResult] = await connection.query(
+        `INSERT INTO users (uid, name, email, role_id, status, date_added) 
+         VALUES (?, ?, ?, ?, 'active', NOW())`,
+        [userData.uid, userData.name, userData.email, applicantRole.role_id]
+      );
+      userId = userResult.insertId;
+    }
+
+    // 2. Check if applicant record already exists
+    const [[existingApplicant]] = await connection.query(
+      `SELECT applicant_id FROM applicants WHERE user_id = ? LIMIT 1`,
+      [userId]
+    );
+
+    if (existingApplicant) {
+      throw new Error("Application already submitted for this user");
+    }
+
+    // 3. Create applicant record with pending status
+    const pendingStatusId = await getStatusId(connection, "pending");
+    const [applicantResult] = await connection.query(
+      `INSERT INTO applicants (user_id, status_id, application_date) 
+       VALUES (?, ?, CURDATE())`,
+      [userId, pendingStatusId]
+    );
+    const applicantId = applicantResult.insertId;
+
+    // 4. Create user_profiles record
+    const [profileResult] = await connection.query(
+      `INSERT INTO user_profiles (
+        user_id, first_name, middle_initial, last_name, nickname,
+        birthdate, gender, gender_other, consent, mobile_number, city,
+        facebook, twitter, instagram, tiktok, current_status,
+        declaration_commitment, volunteer_reason, volunteer_frequency
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        formData.firstName,
+        formData.middleInitial || null,
+        formData.lastName,
+        formData.nickname,
+        formData.birthdate,
+        formData.gender,
+        formData.genderOther || null,
+        formData.consent,
+        formData.mobileNumber,
+        formData.city,
+        formData.facebook || null,
+        formData.twitter || null,
+        formData.instagram || null,
+        formData.tiktok || null,
+        formData.currentStatus,
+        formData.declarationCommitment,
+        formData.volunteerReason,
+        formData.volunteerFrequency,
+      ]
+    );
+    const profileId = profileResult.insertId;
+
+    // 5. Create work profile if currentStatus is "Working Professional"
+    if (formData.currentStatus === "Working Professional") {
+      await connection.query(
+        `INSERT INTO user_work_profile (
+          profile_id, position, industry, company, work_shift, work_other_skills
+        ) VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          profileId,
+          formData.position,
+          formData.industry,
+          formData.company || null,
+          formData.workShift,
+          formData.workOtherSkills || "",
+        ]
+      );
+
+      // Insert working days
+      if (formData.workingDays && formData.workingDays.length > 0) {
+        for (const dayName of formData.workingDays) {
+          const [[day]] = await connection.query(
+            `SELECT day_id FROM days WHERE day_name = ? LIMIT 1`,
+            [dayName]
+          );
+          if (day) {
+            await connection.query(
+              `INSERT INTO user_working_days (profile_id, day_id) VALUES (?, ?)`,
+              [profileId, day.day_id]
+            );
+          }
+        }
+      }
+    }
+
+    // 6. Create student profile if currentStatus is "Student"
+    if (formData.currentStatus === "Student") {
+      await connection.query(
+        `INSERT INTO user_student_profile (
+          profile_id, school, course, graduation, student_other_skills
+        ) VALUES (?, ?, ?, ?, ?)`,
+        [
+          profileId,
+          formData.school,
+          formData.course,
+          formData.graduation,
+          formData.studentOtherSkills || "",
+        ]
+      );
+
+      // Insert school days
+      if (formData.schoolDays && formData.schoolDays.length > 0) {
+        for (const dayName of formData.schoolDays) {
+          const [[day]] = await connection.query(
+            `SELECT day_id FROM days WHERE day_name = ? LIMIT 1`,
+            [dayName]
+          );
+          if (day) {
+            await connection.query(
+              `INSERT INTO user_school_days (profile_id, day_id) VALUES (?, ?)`,
+              [profileId, day.day_id]
+            );
+          }
+        }
+      }
+    }
+
+    // 7. Insert volunteer available days
+    if (formData.volunteerDays && formData.volunteerDays.length > 0) {
+      for (const dayName of formData.volunteerDays) {
+        const [[day]] = await connection.query(
+          `SELECT day_id FROM days WHERE day_name = ? LIMIT 1`,
+          [dayName]
+        );
+        if (day) {
+          await connection.query(
+            `INSERT INTO user_available_days (profile_id, day_id) VALUES (?, ?)`,
+            [profileId, day.day_id]
+          );
+        }
+      }
+    }
+
+    // 8. Insert volunteer roles
+    if (formData.volunteerRoles && formData.volunteerRoles.length > 0) {
+      for (const roleName of formData.volunteerRoles) {
+        const [[role]] = await connection.query(
+          `SELECT role_id FROM user_roles WHERE role_name = ? LIMIT 1`,
+          [roleName]
+        );
+        if (role) {
+          await connection.query(
+            `INSERT INTO user_profile_roles (profile_id, role_id) VALUES (?, ?)`,
+            [profileId, role.role_id]
+          );
+        }
+      }
+    }
+
+    // 9. Insert trainings
+    if (formData.volunteerTrainings && formData.volunteerTrainings.length > 0) {
+      for (const trainingName of formData.volunteerTrainings) {
+        const [[training]] = await connection.query(
+          `SELECT training_id FROM user_trainings WHERE training_name = ? LIMIT 1`,
+          [trainingName]
+        );
+        if (training) {
+          await connection.query(
+            `INSERT INTO user_profile_trainings (profile_id, training_id) VALUES (?, ?)`,
+            [profileId, training.training_id]
+          );
+        }
+      }
+    }
+
+    await connection.commit();
+
+    return {
+      success: true,
+      userId,
+      applicantId,
+      profileId,
+      message: "Application submitted successfully",
+    };
+  } catch (error) {
+    await connection.rollback();
+    console.error("[createApplicantWithProfile] ERROR:", error);
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 async function listApplicants() {
   const pool = getPool();
   const [rows] = await pool.query(
@@ -366,4 +586,5 @@ module.exports = {
   getAllApplicationStatuses,
   updateApplicantStatus,
   getApplicantStatusHistory,
+  createApplicantWithProfile,
 };
