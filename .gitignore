@@ -47,5 +47,8 @@ next-env.d.ts
 todo.txt
 vaulteer.sql
 vaulteer-structure.txt
-\n# project documents (ignored)
+vaulteer_db.sql
+backend/schema.sql
+
+# project documents (ignored)
 /document/
