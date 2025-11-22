@@ -10,9 +10,9 @@ const STATUS_STYLES = {
     dot: "bg-green-500",
   },
   inactive: {
-    bg: "bg-gray-50 dark:bg-gray-800/50",
-    text: "text-gray-600 dark:text-gray-400",
-    border: "border-gray-200 dark:border-gray-700",
+    bg: "bg-gray-100 dark:bg-gray-800/80",
+    text: "text-gray-600 dark:text-gray-300",
+    border: "border-gray-300 dark:border-gray-600",
     dot: "bg-gray-400",
   },
   pending: {
@@ -20,6 +20,12 @@ const STATUS_STYLES = {
     text: "text-amber-700 dark:text-amber-300",
     border: "border-amber-200 dark:border-amber-800",
     dot: "bg-amber-500",
+  },
+  deactivated: {
+    bg: "bg-gray-900 dark:bg-black",
+    text: "text-white dark:text-white",
+    border: "border-gray-900 dark:border-black",
+    dot: "bg-gray-900",
   },
   rejected: {
     bg: "bg-red-50 dark:bg-red-900/20",
@@ -30,7 +36,7 @@ const STATUS_STYLES = {
 };
 
 export function Badge({ status, children, showDot = true, className = "" }) {
-  const styles = STATUS_STYLES[status] || STATUS_STYLES.inactive;
+  const styles = STATUS_STYLES[status] || STATUS_STYLES.active;
   const displayText = children || status;
 
   return (

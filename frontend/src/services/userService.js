@@ -5,16 +5,20 @@ import { API_BASE } from "../config/config";
 async function fetchWithAuth(url, options = {}) {
   const token = await getIdToken();
   if (!token) throw new Error("Not authenticated");
+  const method = (options.method || "GET").toUpperCase();
+  const headers = {
+    ...(options.headers || {}),
+    Authorization: `Bearer ${token}`,
+  };
+
+  if (["PUT", "POST", "PATCH"].includes(method) && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const res = await fetch(url, {
     ...options,
-    headers: {
-      ...(options.headers || {}),
-      Authorization: `Bearer ${token}`,
-      "Content-Type":
-        options.method === "PUT" || options.method === "POST"
-          ? "application/json"
-          : undefined,
-    },
+    method,
+    headers,
     credentials: "include",
   });
   let data;
@@ -85,6 +89,27 @@ export async function updateUser(userId, updateData) {
   return await fetchWithAuth(`${API_BASE}/users/${userId}`, {
     method: "PUT",
     body: JSON.stringify(updateData),
+  });
+}
+
+export async function updateUserStatus(userId, status) {
+  return await fetchWithAuth(`${API_BASE}/users/${userId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function updateUserRole(userId, role) {
+  return await fetchWithAuth(`${API_BASE}/users/${userId}/role`, {
+    method: "PATCH",
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function updateUserActivity(userId, payload = {}) {
+  return await fetchWithAuth(`${API_BASE}/users/${userId}/activity`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }
 

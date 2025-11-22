@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { QuickActionCard } from "../../card/DashboardCard";
 import RealtimeStatsGrid from "../../ui/RealtimeStatsGrid";
+import DashboardSectionCard from "../../ui/DashboardSectionCard";
 import {
   IoPeopleOutline,
   IoPersonOutline,
@@ -9,9 +10,12 @@ import {
   IoAddCircleOutline,
   IoStatsChartOutline,
   IoClose,
+  IoFlashOutline,
 } from "react-icons/io5";
 import { getAuth } from "firebase/auth";
 import { API_BASE } from "../../../config/config";
+import DashboardEventsSidebar from "../../dashboard/DashboardEventsSidebar";
+import LeaderboardCard from "../../gamification/LeaderboardCard";
 
 export default function AdminDashboard({ onNavigate }) {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -108,64 +112,74 @@ export default function AdminDashboard({ onNavigate }) {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Welcome Section */}
-      {showWelcome && (
-        <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg p-6 text-white relative">
-          <button
-            onClick={() => setShowWelcome(false)}
-            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-white/20 transition-colors"
-            aria-label="Close welcome message"
+    <>
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 animate-fadeIn">
+        <div className="space-y-6">
+          {/* Welcome Section */}
+          {showWelcome && (
+            <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg p-6 text-white relative">
+              <button
+                onClick={() => setShowWelcome(false)}
+                className="absolute top-4 right-4 p-1 rounded-lg hover:bg-white/20 transition-colors"
+                aria-label="Close welcome message"
+              >
+                <IoClose className="w-6 h-6" />
+              </button>
+              <h2 className="text-2xl font-bold mb-2">Welcome, Admin!</h2>
+              <p className="text-red-100">
+                Here's what's happening with your organization today.
+              </p>
+            </div>
+          )}
+
+          {/* Real-time Statistics Grid */}
+          <RealtimeStatsGrid
+            statsConfig={statsConfig}
+            fetchCallback={fetchStats}
+            updateInterval={15000}
+            channel="admin-dashboard-stats"
+            gridCols={4}
+            onStatsUpdate={handleStatsUpdate}
+          />
+
+          <DashboardSectionCard
+            title="Quick actions"
+            subtitle="Keep work moving"
+            icon={IoFlashOutline}
           >
-            <IoClose className="w-6 h-6" />
-          </button>
-          <h2 className="text-2xl font-bold mb-2">Welcome, Admin!</h2>
-          <p className="text-red-100">
-            Here's what's happening with your organization today.
-          </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <QuickActionCard
+                title="Create Post"
+                description="Share updates with your team"
+                icon={<IoChatbubbleEllipsesOutline />}
+                color="blue"
+                onClick={() => handleQuickAction("manage-post", "create-post")}
+              />
+              <QuickActionCard
+                title="Create Event"
+                description="Schedule a new event"
+                icon={<IoAddCircleOutline />}
+                color="green"
+                onClick={() =>
+                  handleQuickAction("manage-events", "create-event")
+                }
+              />
+              <QuickActionCard
+                title="Review Forms"
+                description="Check submitted forms"
+                icon={<IoDocumentTextOutline />}
+                color="yellow"
+                onClick={() => handleQuickAction("hts-form", "form-submission")}
+              />
+            </div>
+          </DashboardSectionCard>
         </div>
-      )}
 
-      {/* Real-time Statistics Grid */}
-      <RealtimeStatsGrid
-        statsConfig={statsConfig}
-        fetchCallback={fetchStats}
-        updateInterval={15000}
-        channel="admin-dashboard-stats"
-        showLiveIndicator={true}
-        gridCols={4}
-        onStatsUpdate={handleStatsUpdate}
-      />
-
-      {/* Quick Actions */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Quick Actions
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <QuickActionCard
-            title="Create Post"
-            description="Share updates with your team"
-            icon={<IoChatbubbleEllipsesOutline />}
-            color="blue"
-            onClick={() => handleQuickAction("manage-post", "create-post")}
-          />
-          <QuickActionCard
-            title="Create Event"
-            description="Schedule a new event"
-            icon={<IoAddCircleOutline />}
-            color="green"
-            onClick={() => handleQuickAction("manage-events", "create-event")}
-          />
-          <QuickActionCard
-            title="Review Forms"
-            description="Check submitted forms"
-            icon={<IoDocumentTextOutline />}
-            color="yellow"
-            onClick={() => handleQuickAction("hts-form", "form-submission")}
-          />
+        <div className="space-y-6">
+          <DashboardEventsSidebar />
+          <LeaderboardCard limit={6} />
         </div>
       </div>
-    </div>
+    </>
   );
 }

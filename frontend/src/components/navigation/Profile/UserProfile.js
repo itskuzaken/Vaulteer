@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { getAuth } from "firebase/auth";
 import {
-  getCurrentUserId,
+  getCurrentUserIdentifiers,
   fetchComprehensiveProfile,
   fetchActivitySummary,
   updatePersonalProfile,
@@ -22,7 +22,10 @@ import {
   isValidPhone,
 } from "../../UserProfile/ProfileUtils";
 import { logActions } from "../../../services/activityLogService";
-import { updateUser as updateUserAPI } from "../../../services/userService";
+import {
+  updateUserStatus as updateUserStatusAPI,
+  updateUserRole as updateUserRoleAPI,
+} from "../../../services/userService";
 import { useDashboardUser } from "../../../hooks/useDashboardUser";
 
 import ProfileHeader from "../../UserProfile/ProfileHeader";
@@ -33,6 +36,8 @@ import Trainings from "../../UserProfile/Trainings";
 import AvailableDays from "../../UserProfile/AvailableDays";
 import ActivitySummary from "../../UserProfile/ActivitySummary";
 import Achievements from "../../UserProfile/Achievements";
+import AdminControls from "../../UserProfile/AdminControls";
+import ApplicantAdminControls from "../../UserProfile/ApplicantAdminControls";
 
 const dedupeByKey = (items, key) => {
   if (!Array.isArray(items)) {
@@ -70,7 +75,9 @@ export default function UserProfile() {
 
   const [user, setUser] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
-  const [userId, setUserId] = useState(null);
+  const [currentUserUid, setCurrentUserUid] = useState(null);
+  const [profileUserId, setProfileUserId] = useState(null);
+  const [profileUserUid, setProfileUserUid] = useState(null);
   const [comprehensiveData, setComprehensiveData] = useState(null);
   const [activitySummary, setActivitySummary] = useState(null);
   const [profileCompletion, setProfileCompletion] = useState(0);
@@ -91,12 +98,16 @@ export default function UserProfile() {
   const [editedAvailableDays, setEditedAvailableDays] = useState([]);
   const [editedWorkingDays, setEditedWorkingDays] = useState([]);
   const [editedSchoolDays, setEditedSchoolDays] = useState([]);
+  const [roleUpdating, setRoleUpdating] = useState(false);
+  const [adminRoleDraft, setAdminRoleDraft] = useState("");
+  const [showStatusConfirm, setShowStatusConfirm] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState(null);
 
   // Original data for cancel functionality
   const [originalData, setOriginalData] = useState(null);
 
   const latestRequestRef = useRef(0);
-  const lastLoadedUserIdRef = useRef(null);
+  const lastLoadedUserUidRef = useRef(null);
 
   const resetEditingState = useCallback(() => {
     setIsEditing(false);
@@ -108,16 +119,24 @@ export default function UserProfile() {
     setEditedAvailableDays([]);
     setEditedWorkingDays([]);
     setEditedSchoolDays([]);
+    setAdminRoleDraft("");
+    setStatusUpdating(false);
+    setRoleUpdating(false);
+    setPendingStatus(null);
+    setShowStatusConfirm(false);
   }, []);
 
-  const requestedUserIdParam = searchParams.get("userId");
-  const normalizedRequestedUserId = requestedUserIdParam?.trim() || null;
+  const requestedUserUidParam = searchParams.get("userUid");
+  const normalizedRequestedUserUid = requestedUserUidParam?.trim() || null;
 
   const { user: dashboardUser } = useDashboardUser();
 
   useEffect(() => {
     if (dashboardUser?.user_id) {
       setCurrentUserId(String(dashboardUser.user_id));
+    }
+    if (dashboardUser?.uid) {
+      setCurrentUserUid(dashboardUser.uid);
     }
     if (dashboardUser?.email && !user) {
       const auth = getAuth();
@@ -144,15 +163,21 @@ export default function UserProfile() {
 
     const resolveCurrentUserId = async () => {
       try {
-        const id = await getCurrentUserId();
-        if (isActive) {
-          setCurrentUserId(String(id));
+        const identifiers = await getCurrentUserIdentifiers();
+        if (isActive && identifiers) {
+          if (identifiers.userId) {
+            setCurrentUserId(String(identifiers.userId));
+          }
+          if (identifiers.userUid) {
+            setCurrentUserUid(identifiers.userUid);
+          }
         }
       } catch (err) {
         console.error("Error resolving current user ID:", err);
         if (isActive) {
           setCurrentUserId(null);
-          if (!normalizedRequestedUserId) {
+          setCurrentUserUid(null);
+          if (!normalizedRequestedUserUid) {
             setError(err?.message || "Unable to determine current user");
             setLoading(false);
           }
@@ -166,23 +191,23 @@ export default function UserProfile() {
       isActive = false;
       latestRequestRef.current = 0;
     };
-  }, [normalizedRequestedUserId]);
+  }, [normalizedRequestedUserUid]);
 
   const reloadProfileData = useCallback(
-    async (id, options = {}) => {
+    async (uid, options = {}) => {
       if (!user) {
         return false;
       }
 
-      const normalizedId = String(id || "").trim();
-      if (!normalizedId) {
+      const normalizedUid = String(uid || "").trim();
+      if (!normalizedUid) {
         return false;
       }
 
       const { showLoader = true, clearExisting = showLoader } = options;
       const requestId = Date.now();
       latestRequestRef.current = requestId;
-      lastLoadedUserIdRef.current = normalizedId;
+      lastLoadedUserUidRef.current = normalizedUid;
 
       if (showLoader) {
         setLoading(true);
@@ -191,7 +216,7 @@ export default function UserProfile() {
       setError(null);
       setSuccess(null);
       resetEditingState();
-      setUserId(normalizedId);
+      setProfileUserUid(normalizedUid);
 
       if (clearExisting) {
         setComprehensiveData(null);
@@ -201,20 +226,31 @@ export default function UserProfile() {
       }
 
       try {
-        const [profileResponse, summaryResponse] = await Promise.all([
-          fetchComprehensiveProfile(normalizedId),
-          fetchActivitySummary(normalizedId),
-        ]);
+        const profileResponse = await fetchComprehensiveProfile(normalizedUid);
 
         if (latestRequestRef.current !== requestId) {
           return false;
         }
 
         const normalizedProfile = normalizeComprehensiveData(profileResponse);
+        const nextProfileUserId = normalizedProfile?.user?.user_id
+          ? String(normalizedProfile.user.user_id)
+          : null;
+
+        let summaryResponse = null;
+        if (nextProfileUserId) {
+          summaryResponse = await fetchActivitySummary(nextProfileUserId);
+        }
+
+        if (latestRequestRef.current !== requestId) {
+          return false;
+        }
 
         setComprehensiveData(normalizedProfile);
         setOriginalData(deepClone(normalizedProfile));
-        setActivitySummary(summaryResponse);
+        setActivitySummary(summaryResponse || null);
+        setAdminRoleDraft((normalizedProfile?.user?.role || "").toLowerCase());
+        setProfileUserId(nextProfileUserId);
 
         if (normalizedProfile?.profile) {
           const completion = calculateProfileCompletion(
@@ -232,7 +268,9 @@ export default function UserProfile() {
         }
 
         console.error("Error loading profile:", err);
-        lastLoadedUserIdRef.current = null;
+        lastLoadedUserUidRef.current = null;
+        setProfileUserUid(null);
+        setProfileUserId(null);
         setError(err?.message || "Failed to load profile");
         return false;
       } finally {
@@ -244,42 +282,66 @@ export default function UserProfile() {
     [resetEditingState, user]
   );
 
-  const targetUserId = normalizedRequestedUserId || currentUserId;
+  const targetUserUid = normalizedRequestedUserUid || currentUserUid;
 
   useEffect(() => {
     if (!user) {
       return;
     }
 
-    if (!targetUserId) {
+    if (!targetUserUid) {
       return;
     }
 
-    if (String(targetUserId) === lastLoadedUserIdRef.current) {
+    if (String(targetUserUid) === lastLoadedUserUidRef.current) {
       return;
     }
 
-    reloadProfileData(targetUserId, { showLoader: true });
-  }, [user, targetUserId, reloadProfileData]);
-
+    reloadProfileData(targetUserUid, { showLoader: true });
+  }, [user, targetUserUid, reloadProfileData]);
   const currentUserRole = dashboardUser?.role || null;
+  const targetUserStatus = (
+    comprehensiveData?.user?.status || ""
+  ).toLowerCase();
 
   const canEditProfile = useMemo(() => {
-    if (!userId) {
+    if (!profileUserId) {
       return false;
     }
     if (currentUserRole === "admin") {
       return true;
     }
+    if (targetUserStatus === "deactivated") {
+      return false;
+    }
     if (!currentUserId) {
       return false;
     }
-    return String(currentUserId) === String(userId);
-  }, [currentUserId, currentUserRole, userId]);
+    return String(currentUserId) === String(profileUserId);
+  }, [currentUserId, currentUserRole, profileUserId, targetUserStatus]);
+
+  useEffect(() => {
+    if (!canEditProfile && isEditing) {
+      resetEditingState();
+    }
+  }, [canEditProfile, isEditing, resetEditingState]);
+
+  const isViewingDeactivatedProfile = targetUserStatus === "deactivated";
+  const isViewingSelf =
+    Boolean(currentUserId) &&
+    Boolean(profileUserId) &&
+    String(currentUserId) === String(profileUserId);
+  const disableSelfDeactivation =
+    isViewingSelf && targetUserStatus !== "deactivated";
 
   const canManageStatus = useMemo(
     () => currentUserRole === "admin",
     [currentUserRole]
+  );
+
+  const availableRoles = useMemo(
+    () => ["admin", "staff", "volunteer", "applicant"],
+    []
   );
 
   const handleEditClick = () => {
@@ -306,6 +368,9 @@ export default function UserProfile() {
       ...new Set((comprehensiveData.schoolDays || []).map((d) => d.day_id)),
     ]);
 
+    setAdminRoleDraft((comprehensiveData?.user?.role || "").toLowerCase());
+    setPendingStatus(null);
+    setShowStatusConfirm(false);
     setIsEditing(true);
     setError(null);
     setSuccess(null);
@@ -319,11 +384,19 @@ export default function UserProfile() {
     resetEditingState();
     setError(null);
     setSuccess(null);
+    setPendingStatus(null);
+    setShowStatusConfirm(false);
+    setAdminRoleDraft((originalData?.user?.role || "").toLowerCase());
   };
 
   const handleSaveClick = async () => {
     if (!canEditProfile) {
       setError("You do not have permission to edit this profile.");
+      return;
+    }
+
+    if (!profileUserUid) {
+      setError("Missing profile identifier. Please reload and try again.");
       return;
     }
 
@@ -366,17 +439,17 @@ export default function UserProfile() {
       // Save all sections in parallel
       await Promise.all(
         [
-          updatePersonalProfile(userId, editedPersonalProfile),
+          updatePersonalProfile(profileUserUid, editedPersonalProfile),
           comprehensiveData.workProfile &&
-            updateWorkProfileAPI(userId, editedWorkProfile),
+            updateWorkProfileAPI(profileUserUid, editedWorkProfile),
           comprehensiveData.studentProfile &&
-            updateStudentProfileAPI(userId, editedStudentProfile),
-          updateTrainingsAPI(userId, editedTrainings),
-          updateAvailableDaysAPI(userId, editedAvailableDays),
+            updateStudentProfileAPI(profileUserUid, editedStudentProfile),
+          updateTrainingsAPI(profileUserUid, editedTrainings),
+          updateAvailableDaysAPI(profileUserUid, editedAvailableDays),
           comprehensiveData.workProfile &&
-            updateWorkingDaysAPI(userId, editedWorkingDays),
+            updateWorkingDaysAPI(profileUserUid, editedWorkingDays),
           comprehensiveData.studentProfile &&
-            updateSchoolDaysAPI(userId, editedSchoolDays),
+            updateSchoolDaysAPI(profileUserUid, editedSchoolDays),
         ].filter(Boolean)
       );
 
@@ -413,7 +486,7 @@ export default function UserProfile() {
       }
 
       // Reload profile data
-      await reloadProfileData(userId, {
+      await reloadProfileData(profileUserUid, {
         showLoader: false,
         clearExisting: false,
       });
@@ -431,37 +504,222 @@ export default function UserProfile() {
     }
   };
 
-  const handleStatusChange = async (nextStatus) => {
-    if (!canManageStatus || !isEditing || !userId) {
+  const applyStatusUpdate = useCallback(
+    async (targetStatus, previousStatus) => {
+      if (!profileUserId) {
+        return;
+      }
+
+      try {
+        setStatusUpdating(true);
+        setError(null);
+        const response = await updateUserStatusAPI(profileUserId, targetStatus);
+
+        setComprehensiveData((prev) => {
+          if (!prev || !prev.user) {
+            return prev;
+          }
+          return {
+            ...prev,
+            user: {
+              ...prev.user,
+              status: targetStatus,
+            },
+          };
+        });
+
+        setOriginalData((prev) => {
+          if (!prev || !prev.user) {
+            return prev;
+          }
+          return {
+            ...prev,
+            user: {
+              ...prev.user,
+              status: targetStatus,
+            },
+          };
+        });
+
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("vaulteer:user-status-updated", {
+              detail: {
+                userId: profileUserId,
+                status: targetStatus,
+                previousStatus,
+              },
+            })
+          );
+        }
+
+        const fallbackMessage =
+          targetStatus === "deactivated"
+            ? "User has been deactivated."
+            : targetStatus === "inactive"
+            ? "User has been marked inactive."
+            : "User has been activated.";
+        setSuccess(response?.message || fallbackMessage);
+        setTimeout(() => setSuccess(null), 5000);
+      } catch (err) {
+        console.error("Failed to update status:", err);
+        setError(err?.message || "Failed to update status");
+      } finally {
+        setStatusUpdating(false);
+        setPendingStatus(null);
+        setShowStatusConfirm(false);
+      }
+    },
+    [profileUserId, setComprehensiveData, setOriginalData]
+  );
+
+  const handleToggleStatus = (explicitStatus) => {
+    if (!canManageStatus || !isEditing || !profileUserId || statusUpdating) {
       return;
     }
 
-    const targetStatus = (nextStatus || "").trim().toLowerCase();
-    if (!targetStatus || !["active", "inactive"].includes(targetStatus)) {
+    const previousStatus = (comprehensiveData?.user?.status || "")
+      .toLowerCase()
+      .trim();
+
+    const normalizedPrevious =
+      previousStatus === "deactivated"
+        ? "deactivated"
+        : previousStatus === "inactive"
+        ? "inactive"
+        : "active";
+
+    if (disableSelfDeactivation && normalizedPrevious !== "deactivated") {
       return;
     }
 
-    if (comprehensiveData?.user?.status === targetStatus) {
+    const nextStatus =
+      (explicitStatus || "").toLowerCase().trim() ||
+      (normalizedPrevious === "deactivated" ? "active" : "deactivated");
+
+    if (nextStatus === "active" && normalizedPrevious === "inactive") {
+      applyStatusUpdate("active", previousStatus || "inactive");
+      return;
+    }
+
+    if (nextStatus === "deactivated") {
+      setPendingStatus({
+        value: nextStatus,
+        previous: previousStatus || "active",
+      });
+      setShowStatusConfirm(true);
+      return;
+    }
+
+    applyStatusUpdate(nextStatus, previousStatus || "active");
+  };
+
+  const confirmStatusChange = () => {
+    if (!pendingStatus?.value) {
+      setShowStatusConfirm(false);
+      return;
+    }
+
+    applyStatusUpdate(pendingStatus.value, pendingStatus.previous);
+  };
+
+  const cancelStatusChange = () => {
+    setPendingStatus(null);
+    setShowStatusConfirm(false);
+  };
+
+  const handleRoleSave = async () => {
+    if (!canManageStatus || !isEditing || !profileUserId || roleUpdating) {
+      return;
+    }
+
+    const normalizedDraft = (adminRoleDraft || "").toLowerCase().trim();
+    if (!normalizedDraft) {
+      return;
+    }
+
+    const currentRole = (comprehensiveData?.user?.role || "").toLowerCase();
+    if (normalizedDraft === currentRole) {
+      return;
+    }
+
+    if (!availableRoles.includes(normalizedDraft)) {
+      setError("Selected role is not allowed.");
       return;
     }
 
     try {
-      setStatusUpdating(true);
+      setRoleUpdating(true);
       setError(null);
-      await updateUserAPI(userId, { status: targetStatus });
-      await reloadProfileData(userId, {
-        showLoader: false,
-        clearExisting: false,
+      await updateUserRoleAPI(profileUserId, normalizedDraft);
+
+      setAdminRoleDraft(normalizedDraft);
+
+      setComprehensiveData((prev) => {
+        if (!prev || !prev.user) {
+          return prev;
+        }
+        return {
+          ...prev,
+          user: {
+            ...prev.user,
+            role: normalizedDraft,
+          },
+        };
       });
-      setSuccess("Status updated successfully!");
+
+      setOriginalData((prev) => {
+        if (!prev || !prev.user) {
+          return prev;
+        }
+        return {
+          ...prev,
+          user: {
+            ...prev.user,
+            role: normalizedDraft,
+          },
+        };
+      });
+
+      const friendlyRole =
+        normalizedDraft.charAt(0).toUpperCase() + normalizedDraft.slice(1);
+      setSuccess(`Role updated to ${friendlyRole}.`);
       setTimeout(() => setSuccess(null), 5000);
     } catch (err) {
-      console.error("Failed to update status:", err);
-      setError(err?.message || "Failed to update status");
+      console.error("Failed to update role:", err);
+      setError(err?.message || "Failed to update role");
     } finally {
-      setStatusUpdating(false);
+      setRoleUpdating(false);
     }
   };
+
+  // Handle applicant status change (approve/reject)
+  const handleApplicantStatusChange = useCallback(
+    async (newStatus) => {
+      try {
+        setSuccess(`Application ${newStatus} successfully!`);
+        // Reload the profile to get updated data
+        if (profileUserUid) {
+          await reloadProfileData(profileUserUid, { showLoader: false });
+        }
+      } catch (err) {
+        console.error("Error after status change:", err);
+        setError("Status updated but failed to refresh profile data.");
+      }
+    },
+    [profileUserUid, reloadProfileData]
+  );
+
+  const pendingStatusIsDeactivation = pendingStatus?.value === "deactivated";
+  const pendingStatusTitle = pendingStatusIsDeactivation
+    ? "Confirm Deactivation"
+    : "Confirm Activation";
+  const pendingStatusActionLabel = pendingStatusIsDeactivation
+    ? "Deactivate"
+    : "Activate";
+  const pendingStatusDescription = pendingStatusIsDeactivation
+    ? "This action will deactivate the user and prevent them from accessing the dashboard until reactivated. Are you sure you want to continue?"
+    : "This action will activate the user and restore their dashboard access immediately. Are you sure you want to continue?";
 
   if (loading) {
     return (
@@ -499,10 +757,10 @@ export default function UserProfile() {
           <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
           <button
             onClick={() => {
-              const fallbackId =
-                normalizedRequestedUserId || userId || currentUserId;
-              if (fallbackId) {
-                reloadProfileData(fallbackId, { showLoader: true });
+              const fallbackUid =
+                normalizedRequestedUserUid || profileUserUid || currentUserUid;
+              if (fallbackUid) {
+                reloadProfileData(fallbackUid, { showLoader: true });
               } else {
                 setError("Unable to retry without a user identifier.");
               }
@@ -518,6 +776,56 @@ export default function UserProfile() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 p-4">
+      {showStatusConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 text-red-600 dark:bg-red-900/40 dark:text-red-200 flex items-center justify-center">
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01M5.07 19h13.86c1.54 0 2.5-1.67 1.73-3l-6.93-12a2 2 0 00-3.46 0l-6.93 12c-.77 1.33.19 3 1.73 3z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  {pendingStatusTitle}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                  {pendingStatusDescription}
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={cancelStatusChange}
+                className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                disabled={statusUpdating}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmStatusChange}
+                className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={statusUpdating}
+              >
+                {statusUpdating ? "Processing..." : pendingStatusActionLabel}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Success/Error Messages */}
       {success && (
         <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3">
@@ -559,6 +867,14 @@ export default function UserProfile() {
         </div>
       )}
 
+      {isViewingDeactivatedProfile && (
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 text-amber-800 dark:text-amber-200">
+          {currentUserRole === "admin"
+            ? "This user is currently deactivated. They will regain access once reactivated, and edits you make will reflect after activation."
+            : "This profile is currently deactivated. Editing is disabled until an administrator reactivates your account."}
+        </div>
+      )}
+
       {/* Profile Header */}
       <ProfileHeader
         user={user}
@@ -570,10 +886,34 @@ export default function UserProfile() {
         onCancelClick={handleCancelEdit}
         saving={saving}
         canEdit={canEditProfile}
-        canManageStatus={canManageStatus}
-        onStatusChange={handleStatusChange}
-        statusUpdating={statusUpdating}
       />
+
+      {canManageStatus &&
+        !isViewingSelf &&
+        isEditing &&
+        comprehensiveData?.user && (
+          <AdminControls
+            currentStatus={comprehensiveData.user.status}
+            onToggleStatus={handleToggleStatus}
+            statusUpdating={statusUpdating}
+            disableStatusToggle={disableSelfDeactivation}
+            currentRole={comprehensiveData.user.role}
+            roleDraft={adminRoleDraft}
+            onRoleDraftChange={setAdminRoleDraft}
+            onRoleSave={handleRoleSave}
+            roleUpdating={roleUpdating}
+            roleOptions={availableRoles}
+          />
+        )}
+
+      {/* Applicant Admin Controls */}
+      {canManageStatus && comprehensiveData?.user?.role === "applicant" && (
+        <ApplicantAdminControls
+          applicantId={profileUserUid}
+          currentStatus={comprehensiveData.user.application_status}
+          onStatusChange={handleApplicantStatusChange}
+        />
+      )}
 
       {/* Personal Details */}
       <PersonalDetails
@@ -629,7 +969,9 @@ export default function UserProfile() {
       </div>
 
       {/* Activity Summary */}
-      <ActivitySummary activitySummary={activitySummary} />
+      {comprehensiveData?.user?.role !== "applicant" && (
+        <ActivitySummary activitySummary={activitySummary} />
+      )}
 
       {/* Achievements */}
       <Achievements achievements={comprehensiveData?.achievements} />

@@ -1,9 +1,29 @@
-// Centralized configuration
-// Use environment variable if provided (e.g., NEXT_PUBLIC_API_BASE), else fallback
-export const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ||
-  "http://localhost:3001/api" ||
-  "http://192.168.68.102:3001/api";
+// Centralized configuration helpers
+
+const DEFAULT_API_PORT = process.env.NEXT_PUBLIC_API_PORT || "3001";
+
+const getDefaultProtocol = () =>
+  typeof window !== "undefined" ? window.location.protocol : "http:";
+
+const getDefaultHost = () =>
+  typeof window !== "undefined" ? window.location.hostname : "localhost";
+
+const normalizeBase = (value) => {
+  if (!value) return value;
+
+  const trimmed = value.endsWith("/") ? value.slice(0, -1) : value;
+  if (trimmed.endsWith("/api")) {
+    return trimmed;
+  }
+  return `${trimmed}/api`;
+};
+
+const resolvedEnvBase =
+  process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE;
+
+const resolvedDefaultBase = `${getDefaultProtocol()}//${getDefaultHost()}:${DEFAULT_API_PORT}/api`;
+
+export const API_BASE = normalizeBase(resolvedEnvBase) || resolvedDefaultBase;
 
 if (typeof window !== "undefined") {
   console.log(

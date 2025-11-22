@@ -1,19 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   IoTimeOutline,
   IoPersonOutline,
   IoShieldCheckmarkOutline,
   IoDocumentTextOutline,
   IoSettingsOutline,
-  IoTrashOutline,
   IoCreateOutline,
-  IoCheckmarkCircleOutline,
-  IoCloseCircleOutline,
   IoDownloadOutline,
-  IoFilterOutline,
-  IoSearchOutline,
   IoCalendarOutline,
 } from "react-icons/io5";
 import { useNotify } from "../../ui/NotificationProvider";
@@ -22,6 +17,12 @@ import {
   fetchActivityLogStats,
   exportActivityLogs,
 } from "../../../services/activityLogService";
+import Pagination from "../../pagination/Pagination";
+import LogFilterSearch from "../../logs/LogFilterSearch";
+import { useLogFiltersState } from "../../../hooks/useLogFiltersState";
+import { createLogQueryParams } from "../../../utils/logFilters";
+
+const ITEMS_PER_PAGE = 10;
 
 const LOG_TYPES = {
   AUTH: {
@@ -74,9 +75,50 @@ const SEVERITY_COLORS = {
     "bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/20 dark:text-amber-400",
   LOW: "bg-blue-100 text-blue-700 border-blue-300 dark:bg-blue-900/20 dark:text-blue-400",
   INFO: "bg-gray-100 text-gray-700 border-gray-300 dark:bg-gray-800 dark:text-gray-400",
+  CRITICAL:
+    "bg-red-200 text-red-800 border-red-400 dark:bg-red-900/30 dark:text-red-300",
 };
 
+const ACTION_OPTIONS = [
+  { value: "ALL", label: "All Actions" },
+  { value: "LOGIN", label: "Login" },
+  { value: "LOGOUT", label: "Logout" },
+  { value: "CREATE", label: "Create" },
+  { value: "UPDATE", label: "Update" },
+  { value: "DELETE", label: "Delete" },
+  { value: "APPROVE", label: "Approve" },
+  { value: "REJECT", label: "Reject" },
+  { value: "EXPORT", label: "Export" },
+  { value: "ROLE_UPDATE", label: "Role Update" },
+];
+
+const ACTOR_ROLE_OPTIONS = [
+  { value: "ALL", label: "All Roles" },
+  { value: "admin", label: "Admin" },
+  { value: "staff", label: "Staff" },
+  { value: "volunteer", label: "Volunteer" },
+  { value: "system", label: "System" },
+  { value: "unknown", label: "Unknown" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "ALL", label: "All Statuses" },
+  { value: "success", label: "Success" },
+  { value: "failed", label: "Failed" },
+];
+
+const SEVERITY_OPTIONS = [
+  { value: "ALL", label: "All Severities" },
+  { value: "INFO", label: "Info" },
+  { value: "LOW", label: "Low" },
+  { value: "MEDIUM", label: "Medium" },
+  { value: "HIGH", label: "High" },
+  { value: "CRITICAL", label: "Critical" },
+];
+
 export default function AdminActivityLog() {
+  const notify = useNotify();
+  const isFirstLoadRef = useRef(true);
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -84,166 +126,199 @@ export default function AdminActivityLog() {
     today_count: 0,
     security_events: 0,
   });
-  const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedType, setSelectedType] = useState("ALL");
-  const [selectedSeverity, setSelectedSeverity] = useState("ALL");
-  const [dateRange, setDateRange] = useState({ start: "", end: "" });
-  const [showFilters, setShowFilters] = useState(false);
-  const [isAutoRefreshEnabled, setIsAutoRefreshEnabled] = useState(true);
-  const notify = useNotify();
+  const [pageLoading, setPageLoading] = useState(false);
+  const [totalLogs, setTotalLogs] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch logs from API on mount
+  const initialFilters = useMemo(
+    () => ({
+      search: "",
+      type: "ALL",
+      severity: "ALL",
+      action: "ALL",
+      actorRole: "ALL",
+      status: "ALL",
+      startDate: "",
+      endDate: "",
+    }),
+    []
+  );
+
+  const { filters, debouncedSearch, setFilter, resetFilters, activeFilters } =
+    useLogFiltersState("admin-activity-log-filters", initialFilters, 400);
+
+  const filterConfig = useMemo(
+    () => ({
+      searchPlaceholder: "Search by user, action, or description...",
+      fields: [
+        {
+          type: "select",
+          key: "type",
+          label: "Log Type",
+          options: [
+            { value: "ALL", label: "All Types" },
+            ...Object.entries(LOG_TYPES).map(([key, value]) => ({
+              value: key,
+              label: value.label,
+            })),
+          ],
+        },
+        {
+          type: "select",
+          key: "severity",
+          label: "Severity",
+          options: SEVERITY_OPTIONS,
+        },
+        {
+          type: "select",
+          key: "actorRole",
+          label: "User Role",
+          options: ACTOR_ROLE_OPTIONS,
+        },
+        {
+          type: "select",
+          key: "status",
+          label: "Status",
+          options: STATUS_OPTIONS,
+        },
+        {
+          type: "select",
+          key: "action",
+          label: "Action",
+          options: ACTION_OPTIONS,
+        },
+        {
+          type: "daterange",
+          startKey: "startDate",
+          endKey: "endDate",
+          label: "Date Range",
+        },
+      ],
+    }),
+    []
+  );
+
   useEffect(() => {
-    fetchLogsAndStats();
-  }, []);
+    let ignore = false;
 
-  // Auto-refresh logs every 10 seconds
+    const fetchStats = async () => {
+      try {
+        const statsData = await fetchActivityLogStats(7);
+        if (ignore) return;
+        const statsObj = statsData.data || statsData;
+        setStats({
+          total: parseInt(statsObj.total || 0, 10),
+          high_severity: parseInt(statsObj.high_severity || 0, 10),
+          today_count: parseInt(statsObj.today_count || 0, 10),
+          security_events: parseInt(statsObj.security_events || 0, 10),
+        });
+      } catch (error) {
+        if (ignore) return;
+        console.error("Error fetching log stats:", error);
+        notify?.push("Failed to load log statistics", "error");
+      }
+    };
+
+    fetchStats();
+
+    return () => {
+      ignore = true;
+    };
+  }, [notify]);
+
   useEffect(() => {
-    if (!isAutoRefreshEnabled) return;
-
-    const intervalId = setInterval(() => {
-      fetchFilteredLogs();
-    }, 10000); // 10 seconds
-
-    return () => clearInterval(intervalId);
+    setCurrentPage((prev) => (prev === 1 ? prev : 1));
   }, [
-    isAutoRefreshEnabled,
-    searchTerm,
-    selectedType,
-    selectedSeverity,
-    dateRange,
+    filters.type,
+    filters.severity,
+    filters.action,
+    filters.actorRole,
+    filters.status,
+    filters.startDate,
+    filters.endDate,
+    debouncedSearch,
   ]);
 
-  // Apply filters when dependencies change
   useEffect(() => {
-    if (!loading) {
-      fetchFilteredLogs();
-    }
-  }, [searchTerm, selectedType, selectedSeverity, dateRange]);
+    const controller = new AbortController();
+    const params = createLogQueryParams(
+      filters,
+      debouncedSearch,
+      ITEMS_PER_PAGE,
+      currentPage
+    );
 
-  const fetchLogsAndStats = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch logs and stats in parallel
-      const [logsData, statsData] = await Promise.all([
-        fetchActivityLogs({ limit: 100 }),
-        fetchActivityLogStats(7),
-      ]);
-
-      // Handle response - backend returns { success, data, count }
-      const logsArray = Array.isArray(logsData)
-        ? logsData
-        : logsData.data || logsData.logs || [];
-
-      const statsObj = statsData.data || statsData;
-
-      // Debug: Log sample data to check timestamp format
-      if (logsArray.length > 0) {
-        console.log("=== TIMESTAMP DEBUG ===");
-        console.log("Sample log entry:", logsArray[0]);
-        console.log("created_at value:", logsArray[0].created_at);
-        console.log("created_at type:", typeof logsArray[0].created_at);
-        console.log("metadata value:", logsArray[0].metadata);
-        console.log("metadata type:", typeof logsArray[0].metadata);
-        if (logsArray[0].metadata) {
-          console.log("metadata.timestamp:", logsArray[0].metadata.timestamp);
-          console.log("metadata.localTime:", logsArray[0].metadata.localTime);
+    const run = async () => {
+      try {
+        if (isFirstLoadRef.current) {
+          setLoading(true);
+        } else {
+          setPageLoading(true);
         }
 
-        // Check timezone information
-        const sampleDate = new Date(logsArray[0].created_at);
-        const now = new Date();
+        const payload = await fetchActivityLogs(params, {
+          signal: controller.signal,
+        });
+        const list = Array.isArray(payload.data)
+          ? payload.data
+          : payload.logs || [];
 
-        console.log("\n--- Database Timestamp ---");
-        console.log("Raw value:", logsArray[0].created_at);
-        console.log("Parsed Date object:", sampleDate);
-        console.log("ISO String (UTC):", sampleDate.toISOString());
-        console.log("Local String:", sampleDate.toLocaleString());
-
-        console.log("\n--- Current Time ---");
-        console.log("Now (Date object):", now);
-        console.log("Now ISO String (UTC):", now.toISOString());
-        console.log("Now Local String:", now.toLocaleString());
-
-        console.log("\n--- Time Difference ---");
-        const diff = now - sampleDate;
-        const minutesDiff = Math.floor(diff / 60000);
-        const hoursDiff = Math.floor(diff / 3600000);
-        console.log("Difference (ms):", diff);
-        console.log("Difference (minutes):", minutesDiff);
-        console.log("Difference (hours):", hoursDiff);
-
-        console.log("\n--- Timezone Info ---");
-        console.log(
-          "Timezone offset (minutes):",
-          sampleDate.getTimezoneOffset()
-        );
-        console.log(
-          "User's timezone:",
-          Intl.DateTimeFormat().resolvedOptions().timeZone
-        );
-        console.log("======================\n");
+        setLogs(list);
+        const total =
+          typeof payload.total === "number"
+            ? payload.total
+            : payload.count ?? list.length;
+        setTotalLogs(total);
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        console.error("Error fetching logs:", error);
+        notify?.push("Failed to load activity logs", "error");
+      } finally {
+        if (isFirstLoadRef.current) {
+          setLoading(false);
+          isFirstLoadRef.current = false;
+        }
+        setPageLoading(false);
       }
+    };
 
-      setLogs(logsArray);
-      setFilteredLogs(logsArray);
-      setStats({
-        total: parseInt(statsObj.total || 0),
-        high_severity: parseInt(statsObj.high_severity || 0),
-        today_count: parseInt(statsObj.today_count || 0),
-        security_events: parseInt(statsObj.security_events || 0),
-      });
-    } catch (error) {
-      console.error("Error fetching logs:", error);
-      notify?.push("Failed to load activity logs", "error");
-      setLogs([]);
-      setFilteredLogs([]);
-    } finally {
-      setLoading(false);
+    run();
+
+    return () => {
+      controller.abort();
+    };
+  }, [filters, debouncedSearch, currentPage, notify]);
+
+  const totalPages = Math.max(1, Math.ceil(totalLogs / ITEMS_PER_PAGE));
+  const pageRangeStart = totalLogs ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
+  const pageRangeEnd = totalLogs
+    ? Math.min(currentPage * ITEMS_PER_PAGE, totalLogs)
+    : 0;
+  const shouldShowPagination = totalPages > 1;
+
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === currentPage) {
+      return;
     }
-  };
-
-  const fetchFilteredLogs = async () => {
-    try {
-      const params = {
-        limit: 100,
-      };
-
-      if (selectedType !== "ALL") params.type = selectedType;
-      if (selectedSeverity !== "ALL") params.severity = selectedSeverity;
-      if (searchTerm) params.searchTerm = searchTerm;
-      if (dateRange.start)
-        params.startDate = new Date(dateRange.start).toISOString();
-      if (dateRange.end) params.endDate = new Date(dateRange.end).toISOString();
-
-      const logsData = await fetchActivityLogs(params);
-
-      // Handle response - backend returns { success, data, count }
-      const logsArray = Array.isArray(logsData)
-        ? logsData
-        : logsData.data || logsData.logs || [];
-
-      setFilteredLogs(logsArray);
-    } catch (error) {
-      console.error("Error fetching filtered logs:", error);
-      notify?.push("Failed to apply filters", "error");
-      setFilteredLogs([]);
+    setCurrentPage(nextPage);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
     }
   };
 
   const handleExportLogs = async () => {
     try {
-      const params = {};
-      if (selectedType !== "ALL") params.type = selectedType;
-      if (selectedSeverity !== "ALL") params.severity = selectedSeverity;
-      if (searchTerm) params.searchTerm = searchTerm;
-      if (dateRange.start)
-        params.startDate = new Date(dateRange.start).toISOString();
-      if (dateRange.end) params.endDate = new Date(dateRange.end).toISOString();
-
+      const params = createLogQueryParams(
+        filters,
+        debouncedSearch,
+        ITEMS_PER_PAGE,
+        currentPage
+      );
+      delete params.limit;
+      delete params.offset;
       await exportActivityLogs(params);
       notify?.push("Logs exported successfully", "success");
     } catch (error) {
@@ -256,13 +331,10 @@ export default function AdminActivityLog() {
     if (!timestamp) return "Unknown";
 
     try {
-      // If metadata.localTime exists, use it for the base calculation
-      // This ensures we're working with the correct local time
       const dateString = metadata?.timestamp || timestamp;
       const date = new Date(dateString);
 
-      // Check if date is valid
-      if (isNaN(date.getTime())) return "Invalid date";
+      if (Number.isNaN(date.getTime())) return "Invalid date";
 
       const now = new Date();
       const diff = now - date;
@@ -275,8 +347,6 @@ export default function AdminActivityLog() {
       if (hours < 24) return `${hours}h ago`;
       if (days < 7) return `${days}d ago`;
 
-      // For older dates, show full timestamp
-      // If metadata.localTime exists, show it; otherwise format the date
       if (metadata?.localTime) {
         return metadata.localTime;
       }
@@ -302,14 +372,13 @@ export default function AdminActivityLog() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -327,92 +396,16 @@ export default function AdminActivityLog() {
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
-        {/* Search Bar */}
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
-            <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by user, action, or type..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            />
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <IoFilterOutline className="w-5 h-5" />
-            Filters
-            {showFilters && (
-              <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 px-2 py-0.5 rounded-full">
-                Active
-              </span>
-            )}
-          </button>
-        </div>
+      <LogFilterSearch
+        filters={filters}
+        defaults={initialFilters}
+        config={filterConfig}
+        onChange={setFilter}
+        onReset={resetFilters}
+        activeCount={activeFilters}
+        isBusy={pageLoading}
+      />
 
-        {/* Filter Options */}
-        {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Log Type
-              </label>
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="ALL">All Types</option>
-                {Object.entries(LOG_TYPES).map(([key, value]) => (
-                  <option key={key} value={key}>
-                    {value.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Severity
-              </label>
-              <select
-                value={selectedSeverity}
-                onChange={(e) => setSelectedSeverity(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="ALL">All Severities</option>
-                <option value="HIGH">High</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="LOW">Low</option>
-                <option value="INFO">Info</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Date Range
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="date"
-                  value={dateRange.start}
-                  onChange={(e) =>
-                    setDateRange({ ...dateRange, start: e.target.value })
-                  }
-                  className="flex-1 px-2 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -448,87 +441,134 @@ export default function AdminActivityLog() {
         </div>
       </div>
 
-      {/* Logs List */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div className="overflow-x-auto">
-          <div className="min-w-full">
-            {filteredLogs.length === 0 ? (
-              <div className="text-center py-12">
-                <IoDocumentTextOutline className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600 dark:text-gray-400">
-                  No logs found matching your filters
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-200 dark:divide-gray-700">
-                {filteredLogs.map((log) => (
-                  <div
-                    key={log.log_id}
-                    className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Icon */}
-                      <div
-                        className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-700 ${
-                          LOG_TYPES[log.type]?.color || "text-gray-600"
-                        }`}
-                      >
-                        {getLogIcon(log.type)}
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2 mb-1">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-medium text-gray-900 dark:text-white">
-                              {log.action}
-                            </span>
-                            <span
-                              className={`text-xs px-2 py-0.5 rounded-full border ${
-                                SEVERITY_COLORS[log.severity]
-                              }`}
-                            >
-                              {log.severity}
-                            </span>
-                            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                              {LOG_TYPES[log.type]?.label}
-                            </span>
-                          </div>
-                          <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                            {formatTimestamp(log.created_at, log.metadata)}
-                          </span>
+        <div className="flex flex-col">
+          <div className="overflow-x-auto">
+            <div className="min-w-full">
+              {totalLogs === 0 ? (
+                <div className="text-center py-12">
+                  <IoDocumentTextOutline className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-600 dark:text-gray-400">
+                    No logs found matching your filters
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                  <div className="px-4 py-3 text-xs sm:text-sm text-gray-600 dark:text-gray-300 flex justify-between">
+                    <span>
+                      Showing {pageRangeStart}-{pageRangeEnd} of {totalLogs} log
+                      entries
+                    </span>
+                    <span>
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </div>
+                  {(pageLoading ? [] : logs).map((log) => (
+                    <div
+                      key={log.log_id}
+                      className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div
+                          className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-700 ${
+                            LOG_TYPES[log.type]?.color || "text-gray-600"
+                          }`}
+                        >
+                          {getLogIcon(log.type)}
                         </div>
 
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                          {log.description}
-                        </p>
-
-                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-                          <span className="flex items-center gap-1">
-                            <IoPersonOutline className="w-4 h-4" />
-                            {log.performed_by_name} ({log.performed_by_role})
-                          </span>
-                          {log.ip_address && (
-                            <span className="flex items-center gap-1">
-                              IP: {log.ip_address}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-medium text-gray-900 dark:text-white">
+                                {log.action}
+                              </span>
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded-full border ${
+                                  SEVERITY_COLORS[log.severity] ||
+                                  SEVERITY_COLORS.INFO
+                                }`}
+                              >
+                                {log.severity}
+                              </span>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                                {LOG_TYPES[log.type]?.label || log.type}
+                              </span>
+                            </div>
+                            <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+                              {formatTimestamp(log.created_at, log.metadata)}
                             </span>
-                          )}
-                          {log.metadata &&
-                            typeof log.metadata === "object" &&
-                            log.metadata.localTime && (
+                          </div>
+
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
+                            {log.description}
+                          </p>
+
+                          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <IoPersonOutline className="w-4 h-4" />
+                              {log.performed_by_name} ({log.performed_by_role})
+                            </span>
+                            {log.ip_address && (
                               <span className="flex items-center gap-1">
-                                <IoTimeOutline className="w-4 h-4" />
-                                {log.metadata.localTime}
+                                IP: {log.ip_address}
                               </span>
                             )}
+                            {log.metadata &&
+                              typeof log.metadata === "object" &&
+                              log.metadata.localTime && (
+                                <span className="flex items-center gap-1">
+                                  <IoTimeOutline className="w-4 h-4" />
+                                  {log.metadata.localTime}
+                                </span>
+                              )}
+                          </div>
+
+                          {log.changes && typeof log.changes === "object" ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {Object.entries(log.changes).map(
+                                ([key, value]) => (
+                                  <span
+                                    key={key}
+                                    className="text-xs px-2 py-1 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded"
+                                  >
+                                    {key}: {String(value)}
+                                  </span>
+                                )
+                              )}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                  {pageLoading && (
+                    <div className="p-4">
+                      <div className="animate-pulse space-y-4">
+                        <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />
+                        <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
+          {shouldShowPagination && (
+            <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-3">
+              <Pagination
+                currentPage={currentPage}
+                totalItems={totalLogs}
+                itemsPerPage={ITEMS_PER_PAGE}
+                onPageChange={handlePageChange}
+                accentColor="var(--primary-red, #bb3031)"
+                ariaLabel="Activity logs pagination"
+                className="pt-0"
+                maxPageButtons={5}
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>

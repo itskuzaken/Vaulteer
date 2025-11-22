@@ -30,7 +30,6 @@ export default function ModernDashboardLayout({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [dbProfile, setDbProfile] = useState(null);
-  const [userId, setUserId] = useState(null);
   const userMenuRef = useRef(null);
 
   // Track mount state for responsive calculations
@@ -58,11 +57,10 @@ export default function ModernDashboardLayout({
 
         if (meResponse.ok) {
           const meData = await meResponse.json();
-          const currentUserId = meData.user_id;
-          setUserId(currentUserId);
+          const currentUserUid = meData.uid;
 
           // Then fetch comprehensive profile
-          const profileData = await getComprehensiveUserProfile(currentUserId);
+          const profileData = await getComprehensiveUserProfile(currentUserUid);
           setDbProfile(profileData);
         }
       } catch (error) {

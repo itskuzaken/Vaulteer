@@ -20,9 +20,9 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-export const getIdToken = async () => {
+export const getIdToken = async (forceRefresh = false) => {
   if (auth.currentUser) {
-    return await auth.currentUser.getIdToken();
+    return await auth.currentUser.getIdToken(forceRefresh);
   }
   return null;
 };

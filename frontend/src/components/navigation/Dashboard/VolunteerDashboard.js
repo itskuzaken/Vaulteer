@@ -1,48 +1,39 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { QuickActionCard } from "../../card/DashboardCard";
 import RealtimeStatsGrid from "../../ui/RealtimeStatsGrid";
+import DashboardSectionCard from "../../ui/DashboardSectionCard";
 import {
   IoDocumentTextOutline,
   IoEyeOutline,
   IoStatsChartOutline,
   IoTodayOutline,
   IoClose,
+  IoCalendarOutline,
+  IoFlashOutline,
 } from "react-icons/io5";
 import { getAuth } from "firebase/auth";
 import { API_BASE } from "../../../config/config";
+import DashboardEventsSidebar from "../../dashboard/DashboardEventsSidebar";
+import MyImpactWidget from "../../gamification/MyImpactWidget";
+import BadgeCarousel from "../../gamification/BadgeCarousel";
+import LeaderboardCard from "../../gamification/LeaderboardCard";
 
-export default function VolunteerDashboard({ onNavigate }) {
+export default function VolunteerDashboard({
+  onNavigate,
+  currentUser,
+  gamificationSummary,
+}) {
   const [showWelcome, setShowWelcome] = useState(true);
-  const [userRole, setUserRole] = useState(null);
+  const userRole = (currentUser?.role || "").toLowerCase();
 
-  // Check user role on mount
-  useEffect(() => {
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (user) {
-      user.getIdToken().then(async (token) => {
-        try {
-          const response = await fetch(`${API_BASE}/me`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-          if (response.ok) {
-            const data = await response.json();
-            setUserRole(data.role);
-          }
-        } catch (error) {
-          console.error("Error fetching user role:", error);
-        }
-      });
-    }
-  }, []);
-
-  const handleQuickAction = (contentKey, subContentKey = null) => {
-    if (onNavigate) {
-      onNavigate(contentKey, subContentKey);
-    }
-  };
+  const handleQuickAction = useCallback(
+    (contentKey, subContentKey = null) => {
+      if (onNavigate) {
+        onNavigate(contentKey, subContentKey);
+      }
+    },
+    [onNavigate]
+  );
 
   // Stats configuration for real-time grid
   const statsConfig = [
@@ -109,68 +100,88 @@ export default function VolunteerDashboard({ onNavigate }) {
   };
 
   return (
-    <div className="space-y-6 animate-fadeIn">
-      {/* Welcome Section */}
-      {showWelcome && (
-        <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white relative">
-          <button
-            onClick={() => setShowWelcome(false)}
-            className="absolute top-4 right-4 p-1 rounded-lg hover:bg-white/20 transition-colors"
-            aria-label="Close welcome message"
-          >
-            <IoClose className="w-6 h-6" />
-          </button>
-          <h2 className="text-2xl font-bold mb-2">
-            Welcome back, Volunteer! 👋
-          </h2>
-          <p className="text-yellow-100">
-            Thank you for your dedication. Here's your activity overview.
-          </p>
-        </div>
-      )}
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 animate-fadeIn">
+      <div className="space-y-6">
+        {/* Welcome Section */}
+        {showWelcome && (
+          <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white relative">
+            <button
+              onClick={() => setShowWelcome(false)}
+              className="absolute top-4 right-4 p-1 rounded-lg hover:bg-white/20 transition-colors"
+              aria-label="Close welcome message"
+            >
+              <IoClose className="w-6 h-6" />
+            </button>
+            <h2 className="text-2xl font-bold mb-2">
+              Welcome back, Volunteer! 👋
+            </h2>
+            <p className="text-yellow-100">
+              Thank you for your dedication. Here&apos;s your activity overview.
+            </p>
+          </div>
+        )}
 
-      {/* Real-time Statistics Grid - Only show for volunteers */}
-      {userRole === "volunteer" && (
-        <RealtimeStatsGrid
-          statsConfig={statsConfig}
-          fetchCallback={fetchStats}
-          updateInterval={15000}
-          channel="volunteer-dashboard-stats"
-          showLiveIndicator={true}
-          gridCols={2}
+        {/* Real-time Statistics Grid - Only show for volunteers */}
+        {userRole === "volunteer" && (
+          <RealtimeStatsGrid
+            statsConfig={statsConfig}
+            fetchCallback={fetchStats}
+            updateInterval={15000}
+            channel="volunteer-dashboard-stats"
+            gridCols={2}
+          />
+        )}
+
+        <MyImpactWidget summary={gamificationSummary} />
+
+        <BadgeCarousel
+          badges={gamificationSummary?.badges}
+          loading={!gamificationSummary}
         />
-      )}
 
-      {/* Show message for non-volunteers */}
-      {userRole && userRole !== "volunteer" && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-center">
-          <p className="text-blue-600 dark:text-blue-400">
-            This dashboard is for volunteers only. Your role: {userRole}
-          </p>
-        </div>
-      )}
+        {/* Show message for non-volunteers */}
+        {userRole && userRole !== "volunteer" && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-center">
+            <p className="text-blue-600 dark:text-blue-400">
+              This dashboard is for volunteers only. Your role: {userRole}
+            </p>
+          </div>
+        )}
 
-      {/* Quick Actions */}
-      <div>
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-          Quick Actions
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <QuickActionCard
-            title="Submit Form"
-            description="Submit a new HTS form"
-            icon={<IoDocumentTextOutline />}
-            color="yellow"
-            onClick={() => handleQuickAction("forms", "submit-form")}
-          />
-          <QuickActionCard
-            title="View Submissions"
-            description="Check your submitted forms"
-            icon={<IoEyeOutline />}
-            color="blue"
-            onClick={() => handleQuickAction("forms", "view-submitted")}
-          />
-        </div>
+        <DashboardSectionCard
+          title="Quick actions"
+          subtitle="Stay productive"
+          icon={IoFlashOutline}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            <QuickActionCard
+              title="Submit Form"
+              description="Submit a new HTS form"
+              icon={<IoDocumentTextOutline />}
+              color="yellow"
+              onClick={() => handleQuickAction("forms", "submit-form")}
+            />
+            <QuickActionCard
+              title="View Submissions"
+              description="Check your submitted forms"
+              icon={<IoEyeOutline />}
+              color="blue"
+              onClick={() => handleQuickAction("forms", "view-submitted")}
+            />
+            <QuickActionCard
+              title="My Events"
+              description="See registered and past events"
+              icon={<IoCalendarOutline />}
+              color="red"
+              onClick={() => handleQuickAction("my-events")}
+            />
+          </div>
+        </DashboardSectionCard>
+      </div>
+
+      <div className="space-y-6">
+        <DashboardEventsSidebar />
+        <LeaderboardCard limit={6} />
       </div>
     </div>
   );

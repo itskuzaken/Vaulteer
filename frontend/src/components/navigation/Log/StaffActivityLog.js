@@ -1,18 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  IoTimeOutline,
   IoPersonOutline,
   IoDocumentTextOutline,
   IoCalendarOutline,
   IoCreateOutline,
-  IoCheckmarkCircleOutline,
-  IoCloseCircleOutline,
-  IoDownloadOutline,
-  IoFilterOutline,
-  IoSearchOutline,
   IoMailOutline,
+  IoDownloadOutline,
 } from "react-icons/io5";
 import { useNotify } from "../../ui/NotificationProvider";
 import {
@@ -20,7 +15,12 @@ import {
   fetchActivityLogStats,
   exportActivityLogs,
 } from "../../../services/activityLogService";
-import { getAuth } from "firebase/auth";
+import Pagination from "../../pagination/Pagination";
+import LogFilterSearch from "../../logs/LogFilterSearch";
+import { useLogFiltersState } from "../../../hooks/useLogFiltersState";
+import { createLogQueryParams } from "../../../utils/logFilters";
+
+const ITEMS_PER_PAGE = 10;
 
 const LOG_TYPES = {
   VOLUNTEER_MANAGEMENT: {
@@ -47,113 +47,223 @@ const LOG_TYPES = {
   },
 };
 
+const ACTION_OPTIONS = [
+  { value: "ALL", label: "All Actions" },
+  { value: "CREATE", label: "Create" },
+  { value: "UPDATE", label: "Update" },
+  { value: "DELETE", label: "Delete" },
+  { value: "APPROVE", label: "Approve" },
+  { value: "REJECT", label: "Reject" },
+  { value: "ASSIGN", label: "Assign" },
+  { value: "MESSAGE", label: "Message" },
+];
+
+const STATUS_OPTIONS = [
+  { value: "ALL", label: "All Statuses" },
+  { value: "success", label: "Success" },
+  { value: "failed", label: "Failed" },
+];
+
+const ACTOR_ROLE_OPTIONS = [
+  { value: "ALL", label: "All Roles" },
+  { value: "staff", label: "Staff" },
+  { value: "volunteer", label: "Volunteer" },
+  { value: "admin", label: "Admin" },
+  { value: "system", label: "System" },
+];
+
 export default function StaffActivityLog() {
+  const notify = useNotify();
+  const isFirstLoadRef = useRef(true);
   const [logs, setLogs] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
     today_count: 0,
     period_count: 0,
   });
-  const [filteredLogs, setFilteredLogs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedType, setSelectedType] = useState("ALL");
-  const [dateRange, setDateRange] = useState({ start: "", end: "" });
-  const [showFilters, setShowFilters] = useState(false);
-  const [isAutoRefreshEnabled, setIsAutoRefreshEnabled] = useState(true);
-  const notify = useNotify();
+  const [pageLoading, setPageLoading] = useState(false);
+  const [totalLogs, setTotalLogs] = useState(0);
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const initialFilters = useMemo(
+    () => ({
+      search: "",
+      type: "ALL",
+      action: "ALL",
+      actorRole: "ALL",
+      status: "ALL",
+      startDate: "",
+      endDate: "",
+    }),
+    []
+  );
+
+  const { filters, debouncedSearch, setFilter, resetFilters, activeFilters } =
+    useLogFiltersState("staff-activity-log-filters", initialFilters, 400);
+
+  const filterConfig = useMemo(
+    () => ({
+      searchPlaceholder: "Search activities, people, or details...",
+      fields: [
+        {
+          type: "select",
+          key: "type",
+          label: "Activity Type",
+          options: [
+            { value: "ALL", label: "All Types" },
+            ...Object.entries(LOG_TYPES).map(([key, value]) => ({
+              value: key,
+              label: value.label,
+            })),
+          ],
+        },
+        {
+          type: "select",
+          key: "action",
+          label: "Action",
+          options: ACTION_OPTIONS,
+        },
+        {
+          type: "select",
+          key: "actorRole",
+          label: "User Role",
+          options: ACTOR_ROLE_OPTIONS,
+        },
+        {
+          type: "select",
+          key: "status",
+          label: "Status",
+          options: STATUS_OPTIONS,
+        },
+        {
+          type: "daterange",
+          startKey: "startDate",
+          endKey: "endDate",
+          label: "Date Range",
+        },
+      ],
+    }),
+    []
+  );
 
   useEffect(() => {
-    fetchLogsAndStats();
-  }, []);
+    let ignore = false;
 
-  // Auto-refresh logs every 10 seconds
+    const fetchStats = async () => {
+      try {
+        const statsData = await fetchActivityLogStats(7);
+        if (ignore) return;
+        const statsObj = statsData.data || statsData;
+        setStats({
+          total: parseInt(statsObj.total || 0, 10),
+          today_count: parseInt(statsObj.today_count || 0, 10),
+          period_count: parseInt(statsObj.period_count || 0, 10),
+        });
+      } catch (error) {
+        if (ignore) return;
+        console.error("Error fetching log stats:", error);
+        notify?.push("Failed to load activity stats", "error");
+      }
+    };
+
+    fetchStats();
+
+    return () => {
+      ignore = true;
+    };
+  }, [notify]);
+
   useEffect(() => {
-    if (!isAutoRefreshEnabled) return;
-
-    const intervalId = setInterval(() => {
-      fetchFilteredLogs();
-    }, 10000); // 10 seconds
-
-    return () => clearInterval(intervalId);
-  }, [isAutoRefreshEnabled, searchTerm, selectedType, dateRange]);
+    setCurrentPage((prev) => (prev === 1 ? prev : 1));
+  }, [
+    filters.type,
+    filters.action,
+    filters.actorRole,
+    filters.status,
+    filters.startDate,
+    filters.endDate,
+    debouncedSearch,
+  ]);
 
   useEffect(() => {
-    if (!loading) {
-      fetchFilteredLogs();
+    const controller = new AbortController();
+    const params = createLogQueryParams(
+      filters,
+      debouncedSearch,
+      ITEMS_PER_PAGE,
+      currentPage
+    );
+
+    const run = async () => {
+      try {
+        if (isFirstLoadRef.current) {
+          setLoading(true);
+        } else {
+          setPageLoading(true);
+        }
+
+        const payload = await fetchActivityLogs(params, {
+          signal: controller.signal,
+        });
+        const list = Array.isArray(payload.data)
+          ? payload.data
+          : payload.logs || [];
+
+        setLogs(list);
+        const total =
+          typeof payload.total === "number"
+            ? payload.total
+            : payload.count ?? list.length;
+        setTotalLogs(total);
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        console.error("Error fetching logs:", error);
+        notify?.push("Failed to load activity logs", "error");
+      } finally {
+        if (isFirstLoadRef.current) {
+          setLoading(false);
+          isFirstLoadRef.current = false;
+        }
+        setPageLoading(false);
+      }
+    };
+
+    run();
+
+    return () => {
+      controller.abort();
+    };
+  }, [filters, debouncedSearch, currentPage, notify]);
+
+  const totalPages = Math.max(1, Math.ceil(totalLogs / ITEMS_PER_PAGE));
+  const pageRangeStart = totalLogs ? (currentPage - 1) * ITEMS_PER_PAGE + 1 : 0;
+  const pageRangeEnd = totalLogs
+    ? Math.min(currentPage * ITEMS_PER_PAGE, totalLogs)
+    : 0;
+
+  const handlePageChange = (nextPage) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === currentPage) {
+      return;
     }
-  }, [searchTerm, selectedType, dateRange]);
-
-  const fetchLogsAndStats = async () => {
-    try {
-      setLoading(true);
-
-      // Fetch logs and stats for current staff member
-      const [logsData, statsData] = await Promise.all([
-        fetchActivityLogs({ limit: 100 }),
-        fetchActivityLogStats(7),
-      ]);
-
-      // Handle response - backend returns { success, data, count }
-      const logsArray = Array.isArray(logsData)
-        ? logsData
-        : logsData.data || logsData.logs || [];
-
-      const statsObj = statsData.data || statsData;
-
-      setLogs(logsArray);
-      setFilteredLogs(logsArray);
-      setStats({
-        total: parseInt(statsObj.total || 0),
-        today_count: parseInt(statsObj.today_count || 0),
-        period_count: parseInt(statsObj.period_count || 0),
+    setCurrentPage(nextPage);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" });
       });
-    } catch (error) {
-      console.error("Error fetching logs:", error);
-      notify?.push("Failed to load activity logs", "error");
-      setLogs([]);
-      setFilteredLogs([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchFilteredLogs = async () => {
-    try {
-      const params = {
-        limit: 100,
-      };
-
-      if (selectedType !== "ALL") params.type = selectedType;
-      if (searchTerm) params.searchTerm = searchTerm;
-      if (dateRange.start)
-        params.startDate = new Date(dateRange.start).toISOString();
-      if (dateRange.end) params.endDate = new Date(dateRange.end).toISOString();
-
-      const logsData = await fetchActivityLogs(params);
-
-      // Handle response - backend returns { success, data, count }
-      const logsArray = Array.isArray(logsData)
-        ? logsData
-        : logsData.data || logsData.logs || [];
-
-      setFilteredLogs(logsArray);
-    } catch (error) {
-      console.error("Error fetching filtered logs:", error);
-      notify?.push("Failed to apply filters", "error");
-      setFilteredLogs([]);
     }
   };
 
   const handleExportLogs = async () => {
     try {
-      const params = {};
-      if (selectedType !== "ALL") params.type = selectedType;
-      if (searchTerm) params.searchTerm = searchTerm;
-      if (dateRange.start)
-        params.startDate = new Date(dateRange.start).toISOString();
-      if (dateRange.end) params.endDate = new Date(dateRange.end).toISOString();
-
+      const params = createLogQueryParams(
+        filters,
+        debouncedSearch,
+        ITEMS_PER_PAGE,
+        currentPage
+      );
+      delete params.limit;
+      delete params.offset;
       await exportActivityLogs(params);
       notify?.push("Activity log exported successfully", "success");
     } catch (error) {
@@ -166,12 +276,10 @@ export default function StaffActivityLog() {
     if (!timestamp) return "Unknown";
 
     try {
-      // If metadata.timestamp exists, use it for the base calculation
       const dateString = metadata?.timestamp || timestamp;
       const date = new Date(dateString);
 
-      // Check if date is valid
-      if (isNaN(date.getTime())) return "Invalid date";
+      if (Number.isNaN(date.getTime())) return "Invalid date";
 
       const now = new Date();
       const diff = now - date;
@@ -184,7 +292,6 @@ export default function StaffActivityLog() {
       if (hours < 24) return `${hours}h ago`;
       if (days < 7) return `${days}d ago`;
 
-      // For older dates, show full timestamp
       if (metadata?.localTime) {
         return metadata.localTime;
       }
@@ -210,14 +317,13 @@ export default function StaffActivityLog() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-600" />
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -235,66 +341,16 @@ export default function StaffActivityLog() {
         </div>
       </div>
 
-      {/* Search and Filters */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-4">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex-1 relative">
-            <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search activities..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent"
-            />
-          </div>
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-          >
-            <IoFilterOutline className="w-5 h-5" />
-            Filters
-          </button>
-        </div>
+      <LogFilterSearch
+        filters={filters}
+        defaults={initialFilters}
+        config={filterConfig}
+        onChange={setFilter}
+        onReset={resetFilters}
+        activeCount={activeFilters}
+        isBusy={pageLoading}
+      />
 
-        {showFilters && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Activity Type
-              </label>
-              <select
-                value={selectedType}
-                onChange={(e) => setSelectedType(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              >
-                <option value="ALL">All Types</option>
-                {Object.entries(LOG_TYPES).map(([key, value]) => (
-                  <option key={key} value={key}>
-                    {value.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Date
-              </label>
-              <input
-                type="date"
-                value={dateRange.start}
-                onChange={(e) =>
-                  setDateRange({ ...dateRange, start: e.target.value })
-                }
-                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -320,9 +376,8 @@ export default function StaffActivityLog() {
         </div>
       </div>
 
-      {/* Activity Timeline */}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        {filteredLogs.length === 0 ? (
+        {totalLogs === 0 ? (
           <div className="text-center py-12">
             <IoDocumentTextOutline className="w-12 h-12 text-gray-400 mx-auto mb-3" />
             <p className="text-gray-600 dark:text-gray-400">
@@ -331,7 +386,16 @@ export default function StaffActivityLog() {
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {filteredLogs.map((log) => (
+            <div className="px-4 py-3 text-xs sm:text-sm text-gray-600 dark:text-gray-300 flex justify-between">
+              <span>
+                Showing {pageRangeStart}-{pageRangeEnd} of {totalLogs}{" "}
+                activities
+              </span>
+              <span>
+                Page {currentPage} of {totalPages}
+              </span>
+            </div>
+            {(pageLoading ? [] : logs).map((log) => (
               <div
                 key={log.log_id}
                 className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
@@ -347,12 +411,12 @@ export default function StaffActivityLog() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <div>
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-medium text-gray-900 dark:text-white">
                           {log.action}
                         </span>
-                        <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                          {LOG_TYPES[log.type]?.label}
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                          {LOG_TYPES[log.type]?.label || log.type}
                         </span>
                       </div>
                       <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
@@ -360,7 +424,7 @@ export default function StaffActivityLog() {
                       </span>
                     </div>
 
-                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
                       {log.description}
                     </p>
 
@@ -371,7 +435,7 @@ export default function StaffActivityLog() {
                             key={key}
                             className="text-xs px-2 py-1 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded"
                           >
-                            {key}: {value}
+                            {key}: {String(value)}
                           </span>
                         ))}
                       </div>
@@ -380,9 +444,29 @@ export default function StaffActivityLog() {
                 </div>
               </div>
             ))}
+            {pageLoading && (
+              <div className="p-4">
+                <div className="animate-pulse space-y-4">
+                  <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/3" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-2/3" />
+                  <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalItems={totalLogs}
+        itemsPerPage={ITEMS_PER_PAGE}
+        onPageChange={handlePageChange}
+        accentColor="var(--primary-red, #bb3031)"
+        ariaLabel="Activity history pagination"
+        className="pt-4"
+        maxPageButtons={5}
+      />
     </div>
   );
 }

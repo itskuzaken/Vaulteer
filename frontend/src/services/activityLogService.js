@@ -24,6 +24,7 @@ export async function createActivityLog({
   description = "",
   severity = "INFO",
   metadata = null,
+  occurredAt = null,
 }) {
   try {
     const token = await getAuthToken();
@@ -41,6 +42,7 @@ export async function createActivityLog({
         description,
         severity,
         metadata,
+        occurredAt,
       }),
     });
 
@@ -48,7 +50,13 @@ export async function createActivityLog({
       throw new Error("Failed to create activity log");
     }
 
-    return await response.json();
+    const payload = await response.json();
+
+    if (!payload.success) {
+      throw new Error(payload.error || "Failed to fetch activity logs");
+    }
+
+    return payload;
   } catch (error) {
     console.error("Error creating activity log:", error);
     throw error;
@@ -58,21 +66,30 @@ export async function createActivityLog({
 /**
  * Fetch activity logs with filtering
  */
-export async function fetchActivityLogs({
-  type = null,
-  severity = null,
-  startDate = null,
-  endDate = null,
-  limit = 100,
-  offset = 0,
-  searchTerm = null,
-} = {}) {
+export async function fetchActivityLogs(
+  {
+    type = null,
+    severity = null,
+    action = null,
+    actorRole = null,
+    status = null,
+    startDate = null,
+    endDate = null,
+    limit = 100,
+    offset = 0,
+    searchTerm = null,
+  } = {},
+  { signal } = {}
+) {
   try {
     const token = await getAuthToken();
 
     const params = new URLSearchParams();
-    if (type) params.append("type", type);
-    if (severity) params.append("severity", severity);
+    if (type && type !== "ALL") params.append("type", type);
+    if (severity && severity !== "ALL") params.append("severity", severity);
+    if (action && action !== "ALL") params.append("action", action);
+    if (actorRole && actorRole !== "ALL") params.append("actorRole", actorRole);
+    if (status && status !== "ALL") params.append("status", status);
     if (startDate) params.append("startDate", startDate);
     if (endDate) params.append("endDate", endDate);
     if (limit) params.append("limit", limit.toString());
@@ -83,6 +100,7 @@ export async function fetchActivityLogs({
       headers: {
         Authorization: `Bearer ${token}`,
       },
+      signal,
     });
 
     if (!response.ok) {
@@ -91,7 +109,9 @@ export async function fetchActivityLogs({
 
     return await response.json();
   } catch (error) {
-    console.error("Error fetching activity logs:", error);
+    if (error?.name !== "AbortError") {
+      console.error("Error fetching activity logs:", error);
+    }
     throw error;
   }
 }
@@ -153,6 +173,9 @@ export async function fetchUserActivitySummary(userId) {
 export async function exportActivityLogs({
   type = null,
   severity = null,
+  action = null,
+  actorRole = null,
+  status = null,
   startDate = null,
   endDate = null,
   searchTerm = null,
@@ -161,8 +184,11 @@ export async function exportActivityLogs({
     const token = await getAuthToken();
 
     const params = new URLSearchParams();
-    if (type) params.append("type", type);
-    if (severity) params.append("severity", severity);
+    if (type && type !== "ALL") params.append("type", type);
+    if (severity && severity !== "ALL") params.append("severity", severity);
+    if (action && action !== "ALL") params.append("action", action);
+    if (actorRole && actorRole !== "ALL") params.append("actorRole", actorRole);
+    if (status && status !== "ALL") params.append("status", status);
     if (startDate) params.append("startDate", startDate);
     if (endDate) params.append("endDate", endDate);
     if (searchTerm) params.append("searchTerm", searchTerm);
@@ -203,8 +229,13 @@ export async function exportActivityLogs({
  */
 export const logActions = {
   // Authentication
-  loginSuccess: (userInfo) =>
-    createActivityLog({
+  loginSuccess: (userInfo, { occurredAt } = {}) => {
+    let eventDate = occurredAt ? new Date(occurredAt) : new Date();
+    if (Number.isNaN(eventDate.getTime())) {
+      eventDate = new Date();
+    }
+
+    return createActivityLog({
       type: "AUTH",
       action: "LOGIN",
       description: `User logged in successfully`,
@@ -212,11 +243,12 @@ export const logActions = {
         role: userInfo.role,
         email: userInfo.email,
         loginMethod: "Google OAuth",
-        timestamp: new Date().toISOString(),
-        localTime: new Date().toLocaleString(),
+        timestamp: eventDate.toISOString(),
+        localTime: eventDate.toLocaleString(),
       },
       severity: "INFO",
-    }),
+    });
+  },
 
   loginFailure: async (reason, email = null) => {
     const auth = getAuth();
@@ -268,6 +300,50 @@ export const logActions = {
       description: "Updated profile information",
       changes,
       severity: "INFO",
+      metadata: {
+        timestamp: new Date().toISOString(),
+        localTime: new Date().toLocaleString(),
+      },
+    }),
+
+  adminUpdateUserStatus: ({ userId, userName, previousStatus, nextStatus }) =>
+    createActivityLog({
+      type: "PROFILE",
+      action: "STATUS_UPDATE",
+      description: `Updated user status to ${nextStatus}`,
+      targetResource: {
+        type: "user",
+        id: userId,
+        name: userName,
+      },
+      changes: {
+        field: "status",
+        previous: previousStatus,
+        next: nextStatus,
+      },
+      severity: nextStatus === "deactivated" ? "MEDIUM" : "INFO",
+      metadata: {
+        timestamp: new Date().toISOString(),
+        localTime: new Date().toLocaleString(),
+      },
+    }),
+
+  adminUpdateUserRole: ({ userId, userName, previousRole, nextRole }) =>
+    createActivityLog({
+      type: "SECURITY",
+      action: "ROLE_UPDATE",
+      description: `Updated user role to ${nextRole}`,
+      targetResource: {
+        type: "user",
+        id: userId,
+        name: userName,
+      },
+      changes: {
+        field: "role",
+        previous: previousRole,
+        next: nextRole,
+      },
+      severity: "MEDIUM",
       metadata: {
         timestamp: new Date().toISOString(),
         localTime: new Date().toLocaleString(),

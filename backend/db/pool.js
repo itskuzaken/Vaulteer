@@ -16,6 +16,12 @@ async function initPool() {
     connectionLimit: CONFIG.DB_CONN_LIMIT,
     queueLimit: 0,
     timezone: "+08:00", // Force UTC+8 timezone (Asia/Manila, Singapore, etc.)
+    // Connection resilience
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000, // 10 seconds
+    connectTimeout: 10000, // 10 seconds
+    // Auto-reconnect on connection errors
+    maxRetries: 3,
   });
 
   try {

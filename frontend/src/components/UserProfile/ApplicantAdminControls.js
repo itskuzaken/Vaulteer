@@ -1,0 +1,336 @@
+import { useState, useEffect } from "react";
+import {
+  getApplicationStatuses,
+  getApplicantStatusHistory,
+  updateApplicantStatus,
+} from "../../services/applicantsService";
+import StatusSelector from "./StatusSelector";
+import StatusTimeline from "./StatusTimeline";
+import StatusChangeConfirmModal from "./StatusChangeConfirmModal";
+
+export default function ApplicantAdminControls({
+  applicantId,
+  currentStatus,
+  onStatusChange,
+}) {
+  const [statuses, setStatuses] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [selectedStatus, setSelectedStatus] = useState(currentStatus);
+  const [loading, setLoading] = useState(true);
+  const [historyLoading, setHistoryLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState(null);
+
+  // Define workflow order
+  const workflowOrder = [
+    "pending",
+    "under_review",
+    "interview_scheduled",
+    "approved", // Can only reach after interview
+    "rejected", // Can only reach after interview or any stage
+  ];
+
+  // Get allowed next statuses based on current status
+  const getAllowedNextStatuses = (current) => {
+    const normalized = (current || "").toLowerCase();
+
+    switch (normalized) {
+      case "pending":
+        return ["under_review", "rejected"];
+      case "under_review":
+        return ["interview_scheduled", "rejected"];
+      case "interview_scheduled":
+        return ["approved", "rejected"]; // Only after interview can approve
+      case "approved":
+        return []; // Final state, no changes allowed
+      case "rejected":
+        return []; // Final state, no changes allowed
+      default:
+        return [];
+    }
+  };
+
+  // Check if a status transition is allowed
+  const isStatusAllowed = (newStatus) => {
+    const allowedStatuses = getAllowedNextStatuses(currentStatus);
+    return allowedStatuses.includes(newStatus);
+  };
+
+  // Get status description
+  const getStatusDescription = (statusName) => {
+    const normalized = (statusName || "").toLowerCase();
+    switch (normalized) {
+      case "pending":
+        return "Waiting for initial review";
+      case "under_review":
+        return "Application is being evaluated";
+      case "interview_scheduled":
+        return "Interview has been scheduled";
+      case "approved":
+        return "Application approved - will convert to volunteer";
+      case "rejected":
+        return "Application has been declined";
+      default:
+        return "";
+    }
+  };
+
+  // Load statuses and history on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        setHistoryLoading(true);
+        setError(null);
+
+        // Load statuses (required)
+        const statusesData = await getApplicationStatuses();
+        setStatuses(statusesData);
+        setLoading(false);
+
+        // Load history (optional - may be empty for new applicants)
+        try {
+          const historyData = await getApplicantStatusHistory(applicantId);
+          setHistory(historyData || []);
+        } catch (historyErr) {
+          console.warn("Failed to load status history:", historyErr);
+          setHistory([]);
+        } finally {
+          setHistoryLoading(false);
+        }
+      } catch (err) {
+        console.error("Failed to load application statuses:", err);
+        setError(err?.message || "Failed to load application statuses");
+        setLoading(false);
+        setHistoryLoading(false);
+      }
+    };
+
+    if (applicantId) {
+      loadData();
+    }
+  }, [applicantId]);
+
+  // Update selected status when currentStatus changes
+  useEffect(() => {
+    setSelectedStatus(currentStatus);
+  }, [currentStatus]);
+
+  const handleStatusChange = (newStatus) => {
+    // Check if the status change is allowed
+    if (!isStatusAllowed(newStatus)) {
+      setError(
+        `Cannot change to "${newStatus}". Please follow the workflow steps.`
+      );
+      return;
+    }
+
+    setSelectedStatus(newStatus);
+    setPendingStatus(newStatus);
+    setShowConfirmModal(true);
+    setError(null); // Clear any previous errors
+  };
+
+  const handleConfirmStatusChange = async () => {
+    if (!pendingStatus || !applicantId) return;
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      await updateApplicantStatus(applicantId, pendingStatus);
+
+      // Reload history
+      try {
+        const historyData = await getApplicantStatusHistory(applicantId);
+        setHistory(historyData || []);
+      } catch (historyErr) {
+        console.warn("Failed to reload status history:", historyErr);
+      }
+
+      // Notify parent component
+      if (typeof onStatusChange === "function") {
+        onStatusChange(pendingStatus);
+      }
+
+      setShowConfirmModal(false);
+      setPendingStatus(null);
+    } catch (err) {
+      console.error("Failed to update applicant status:", err);
+      setError(err?.message || "Failed to update status. Please try again.");
+      setSelectedStatus(currentStatus);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleCancelStatusChange = () => {
+    setShowConfirmModal(false);
+    setPendingStatus(null);
+    setSelectedStatus(currentStatus);
+    setError(null);
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-2 border-indigo-200 dark:border-indigo-800">
+        <div className="animate-pulse space-y-4">
+          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="h-12 bg-gray-200 dark:bg-gray-700 rounded"
+              ></div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const allowedStatuses = getAllowedNextStatuses(currentStatus);
+  const isInFinalState = allowedStatuses.length === 0;
+
+  return (
+    <>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-2 border-indigo-200 dark:border-indigo-800">
+        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+          <svg
+            className="w-6 h-6 text-indigo-600"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+            />
+          </svg>
+          Application Workflow Management
+        </h3>
+
+        {/* Workflow Progress */}
+        <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+            Application Progress
+          </h4>
+          <div className="flex items-center justify-between">
+            {workflowOrder
+              .filter((s) => s !== "rejected")
+              .map((status, index) => {
+                const isCurrent = currentStatus?.toLowerCase() === status;
+                const currentIndex = workflowOrder.indexOf(
+                  currentStatus?.toLowerCase()
+                );
+                const statusIndex = workflowOrder.indexOf(status);
+                const isCompleted =
+                  statusIndex < currentIndex ||
+                  currentStatus?.toLowerCase() === "approved";
+                const isRejected = currentStatus?.toLowerCase() === "rejected";
+
+                return (
+                  <div key={status} className="flex items-center flex-1">
+                    <div className="flex flex-col items-center flex-1">
+                      <div
+                        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${
+                          isCurrent
+                            ? "bg-indigo-600 text-white ring-4 ring-indigo-200 dark:ring-indigo-800"
+                            : isCompleted
+                            ? "bg-green-500 text-white"
+                            : "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400"
+                        }`}
+                      >
+                        {isCompleted ? "✓" : index + 1}
+                      </div>
+                      <span
+                        className={`mt-2 text-xs font-medium text-center ${
+                          isCurrent
+                            ? "text-indigo-600 dark:text-indigo-400"
+                            : isCompleted
+                            ? "text-green-600 dark:text-green-400"
+                            : "text-gray-500 dark:text-gray-400"
+                        }`}
+                      >
+                        {status
+                          .split("_")
+                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                          .join(" ")}
+                      </span>
+                    </div>
+                    {index <
+                      workflowOrder.filter((s) => s !== "rejected").length -
+                        1 && (
+                      <div
+                        className={`h-1 flex-1 mx-2 ${
+                          isCompleted
+                            ? "bg-green-500"
+                            : "bg-gray-300 dark:bg-gray-600"
+                        }`}
+                      ></div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+          {currentStatus?.toLowerCase() === "rejected" && (
+            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
+              <p className="text-sm text-red-600 dark:text-red-400 font-medium text-center">
+                ✗ Application was rejected
+              </p>
+            </div>
+          )}
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          </div>
+        )}
+
+        {isInFinalState && (
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-sm text-blue-600 dark:text-blue-400 text-center">
+              This application is in a final state. No further status changes
+              are allowed.
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Status Selector */}
+          <div>
+            <StatusSelector
+              statuses={statuses}
+              currentStatus={currentStatus}
+              selectedStatus={selectedStatus}
+              onStatusChange={handleStatusChange}
+              disabled={processing || isInFinalState}
+              allowedStatuses={allowedStatuses}
+              getStatusDescription={getStatusDescription}
+            />
+          </div>
+
+          {/* Status Timeline */}
+          <div>
+            <StatusTimeline history={history} loading={historyLoading} />
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      <StatusChangeConfirmModal
+        isOpen={showConfirmModal}
+        onClose={handleCancelStatusChange}
+        onConfirm={handleConfirmStatusChange}
+        newStatus={pendingStatus}
+        currentStatus={currentStatus}
+        processing={processing}
+      />
+    </>
+  );
+}

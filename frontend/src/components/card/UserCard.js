@@ -22,27 +22,49 @@ export function createUserCard({
   // Determine status styling
   const statusStyles = {
     active: {
-      ring: "ring-2 ring-green-500 ring-offset-2",
+      ring: "ring-2 ring-green-500",
       badge:
         "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800",
       dot: "bg-green-500",
     },
     inactive: {
-      ring: "ring-2 ring-gray-400 ring-offset-2",
+      ring: "ring-2 ring-gray-400",
       badge:
-        "bg-gray-50 dark:bg-gray-800/50 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+        "bg-gray-100 dark:bg-gray-800/80 text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600",
       dot: "bg-gray-400",
     },
+    deactivated: {
+      ring: "ring-2 ring-gray-900",
+      badge:
+        "bg-gray-900 dark:bg-black text-white dark:text-white border-gray-900 dark:border-black",
+      dot: "bg-gray-900",
+    },
     pending: {
-      ring: "ring-2 ring-amber-500 ring-offset-2",
+      ring: "ring-2 ring-amber-500",
       badge:
         "bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
       dot: "bg-amber-500",
     },
+    approved: {
+      ring: "ring-2 ring-green-500",
+      badge:
+        "bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800",
+      dot: "bg-green-500",
+    },
+    rejected: {
+      ring: "ring-2 ring-red-500",
+      badge:
+        "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800",
+      dot: "bg-red-500",
+    },
   };
 
-  const status = user.status || "inactive";
-  const style = statusStyles[status] || statusStyles.inactive;
+  const status = (user.status || "active").toLowerCase();
+  const statusLabel = status
+    .split(/[_\s]+/)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+  const style = statusStyles[status] || statusStyles.active;
 
   // Card container - modern design
   const card = document.createElement("div");
@@ -114,7 +136,7 @@ export function createUserCard({
   // Status indicator dot
   const statusDot = document.createElement("div");
   statusDot.className = `absolute bottom-0 right-0 w-4 h-4 ${style.dot} rounded-full border-2 border-white dark:border-gray-800`;
-  statusDot.setAttribute("aria-label", `Status: ${status}`);
+  statusDot.setAttribute("aria-label", `Status: ${statusLabel}`);
 
   avatarWrapper.appendChild(avatar);
   avatarWrapper.appendChild(statusDot);
@@ -139,33 +161,6 @@ export function createUserCard({
 
   header.appendChild(info);
   card.appendChild(header);
-
-  // --- Status Badge ---
-  const badgeContainer = document.createElement("div");
-  badgeContainer.className = "flex items-center gap-2";
-
-  const badge = document.createElement("span");
-  badge.className = `
-    inline-flex items-center gap-1.5
-    ${style.badge}
-    border rounded-full
-    px-3 py-1
-    text-xs font-semibold
-    uppercase tracking-wide
-  `
-    .trim()
-    .replace(/\s+/g, " ");
-
-  const badgeDot = document.createElement("span");
-  badgeDot.className = `w-1.5 h-1.5 rounded-full ${style.dot}`;
-
-  const badgeText = document.createElement("span");
-  badgeText.textContent = status;
-
-  badge.appendChild(badgeDot);
-  badge.appendChild(badgeText);
-  badgeContainer.appendChild(badge);
-  card.appendChild(badgeContainer);
 
   // --- Extra Fields ---
   if (Array.isArray(extraFields) && extraFields.length > 0) {

@@ -10,26 +10,17 @@ export default function ProfileHeader({
   onCancelClick,
   saving,
   canEdit = true,
-  canManageStatus = false,
-  onStatusChange,
-  statusUpdating = false,
 }) {
   const userData = comprehensiveData?.user;
-  const normalizedStatus = userData?.status || "inactive";
-  const baseStatusOptions = ["active", "inactive"];
-  const statusSelectOptions = baseStatusOptions.includes(normalizedStatus)
-    ? baseStatusOptions
-    : [normalizedStatus, ...baseStatusOptions];
-  const statusSelectValue = normalizedStatus;
-  const showStatusSelect = canManageStatus && canEdit && isEditing;
+  const normalizedStatus = (userData?.status || "active").toLowerCase();
 
   const renderStatusBadge = () => (
     <span
       className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
-        statusColors[normalizedStatus] || statusColors.inactive
+        statusColors[normalizedStatus] || statusColors.active
       }`}
     >
-      {normalizedStatus}
+      {normalizedStatus.charAt(0).toUpperCase() + normalizedStatus.slice(1)}
     </span>
   );
 
@@ -73,33 +64,7 @@ export default function ProfileHeader({
               >
                 {userData?.role || "User"}
               </span>
-              {showStatusSelect ? (
-                <div className="flex items-center gap-2">
-                  {renderStatusBadge()}
-                  <select
-                    value={statusSelectValue}
-                    onChange={(e) => onStatusChange?.(e.target.value)}
-                    className="border border-gray-300 dark:border-gray-600 rounded-lg px-2 py-1 text-xs font-medium bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-red-500"
-                    disabled={statusUpdating}
-                  >
-                    {statusSelectOptions.map((option) => (
-                      <option
-                        key={option}
-                        value={option}
-                        disabled={!baseStatusOptions.includes(option)}
-                      >
-                        {option === "active"
-                          ? "Active"
-                          : option === "inactive"
-                          ? "Inactive"
-                          : `${option} (current)`}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                renderStatusBadge()
-              )}
+              {renderStatusBadge()}
             </div>
           </div>
 

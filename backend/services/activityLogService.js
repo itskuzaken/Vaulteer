@@ -11,6 +11,7 @@ const LOG_TYPES = {
   STAFF_MANAGEMENT: "STAFF_MANAGEMENT",
   APPLICATION: "APPLICATION",
   EVENT: "EVENT",
+  GAMIFICATION: "GAMIFICATION",
   POST: "POST",
   DATA_ACCESS: "DATA_ACCESS",
   SETTINGS: "SETTINGS",
@@ -45,16 +46,14 @@ async function createLog({
   userAgent = null,
   sessionId = null,
   metadata = null,
+  occurredAt = null,
 }) {
   try {
     const pool = getPool();
-    const query = `
-      INSERT INTO activity_logs (
-        type, action, performed_by_user_id, performed_by_name, performed_by_role,
+    let columns = `type, action, performed_by_user_id, performed_by_name, performed_by_role,
         target_resource_type, target_resource_id,
-        changes, description, severity, ip_address, user_agent, session_id, metadata
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+        changes, description, severity, ip_address, user_agent, session_id, metadata`;
+    let placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
 
     const values = [
       type,
@@ -73,6 +72,20 @@ async function createLog({
       metadata ? JSON.stringify(metadata) : null,
     ];
 
+    if (occurredAt) {
+      const occurredDate = new Date(occurredAt);
+      if (!Number.isNaN(occurredDate.getTime())) {
+        columns += ", created_at";
+        placeholders += ", ?";
+        values.push(occurredDate);
+      }
+    }
+
+    const query = `
+      INSERT INTO activity_logs (${columns})
+      VALUES (${placeholders})
+    `;
+
     const [result] = await pool.query(query, values);
     return { log_id: result.insertId, ...performedBy };
   } catch (error) {
@@ -89,6 +102,9 @@ async function getLogs({
   userId = null,
   type = null,
   severity = null,
+  action = null,
+  actorRole = null,
+  status = null,
   startDate = null,
   endDate = null,
   limit = 100,
@@ -97,59 +113,134 @@ async function getLogs({
 }) {
   try {
     const pool = getPool();
-    let query = `SELECT * FROM activity_logs WHERE 1=1`;
-    const values = [];
+    const whereClauses = [`1=1`];
+    const params = [];
 
-    // Role-based filtering
+    // Role-based filtering for the requester
     if (role === "volunteer" && userId) {
-      query += ` AND performed_by_user_id = ?`;
-      values.push(userId);
+      whereClauses.push(`performed_by_user_id = ?`);
+      params.push(userId);
     } else if (role === "staff" && userId) {
-      query += ` AND (performed_by_user_id = ? OR performed_by_role = 'staff')`;
-      values.push(userId);
+      whereClauses.push(
+        `(performed_by_user_id = ? OR performed_by_role = 'staff')`
+      );
+      params.push(userId);
     }
-    // Admin sees all logs (no additional filter needed)
 
     // Type filter
-    if (type) {
-      query += ` AND type = ?`;
-      values.push(type);
+    if (type && type !== "ALL") {
+      whereClauses.push(`type = ?`);
+      params.push(type);
     }
 
     // Severity filter
-    if (severity) {
-      query += ` AND severity = ?`;
-      values.push(severity);
+    if (severity && severity !== "ALL") {
+      whereClauses.push(`severity = ?`);
+      params.push(severity);
+    }
+
+    // Action filter
+    if (action && action !== "ALL") {
+      whereClauses.push(`action = ?`);
+      params.push(action);
+    }
+
+    // Actor role filter
+    if (actorRole && actorRole !== "ALL") {
+      whereClauses.push(`performed_by_role = ?`);
+      params.push(actorRole);
+    }
+
+    // Status filter (success / failed)
+    if (status === "success") {
+      whereClauses.push(`(
+        severity IN ('INFO', 'LOW')
+        OR (
+          JSON_EXTRACT(metadata, '$.statusCode') IS NOT NULL
+          AND CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.statusCode')) AS UNSIGNED) < 400
+        )
+        OR (
+          JSON_EXTRACT(metadata, '$.status') IS NOT NULL
+          AND LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.status'))) IN ('success', 'completed', 'ok')
+        )
+      )`);
+    } else if (status === "failed") {
+      whereClauses.push(`(
+        severity IN ('MEDIUM', 'HIGH', 'CRITICAL')
+        OR (
+          JSON_EXTRACT(metadata, '$.statusCode') IS NOT NULL
+          AND CAST(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.statusCode')) AS UNSIGNED) >= 400
+        )
+        OR (
+          JSON_EXTRACT(metadata, '$.status') IS NOT NULL
+          AND LOWER(JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.status'))) IN ('failed', 'error', 'denied')
+        )
+      )`);
     }
 
     // Date range filter
     if (startDate) {
-      query += ` AND created_at >= ?`;
-      values.push(startDate);
+      whereClauses.push(`created_at >= ?`);
+      params.push(startDate);
     }
 
     if (endDate) {
-      query += ` AND created_at <= ?`;
-      values.push(endDate);
+      whereClauses.push(`created_at <= ?`);
+      params.push(endDate);
     }
 
-    // Search filter
+    // Search filter (full-text with fallback)
     if (searchTerm) {
-      query += ` AND (
-        performed_by_name LIKE ? OR
-        action LIKE ? OR
-        description LIKE ?
-      )`;
-      const searchPattern = `%${searchTerm}%`;
-      values.push(searchPattern, searchPattern, searchPattern);
+      const trimmed = searchTerm.trim();
+      const likePattern = `%${trimmed}%`;
+
+      if (trimmed.length >= 3) {
+        whereClauses.push(`(
+          MATCH(description, action) AGAINST (? IN NATURAL LANGUAGE MODE)
+          OR performed_by_name LIKE ?
+          OR action LIKE ?
+          OR description LIKE ?
+        )`);
+        params.push(trimmed, likePattern, likePattern, likePattern);
+      } else {
+        whereClauses.push(`(
+          performed_by_name LIKE ?
+          OR action LIKE ?
+          OR description LIKE ?
+        )`);
+        params.push(likePattern, likePattern, likePattern);
+      }
     }
 
-    query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
-    values.push(limit, offset);
+    const whereClause = whereClauses.length
+      ? `WHERE ${whereClauses.join(" AND ")}`
+      : "";
 
-    const [rows] = await pool.query(query, values);
+    const safeLimit = Math.max(1, Math.min(parseInt(limit, 10) || 50, 200));
+    const safeOffset = Math.max(0, parseInt(offset, 10) || 0);
 
-    // Parse JSON fields (metadata and changes)
+    const dataQuery = `
+      SELECT *
+      FROM activity_logs
+      ${whereClause}
+      ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
+    `;
+
+    const countQuery = `
+      SELECT COUNT(*) AS total
+      FROM activity_logs
+      ${whereClause}
+    `;
+
+    const dataValues = [...params, safeLimit, safeOffset];
+    const countValues = [...params];
+
+    const [countRows] = await pool.query(countQuery, countValues);
+    const total = countRows?.[0]?.total ? Number(countRows[0].total) : 0;
+
+    const [rows] = await pool.query(dataQuery, dataValues);
+
     const parsedRows = rows.map((row) => ({
       ...row,
       metadata: row.metadata
@@ -164,7 +255,10 @@ async function getLogs({
         : null,
     }));
 
-    return parsedRows;
+    return {
+      items: parsedRows,
+      total,
+    };
   } catch (error) {
     console.error("Error fetching activity logs:", error);
     throw error;
@@ -257,6 +351,384 @@ async function getUserActivitySummary(userId) {
   }
 }
 
+/**
+ * Helper object for common logging actions
+ * Provides consistent logging interface across the application
+ */
+const logHelpers = {
+  // Event Management Logging
+  logEventCreated: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    performedBy,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "CREATE",
+      performedBy,
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      description: `Created event: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+    }),
+
+  logEventUpdated: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    performedBy,
+    changes,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "UPDATE",
+      performedBy,
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      changes,
+      description: `Updated event: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+    }),
+
+  logEventDeleted: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    performedBy,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "DELETE",
+      performedBy,
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      description: `Deleted event: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.MEDIUM,
+      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+    }),
+
+  logEventPublished: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    performedBy,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "PUBLISH",
+      performedBy,
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      description: `Published event: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+    }),
+
+  logEventArchived: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    performedBy,
+    reason = "manual",
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "ARCHIVE",
+      performedBy,
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      description: `Archived event: ${eventTitle} (${reason})`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: {
+        ...metadata,
+        eventUid,
+        reason,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+
+  logEventPostponed: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    performedBy,
+    previousStatus,
+    postponedUntil = null,
+    reason = null,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "POSTPONE",
+      performedBy,
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      changes: { field: "status", previous: previousStatus, next: "postponed" },
+      description: `Postponed event: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: {
+        ...metadata,
+        eventUid,
+        postponedUntil,
+        reason,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+
+  logEventStatusChange: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    performedBy,
+    previousStatus,
+    newStatus,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "STATUS_CHANGE",
+      performedBy,
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      changes: { field: "status", previous: previousStatus, next: newStatus },
+      description: `Changed event status from ${previousStatus} to ${newStatus}: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+    }),
+
+  // Event Participation Logging
+  logEventRegistration: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    userId,
+    userName,
+    registrationStatus = "registered",
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "REGISTER",
+      performedBy: {
+        userId,
+        name: userName,
+        role: metadata.role || "volunteer",
+      },
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      description: `Registered for event: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: {
+        ...metadata,
+        eventUid,
+        registrationStatus,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+
+  logEventCancellation: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    userId,
+    userName,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "CANCEL_REGISTRATION",
+      performedBy: {
+        userId,
+        name: userName,
+        role: metadata.role || "volunteer",
+      },
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      description: `Cancelled registration for event: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+    }),
+
+  logEventAttendance: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    userId,
+    userName,
+    markedBy,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "MARK_ATTENDANCE",
+      performedBy: markedBy,
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      description: `Marked ${userName} as attended for event: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: {
+        ...metadata,
+        eventUid,
+        attendeeUserId: userId,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+
+  logEventParticipantStatusChange: ({
+    eventId,
+    eventUid,
+    eventTitle,
+    userId,
+    userName,
+    performedBy,
+    previousStatus,
+    newStatus,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.EVENT,
+      action: "PARTICIPANT_STATUS_UPDATE",
+      performedBy,
+      targetResource: { type: "event", id: eventId, name: eventTitle },
+      changes: {
+        field: "participant_status",
+        previous: previousStatus,
+        next: newStatus,
+      },
+      description: `Updated ${userName}'s status from ${previousStatus} to ${newStatus} for event: ${eventTitle}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: {
+        ...metadata,
+        eventUid,
+        participantUserId: userId,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+
+  // Gamification Logging
+  logGamificationAward: ({
+    userId,
+    userName,
+    action,
+    pointsDelta,
+    performedBy,
+    eventId = null,
+    eventUid = null,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.GAMIFICATION,
+      action: `${action}_POINTS`,
+      performedBy: performedBy || {
+        userId,
+        name: userName || "System",
+        role: "system",
+      },
+      targetResource: { type: "user", id: userId, name: userName },
+      description: `${
+        pointsDelta >= 0 ? "+" : ""
+      }${pointsDelta} points for ${action}`,
+      severity: pointsDelta >= 0 ? SEVERITY_LEVELS.INFO : SEVERITY_LEVELS.LOW,
+      metadata: {
+        ...metadata,
+        action,
+        pointsDelta,
+        eventId,
+        eventUid,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+
+  logBadgeAwarded: ({
+    userId,
+    userName,
+    badgeCode,
+    badgeName,
+    performedBy,
+    eventId = null,
+    eventUid = null,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.GAMIFICATION,
+      action: "BADGE_AWARDED",
+      performedBy: performedBy || { userId, name: "System", role: "system" },
+      targetResource: { type: "user", id: userId, name: userName },
+      description: `Earned badge: ${badgeName}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: {
+        ...metadata,
+        badgeCode,
+        badgeName,
+        eventId,
+        eventUid,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+
+  logGamificationAdjustment: ({
+    userId,
+    userName,
+    reason,
+    pointsDelta,
+    performedBy,
+    metadata = {},
+  }) =>
+    createLog({
+      type: LOG_TYPES.GAMIFICATION,
+      action: "POINTS_ADJUSTMENT",
+      performedBy,
+      targetResource: { type: "user", id: userId, name: userName },
+      description: `${
+        pointsDelta >= 0 ? "+" : ""
+      }${pointsDelta} points adjustment: ${reason}`,
+      severity: SEVERITY_LEVELS.MEDIUM,
+      metadata: {
+        ...metadata,
+        reason,
+        pointsDelta,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+
+  logStreakAchievement: ({ userId, userName, streakDays, metadata = {} }) =>
+    createLog({
+      type: LOG_TYPES.GAMIFICATION,
+      action: "STREAK_MILESTONE",
+      performedBy: { userId, name: "System", role: "system" },
+      targetResource: { type: "user", id: userId, name: userName },
+      description: `Achieved ${streakDays}-day streak`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: {
+        ...metadata,
+        streakDays,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+
+  // Error Logging
+  logError: ({
+    type,
+    action,
+    performedBy,
+    error,
+    context = {},
+    metadata = {},
+  }) =>
+    createLog({
+      type,
+      action: `${action}_ERROR`,
+      performedBy,
+      description: `Error during ${action}: ${error.message}`,
+      severity: SEVERITY_LEVELS.HIGH,
+      metadata: {
+        ...metadata,
+        error: error.message,
+        stack: error.stack,
+        context,
+        timestamp: new Date().toISOString(),
+      },
+    }),
+};
+
 module.exports = {
   LOG_TYPES,
   SEVERITY_LEVELS,
@@ -265,4 +737,5 @@ module.exports = {
   getLogStats,
   deleteOldLogs,
   getUserActivitySummary,
+  logHelpers,
 };

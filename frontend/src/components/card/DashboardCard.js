@@ -203,59 +203,96 @@ export function QuickActionCard({
   color = "red",
   badge,
 }) {
-  const colorClasses = {
-    red: "hover:border-red-500 dark:hover:border-red-400 hover:bg-red-50 dark:hover:bg-red-900/10",
-    blue: "hover:border-blue-500 dark:hover:border-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/10",
-    green:
-      "hover:border-green-500 dark:hover:border-green-400 hover:bg-green-50 dark:hover:bg-green-900/10",
-    yellow:
-      "hover:border-yellow-500 dark:hover:border-yellow-400 hover:bg-yellow-50 dark:hover:bg-yellow-900/10",
-    purple:
-      "hover:border-purple-500 dark:hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/10",
+  const colorThemes = {
+    red: {
+      chip: "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-300",
+      accent: "text-red-600 dark:text-red-300",
+      hover: "hover:border-red-200 dark:hover:border-red-500/40",
+      badge: "bg-red-100/80 text-red-700 dark:bg-red-500/20 dark:text-red-200",
+      ring: "focus-visible:ring-red-500 dark:focus-visible:ring-red-400",
+    },
+    blue: {
+      chip: "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300",
+      accent: "text-blue-600 dark:text-blue-300",
+      hover: "hover:border-blue-200 dark:hover:border-blue-500/40",
+      badge:
+        "bg-blue-100/80 text-blue-700 dark:bg-blue-500/20 dark:text-blue-200",
+      ring: "focus-visible:ring-blue-500 dark:focus-visible:ring-blue-400",
+    },
+    green: {
+      chip: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+      accent: "text-emerald-600 dark:text-emerald-300",
+      hover: "hover:border-emerald-200 dark:hover:border-emerald-500/40",
+      badge:
+        "bg-emerald-100/80 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200",
+      ring: "focus-visible:ring-emerald-500 dark:focus-visible:ring-emerald-400",
+    },
+    yellow: {
+      chip: "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300",
+      accent: "text-amber-600 dark:text-amber-300",
+      hover: "hover:border-amber-200 dark:hover:border-amber-500/40",
+      badge:
+        "bg-amber-100/80 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200",
+      ring: "focus-visible:ring-amber-500 dark:focus-visible:ring-amber-400",
+    },
+    purple: {
+      chip: "bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-300",
+      accent: "text-purple-600 dark:text-purple-300",
+      hover: "hover:border-purple-200 dark:hover:border-purple-500/40",
+      badge:
+        "bg-purple-100/80 text-purple-700 dark:bg-purple-500/20 dark:text-purple-200",
+      ring: "focus-visible:ring-purple-500 dark:focus-visible:ring-purple-400",
+    },
   };
+
+  const theme = colorThemes[color] || colorThemes.red;
 
   return (
     <button
       onClick={onClick}
       className={`
-        group
-        w-full 
-        bg-white dark:bg-gray-800 
-        rounded-2xl 
-        shadow-md hover:shadow-xl
-        border-2 border-gray-200 dark:border-gray-700 
-        p-6 
-        transition-all duration-300 
-        text-left 
-        ${colorClasses[color]} 
-        hover:scale-[1.02]
-        focus:outline-none focus:ring-2 focus:ring-${color}-500 dark:focus:ring-${color}-400
+        group relative w-full rounded-2xl border border-gray-200 dark:border-gray-800
+        bg-white dark:bg-gray-900 p-5 text-left shadow-sm transition-all duration-300
+        hover:-translate-y-0.5 hover:shadow-md ${theme.hover}
+        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+        focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 ${theme.ring}
       `}
     >
       <div className="flex items-start gap-4">
         {icon && (
-          <div className="text-4xl text-gray-600 dark:text-gray-300 group-hover:scale-110 transition-transform">
+          <span
+            className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl text-2xl ${theme.chip}`}
+          >
             {icon}
-          </div>
+          </span>
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-              {title}
-            </h4>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+                Quick action
+              </p>
+              <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+                {title}
+              </h4>
+            </div>
             {badge && (
-              <span className="flex-shrink-0 px-2 py-1 text-xs font-semibold rounded-full bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+              <span
+                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${theme.badge}`}
+              >
                 {badge}
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             {description}
           </p>
-          <div className="flex items-center text-sm font-medium text-red-600 dark:text-red-400">
-            <span>Get started</span>
+          <div
+            className={`mt-4 inline-flex items-center text-sm font-semibold ${theme.accent}`}
+          >
+            <span>Open</span>
             <svg
-              className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
+              className="ml-1 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

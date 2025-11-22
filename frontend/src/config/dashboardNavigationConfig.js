@@ -11,7 +11,6 @@ import {
   IoMegaphoneOutline,
   IoEyeOutline,
   IoCheckmarkCircleOutline,
-  IoAddCircleOutline,
   IoAnalyticsOutline,
   IoGridOutline,
 } from "react-icons/io5";
@@ -86,20 +85,7 @@ const adminMenu = {
   "manage-events": {
     label: "Manage Events",
     icon: IoCalendarOutline,
-    defaultSubSection: "create-event",
-    subSections: [
-      { key: "create-event", label: "Create Event", icon: IoAddCircleOutline },
-      {
-        key: "published-events",
-        label: "Published Events",
-        icon: IoCheckmarkDoneOutline,
-      },
-      {
-        key: "archived-events",
-        label: "Archived Events",
-        icon: IoArchiveOutline,
-      },
-    ],
+    subSections: [],
   },
   "activity-logs": {
     label: "Activity Logs",
@@ -170,20 +156,7 @@ const staffMenu = {
   "manage-events": {
     label: "Manage Events",
     icon: IoCalendarOutline,
-    defaultSubSection: "create-event",
-    subSections: [
-      { key: "create-event", label: "Create Event", icon: IoAddCircleOutline },
-      {
-        key: "published-events",
-        label: "Published Events",
-        icon: IoCheckmarkDoneOutline,
-      },
-      {
-        key: "archived-events",
-        label: "Archived Events",
-        icon: IoArchiveOutline,
-      },
-    ],
+    subSections: [],
   },
   "my-activity": {
     label: "My Activity",
@@ -196,6 +169,11 @@ const volunteerMenu = {
   dashboard: {
     label: "Dashboard",
     icon: IoGridOutline,
+    subSections: [],
+  },
+  "my-events": {
+    label: "My Events",
+    icon: IoCalendarOutline,
     subSections: [],
   },
   forms: {

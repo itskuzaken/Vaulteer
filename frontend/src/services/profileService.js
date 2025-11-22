@@ -7,11 +7,11 @@ import { API_BASE } from "../config/config";
  */
 
 /**
- * Get user profile by ID
- * @param {number} userId - User ID
+ * Get user profile by UID
+ * @param {string} userUid - Firebase UID
  * @returns {Promise<Object>} User profile data
  */
-export async function getUserProfile(userId) {
+export async function getUserProfile(userUid) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -22,7 +22,7 @@ export async function getUserProfile(userId) {
 
     const token = await user.getIdToken();
 
-    const response = await fetch(`${API_BASE}/profile/${userId}`, {
+    const response = await fetch(`${API_BASE}/profile/${userUid}`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -44,11 +44,11 @@ export async function getUserProfile(userId) {
 
 /**
  * Update user profile
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @param {Object} profileData - Profile data to update
  * @returns {Promise<Object>} Updated profile data
  */
-export async function updateUserProfile(userId, profileData) {
+export async function updateUserProfile(userUid, profileData) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -59,7 +59,7 @@ export async function updateUserProfile(userId, profileData) {
 
     const token = await user.getIdToken();
 
-    const response = await fetch(`${API_BASE}/profile/${userId}`, {
+    const response = await fetch(`${API_BASE}/profile/${userUid}`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -83,11 +83,11 @@ export async function updateUserProfile(userId, profileData) {
 
 /**
  * Upload profile picture
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @param {File} file - Image file
  * @returns {Promise<Object>} Upload result with image URL
  */
-export async function uploadProfilePicture(userId, file) {
+export async function uploadProfilePicture(userUid, file) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -100,7 +100,7 @@ export async function uploadProfilePicture(userId, file) {
     const formData = new FormData();
     formData.append("profile_picture", file);
 
-    const response = await fetch(`${API_BASE}/profile/${userId}/picture`, {
+    const response = await fetch(`${API_BASE}/profile/${userUid}/picture`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -197,10 +197,10 @@ export async function getUserActivitySummary(userId) {
 
 /**
  * Get comprehensive user profile with all related data
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @returns {Promise<Object>} Comprehensive profile data including work, student, trainings, etc.
  */
-export async function getComprehensiveUserProfile(userId) {
+export async function getComprehensiveUserProfile(userUid) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -212,7 +212,7 @@ export async function getComprehensiveUserProfile(userId) {
     const token = await user.getIdToken();
 
     const response = await fetch(
-      `${API_BASE}/profile/${userId}/comprehensive`,
+      `${API_BASE}/profile/${userUid}/comprehensive`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -238,11 +238,11 @@ export async function getComprehensiveUserProfile(userId) {
 
 /**
  * Update user work profile
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @param {Object} workData - Work profile data {position, industry, company, work_shift, work_other_skills}
  * @returns {Promise<Object>} Response data
  */
-export async function updateWorkProfile(userId, workData) {
+export async function updateWorkProfile(userUid, workData) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -253,14 +253,17 @@ export async function updateWorkProfile(userId, workData) {
 
     const token = await user.getIdToken();
 
-    const response = await fetch(`${API_BASE}/profile/${userId}/work-profile`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(workData),
-    });
+    const response = await fetch(
+      `${API_BASE}/profile/${userUid}/work-profile`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(workData),
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -276,11 +279,11 @@ export async function updateWorkProfile(userId, workData) {
 
 /**
  * Update user personal profile (detailed profile in user_profiles table)
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @param {Object} personalData - Personal profile data
  * @returns {Promise<Object>} Response data
  */
-export async function updatePersonalProfile(userId, personalData) {
+export async function updatePersonalProfile(userUid, personalData) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -291,7 +294,7 @@ export async function updatePersonalProfile(userId, personalData) {
 
     const token = await user.getIdToken();
 
-    const response = await fetch(`${API_BASE}/profile/${userId}/personal`, {
+    const response = await fetch(`${API_BASE}/profile/${userUid}/personal`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -314,11 +317,11 @@ export async function updatePersonalProfile(userId, personalData) {
 
 /**
  * Update user student profile
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @param {Object} studentData - Student profile data {school, course, graduation, student_other_skills}
  * @returns {Promise<Object>} Response data
  */
-export async function updateStudentProfile(userId, studentData) {
+export async function updateStudentProfile(userUid, studentData) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -330,7 +333,7 @@ export async function updateStudentProfile(userId, studentData) {
     const token = await user.getIdToken();
 
     const response = await fetch(
-      `${API_BASE}/profile/${userId}/student-profile`,
+      `${API_BASE}/profile/${userUid}/student-profile`,
       {
         method: "PUT",
         headers: {
@@ -355,11 +358,11 @@ export async function updateStudentProfile(userId, studentData) {
 
 /**
  * Update user trainings
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @param {Array<number>} trainingIds - Array of training IDs
  * @returns {Promise<Object>} Response data
  */
-export async function updateTrainings(userId, trainingIds) {
+export async function updateTrainings(userUid, trainingIds) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -370,7 +373,7 @@ export async function updateTrainings(userId, trainingIds) {
 
     const token = await user.getIdToken();
 
-    const response = await fetch(`${API_BASE}/profile/${userId}/trainings`, {
+    const response = await fetch(`${API_BASE}/profile/${userUid}/trainings`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -393,11 +396,11 @@ export async function updateTrainings(userId, trainingIds) {
 
 /**
  * Update user available days
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @param {Array<number>} dayIds - Array of day IDs
  * @returns {Promise<Object>} Response data
  */
-export async function updateAvailableDays(userId, dayIds) {
+export async function updateAvailableDays(userUid, dayIds) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -409,7 +412,7 @@ export async function updateAvailableDays(userId, dayIds) {
     const token = await user.getIdToken();
 
     const response = await fetch(
-      `${API_BASE}/profile/${userId}/available-days`,
+      `${API_BASE}/profile/${userUid}/available-days`,
       {
         method: "PUT",
         headers: {
@@ -434,11 +437,11 @@ export async function updateAvailableDays(userId, dayIds) {
 
 /**
  * Update user working days
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @param {Array<number>} dayIds - Array of day IDs
  * @returns {Promise<Object>} Response data
  */
-export async function updateWorkingDays(userId, dayIds) {
+export async function updateWorkingDays(userUid, dayIds) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -449,14 +452,17 @@ export async function updateWorkingDays(userId, dayIds) {
 
     const token = await user.getIdToken();
 
-    const response = await fetch(`${API_BASE}/profile/${userId}/working-days`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ dayIds }), // Changed to camelCase
-    });
+    const response = await fetch(
+      `${API_BASE}/profile/${userUid}/working-days`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ dayIds }), // Changed to camelCase
+      }
+    );
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -472,11 +478,11 @@ export async function updateWorkingDays(userId, dayIds) {
 
 /**
  * Update user school days
- * @param {number} userId - User ID
+ * @param {string} userUid - Firebase UID
  * @param {Array<number>} dayIds - Array of day IDs
  * @returns {Promise<Object>} Response data
  */
-export async function updateSchoolDays(userId, dayIds) {
+export async function updateSchoolDays(userUid, dayIds) {
   try {
     const auth = getAuth();
     const user = auth.currentUser;
@@ -487,7 +493,7 @@ export async function updateSchoolDays(userId, dayIds) {
 
     const token = await user.getIdToken();
 
-    const response = await fetch(`${API_BASE}/profile/${userId}/school-days`, {
+    const response = await fetch(`${API_BASE}/profile/${userUid}/school-days`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,

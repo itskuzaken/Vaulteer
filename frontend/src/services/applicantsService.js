@@ -35,6 +35,24 @@ export async function getAllApplicants() {
   return await fetchWithAuth(`${API_BASE}/applicants`);
 }
 
+// Get all application statuses
+export async function getApplicationStatuses() {
+  return await fetchWithAuth(`${API_BASE}/applicants/statuses`);
+}
+
+// Get applicant status history
+export async function getApplicantStatusHistory(userId) {
+  return await fetchWithAuth(`${API_BASE}/applicants/${userId}/history`);
+}
+
+// Update applicant status (new generic function)
+export async function updateApplicantStatus(userId, status, notes = null) {
+  return await fetchWithAuth(`${API_BASE}/applicants/${userId}/status`, {
+    method: "PUT",
+    body: JSON.stringify({ status, notes }),
+  });
+}
+
 // Approve applicant (update role to 'volunteer' and status to 'active')
 export async function approveApplicant(userId) {
   return await fetchWithAuth(`${API_BASE}/applicants/${userId}/approve`, {

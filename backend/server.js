@@ -4,6 +4,7 @@ const path = require("path");
 const { CONFIG } = require("./config/env");
 const { initPool } = require("./db/pool");
 const { corsMiddleware, lanAddress } = require("./middleware/cors");
+const { scheduleInactiveUserJob } = require("./jobs/inactiveUserScheduler");
 
 const applicantsRoute = require("./routes/applicants");
 const usersRoute = require("./routes/users");
@@ -13,6 +14,8 @@ const activityLogsRoute = require("./routes/activityLogsRoutes");
 const statsRoute = require("./routes/statsRoutes");
 const notificationRoute = require("./routes/notificationRoutes");
 const profileRoute = require("./routes/profileRoutes");
+const eventsRoute = require("./routes/eventsRoutes");
+const gamificationRoute = require("./routes/gamificationRoutes");
 
 if (!admin.apps.length) {
   try {
@@ -48,6 +51,8 @@ app.use("/api/logs", activityLogsRoute);
 app.use("/api/stats", statsRoute);
 app.use("/api/notifications", notificationRoute);
 app.use("/api/profile", profileRoute);
+app.use("/api/events", eventsRoute);
+app.use("/api/gamification", gamificationRoute);
 
 app.get("/api", (req, res) => {
   res.json({
@@ -62,6 +67,7 @@ app.get("/api", (req, res) => {
       logs: "/api/logs",
       profile: "/api/profile",
       notifications: "/api/notifications",
+      events: "/api/events",
     },
     time: new Date().toISOString(),
   });
@@ -75,6 +81,8 @@ app.use("/api", (req, res) => {
 async function start() {
   try {
     await initPool();
+
+    scheduleInactiveUserJob();
 
     app.listen(CONFIG.PORT, "0.0.0.0", () => {
       console.log("\n🚀 Vaulteer Server");

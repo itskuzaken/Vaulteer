@@ -6,12 +6,18 @@ import VolunteerActivityLog from "../../../../components/navigation/Log/Voluntee
 import UserProfile from "../../../../components/navigation/Profile/UserProfile";
 import SubmitForm from "../../../../components/navigation/Form/SubmitForm";
 import ViewSubmitted from "../../../../components/navigation/Form/ViewSubmitted";
+import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
+import MyEvents from "../../../../components/navigation/Event/MyEvents";
 
 const volunteerMainRoutes = {
   dashboard: {
     label: "Dashboard",
     component: VolunteerDashboard,
     withNavigate: true,
+  },
+  "my-events": {
+    label: "My Events",
+    component: MyEvents,
   },
   "my-activity": {
     label: "My Activity",
@@ -20,6 +26,11 @@ const volunteerMainRoutes = {
   profile: {
     label: "Profile",
     component: UserProfile,
+  },
+  event: {
+    label: "Event Details",
+    component: EventDetailsContent,
+    withNavigate: true,
   },
 };
 

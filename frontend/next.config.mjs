@@ -2,8 +2,8 @@
 const nextConfig = {
   allowedDevOrigins: [
     "http://localhost:3000",
-    "http://192.168.68.102:3000",
-    "http://192.168.68.102:3001",
+    "http://192.168.0.213:3000",
+    "http://192.168.0.213:3001",
   ],
   async headers() {
     return [
@@ -17,14 +17,6 @@ const nextConfig = {
         ],
       },
     ];
-  },
-  // Improve WebSocket HMR connection
-  webpackDevMiddleware: (config) => {
-    config.watchOptions = {
-      poll: 1000,
-      aggregateTimeout: 300,
-    };
-    return config;
   },
 };
 

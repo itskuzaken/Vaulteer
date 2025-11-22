@@ -2,9 +2,9 @@ import { getAuth } from "firebase/auth";
 import { API_BASE } from "../../config/config";
 
 /**
- * Get the current authenticated user's ID
+ * Get the current authenticated user's identifiers (numeric ID + UID)
  */
-export const getCurrentUserId = async () => {
+export const getCurrentUserIdentifiers = async () => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
@@ -24,13 +24,17 @@ export const getCurrentUserId = async () => {
   }
 
   const meData = await meResponse.json();
-  return meData.user_id;
+  return {
+    userId: meData.user_id,
+    userUid: meData.uid,
+    role: meData.role,
+  };
 };
 
 /**
- * Get comprehensive user profile data
+ * Get comprehensive user profile data (UID-based)
  */
-export const fetchComprehensiveProfile = async (userId) => {
+export const fetchComprehensiveProfile = async (userUid) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
@@ -39,7 +43,7 @@ export const fetchComprehensiveProfile = async (userId) => {
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch(`${API_BASE}/profile/${userId}/comprehensive`, {
+  const response = await fetch(`${API_BASE}/profile/${userUid}/comprehensive`, {
     headers: {
       Authorization: `Bearer ${token}`,
     },
@@ -83,7 +87,7 @@ export const fetchActivitySummary = async (userId) => {
 /**
  * Update personal profile details (user_profiles table)
  */
-export const updatePersonalProfile = async (userId, profileData) => {
+export const updatePersonalProfile = async (userUid, profileData) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
@@ -92,7 +96,7 @@ export const updatePersonalProfile = async (userId, profileData) => {
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch(`${API_BASE}/profile/${userId}/personal`, {
+  const response = await fetch(`${API_BASE}/profile/${userUid}/personal`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -112,7 +116,7 @@ export const updatePersonalProfile = async (userId, profileData) => {
 /**
  * Update work profile
  */
-export const updateWorkProfile = async (userId, workData) => {
+export const updateWorkProfile = async (userUid, workData) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
@@ -121,7 +125,7 @@ export const updateWorkProfile = async (userId, workData) => {
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch(`${API_BASE}/profile/${userId}/work-profile`, {
+  const response = await fetch(`${API_BASE}/profile/${userUid}/work-profile`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -141,7 +145,7 @@ export const updateWorkProfile = async (userId, workData) => {
 /**
  * Update student profile
  */
-export const updateStudentProfile = async (userId, studentData) => {
+export const updateStudentProfile = async (userUid, studentData) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
@@ -151,7 +155,7 @@ export const updateStudentProfile = async (userId, studentData) => {
 
   const token = await currentUser.getIdToken();
   const response = await fetch(
-    `${API_BASE}/profile/${userId}/student-profile`,
+    `${API_BASE}/profile/${userUid}/student-profile`,
     {
       method: "PUT",
       headers: {
@@ -173,7 +177,7 @@ export const updateStudentProfile = async (userId, studentData) => {
 /**
  * Update trainings
  */
-export const updateTrainings = async (userId, trainingIds) => {
+export const updateTrainings = async (userUid, trainingIds) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
@@ -182,7 +186,7 @@ export const updateTrainings = async (userId, trainingIds) => {
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch(`${API_BASE}/profile/${userId}/trainings`, {
+  const response = await fetch(`${API_BASE}/profile/${userUid}/trainings`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -202,7 +206,7 @@ export const updateTrainings = async (userId, trainingIds) => {
 /**
  * Update available days
  */
-export const updateAvailableDays = async (userId, dayIds) => {
+export const updateAvailableDays = async (userUid, dayIds) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
@@ -211,14 +215,17 @@ export const updateAvailableDays = async (userId, dayIds) => {
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch(`${API_BASE}/profile/${userId}/available-days`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ dayIds }),
-  });
+  const response = await fetch(
+    `${API_BASE}/profile/${userUid}/available-days`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ dayIds }),
+    }
+  );
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
@@ -231,7 +238,7 @@ export const updateAvailableDays = async (userId, dayIds) => {
 /**
  * Update working days
  */
-export const updateWorkingDays = async (userId, dayIds) => {
+export const updateWorkingDays = async (userUid, dayIds) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
@@ -240,7 +247,7 @@ export const updateWorkingDays = async (userId, dayIds) => {
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch(`${API_BASE}/profile/${userId}/working-days`, {
+  const response = await fetch(`${API_BASE}/profile/${userUid}/working-days`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -260,7 +267,7 @@ export const updateWorkingDays = async (userId, dayIds) => {
 /**
  * Update school days
  */
-export const updateSchoolDays = async (userId, dayIds) => {
+export const updateSchoolDays = async (userUid, dayIds) => {
   const auth = getAuth();
   const currentUser = auth.currentUser;
 
@@ -269,7 +276,7 @@ export const updateSchoolDays = async (userId, dayIds) => {
   }
 
   const token = await currentUser.getIdToken();
-  const response = await fetch(`${API_BASE}/profile/${userId}/school-days`, {
+  const response = await fetch(`${API_BASE}/profile/${userUid}/school-days`, {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",

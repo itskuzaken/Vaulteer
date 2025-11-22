@@ -73,11 +73,6 @@ Vaulteer includes a comprehensive gamification system to encourage volunteer par
 - `GET /api/gamification/leaderboard` - Top contributors
 - `POST /api/gamification/recalculate` - Admin recalculation (admin only)
 
-- **AWS** - Cloud platform
-- **Elastic Beanstalk** - Backend deployment
-- **Amplify** - Frontend deployment (alternative)
-- **S3 + CloudFront** - Static hosting (alternative)
-
 ## Prerequisites
 
 - **Node.js 18+** installed locally
@@ -90,6 +85,7 @@ Vaulteer includes a comprehensive gamification system to encourage volunteer par
 ### Local Development
 
 1. **Clone and Install**
+
    ```bash
    git clone <repository-url>
    cd vaulteer
@@ -99,11 +95,13 @@ Vaulteer includes a comprehensive gamification system to encourage volunteer par
    ```
 
 2. **Database Setup**
+
    ```bash
    mysql -u root -p < backend/schema.sql
    ```
 
 3. **Environment Configuration**
+
    - Create `backend/.env` with database and Firebase settings
    - Create `frontend/.env.local` with API and Firebase config
 
@@ -157,7 +155,7 @@ Run migrations with `node run-migration.js`.
 
 - **UI Improvements**: Refactored ManageEvents component to match consistent design patterns across ViewAllStaff, ViewAllVolunteers, and ApplicationApproval dashboards
 - **Event Management**: Enhanced event cards with hover effects, capacity indicators, and improved pagination
-- **Gamification System**: 
+- **Gamification System**:
   - Backend implementation complete with points, badges, and streaks
   - Database schema updated with gamification tables
   - Centralized activity logging for all gamification events

@@ -12,9 +12,15 @@ export function useFilteredAndSortedUsers(users, filters) {
 
     // Filter by status
     if (filters.status) {
-      filtered = filtered.filter(
-        (u) => (u.status || "").toLowerCase() === filters.status.toLowerCase()
-      );
+      const targetStatus = filters.status.toLowerCase();
+      filtered = filtered.filter((u) => {
+        const userStatus = (
+          u.application_status ||
+          u.status ||
+          ""
+        ).toLowerCase();
+        return userStatus === targetStatus;
+      });
     }
 
     // Sort by selected criterion and direction
@@ -38,8 +44,12 @@ export function useFilteredAndSortedUsers(users, filters) {
         filters.dateOrder === "date_desc"
       ) {
         filtered.sort((a, b) => {
-          const dateA = new Date(a.date_added || a.date || 0);
-          const dateB = new Date(b.date_added || b.date || 0);
+          const dateA = new Date(
+            a.date_added || a.date || a.application_date || 0
+          );
+          const dateB = new Date(
+            b.date_added || b.date || b.application_date || 0
+          );
           if (dateA < dateB) return filters.dateOrder === "date_asc" ? -1 : 1;
           if (dateA > dateB) return filters.dateOrder === "date_asc" ? 1 : -1;
           return 0;

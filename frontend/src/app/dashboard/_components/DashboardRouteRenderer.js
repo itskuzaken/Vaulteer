@@ -49,7 +49,8 @@ export default function DashboardRouteRenderer({
   onProfileClickOverride,
 }) {
   const router = useRouter();
-  const { user, status } = useDashboardUser();
+  const { user, status, gamification, refreshGamification } =
+    useDashboardUser();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const menuItems = useMemo(() => getDashboardMenu(role), [role]);
@@ -217,18 +218,17 @@ export default function DashboardRouteRenderer({
       let nextParams = extraParams;
 
       if (
-        routingStrategy === "query" &&
-        user?.user_id &&
+        user?.uid &&
         profileContentKey &&
         normalizedContent === profileContentKey
       ) {
-        const hasUserId =
+        const hasUserUid =
           extraParams &&
-          Object.prototype.hasOwnProperty.call(extraParams, "userId");
-        if (!hasUserId) {
+          Object.prototype.hasOwnProperty.call(extraParams, "userUid");
+        if (!hasUserUid) {
           nextParams = {
             ...(extraParams || {}),
-            userId: user.user_id,
+            userUid: user.uid,
           };
         }
       }
@@ -243,9 +243,8 @@ export default function DashboardRouteRenderer({
       currentSub,
       defaultContent,
       profileContentKey,
-      routingStrategy,
       updateRoute,
-      user?.user_id,
+      user?.uid,
     ]
   );
 
@@ -294,9 +293,16 @@ export default function DashboardRouteRenderer({
   }, [navigateTo, onProfileClickOverride, resolvedProfileRoute, user]);
 
   const sidebarContentKey = useMemo(() => {
-    const candidate = subRoute?.parent || currentContent;
-    return menuItems[candidate] ? candidate : null;
-  }, [currentContent, menuItems, subRoute]);
+    if (subRoute?.parent && menuItems[subRoute.parent]) {
+      return subRoute.parent;
+    }
+
+    if (mainRoute?.sidebarKey && menuItems[mainRoute.sidebarKey]) {
+      return mainRoute.sidebarKey;
+    }
+
+    return menuItems[currentContent] ? currentContent : null;
+  }, [currentContent, mainRoute, menuItems, subRoute]);
 
   const sidebarSubKey = useMemo(() => {
     if (!subRoute) return null;
@@ -332,24 +338,40 @@ export default function DashboardRouteRenderer({
       return {};
     }
 
-    if (
+    const props = {};
+
+    if (user) {
+      props.currentUser = user;
+    }
+
+    if (gamification) {
+      props.gamificationSummary = gamification;
+    }
+
+    if (refreshGamification) {
+      props.refreshGamification = refreshGamification;
+    }
+
+    const allowNavigate =
       (subRoute && subRoute.withNavigate) ||
-      (mainRoute && mainRoute.withNavigate)
-    ) {
-      return { onNavigate: navigateTo };
+      (!subRoute && mainRoute && mainRoute.withNavigate) ||
+      (!subRoute && currentContent === "dashboard");
+
+    if (allowNavigate) {
+      props.onNavigate = navigateTo;
     }
 
-    if (!subRoute && mainRoute && mainRoute.withNavigate) {
-      return { onNavigate: navigateTo };
-    }
-
-    // Dashboard components for each role expect onNavigate
-    if (!subRoute && currentContent === "dashboard") {
-      return { onNavigate: navigateTo };
-    }
-
-    return {};
-  }, [ActiveComponent, currentContent, mainRoute, navigateTo, subRoute]);
+    return props;
+  }, [
+    ActiveComponent,
+    currentContent,
+    gamification,
+    mainRoute,
+    navigateTo,
+    refreshGamification,
+    subRoute,
+    user,
+  ]);
 
   if (status !== "ready" || !user) {
     return <Loader role={role} />;
@@ -380,11 +402,9 @@ export default function DashboardRouteRenderer({
 
       {showLogoutModal && (
         <LogoutModal
+          isOpen={showLogoutModal}
           onCancel={() => setShowLogoutModal(false)}
-          onConfirm={() => {
-            setShowLogoutModal(false);
-            // Add your logout logic here
-          }}
+          setShowLogoutModal={setShowLogoutModal}
         />
       )}
     </RoleProtectedRoute>

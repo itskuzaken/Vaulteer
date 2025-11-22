@@ -37,6 +37,7 @@ router.post("/", authenticate, async (req, res) => {
       description,
       severity,
       metadata,
+      occurredAt,
     } = req.body;
 
     // Get user info from firebaseUid
@@ -72,6 +73,7 @@ router.post("/", authenticate, async (req, res) => {
       userAgent,
       sessionId,
       metadata,
+      occurredAt,
     });
 
     res.status(201).json({
@@ -97,6 +99,9 @@ router.get("/", authenticate, async (req, res) => {
     const {
       type,
       severity,
+      action,
+      actorRole,
+      status,
       startDate,
       endDate,
       limit = 100,
@@ -116,11 +121,14 @@ router.get("/", authenticate, async (req, res) => {
     const userRole = user.role;
     const userId = user.user_id;
 
-    const logs = await getLogs({
+    const { items, total } = await getLogs({
       role: userRole,
       userId,
       type,
       severity,
+      action,
+      actorRole,
+      status,
       startDate,
       endDate,
       limit: parseInt(limit),
@@ -129,16 +137,16 @@ router.get("/", authenticate, async (req, res) => {
     });
 
     // Debug: Log timestamp information
-    if (logs.length > 0) {
+    if (items.length > 0) {
       console.log("\n=== BACKEND TIMESTAMP DEBUG ===");
-      console.log("Sample log from database:", logs[0]);
-      console.log("created_at value:", logs[0].created_at);
-      console.log("created_at type:", typeof logs[0].created_at);
-      console.log("metadata value:", logs[0].metadata);
-      console.log("metadata type:", typeof logs[0].metadata);
-      if (logs[0].metadata) {
-        console.log("metadata.timestamp:", logs[0].metadata.timestamp);
-        console.log("metadata.localTime:", logs[0].metadata.localTime);
+      console.log("Sample log from database:", items[0]);
+      console.log("created_at value:", items[0].created_at);
+      console.log("created_at type:", typeof items[0].created_at);
+      console.log("metadata value:", items[0].metadata);
+      console.log("metadata type:", typeof items[0].metadata);
+      if (items[0].metadata) {
+        console.log("metadata.timestamp:", items[0].metadata.timestamp);
+        console.log("metadata.localTime:", items[0].metadata.localTime);
       }
       console.log("Server current time:", new Date());
       console.log("Server timezone offset:", new Date().getTimezoneOffset());
@@ -147,8 +155,9 @@ router.get("/", authenticate, async (req, res) => {
 
     res.json({
       success: true,
-      data: logs,
-      count: logs.length,
+      data: items,
+      count: items.length,
+      total,
     });
   } catch (error) {
     console.error("Error fetching logs:", error);
@@ -268,13 +277,25 @@ router.get("/export", authenticate, async (req, res) => {
       });
     }
 
-    const { type, severity, startDate, endDate, searchTerm } = req.query;
+    const {
+      type,
+      severity,
+      action,
+      actorRole,
+      status,
+      startDate,
+      endDate,
+      searchTerm,
+    } = req.query;
 
-    const logs = await getLogs({
+    const { items } = await getLogs({
       role: "admin",
       userId: user.user_id,
       type,
       severity,
+      action,
+      actorRole,
+      status,
       startDate,
       endDate,
       limit: 10000, // Higher limit for export
@@ -294,7 +315,7 @@ router.get("/export", authenticate, async (req, res) => {
       "IP Address",
     ];
 
-    const csvRows = logs.map((log) => [
+    const csvRows = items.map((log) => [
       new Date(log.created_at).toISOString(),
       log.type,
       log.action,

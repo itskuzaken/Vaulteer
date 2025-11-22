@@ -12,9 +12,9 @@ import ScheduledPosts from "../../../../components/navigation/Post/ScheduledPost
 import CreateAnnouncement from "../../../../components/navigation/Post/CreateAnnouncement";
 import ViewAllVolunteers from "../../../../components/navigation/Volunteer/ViewAllVolunteers";
 import ApplicationApproval from "../../../../components/navigation/Volunteer/ApplicationApproval";
+import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
+import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
-import PublishedEvents from "../../../../components/navigation/Event/PublishedEvents";
-import ArchivedEvents from "../../../../components/navigation/Event/ArchivedEvents";
 import GeneralSettings from "../../../../components/navigation/Settings/GeneralSettings";
 import Appearance from "../../../../components/navigation/Settings/Appearance";
 import UserAccountSettings from "../../../../components/navigation/Settings/UserAccountSettings";
@@ -37,6 +37,17 @@ const staffMainRoutes = {
     label: "Settings",
     defaultSub: "general-settings",
   },
+  "manage-events": {
+    label: "Manage Events",
+    component: ManageEvents,
+    withNavigate: true,
+  },
+  event: {
+    label: "Event Details",
+    component: EventDetailsContent,
+    withNavigate: true,
+    sidebarKey: "manage-events",
+  },
 };
 
 function StaffViewAllVolunteers(props) {
@@ -57,6 +68,13 @@ const staffSubRoutes = {
     label: "Create Post",
     parent: "manage-post",
     component: CreatePost,
+  },
+  "create-event": {
+    key: "create-event",
+    label: "Create Event",
+    parent: "manage-events",
+    component: CreateEvent,
+    withNavigate: true,
   },
   "published-posts": {
     key: "published-posts",
@@ -94,24 +112,6 @@ const staffSubRoutes = {
     label: "Application Approval",
     parent: "manage-volunteer",
     component: ApplicationApproval,
-  },
-  "create-event": {
-    key: "create-event",
-    label: "Create Event",
-    parent: "manage-events",
-    component: CreateEvent,
-  },
-  "published-events": {
-    key: "published-events",
-    label: "Published Events",
-    parent: "manage-events",
-    component: PublishedEvents,
-  },
-  "archived-events": {
-    key: "archived-events",
-    label: "Archived Events",
-    parent: "manage-events",
-    component: ArchivedEvents,
   },
   "general-settings": {
     key: "general-settings",

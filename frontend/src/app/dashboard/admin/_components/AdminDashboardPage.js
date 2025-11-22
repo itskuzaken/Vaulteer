@@ -13,9 +13,9 @@ import CreateAnnouncement from "../../../../components/navigation/Post/CreateAnn
 import ViewAllVolunteers from "../../../../components/navigation/Volunteer/ViewAllVolunteers";
 import ApplicationApproval from "../../../../components/navigation/Volunteer/ApplicationApproval";
 import ViewAllStaff from "../../../../components/navigation/Staff/ViewAllStaff";
+import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
+import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
-import PublishedEvents from "../../../../components/navigation/Event/PublishedEvents";
-import ArchivedEvents from "../../../../components/navigation/Event/ArchivedEvents";
 import GeneralSettings from "../../../../components/navigation/Settings/GeneralSettings";
 import Appearance from "../../../../components/navigation/Settings/Appearance";
 import UserAccountSettings from "../../../../components/navigation/Settings/UserAccountSettings";
@@ -38,6 +38,17 @@ const adminMainRoutes = {
     label: "Settings",
     defaultSub: "general-settings",
   },
+  "manage-events": {
+    label: "Manage Events",
+    component: ManageEvents,
+    withNavigate: true,
+  },
+  event: {
+    label: "Event Details",
+    component: EventDetailsContent,
+    withNavigate: true,
+    sidebarKey: "manage-events",
+  },
 };
 
 function AdminViewAllVolunteers(props) {
@@ -48,6 +59,15 @@ function AdminViewAllVolunteers(props) {
 
 function AdminViewAllStaff(props) {
   return <ViewAllStaff profileBasePath="/dashboard/admin/profile" {...props} />;
+}
+
+function AdminApplicationApproval(props) {
+  return (
+    <ApplicationApproval
+      profileBasePath="/dashboard/admin/profile"
+      {...props}
+    />
+  );
 }
 
 const adminSubRoutes = {
@@ -62,6 +82,13 @@ const adminSubRoutes = {
     label: "Create Post",
     parent: "manage-post",
     component: CreatePost,
+  },
+  "create-event": {
+    key: "create-event",
+    label: "Create Event",
+    parent: "manage-events",
+    component: CreateEvent,
+    withNavigate: true,
   },
   "published-posts": {
     key: "published-posts",
@@ -98,7 +125,8 @@ const adminSubRoutes = {
     key: "application-approval",
     label: "Application Approval",
     parent: "manage-volunteer",
-    component: ApplicationApproval,
+    component: AdminApplicationApproval,
+    withNavigate: true,
   },
   "view-all-staff": {
     key: "view-all-staff",
@@ -106,24 +134,6 @@ const adminSubRoutes = {
     parent: "manage-staff",
     component: AdminViewAllStaff,
     withNavigate: true,
-  },
-  "create-event": {
-    key: "create-event",
-    label: "Create Event",
-    parent: "manage-events",
-    component: CreateEvent,
-  },
-  "published-events": {
-    key: "published-events",
-    label: "Published Events",
-    parent: "manage-events",
-    component: PublishedEvents,
-  },
-  "archived-events": {
-    key: "archived-events",
-    label: "Archived Events",
-    parent: "manage-events",
-    component: ArchivedEvents,
   },
   "general-settings": {
     key: "general-settings",

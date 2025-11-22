@@ -13,7 +13,7 @@ export default function StatsCard({
   color = "gray",
   subtitle = null,
   isChanged = false,
-  trend = null, // 'up', 'down', or null
+  trend = null,
   trendValue = null,
   loading = false,
   animationDuration = 1000,
@@ -34,40 +34,40 @@ export default function StatsCard({
   // Color mapping
   const colorClasses = {
     gray: {
-      bg: "bg-gray-100 dark:bg-gray-700",
-      icon: "text-gray-600 dark:text-gray-400",
+      chip: "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300",
       value: "text-gray-900 dark:text-white",
-      pulse: "ring-gray-400",
+      pulse: "ring-gray-300",
+      dot: "bg-gray-400 dark:bg-gray-500",
     },
     red: {
-      bg: "bg-red-100 dark:bg-red-900/20",
-      icon: "text-red-600 dark:text-red-400",
-      value: "text-red-600 dark:text-red-400",
-      pulse: "ring-red-400",
+      chip: "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-300",
+      value: "text-red-600 dark:text-red-300",
+      pulse: "ring-red-300",
+      dot: "bg-red-400",
     },
     blue: {
-      bg: "bg-blue-100 dark:bg-blue-900/20",
-      icon: "text-blue-600 dark:text-blue-400",
-      value: "text-blue-600 dark:text-blue-400",
-      pulse: "ring-blue-400",
+      chip: "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300",
+      value: "text-blue-600 dark:text-blue-300",
+      pulse: "ring-blue-300",
+      dot: "bg-blue-400",
     },
     green: {
-      bg: "bg-green-100 dark:bg-green-900/20",
-      icon: "text-green-600 dark:text-green-400",
-      value: "text-green-600 dark:text-green-400",
-      pulse: "ring-green-400",
+      chip: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-300",
+      value: "text-emerald-600 dark:text-emerald-300",
+      pulse: "ring-emerald-300",
+      dot: "bg-emerald-400",
     },
     amber: {
-      bg: "bg-amber-100 dark:bg-amber-900/20",
-      icon: "text-amber-600 dark:text-amber-400",
-      value: "text-amber-600 dark:text-amber-400",
-      pulse: "ring-amber-400",
+      chip: "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-300",
+      value: "text-amber-600 dark:text-amber-300",
+      pulse: "ring-amber-300",
+      dot: "bg-amber-400",
     },
     purple: {
-      bg: "bg-purple-100 dark:bg-purple-900/20",
-      icon: "text-purple-600 dark:text-purple-400",
-      value: "text-purple-600 dark:text-purple-400",
-      pulse: "ring-purple-400",
+      chip: "bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-300",
+      value: "text-purple-600 dark:text-purple-300",
+      pulse: "ring-purple-300",
+      dot: "bg-purple-400",
     },
   };
 
@@ -76,9 +76,11 @@ export default function StatsCard({
   return (
     <div
       className={`
-        bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4
-        transition-all duration-300 relative overflow-hidden
-        ${onClick ? "cursor-pointer hover:shadow-lg hover:scale-[1.02]" : ""}
+        relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800
+        bg-white dark:bg-gray-900 p-5 shadow-sm transition-all duration-300
+        ${
+          onClick ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5" : ""
+        }
         ${showPulse ? `ring-2 ${colors.pulse} animate-pulse-ring` : ""}
       `}
       onClick={onClick}
@@ -95,57 +97,56 @@ export default function StatsCard({
         <div className="absolute top-2 right-2">
           <span className="relative flex h-3 w-3">
             <span
-              className={`animate-ping absolute inline-flex h-full w-full rounded-full ${colors.bg} opacity-75`}
+              className={`animate-ping absolute inline-flex h-full w-full rounded-full ${colors.dot} opacity-75`}
             ></span>
             <span
-              className={`relative inline-flex rounded-full h-3 w-3 ${colors.bg}`}
+              className={`relative inline-flex rounded-full h-3 w-3 ${colors.dot}`}
             ></span>
           </span>
         </div>
       )}
 
-      <div className="flex items-start justify-between">
-        {/* Icon */}
-        <div className={`p-2 rounded-lg ${colors.bg}`}>
-          {Icon && <Icon className={`w-5 h-5 ${colors.icon}`} />}
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-center gap-3">
+          {Icon && (
+            <span
+              className={`inline-flex h-11 w-11 items-center justify-center rounded-xl text-lg ${colors.chip}`}
+            >
+              <Icon className="w-5 h-5" />
+            </span>
+          )}
+          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+            {title}
+          </p>
         </div>
 
-        {/* Trend Indicator */}
         {trend && trendValue && (
-          <div
-            className={`text-xs flex items-center gap-1 ${
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
               trend === "up"
-                ? "text-green-600 dark:text-green-400"
-                : "text-red-600 dark:text-red-400"
+                ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300"
+                : "bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300"
             }`}
           >
-            {trend === "up" ? "↑" : "↓"} {trendValue}
-          </div>
+            {trend === "up" ? "▲" : "▼"} {trendValue}
+          </span>
         )}
       </div>
 
-      {/* Title */}
-      <div className="text-sm text-gray-600 dark:text-gray-400 mt-3">
-        {title}
-      </div>
-
-      {/* Value with Animation */}
       <div
-        className={`text-2xl font-bold mt-1 ${colors.value} transition-all duration-300`}
+        className={`mt-4 text-3xl font-semibold leading-tight ${colors.value} transition-all duration-300`}
       >
-        {loading ? "..." : animatedValue.toLocaleString()}
+        {loading ? "--" : animatedValue.toLocaleString()}
       </div>
-
-      {/* Subtitle */}
-      {subtitle && (
-        <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">
+      {!loading && subtitle && (
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           {subtitle}
-        </div>
+        </p>
       )}
 
       {/* Hover Effect Border */}
       {onClick && (
-        <div className="absolute inset-0 border-2 border-transparent hover:border-red-300 dark:hover:border-red-700 rounded-xl transition-colors pointer-events-none"></div>
+        <div className="absolute inset-0 border-2 border-transparent hover:border-red-300 dark:hover:border-red-700 rounded-2xl transition-colors pointer-events-none"></div>
       )}
     </div>
   );

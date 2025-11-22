@@ -23,17 +23,54 @@ const allowedOrigins = [
   CONFIG.FRONTEND_URL,
 ].filter(Boolean);
 
+function isPrivateNetworkHost(hostname) {
+  if (!hostname) {
+    return false;
+  }
+
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === lanAddress
+  ) {
+    return true;
+  }
+
+  if (/^192\.168\./.test(hostname)) {
+    return true;
+  }
+
+  if (/^10\./.test(hostname)) {
+    return true;
+  }
+
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) {
+    return true;
+  }
+
+  return false;
+}
+
 const corsMiddleware = cors({
   origin: (origin, callback) => {
-    // Allow non-browser requests (no origin header)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      return callback(null, true);
+    }
 
-    // Check if origin is in allowed list
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
 
-    // Reject others
+    try {
+      const { hostname } = new URL(origin);
+      if (CONFIG.NODE_ENV !== "production" && isPrivateNetworkHost(hostname)) {
+        return callback(null, true);
+      }
+    } catch (parseError) {
+      console.warn("Failed to parse origin for CORS check:", parseError);
+    }
+
     return callback(new Error("CORS not allowed for origin: " + origin));
   },
   credentials: true,

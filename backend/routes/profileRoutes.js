@@ -7,7 +7,7 @@ const { getPool } = require("../db/pool");
 async function getUserFromFirebaseUid(firebaseUid) {
   const pool = getPool();
   const [rows] = await pool.query(
-    `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.date_added, r.role
+    `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.date_added, u.last_login_at, u.updated_at, r.role
      FROM users u
      JOIN roles r ON u.role_id = r.role_id
      WHERE u.uid = ?`,
@@ -16,25 +16,65 @@ async function getUserFromFirebaseUid(firebaseUid) {
   return rows.length > 0 ? rows[0] : null;
 }
 
+// Helper to get profile owner by UID (param)
+async function getUserByUid(uid) {
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.date_added, u.last_login_at, u.updated_at, u.profile_picture, r.role
+     FROM users u
+     JOIN roles r ON u.role_id = r.role_id
+     WHERE u.uid = ?`,
+    [uid]
+  );
+  return rows.length > 0 ? rows[0] : null;
+}
+
+// Preload profile user when :uid param is present
+router.param("uid", async (req, res, next, uidParam) => {
+  try {
+    const profileUid = uidParam?.trim();
+    if (!profileUid) {
+      return res.status(400).json({ error: "Profile UID is required" });
+    }
+
+    if (/^\d+$/.test(profileUid)) {
+      return res
+        .status(400)
+        .json({ error: "Profile UID must be a Firebase UID" });
+    }
+
+    const profileUser = await getUserByUid(profileUid);
+
+    if (!profileUser) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    req.profileUser = profileUser;
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
 /**
- * @route   GET /api/profile/:id
- * @desc    Get user profile by ID
+ * @route   GET /api/profile/:uid
+ * @desc    Get user profile by UID
  * @access  Private (Own profile or Admin/Staff)
  */
-router.get("/:id", authenticate, async (req, res) => {
+router.get("/:uid", authenticate, async (req, res) => {
   try {
-    const pool = getPool();
-    const profileId = parseInt(req.params.id);
-
     // Get requesting user
     const requestingUser = await getUserFromFirebaseUid(req.firebaseUid);
     if (!requestingUser) {
       return res.status(404).json({ error: "User not found" });
     }
 
+    const profileUser = req.profileUser;
+
     // Check authorization: Users can view their own profile, Admin/Staff can view all
     const canView =
-      requestingUser.user_id === profileId ||
+      requestingUser.user_id === profileUser.user_id ||
+      requestingUser.uid === profileUser.uid ||
       requestingUser.role === "admin" ||
       requestingUser.role === "staff";
 
@@ -44,24 +84,9 @@ router.get("/:id", authenticate, async (req, res) => {
       });
     }
 
-    // Fetch profile data
-    const [profileRows] = await pool.query(
-      `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.date_added, r.role
-       FROM users u
-       JOIN roles r ON u.role_id = r.role_id
-       WHERE u.user_id = ?`,
-      [profileId]
-    );
-
-    if (profileRows.length === 0) {
-      return res.status(404).json({ error: "Profile not found" });
-    }
-
-    const profile = profileRows[0];
-
     res.json({
       success: true,
-      data: profile,
+      data: profileUser,
     });
   } catch (error) {
     console.error("Error fetching profile:", error);
@@ -70,14 +95,13 @@ router.get("/:id", authenticate, async (req, res) => {
 });
 
 /**
- * @route   PUT /api/profile/:id
+ * @route   PUT /api/profile/:uid
  * @desc    Update user profile
  * @access  Private (Own profile only)
  */
-router.put("/:id", authenticate, async (req, res) => {
+router.put("/:uid", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const profileId = parseInt(req.params.id);
     const { name, email, phone, address } = req.body;
 
     // Get requesting user
@@ -86,8 +110,10 @@ router.put("/:id", authenticate, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
+    const profileUser = req.profileUser;
+
     // Check authorization: Users can only edit their own profile
-    if (requestingUser.user_id !== profileId) {
+    if (requestingUser.user_id !== profileUser.user_id) {
       return res.status(403).json({
         error: "Unauthorized to update this profile",
       });
@@ -134,7 +160,7 @@ router.put("/:id", authenticate, async (req, res) => {
       return res.status(400).json({ error: "No fields to update" });
     }
 
-    values.push(profileId);
+    values.push(profileUser.user_id);
 
     // Update user profile
     await pool.query(
@@ -144,11 +170,11 @@ router.put("/:id", authenticate, async (req, res) => {
 
     // Fetch updated profile
     const [updatedRows] = await pool.query(
-      `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.date_added, r.role
+      `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.date_added, u.last_login_at, u.updated_at, r.role
        FROM users u
        JOIN roles r ON u.role_id = r.role_id
        WHERE u.user_id = ?`,
-      [profileId]
+      [profileUser.user_id]
     );
 
     res.json({
@@ -185,14 +211,15 @@ router.post("/change-password", authenticate, async (req, res) => {
 });
 
 /**
- * @route   GET /api/profile/:id/comprehensive
+ * @route   GET /api/profile/:uid/comprehensive
  * @desc    Get comprehensive user profile with all related data
  * @access  Private (Own profile or Admin/Staff)
  */
-router.get("/:id/comprehensive", authenticate, async (req, res) => {
+router.get("/:uid/comprehensive", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const userId = parseInt(req.params.id);
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
 
     // Get requesting user
     const requestingUser = await getUserFromFirebaseUid(req.firebaseUid);
@@ -203,6 +230,7 @@ router.get("/:id/comprehensive", authenticate, async (req, res) => {
     // Check authorization
     const canView =
       requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid ||
       requestingUser.role === "admin" ||
       requestingUser.role === "staff";
 
@@ -214,7 +242,7 @@ router.get("/:id/comprehensive", authenticate, async (req, res) => {
 
     // 1. Basic user info
     const [userRows] = await pool.query(
-      `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.date_added, u.profile_picture, r.role
+      `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.date_added, u.last_login_at, u.updated_at, u.profile_picture, r.role
        FROM users u
        JOIN roles r ON u.role_id = r.role_id
        WHERE u.user_id = ?`,
@@ -236,6 +264,30 @@ router.get("/:id/comprehensive", authenticate, async (req, res) => {
       workingDays: [],
       schoolDays: [],
     };
+
+    // If user is an applicant, fetch application data
+    if (profileData.user.role === "applicant") {
+      try {
+        const [applicantRows] = await pool.query(
+          `SELECT a.application_date, s.status_name AS application_status
+           FROM applicants a
+           LEFT JOIN application_statuses s ON a.status_id = s.status_id
+           WHERE a.user_id = ?`,
+          [userId]
+        );
+        if (applicantRows.length > 0) {
+          profileData.user = {
+            ...profileData.user,
+            ...applicantRows[0],
+          };
+        }
+      } catch (applicantError) {
+        // Log error but don't fail the request
+        console.warn("Error fetching applicant data:", applicantError.message);
+        // Set default application status if query fails
+        profileData.user.application_status = "pending";
+      }
+    }
 
     // 2. User profile (detailed personal info)
     const [profileRows] = await pool.query(
@@ -347,14 +399,15 @@ router.get("/:id/comprehensive", authenticate, async (req, res) => {
 });
 
 /**
- * @route   PUT /api/profile/:id/personal
+ * @route   PUT /api/profile/:uid/personal
  * @desc    Update user personal profile (user_profiles table)
  * @access  Private (Own profile only)
  */
-router.put("/:id/personal", authenticate, async (req, res) => {
+router.put("/:uid/personal", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const userId = parseInt(req.params.id);
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
     const {
       first_name,
       middle_initial,
@@ -377,8 +430,13 @@ router.put("/:id/personal", authenticate, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Only allow users to edit their own personal profile
-    if (requestingUser.user_id !== userId) {
+    // Only allow users to edit their own personal profile unless admin
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+    const isAdmin = requestingUser.role === "admin";
+
+    if (!isEditingOwnProfile && !isAdmin) {
       return res
         .status(403)
         .json({ error: "Unauthorized to edit this profile" });
@@ -464,14 +522,15 @@ router.put("/:id/personal", authenticate, async (req, res) => {
 });
 
 /**
- * @route   PUT /api/profile/:id/work-profile
+ * @route   PUT /api/profile/:uid/work-profile
  * @desc    Update user work profile
  * @access  Private (Own profile only)
  */
-router.put("/:id/work-profile", authenticate, async (req, res) => {
+router.put("/:uid/work-profile", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const userId = parseInt(req.params.id);
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
     const { position, industry, company, work_shift, work_other_skills } =
       req.body;
 
@@ -481,8 +540,13 @@ router.put("/:id/work-profile", authenticate, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Only allow users to edit their own work profile
-    if (requestingUser.user_id !== userId) {
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+    const isAdmin = requestingUser.role === "admin";
+
+    // Only allow users to edit their own work profile unless admin
+    if (!isEditingOwnProfile && !isAdmin) {
       return res
         .status(403)
         .json({ error: "Unauthorized to edit this profile" });
@@ -537,14 +601,15 @@ router.put("/:id/work-profile", authenticate, async (req, res) => {
 });
 
 /**
- * @route   PUT /api/profile/:id/student-profile
+ * @route   PUT /api/profile/:uid/student-profile
  * @desc    Update user student profile
  * @access  Private (Own profile only)
  */
-router.put("/:id/student-profile", authenticate, async (req, res) => {
+router.put("/:uid/student-profile", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const userId = parseInt(req.params.id);
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
     const { school, course, graduation, student_other_skills } = req.body;
 
     // Get requesting user
@@ -553,8 +618,13 @@ router.put("/:id/student-profile", authenticate, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Only allow users to edit their own student profile
-    if (requestingUser.user_id !== userId) {
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+    const isAdmin = requestingUser.role === "admin";
+
+    // Only allow users to edit their own student profile unless admin
+    if (!isEditingOwnProfile && !isAdmin) {
       return res
         .status(403)
         .json({ error: "Unauthorized to edit this profile" });
@@ -612,14 +682,15 @@ router.put("/:id/student-profile", authenticate, async (req, res) => {
 });
 
 /**
- * @route   PUT /api/profile/:id/trainings
+ * @route   PUT /api/profile/:uid/trainings
  * @desc    Update user trainings
  * @access  Private (Own profile only)
  */
-router.put("/:id/trainings", authenticate, async (req, res) => {
+router.put("/:uid/trainings", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const userId = parseInt(req.params.id);
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
     const { trainingIds } = req.body; // Accept trainingIds (camelCase from frontend)
 
     // Get requesting user
@@ -628,8 +699,13 @@ router.put("/:id/trainings", authenticate, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Only allow users to edit their own trainings
-    if (requestingUser.user_id !== userId) {
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+    const isAdmin = requestingUser.role === "admin";
+
+    // Only allow users to edit their own trainings unless admin
+    if (!isEditingOwnProfile && !isAdmin) {
       return res
         .status(403)
         .json({ error: "Unauthorized to edit this profile" });
@@ -676,14 +752,15 @@ router.put("/:id/trainings", authenticate, async (req, res) => {
 });
 
 /**
- * @route   PUT /api/profile/:id/available-days
+ * @route   PUT /api/profile/:uid/available-days
  * @desc    Update user available days
  * @access  Private (Own profile only)
  */
-router.put("/:id/available-days", authenticate, async (req, res) => {
+router.put("/:uid/available-days", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const userId = parseInt(req.params.id);
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
     const { dayIds } = req.body; // Accept dayIds (camelCase from frontend)
 
     // Get requesting user
@@ -692,8 +769,13 @@ router.put("/:id/available-days", authenticate, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Only allow users to edit their own available days
-    if (requestingUser.user_id !== userId) {
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+    const isAdmin = requestingUser.role === "admin";
+
+    // Only allow users to edit their own available days unless admin
+    if (!isEditingOwnProfile && !isAdmin) {
       return res
         .status(403)
         .json({ error: "Unauthorized to edit this profile" });
@@ -739,14 +821,15 @@ router.put("/:id/available-days", authenticate, async (req, res) => {
 });
 
 /**
- * @route   PUT /api/profile/:id/working-days
+ * @route   PUT /api/profile/:uid/working-days
  * @desc    Update user working days
  * @access  Private (Own profile only)
  */
-router.put("/:id/working-days", authenticate, async (req, res) => {
+router.put("/:uid/working-days", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const userId = parseInt(req.params.id);
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
     const { dayIds } = req.body; // Accept dayIds (camelCase from frontend)
 
     // Get requesting user
@@ -755,8 +838,13 @@ router.put("/:id/working-days", authenticate, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Only allow users to edit their own working days
-    if (requestingUser.user_id !== userId) {
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+    const isAdmin = requestingUser.role === "admin";
+
+    // Only allow users to edit their own working days unless admin
+    if (!isEditingOwnProfile && !isAdmin) {
       return res
         .status(403)
         .json({ error: "Unauthorized to edit this profile" });
@@ -802,14 +890,15 @@ router.put("/:id/working-days", authenticate, async (req, res) => {
 });
 
 /**
- * @route   PUT /api/profile/:id/school-days
+ * @route   PUT /api/profile/:uid/school-days
  * @desc    Update user school days
  * @access  Private (Own profile only)
  */
-router.put("/:id/school-days", authenticate, async (req, res) => {
+router.put("/:uid/school-days", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const userId = parseInt(req.params.id);
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
     const { dayIds } = req.body; // Accept dayIds (camelCase from frontend)
 
     // Get requesting user
@@ -818,8 +907,13 @@ router.put("/:id/school-days", authenticate, async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
 
-    // Only allow users to edit their own school days
-    if (requestingUser.user_id !== userId) {
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+    const isAdmin = requestingUser.role === "admin";
+
+    // Only allow users to edit their own school days unless admin
+    if (!isEditingOwnProfile && !isAdmin) {
       return res
         .status(403)
         .json({ error: "Unauthorized to edit this profile" });

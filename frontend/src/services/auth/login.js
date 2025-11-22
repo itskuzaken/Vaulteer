@@ -4,8 +4,11 @@ import { useState } from "react";
 import { signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { auth } from "../firebase";
 import { useRouter } from "next/navigation";
-import { getCurrentUser } from "../userService";
+import { getCurrentUser, updateUserActivity } from "../userService";
 import { logActions } from "../activityLogService";
+import { STORAGE_KEYS } from "../../config/config";
+
+const TOKEN_STORAGE_KEY = STORAGE_KEYS?.AUTH_TOKEN || "token";
 
 export default function Login({ onClose }) {
   const [isModalOpen, setModalOpen] = useState(true);
@@ -30,10 +33,35 @@ export default function Login({ onClose }) {
 
       // Only allow login if user has a record in the database
       let userInfo;
+      let currentUserError = null;
       try {
         userInfo = await getCurrentUser();
-      } catch {
+      } catch (fetchError) {
+        currentUserError = fetchError;
         userInfo = null;
+      }
+
+      if (currentUserError?.message === "Account is deactivated by admin.") {
+        setLoginError(
+          "Your account has been deactivated by an administrator. Please contact support to regain access."
+        );
+
+        try {
+          await auth.signOut();
+        } catch (signOutError) {
+          console.error("Failed to sign out deactivated user:", signOutError);
+        }
+
+        try {
+          await logActions.loginFailure(
+            "Account deactivated by admin",
+            user.email
+          );
+        } catch (logError) {
+          console.error("Failed to log deactivated login attempt:", logError);
+        }
+
+        return;
       }
 
       if (userInfo && ["admin", "staff", "volunteer"].includes(userInfo.role)) {
@@ -44,16 +72,57 @@ export default function Login({ onClose }) {
           volunteer: "/dashboard/volunteer",
         }[userInfo.role];
 
+        const loginEventDate = new Date();
+        const loginTimestamp = loginEventDate.toISOString();
+
+        let reactivatedNotice = false;
+        try {
+          const activityResponse = await updateUserActivity(userInfo.user_id, {
+            occurredAt: loginTimestamp,
+          });
+          if (activityResponse?.data?.reactivated) {
+            reactivatedNotice = true;
+          }
+        } catch (activityError) {
+          console.error("Failed to record user activity:", activityError);
+        }
+
         // Log successful login
         try {
-          await logActions.loginSuccess({
-            role: userInfo.role,
-            email: userInfo.email,
-            name: userInfo.name,
-          });
+          await logActions.loginSuccess(
+            {
+              role: userInfo.role,
+              email: userInfo.email,
+              name: userInfo.name,
+            },
+            { occurredAt: loginTimestamp }
+          );
         } catch (logError) {
           // Don't block login if logging fails
           console.error("Failed to log login activity:", logError);
+        }
+
+        if (reactivatedNotice) {
+          try {
+            window.sessionStorage.setItem(
+              "vaulteer:reactivatedFromInactive",
+              "true"
+            );
+          } catch (storageError) {
+            console.warn(
+              "Unable to persist reactivation notice in session storage",
+              storageError
+            );
+          }
+        }
+
+        try {
+          const freshToken = await user.getIdToken(true);
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(TOKEN_STORAGE_KEY, freshToken);
+          }
+        } catch (tokenError) {
+          console.warn("Unable to refresh auth token", tokenError);
         }
 
         router.push(roleRoute);
