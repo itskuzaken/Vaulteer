@@ -1,193 +1,181 @@
-# Vaulteer Frontend
+# Vaulteer - Volunteer Management System
 
-The frontend application for the Vaulteer volunteer management system, built with Next.js 15.
+A full-stack web application for managing volunteers, staff, and applicants with role-based dashboards built with Next.js (frontend) and Node.js/Express (backend).
 
 ## Features
 
-- **Role-based Dashboards**: Separate interfaces for Admin, Staff, Volunteer, and Applicant roles
-- **Responsive Design**: Mobile-first design with Tailwind CSS
-- **Real-time Updates**: Live data synchronization
-- **Search & Filtering**: Advanced user search and filtering capabilities
-- **Modal Management**: Comprehensive modal system for user interactions
+- **Role-based Authentication**: Admin, Staff, Volunteer, and Applicant roles
+- **Dashboard Management**: Separate dashboards for different user roles with consistent UI design
+- **User Management**: CRUD operations for users, applicants, and staff
+- **Event Management**: Create, publish, archive, and manage events with streamlined UI
+- **Gamification System**: Points, badges, streaks, and leaderboards to encourage engagement
+- **Search & Filtering**: Advanced search and filter capabilities across users and events
+- **Activity Logging**: Comprehensive audit trails for all system activities
+- **Notifications**: Real-time notifications system with inbox and toast messages
 - **Firebase Authentication**: Secure authentication with Google OAuth
+- **MySQL Database**: Relational database for data persistence
 
 ## Tech Stack
 
-- **Next.js 15.2.5** - React framework with App Router
+### Frontend
+
+- **Next.js 15.2.5** - React framework
 - **React 19** - UI library
-- **Tailwind CSS 4** - Utility-first CSS framework
-- **Firebase Client SDK** - Authentication and real-time database
-- **React Icons** - Icon components
-- **IonIcons** - Additional icon library
+- **Tailwind CSS 4** - Styling
+- **Firebase Client SDK** - Authentication
+- **React Icons** - Icon library
 
-## Getting Started
+### Backend
 
-### Prerequisites
+- **Node.js** - Runtime
+- **Express.js** - Web framework
+- **MySQL2** - Database driver
+- **Firebase Admin SDK** - Server-side authentication
+- **JWT** - Token-based authentication
 
-- Node.js 18+
-- Backend API running (see root README)
+### Database
 
-### Installation
+- **MySQL** - Primary database
+- **AWS RDS** - Cloud database hosting
 
-```bash
-cd frontend
-npm install
-```
+### Additional Libraries
 
-### Environment Setup
+- **date-fns** - Date formatting and manipulation
+- **react-icons** - Icon components
+- **react-hot-toast** - Toast notifications
+- **react-datepicker** - Date picker components
 
-Create `.env.local` in the frontend directory:
+## Gamification System
 
-```env
-NEXT_PUBLIC_API_BASE=http://localhost:3001/api
-NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-```
+Vaulteer includes a comprehensive gamification system to encourage volunteer participation:
 
-### Development
+### Features
 
-```bash
-npm run dev
-```
+- **Points System**: Earn points for various activities (event registration +10, attendance +40, hosting +25)
+- **Badge System**: Unlock badges based on achievements (First Steps, Community Pillar, Weeklong Warrior)
+- **Streaks**: Maintain weekly attendance streaks for bonus points
+- **Leaderboards**: View top contributors and rankings
+- **Real-time Updates**: Points and badges awarded instantly with notifications
 
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+### Reward Rules
 
-### Build for Production
+- **Event Registration**: +10 points (waitlist +5)
+- **Event Attendance**: +40 points
+- **Event Hosting**: +25 points for published events
+- **Late Cancellation**: -5 points penalty
+- **Waitlist Promotion**: +8 points
+- **Weekly Streaks**: +5 points per consecutive day
+- **Badge Bonuses**: Additional points for unlocking achievements
 
-```bash
-npm run build
-npm start
-```
+### API Endpoints
 
-## Project Structure
+- `GET /api/gamification/summary` - User gamification stats
+- `GET /api/gamification/leaderboard` - Top contributors
+- `POST /api/gamification/recalculate` - Admin recalculation (admin only)
 
-```
-src/
-├── app/                    # Next.js App Router pages
-│   ├── dashboard/         # Role-based dashboard pages
-│   ├── volunteer/         # Volunteer-specific pages
-│   ├── layout.js          # Root layout
-│   ├── page.js            # Home page
-│   └── globals.css        # Global styles
-├── components/            # Reusable React components
-│   ├── card/             # User cards
-│   ├── filter/           # Filter components
-│   ├── layout/           # Layout components
-│   ├── modals/           # Modal dialogs
-│   ├── navigation/       # Navigation components
-│   ├── search/           # Search components
-│   ├── sidebar/          # Sidebar components
-│   └── ui/               # UI primitives
-├── config/               # Configuration files
-├── hooks/                # Custom React hooks
-├── services/             # API service functions
-├── styles/               # Additional stylesheets
-└── utils/                # Utility functions
-```
+- **AWS** - Cloud platform
+- **Elastic Beanstalk** - Backend deployment
+- **Amplify** - Frontend deployment (alternative)
+- **S3 + CloudFront** - Static hosting (alternative)
 
-## Key Components
+## Prerequisites
 
-### Dashboards
+- **Node.js 18+** installed locally
+- **MySQL** database (local or AWS RDS)
+- **Firebase Project** with Authentication enabled
+- **AWS Account** (for cloud deployment)
 
-- **AdminDashboard**: Full system management
-- **StaffDashboard**: Limited management capabilities
-- **VolunteerDashboard**: Personal volunteer tools
-- **ApplicantDashboard**: Application status tracking
+## Quick Start
 
-### Sidebars
+### Local Development
 
-- **AdminSidebar**: Complete navigation menu
-- **StaffSidebar**: Restricted navigation
-- **VolunteerSidebar**: Volunteer-specific options
+1. **Clone and Install**
+   ```bash
+   git clone <repository-url>
+   cd vaulteer
+   npm install
+   cd backend && npm install
+   cd ../frontend && npm install
+   ```
 
-### Services
+2. **Database Setup**
+   ```bash
+   mysql -u root -p < backend/schema.sql
+   ```
 
-- **authService**: Authentication handling
-- **userService**: User CRUD operations
-- **applicantService**: Applicant management
-- **searchService**: Search functionality
+3. **Environment Configuration**
+   - Create `backend/.env` with database and Firebase settings
+   - Create `frontend/.env.local` with API and Firebase config
 
-## Styling
+4. **Run Development**
+   ```bash
+   npm run dev  # Starts frontend (3000) and backend (3001)
+   ```
 
-The application uses Tailwind CSS with custom design tokens defined in `globals.css`. Key styling patterns:
+### Production Deployment
 
-- **Color Tokens**: Role-based color schemes
-- **Responsive Breakpoints**: Mobile-first approach
-- **Component Variants**: Consistent component styling
-- **Dark Mode Support**: Built-in theme switching
+Vaulteer supports multiple deployment options:
 
-## Authentication Flow
+- **Recommended**: AWS Elastic Beanstalk (backend) + Amplify (frontend)
+- **Alternative**: EC2 + S3/CloudFront
 
-1. **Login**: Firebase Google OAuth
-2. **Role Detection**: Automatic role assignment
-3. **Dashboard Redirect**: Role-based routing
-4. **Token Management**: JWT token handling
+See detailed deployment guides in the full documentation.
 
-## API Integration
+## API Overview
 
-The frontend communicates with the backend API through service functions. Key endpoints:
+### Core Endpoints
 
-- `/api/me` - Current user information
-- `/api/users` - User management
-- `/api/applicants` - Applicant operations
-- `/api/search` - Search functionality
+- **Authentication**: `/api/auth/login`, `/api/auth/logout`, `/api/me`
+- **Users**: `/api/users` (CRUD operations)
+- **Events**: `/api/events` (full event management)
+- **Gamification**: `/api/gamification/summary`, `/api/gamification/leaderboard`
+- **Activity Logs**: `/api/logs`
 
-## Deployment
+### Key Features
 
-### AWS Amplify (Recommended)
+- RESTful API with JWT authentication
+- Role-based access control (Admin, Staff, Volunteer, Applicant)
+- Real-time notifications and activity logging
+- Comprehensive search and filtering
 
-1. Connect repository to AWS Amplify
-2. Set build settings:
-   - Build command: `npm run build`
-   - Build output: `out`
-   - Environment variables: Set all `NEXT_PUBLIC_*` variables
+## Database Schema
 
-### Manual S3 Deployment
+Vaulteer uses MySQL with the following key tables:
 
-```bash
-npm run build
-aws s3 sync out/ s3://your-bucket-name --delete
-```
+- `users` - User accounts and roles
+- `events` - Event management
+- `event_participants` - Event registrations
+- `user_gamification_stats` - Gamification data
+- `achievements` - Badge definitions
+- `activity_logs` - Audit trails
 
-## Development Guidelines
+Run migrations with `node run-migration.js`.
 
-### Code Style
+## Recent Updates
 
-- Use ESLint configuration
-- Follow React best practices
-- Use TypeScript for new components (planned)
+### v1.1.0 - Dashboard UI Consistency & Gamification (November 2025)
 
-### Component Patterns
+- **UI Improvements**: Refactored ManageEvents component to match consistent design patterns across ViewAllStaff, ViewAllVolunteers, and ApplicationApproval dashboards
+- **Event Management**: Enhanced event cards with hover effects, capacity indicators, and improved pagination
+- **Gamification System**: 
+  - Backend implementation complete with points, badges, and streaks
+  - Database schema updated with gamification tables
+  - Centralized activity logging for all gamification events
+- **Activity Logging**: Refactored to use standardized logging helpers for consistent audit trails
+- **Performance**: Optimized event list rendering and pagination
 
-- Functional components with hooks
-- Custom hooks for shared logic
-- Service layer for API calls
-- Consistent prop interfaces
+### v1.0.0 - Initial Release
 
-### State Management
+- Complete volunteer management system with role-based dashboards
+- Firebase authentication integration
+- MySQL database with AWS RDS deployment
+- Full CRUD operations for users, events, and applicants
 
-- React hooks for local state
-- Context API for global state
-- Firebase for real-time data
+## License
 
-## Testing
+This project is licensed under the ISC License.
 
-```bash
-npm run lint
-```
+## Support
 
-## Contributing
-
-1. Follow the established code patterns
-2. Test components thoroughly
-3. Update documentation as needed
-4. Ensure responsive design works
-
-## Related Documentation
-
-- [Root README](../README.md) - Full project documentation
-- [Backend README](../backend/README.md) - Backend API documentation
+For support, please contact the development team or create an issue in the repository.</content>
+<parameter name="filePath">c:\Users\Kuzaken\RedVault\README.md
