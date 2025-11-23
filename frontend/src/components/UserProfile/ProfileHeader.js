@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { formatDate, roleColors, statusColors } from "./ProfileUtils";
 
 export default function ProfileHeader({
@@ -36,14 +37,17 @@ export default function ProfileHeader({
         <div className="flex flex-col sm:flex-row items-center sm:items-end -mt-16 mb-6">
           <div className="relative group">
             {userData?.profile_picture || user?.photoURL ? (
-              <img
-                src={userData?.profile_picture || user?.photoURL}
+              <Image
+                src={
+                  userData?.profile_picture ||
+                  user?.photoURL ||
+                  "/default-profile.png"
+                }
                 alt={userData?.name || "User"}
+                width={128}
+                height={128}
                 className="w-32 h-32 rounded-full border-4 border-white dark:border-gray-800 object-cover shadow-xl"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "/default-profile.png";
-                }}
+                unoptimized
               />
             ) : (
               <div className="w-32 h-32 rounded-full border-4 border-white dark:border-gray-800 bg-gradient-to-br from-red-500 to-red-700 flex items-center justify-center text-white text-4xl font-bold shadow-xl">

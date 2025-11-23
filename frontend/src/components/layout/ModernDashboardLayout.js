@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import {
   IoMenuOutline,
   IoCloseOutline,
@@ -30,12 +31,19 @@ export default function ModernDashboardLayout({
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [dbProfile, setDbProfile] = useState(null);
+  const [avatarSrc, setAvatarSrc] = useState(
+    user?.photoURL || "/default-profile.png"
+  );
   const userMenuRef = useRef(null);
 
   // Track mount state for responsive calculations
   useEffect(() => {
     setIsMounted(true);
   }, []);
+
+  useEffect(() => {
+    setAvatarSrc(user?.photoURL || "/default-profile.png");
+  }, [user?.photoURL]);
 
   // Fetch user ID and profile data from database
   useEffect(() => {
@@ -320,15 +328,15 @@ export default function ModernDashboardLayout({
                         {role}
                       </p>
                     </div>
-                    {user.photoURL ? (
-                      <img
-                        src={user.photoURL}
+                    {user?.photoURL ? (
+                      <Image
+                        src={avatarSrc}
                         alt={getFullName()}
+                        width={40}
+                        height={40}
                         className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 ${currentColors.border} object-cover transition-transform duration-200`}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = "/default-profile.png";
-                        }}
+                        onError={() => setAvatarSrc("/default-profile.png")}
+                        unoptimized
                       />
                     ) : (
                       <div
