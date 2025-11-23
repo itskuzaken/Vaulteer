@@ -54,3 +54,4 @@ firebase-service-account.json
 # project documents (ignored)
 /document/
 docs
+AWS_DEPLOYMENT_INSTRUCTIONS.md
