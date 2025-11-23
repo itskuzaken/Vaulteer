@@ -135,8 +135,8 @@ router.put(
     // Check if user has staff or admin role
     const userRole = req.authenticatedUser?.role?.toLowerCase();
     if (!userRole || !["admin", "staff"].includes(userRole)) {
-      return res.status(403).json({ 
-        error: "Forbidden: Only admin and staff can update applicant status" 
+      return res.status(403).json({
+        error: "Forbidden: Only admin and staff can update applicant status",
       });
     }
     console.log("[PUT /:id/status] Request received");
@@ -156,9 +156,12 @@ router.put(
 
     // Staff can only move to intermediate statuses, admin can approve/reject
     const restrictedStatuses = ["approved", "rejected"];
-    if (userRole === "staff" && restrictedStatuses.includes(status.toLowerCase())) {
+    if (
+      userRole === "staff" &&
+      restrictedStatuses.includes(status.toLowerCase())
+    ) {
       return res.status(403).json({
-        error: "Forbidden: Only admin can approve or reject applications"
+        error: "Forbidden: Only admin can approve or reject applications",
       });
     }
 
