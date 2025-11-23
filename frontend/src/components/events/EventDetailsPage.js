@@ -488,7 +488,7 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
               </div>
               {eventData.postponed_reason && (
                 <p className="mt-4 rounded-xl bg-white/70 p-4 text-sm font-medium text-amber-900 dark:bg-amber-900/40 dark:text-amber-50">
-                  "{eventData.postponed_reason}"
+                  &ldquo;{eventData.postponed_reason}&rdquo;
                 </p>
               )}
             </section>
