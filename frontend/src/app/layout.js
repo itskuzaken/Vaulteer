@@ -2,7 +2,9 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
-import { Inter, Roboto_Mono } from "next/font/google";
+import Image from "next/image";
+import Script from "next/script";
+import { Inter, Roboto_Mono, Poppins } from "next/font/google";
 import "./globals.css"; // Import global styles
 import Login from "../services/auth/login";
 import { onAuthStateChanged } from "firebase/auth";
@@ -20,9 +22,10 @@ const geistMono = Roboto_Mono({
   subsets: ["latin"],
 });
 
-const poppins = Inter({
+const poppins = Poppins({
   variable: "--font-poppins",
   subsets: ["latin"],
+  weight: ["400", "500", "700"],
 });
 
 // Header component moved here
@@ -91,7 +94,14 @@ function Header() {
             )}
           </svg>
         </button>
-        <img src="/bagani-logo.png" alt="Logo" className="h-10 mx-4" />
+        <Image
+          src="/bagani-logo.png"
+          alt="Logo"
+          width={160}
+          height={40}
+          className="h-10 w-auto mx-4"
+          priority
+        />
       </div>
 
       {/* Desktop/Tablet Navigation */}
@@ -159,7 +169,14 @@ function Header() {
         aria-hidden={!mobileMenuOpen}
       >
         <div className="flex items-center justify-between p-4 border-b">
-          <img src="/bagani-logo.png" alt="Logo" className="h-10" />
+          <Image
+            src="/bagani-logo.png"
+            alt="Logo"
+            width={160}
+            height={40}
+            className="h-10 w-auto"
+            priority
+          />
           <button
             className="p-2 rounded focus:outline-none focus:ring-2 focus:ring-[var(--primary-red)]"
             aria-label="Close navigation menu"
@@ -222,7 +239,14 @@ function Footer() {
     <footer className="w-full bg-[var(--primary-red)] text-white py-6 mt-8">
       <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4">
         <div className="flex items-center gap-2">
-          <img src="/bagani-logo.png" alt="Bagani Logo" className="h-8" />
+          <Image
+            src="/bagani-logo.png"
+            alt="Bagani Logo"
+            width={150}
+            height={40}
+            className="h-8 w-auto"
+            priority
+          />
           <span className="font-bold text-lg">Bagani Community Center</span>
         </div>
         <div className="text-sm text-white/90 text-center md:text-right">
@@ -270,26 +294,21 @@ export default function RootLayout({ children }) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${geistSans.variable} ${geistMono.variable} ${poppins.variable}`}
       suppressHydrationWarning
     >
-      <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap"
-          rel="stylesheet"
-        />
-      </head>
       <body
-        className="bg-white text-[var(--primary-red)] font-sans"
+        className={`${poppins.className} bg-white text-[var(--primary-red)] font-sans`}
         suppressHydrationWarning={true}
       >
         <Header />
         <main>{children}</main>
         <Footer />
-        <script
+        <Script
           type="module"
           src="https://cdn.jsdelivr.net/npm/ionicons@latest/dist/ionicons/ionicons.esm.js"
-        ></script>
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   );
