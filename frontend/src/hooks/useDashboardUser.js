@@ -156,7 +156,7 @@ export function useDashboardUser() {
       isMounted = false;
       cleanupSubscription();
     };
-  }, [user?.uid]);
+  }, [user]);
 
   return { user, status, error, gamification, refreshGamification };
 }
