@@ -42,7 +42,7 @@ export default function ForbiddenPage() {
           {/* Description */}
           <div className="space-y-3 mb-8">
             <p className="text-lg text-gray-600 dark:text-gray-300">
-              You don't have permission to access this resource.
+              You don&apos;t have permission to access this resource.
             </p>
             <div className="flex items-center justify-center gap-2 text-gray-500 dark:text-gray-400">
               <IoShieldCheckmarkOutline className="w-5 h-5" />

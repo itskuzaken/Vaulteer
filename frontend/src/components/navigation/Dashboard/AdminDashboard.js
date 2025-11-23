@@ -127,7 +127,7 @@ export default function AdminDashboard({ onNavigate }) {
               </button>
               <h2 className="text-2xl font-bold mb-2">Welcome, Admin!</h2>
               <p className="text-red-100">
-                Here's what's happening with your organization today.
+                Here&apos;s what&apos;s happening with your organization today.
               </p>
             </div>
           )}
