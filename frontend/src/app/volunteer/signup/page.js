@@ -1657,7 +1657,7 @@ export default function VolunteerSignupPage() {
                   responsibilities to be a full-pledged volunteer, to the best
                   of my ability: including time commitments, adherence to safety
                   standards and protocols, code of ethics, and any of the
-                  organization's rules and regulations.
+                  organization&apos;s rules and regulations.
                 </li>
                 <li>
                   To maintain with the strictest confidentiality any information

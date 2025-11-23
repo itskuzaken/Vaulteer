@@ -110,7 +110,7 @@ export default function StaffDashboard({ onNavigate }) {
                 Welcome back, Staff Member! 👋
               </h2>
               <p className="text-green-100">
-                Here's an overview of your activities and pending tasks.
+                Here&apos;s an overview of your activities and pending tasks.
               </p>
             </div>
           )}
