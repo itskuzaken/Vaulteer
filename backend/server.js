@@ -1,4 +1,5 @@
 const express = require("express");
+const helmet = require("helmet");
 const admin = require("firebase-admin");
 const fs = require("fs");
 const path = require("path");
@@ -6,6 +7,8 @@ const { CONFIG } = require("./config/env");
 const { initPool } = require("./db/pool");
 const { corsMiddleware, lanAddress } = require("./middleware/cors");
 const { scheduleInactiveUserJob } = require("./jobs/inactiveUserScheduler");
+const { apiLimiter } = require("./middleware/rateLimiter");
+const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
 const applicantsRoute = require("./routes/applicants");
 const usersRoute = require("./routes/users");
@@ -38,21 +41,15 @@ if (!admin.apps.length) {
       // legacy behaviour: a path to a json file (default)
       const svcPath =
         process.env.FIREBASE_SERVICE_ACCOUNT ||
-        path.join(__dirname, "firebase-service-account1.json");
+        path.join(__dirname, "firebase-service-account.json");
       if (fs.existsSync(svcPath)) {
         serviceAccount = require(svcPath);
       }
     }
 
     // Validate minimal required fields
-    if (
-      !serviceAccount ||
-      !serviceAccount.private_key ||
-      !serviceAccount.client_email
-    ) {
-      throw new Error(
-        "Firebase service account not found or missing required fields"
-      );
+    if (!serviceAccount || !serviceAccount.private_key || !serviceAccount.client_email) {
+      throw new Error("Firebase service account not found or missing required fields");
     }
 
     admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
@@ -61,9 +58,7 @@ if (!admin.apps.length) {
     console.warn("⚠ Firebase Admin init skipped:", err.message);
     // In production fail fast — running without credentials may break auth functionality
     if (CONFIG.NODE_ENV === "production") {
-      console.error(
-        "✗ Firebase initialization failed in production — aborting startup."
-      );
+      console.error("✗ Firebase initialization failed in production — aborting startup.");
       process.exit(1);
     }
   }
@@ -71,8 +66,22 @@ if (!admin.apps.length) {
 
 const app = express();
 
+// Security headers (helmet)
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Disable CSP for API (frontend handles this)
+    crossOriginEmbedderPolicy: false, // Allow embedding for API responses
+  })
+);
+
+// CORS must come before other middleware
 app.use(corsMiddleware);
+
+// Body parsing
 app.use(express.json());
+
+// Rate limiting for all API routes
+app.use("/api", apiLimiter);
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -113,9 +122,10 @@ app.get("/api", (req, res) => {
 });
 
 // 404 handler for all unmatched /api routes (must be last)
-app.use("/api", (req, res) => {
-  res.status(404).json({ error: "Endpoint not found" });
-});
+app.use("/api", notFoundHandler);
+
+// Global error handler (must be last)
+app.use(errorHandler);
 
 async function start() {
   try {
