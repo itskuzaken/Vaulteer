@@ -1,5 +1,6 @@
 const express = require("express");
 const admin = require("firebase-admin");
+const fs = require("fs");
 const path = require("path");
 const { CONFIG } = require("./config/env");
 const { initPool } = require("./db/pool");
@@ -19,14 +20,52 @@ const gamificationRoute = require("./routes/gamificationRoutes");
 
 if (!admin.apps.length) {
   try {
-    const svcPath =
-      process.env.FIREBASE_SERVICE_ACCOUNT ||
-      path.join(__dirname, "firebase-service-account.json");
-    const serviceAccount = require(svcPath);
+    // Support three ways to provide the Firebase service account:
+    // 1) FIREBASE_SERVICE_ACCOUNT_JSON - raw JSON string
+    // 2) FIREBASE_SERVICE_ACCOUNT_BASE64 - base64-encoded JSON string
+    // 3) FIREBASE_SERVICE_ACCOUNT (path to file) - legacy fallback
+    let serviceAccount = null;
+
+    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+    } else if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+      const decoded = Buffer.from(
+        process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
+        "base64"
+      ).toString("utf8");
+      serviceAccount = JSON.parse(decoded);
+    } else {
+      // legacy behaviour: a path to a json file (default)
+      const svcPath =
+        process.env.FIREBASE_SERVICE_ACCOUNT ||
+        path.join(__dirname, "firebase-service-account1.json");
+      if (fs.existsSync(svcPath)) {
+        serviceAccount = require(svcPath);
+      }
+    }
+
+    // Validate minimal required fields
+    if (
+      !serviceAccount ||
+      !serviceAccount.private_key ||
+      !serviceAccount.client_email
+    ) {
+      throw new Error(
+        "Firebase service account not found or missing required fields"
+      );
+    }
+
     admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     console.log("✓ Firebase Admin initialized");
   } catch (err) {
     console.warn("⚠ Firebase Admin init skipped:", err.message);
+    // In production fail fast — running without credentials may break auth functionality
+    if (CONFIG.NODE_ENV === "production") {
+      console.error(
+        "✗ Firebase initialization failed in production — aborting startup."
+      );
+      process.exit(1);
+    }
   }
 }
 
