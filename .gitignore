@@ -56,3 +56,5 @@ backend/firebase-service-account.json
 /document/
 docs
 AWS_DEPLOYMENT_INSTRUCTIONS.md
+HYBRID_API_SECURITY.md
+.gitignore
