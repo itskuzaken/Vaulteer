@@ -74,6 +74,34 @@ if (!admin.apps.length) {
 
 const app = express();
 
+// If the app is behind a reverse proxy (nginx), Express needs to be told to trust
+// the proxy so middleware such as express-rate-limit can parse X-Forwarded-For.
+// Configure with an env var TRUST_PROXY if you need custom behavior; default to
+// `1` (trust first proxy) in production.
+const trustProxyEnv = process.env.TRUST_PROXY;
+if (trustProxyEnv) {
+  // Allow values like 'true', 'false', '1', '2', or 'loopback'
+  const parsed =
+    trustProxyEnv === "true"
+      ? true
+      : trustProxyEnv === "false"
+      ? false
+      : isNaN(Number(trustProxyEnv))
+      ? trustProxyEnv
+      : Number(trustProxyEnv);
+  app.set("trust proxy", parsed);
+  console.log(
+    `[config] express trust proxy set from TRUST_PROXY=${trustProxyEnv} -> ${parsed}`
+  );
+} else if (CONFIG.NODE_ENV === "production") {
+  // Default for production is trusting the first proxy (typical nginx setup)
+  app.set("trust proxy", 1);
+  console.log("[config] express trust proxy set to 1 (production default)");
+} else {
+  // In development leave default (no trust proxy) unless configured
+  console.log("[config] express trust proxy left unset (development)");
+}
+
 // Security headers (helmet)
 app.use(
   helmet({

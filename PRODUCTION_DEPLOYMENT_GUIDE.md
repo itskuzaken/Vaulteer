@@ -72,7 +72,7 @@
 ssh -i your-key.pem ubuntu@3.106.82.21
 
 # Or if DNS is configured
-ssh -i your-key.pem ubuntu@vaulteer.kuzaken.tech
+ssh -i "C:\Users\Kuzaken\Downloads\vaulteer-key-pair.pem" ubuntu@vaulteer.kuzaken.tech
 ```
 
 ---
@@ -244,13 +244,29 @@ cd /opt/vaulteer/app/backend
 npm ci --production
 ```
 
-**Frontend:**
+If you hit a runtime error on the server like "Error: Cannot find module 'helmet'" it means the backend dependencies were not installed on the host. Fix it with:
+
+```bash
+cd /opt/vaulteer/app/backend
+npm ci --production
+# then restart the running process (PM2 example)
+pm2 restart vaulteer-backend || pm2 restart backend
+```
+
+**Frontend (build step — install devDependencies first):**
+
+Next.js requires PostCSS/Tailwind plugins and other devDependencies to be present during build. Install all dependencies (including devDependencies) before building the frontend.
 
 ```bash
 cd /opt/vaulteer/app/frontend
-npm ci --production
+# Install both dependencies + devDependencies so the build receives PostCSS/Tailwind
+npm ci
+
+# Then build the production artifacts
 npm run build
 ```
+
+Troubleshooting: if the build fails with "Cannot find module '@tailwindcss/postcss'" or errors trying to resolve "firebase/auth", ensure you've installed the frontend deps with `npm ci` (not `npm ci --production`) and rebuild. If problems persist, try removing `node_modules` and `.next` then re-run `npm ci` and `npm run build`.
 
 ### 3. Configure Backend Environment
 
@@ -304,10 +320,28 @@ NEXT_PUBLIC_API_URL=https://vaulteer.kuzaken.tech/api
 # DASHBOARD_HOST=vaulteer.kuzaken.tech
 ```
 
+# Firebase client configuration (web app) — set these using your Firebase console values
+
+NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_WEB_API_KEY
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-firebase-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your-firebase-project-default-rtdb.region.firebasedatabase.app
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-firebase-project
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-firebase-project.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=1234567890
+NEXT_PUBLIC_FIREBASE_APP_ID=1:1234567890:web:abcdef123456
+
 Rebuild frontend with production config:
 
 ```bash
 npm run build
+```
+
+Note: Next.js embeds `NEXT_PUBLIC_*` environment variables at build time. If you change `NEXT_PUBLIC_FIREBASE_API_KEY` or any other `NEXT_PUBLIC_` variable, you must rebuild the frontend and restart the frontend process (PM2 or systemd) so the new values are picked up.
+
+```bash
+# Rebuild and restart (PM2)
+npm run build
+pm2 restart vaulteer-frontend || pm2 restart frontend
 ```
 
 ### 5. Test Backend Locally
@@ -465,6 +499,23 @@ sudo rm /etc/nginx/sites-enabled/default
 # Reload nginx (don't restart yet - SSL not configured)
 sudo systemctl reload nginx
 ```
+
+### Environment / reverse-proxy note
+
+When nginx is used as a reverse proxy (the typical production setup) it will set X-Forwarded-\* headers. Express and some middleware (for example express-rate-limit) need to know whether they can trust those headers. Configure the backend's `TRUST_PROXY` environment variable to a suitable value (e.g. `1` when behind a single nginx proxy) inside `backend/.env` or exported in your process manager:
+
+```env
+# In backend/.env (optional)
+TRUST_PROXY=1
+```
+
+Setting `TRUST_PROXY` correctly prevents errors like:
+
+```
+ValidationError: The 'X-Forwarded-For' header is set but the Express 'trust proxy' setting is false (default).
+```
+
+If you use PM2 or systemd make sure the service picks up the env var when starting.
 
 ---
 
@@ -1053,7 +1104,7 @@ aws s3 cp "$BACKUP_FILE" s3://your-backup-bucket/vaulteer/app/
 
 - [ ] Clone repository to /opt/vaulteer/app
 - [ ] Install backend dependencies (`npm ci --production`)
-- [ ] Install frontend dependencies (`npm ci --production`)
+- [ ] Install frontend dependencies (on build host run `npm ci` to include devDependencies; for runtime you can run `npm ci --production` after build if you prefer)
 - [ ] Configure backend .env file
 - [ ] Configure frontend .env.production
 - [ ] Build frontend (`npm run build`)
@@ -1291,8 +1342,10 @@ cd /opt/vaulteer/app
 git pull origin main
 
 # 6. Install dependencies (if package.json changed)
+# Backend: runtime deps only (production)
 cd backend && npm ci --production
-cd ../frontend && npm ci --production
+# Frontend (build host): install devDependencies too so build works
+cd ../frontend && npm ci
 
 # 7. Build frontend (if code changed)
 cd /opt/vaulteer/app/frontend
