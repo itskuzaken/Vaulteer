@@ -2,12 +2,14 @@ const express = require("express");
 const router = express.Router();
 const asyncHandler = require("../middleware/asyncHandler");
 const { authenticate } = require("../middleware/auth");
+const { authLimiter } = require("../middleware/rateLimiter");
 const eventRepository = require("../repositories/eventRepository");
 const gamificationService = require("../services/gamificationService");
 
-// GET /api/me - Get current user info
+// GET /api/me - Get current user info (rate limited for auth)
 router.get(
   "/",
+  authLimiter,
   authenticate,
   asyncHandler(async (req, res) => {
     const authUser = req.authenticatedUser;
