@@ -48,8 +48,14 @@ if (!admin.apps.length) {
     }
 
     // Validate minimal required fields
-    if (!serviceAccount || !serviceAccount.private_key || !serviceAccount.client_email) {
-      throw new Error("Firebase service account not found or missing required fields");
+    if (
+      !serviceAccount ||
+      !serviceAccount.private_key ||
+      !serviceAccount.client_email
+    ) {
+      throw new Error(
+        "Firebase service account not found or missing required fields"
+      );
     }
 
     admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
@@ -58,7 +64,9 @@ if (!admin.apps.length) {
     console.warn("⚠ Firebase Admin init skipped:", err.message);
     // In production fail fast — running without credentials may break auth functionality
     if (CONFIG.NODE_ENV === "production") {
-      console.error("✗ Firebase initialization failed in production — aborting startup.");
+      console.error(
+        "✗ Firebase initialization failed in production — aborting startup."
+      );
       process.exit(1);
     }
   }
