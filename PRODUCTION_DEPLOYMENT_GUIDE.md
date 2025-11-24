@@ -294,6 +294,13 @@ FRONTEND_URL=https://vaulteer.kuzaken.tech
 # Firebase Credentials (use base64-encoded JSON)
 FIREBASE_SERVICE_ACCOUNT_BASE64=ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAibXktZmlyZWJhc2UtZWZhN2EiLAog...YOUR_NEW_BASE64_STRING_HERE
 
+# Internal API Token (for server-to-server communication)
+# Generate a strong random token: openssl rand -base64 32
+INTERNAL_API_TOKEN=YOUR_STRONG_RANDOM_TOKEN_HERE
+
+# Express Trust Proxy (required when behind nginx)
+TRUST_PROXY=1
+
 # Optional: LAN address (not needed in production)
 # LAN_ADDRESS=
 ```
@@ -313,15 +320,16 @@ nano .env.production
 
 Add:
 
-```env
+````env
 NEXT_PUBLIC_API_URL=https://vaulteer.kuzaken.tech/api
 
-# Optional: Enable host-based rewriting if needed
-# DASHBOARD_HOST=vaulteer.kuzaken.tech
-```
+# Internal API configuration (for Next.js server-side code ONLY)
+# This token allows Next.js server components/actions to call internal backend endpoints
+# MUST match the INTERNAL_API_TOKEN in backend .env
+INTERNAL_API_TOKEN=YOUR_STRONG_RANDOM_TOKEN_HERE
+BACKEND_INTERNAL_URL=http://127.0.0.1:5000
 
 # Firebase client configuration (web app) — set these using your Firebase console values
-
 NEXT_PUBLIC_FIREBASE_API_KEY=YOUR_WEB_API_KEY
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-firebase-project.firebaseapp.com
 NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your-firebase-project-default-rtdb.region.firebasedatabase.app
@@ -330,11 +338,14 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-firebase-project.appspot.com
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=1234567890
 NEXT_PUBLIC_FIREBASE_APP_ID=1:1234567890:web:abcdef123456
 
+# Optional: Enable host-based rewriting if needed
+# DASHBOARD_HOST=vaulteer.kuzaken.tech
+
 Rebuild frontend with production config:
 
 ```bash
 npm run build
-```
+````
 
 Note: Next.js embeds `NEXT_PUBLIC_*` environment variables at build time. If you change `NEXT_PUBLIC_FIREBASE_API_KEY` or any other `NEXT_PUBLIC_` variable, you must rebuild the frontend and restart the frontend process (PM2 or systemd) so the new values are picked up.
 
@@ -594,13 +605,19 @@ Add:
 module.exports = {
   apps: [
     {
+      // Run the backend directly so PM2 spawns the Node process without
+      // relying on `npm` as an intermediary (avoids spawn ENOENT when PM2's
+      // default interpreter path differs on the system).
       name: "vaulteer-backend",
-      cwd: "/opt/vaulteer/app/backend",
+      cwd: "/opt/vaulteer/Vaulteer/backend",
       script: "server.js",
       instances: 1,
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
+        // Trust proxy when running behind nginx (so express-rate-limit works)
+        TRUST_PROXY: "1",
+        // INTERNAL_API_TOKEN will be read from backend/.env file automatically
       },
       error_file: "/var/log/vaulteer/backend-error.log",
       out_file: "/var/log/vaulteer/backend-out.log",
@@ -611,15 +628,18 @@ module.exports = {
       restart_delay: 4000,
     },
     {
+      // Start Next.js directly from the local binary for more predictable
+      // behavior (avoid an extra `npm` process and interpreter issues).
       name: "vaulteer-frontend",
-      cwd: "/opt/vaulteer/app/frontend",
+      cwd: "/opt/vaulteer/Vaulteer/frontend",
       script: "node_modules/.bin/next",
-      args: "start",
+      args: "start -p 3000",
       instances: 1,
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
+        // INTERNAL_API_TOKEN and BACKEND_INTERNAL_URL will be read from frontend/.env.production automatically
       },
       error_file: "/var/log/vaulteer/frontend-error.log",
       out_file: "/var/log/vaulteer/frontend-out.log",
@@ -866,7 +886,7 @@ sudo chmod 600 /opt/vaulteer/app/frontend/.env.production
 sudo chmod -R 750 /var/log/vaulteer
 ```
 
-### 5. Remove Firebase Service Account File
+### 5. Remove Firebase Service Account File & Secure Internal Token
 
 ```bash
 # After confirming env vars work, delete the file
@@ -874,7 +894,21 @@ rm /opt/vaulteer/app/backend/firebase-service-account.json
 
 # Verify it's gone
 ls -la /opt/vaulteer/app/backend/firebase-service-account.json
+
+# Verify INTERNAL_API_TOKEN is set and strong (minimum 32 characters)
+# Generate a new one if needed:
+openssl rand -base64 32
+
+# Add it to both backend/.env and frontend/.env.production
+# The token MUST match on both sides for internal API calls to work
 ```
+
+**Important:** The `INTERNAL_API_TOKEN` protects server-to-server endpoints at `/api/internal/*`. These endpoints should ONLY be called by your Next.js server-side code (Server Components, Server Actions, API routes), never from browser clients.
+
+- Backend reads `INTERNAL_API_TOKEN` from `backend/.env`
+- Frontend server-side code reads it from `frontend/.env.production` (NOT `NEXT_PUBLIC_*`)
+- The token must be at least 32 characters long and randomly generated
+- Never commit this token to git or expose it in client-side code
 
 ### 6. Enable Automatic Security Updates
 

@@ -20,6 +20,10 @@ const notificationRoute = require("./routes/notificationRoutes");
 const profileRoute = require("./routes/profileRoutes");
 const eventsRoute = require("./routes/eventsRoutes");
 const gamificationRoute = require("./routes/gamificationRoutes");
+const internalRoute = require("./routes/internalRoutes");
+
+// Middleware for internal-only routes
+const internalOnly = require("./middleware/internalOnly");
 
 if (!admin.apps.length) {
   try {
@@ -127,6 +131,11 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// Internal-only routes (protected by internalOnly middleware)
+// These should ONLY be called by server-side code, never from browsers
+app.use("/api/internal", internalOnly, internalRoute);
+
+// Public API routes (protected by Firebase auth where needed)
 app.use("/api/applicants", applicantsRoute);
 app.use("/api/users", usersRoute);
 app.use("/api/me", meRoute);

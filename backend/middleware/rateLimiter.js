@@ -5,8 +5,14 @@ const rateLimit = require("express-rate-limit");
 // - Fallback to socket remoteAddress or x-real-ip header
 // - Normalize IPv4-mapped IPv6 addresses
 function getClientIp(req) {
-  let ip = req.ip || req.headers["x-real-ip"] || req.socket?.remoteAddress || req.connection?.remoteAddress || "unknown";
-  if (typeof ip === "string" && ip.startsWith("::ffff:")) ip = ip.replace("::ffff:", "");
+  let ip =
+    req.ip ||
+    req.headers["x-real-ip"] ||
+    req.socket?.remoteAddress ||
+    req.connection?.remoteAddress ||
+    "unknown";
+  if (typeof ip === "string" && ip.startsWith("::ffff:"))
+    ip = ip.replace("::ffff:", "");
   return ip;
 }
 
@@ -68,8 +74,12 @@ const writeLimiter = rateLimit({
   // Log a warning for blocked clients so we can investigate repeated write abuse
   handler: (req, res /*, next */) => {
     const who = req.firebaseUid ? `uid:${req.firebaseUid}` : getClientIp(req);
-    console.warn(`[rateLimiter] writeLimiter blocked ${who} ${req.method} ${req.originalUrl}`);
-    res.status(429).json({ error: "Too many write requests, please try again later." });
+    console.warn(
+      `[rateLimiter] writeLimiter blocked ${who} ${req.method} ${req.originalUrl}`
+    );
+    res
+      .status(429)
+      .json({ error: "Too many write requests, please try again later." });
   },
 });
 
