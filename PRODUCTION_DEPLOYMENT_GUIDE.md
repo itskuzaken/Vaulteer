@@ -1,6 +1,7 @@
 # Production Deployment Guide - Vaulteer
 
 **Target Infrastructure:**
+
 - Domain: `vaulteer.kuzaken.tech`
 - EC2 Instance: `i-0c9d8cab21ab441b7`
 - Public IP: `3.106.82.21` (Elastic IP)
@@ -9,6 +10,7 @@
 - OS: Ubuntu (assumed)
 
 **Architecture:**
+
 - Frontend: Next.js (port 3000)
 - Backend: Express.js (port 5000)
 - Reverse Proxy: nginx (port 80/443)
@@ -18,6 +20,7 @@
 ---
 
 ## Table of Contents
+
 1. [Prerequisites](#prerequisites)
 2. [Initial Server Setup](#initial-server-setup)
 3. [Install Dependencies](#install-dependencies)
@@ -36,7 +39,9 @@
 ## Prerequisites
 
 ### Local Setup
+
 1. **Rotate Firebase Credentials** (CRITICAL)
+
    ```bash
    # Your firebase-service-account.json was committed to git with the private key exposed
    # You MUST rotate these credentials before deployment:
@@ -47,6 +52,7 @@
    ```
 
 2. **Prepare Environment Variables**
+
    ```bash
    # Convert new Firebase credentials to base64
    cat firebase-service-account.json | base64 -w 0 > firebase-base64.txt
@@ -60,6 +66,7 @@
    ```
 
 ### SSH Access
+
 ```bash
 # Connect to your EC2 instance
 ssh -i your-key.pem ubuntu@3.106.82.21
@@ -73,17 +80,20 @@ ssh -i your-key.pem ubuntu@vaulteer.kuzaken.tech
 ## Initial Server Setup
 
 ### 1. Update System Packages
+
 ```bash
 sudo apt update && sudo apt upgrade -y
 ```
 
 ### 2. Set System Timezone
+
 ```bash
 sudo timedatectl set-timezone Asia/Manila  # Or your timezone
 timedatectl status
 ```
 
 ### 3. Configure Firewall
+
 ```bash
 # Enable UFW firewall
 sudo ufw allow OpenSSH
@@ -93,6 +103,7 @@ sudo ufw status
 ```
 
 ### 4. Create Application User
+
 ```bash
 # Create non-root user for running the application
 sudo adduser --system --group --home /opt/vaulteer vaulteer
@@ -104,6 +115,7 @@ sudo usermod -aG sudo vaulteer  # Optional: if you need sudo access
 ## Install Dependencies
 
 ### 1. Install Node.js 20.x LTS
+
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt install -y nodejs
@@ -111,22 +123,35 @@ node --version  # Should show v20.x
 npm --version
 ```
 
-### 2. Install MySQL/MariaDB
-```bash
-sudo apt install -y mariadb-server mariadb-client
-sudo systemctl start mariadb
-sudo systemctl enable mariadb
+### 2. Database note — using AWS RDS (already in use)
 
-# Secure MySQL installation
-sudo mysql_secure_installation
-# Set root password: YES
-# Remove anonymous users: YES
-# Disallow root login remotely: YES
-# Remove test database: YES
-# Reload privilege tables: YES
+This environment uses AWS RDS for MySQL (managed database) — you do NOT need to install MySQL/MariaDB on the EC2 host. Below are the RDS-specific steps and production recommendations you should follow when using RDS:
+
+- Ensure the RDS instance is provisioned in the same VPC (or peered) as the EC2 host and in the same region.
+- Configure the RDS security group so the EC2 instance's security group or Elastic IP is allowed to connect to the RDS port (default: 3306). Avoid wide CIDR ranges (0.0.0.0/0).
+- Use strong credentials for the RDS database user and keep them in your backend `.env` (or a secrets manager) — never commit them into git.
+- Enable automatic backups and point-in-time recovery on the RDS instance and configure a suitable retention period.
+- Consider enabling encryption at rest (RDS encryption) and enforcing SSL/TLS connections. Download the AWS RDS public CA certs and configure your MySQL client/driver to use them.
+- Use RDS Parameter Groups for knex/mysql tuning (connection limits, timeouts) that match your connection pool settings.
+
+Example minimal connection variables to use in `backend/.env`:
+
+```env
+# Example: connect to an RDS MySQL endpoint
+DB_HOST=my-rds-endpoint.xxxxxxxxxxxx.ap-southeast-2.rds.amazonaws.com
+DB_USER=vaulteer_user
+DB_PASS=STRONG_PASSWORD
+DB_NAME=vaulteer_db
+DB_CONN_LIMIT=20
+
+# Optional (secure SSL): configure mysql2 to use ssl.cafile pointing at the downloaded AWS RDS CA bundle
+MYSQL_SSL_CA=/opt/vaulteer/certs/rds-combined-ca-bundle.pem
 ```
 
+If you're using the mysql2 driver, add an `ssl` option in your pool configuration to trust RDS CA certs and/or enforce server identity verification.
+
 ### 3. Install Nginx
+
 ```bash
 sudo apt install -y nginx
 sudo systemctl start nginx
@@ -135,11 +160,13 @@ nginx -v
 ```
 
 ### 4. Install Certbot (SSL)
+
 ```bash
 sudo apt install -y certbot python3-certbot-nginx
 ```
 
 ### 5. Install PM2 (Process Manager)
+
 ```bash
 sudo npm install -g pm2
 pm2 --version
@@ -147,74 +174,53 @@ pm2 --version
 
 ---
 
-## Database Setup
+## Using AWS RDS for MySQL (your DB is on RDS)
 
-### 1. Create Database and User
+Because you already run your database on Amazon RDS, you can skip installing and configuring MySQL on the EC2 host. Use the steps below for provisioning, schema import, connectivity and production recommendations when using RDS.
+
+### 1. Provision RDS & network setup
+
+- Create an RDS MySQL instance (instance class appropriate for your load).
+- Place it in the same VPC as your EC2 instance and in the same Availability Zone(s) where possible.
+- Configure a security group that allows inbound MySQL (TCP/3306) only from the EC2 instance's security group or a tightly-scoped CIDR (avoid 0.0.0.0/0).
+- Enable automated backups (snapshot retention) and enable point-in-time recovery to ensure you can roll back data.
+
+### 2. SSL & connection recommendations
+
+- Enable encryption at rest (RDS encryption) and enforce SSL connections for client-to-RDS where possible.
+- Download the AWS RDS CA bundle and place it on the instance (e.g. /opt/vaulteer/certs/rds-combined-ca-bundle.pem). Configure the mysql2/connection pool with `ssl: { ca: fs.readFileSync('/opt/vaulteer/certs/rds-combined-ca-bundle.pem') }`.
+- Use a secure, least-privileged DB user for the app and rotate credentials regularly. Consider storing credentials in AWS Secrets Manager for extra security.
+
+### 3. Import existing schema to RDS
+
+You can run the same schema import you use locally but point it at the RDS endpoint. Example (from your workstation or from the EC2 host if you prefer):
+
 ```bash
-sudo mysql -u root -p
+# From your local machine (or EC2) -- requires network access to RDS
+mysql -h my-rds-endpoint.xxxxx.rds.amazonaws.com -u vaulteer_user -p vaulteer_db < vaulteer_db.sql
+
+# Or using the project's migration helper (if present)
+node backend/run-migration.js --host=my-rds-endpoint.xxxxx.rds.amazonaws.com --user=vaulteer_user --pass=YOUR_PASSWORD --db=vaulteer_db
 ```
 
-```sql
--- Create database
-CREATE DATABASE vaulteer_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+### 4. Performance & parameter tuning
 
--- Create user with strong password
-CREATE USER 'vaulteer_user'@'localhost' IDENTIFIED BY 'YOUR_SECURE_PASSWORD_HERE';
+- Use RDS parameter groups to tune connection/timeouts to match your pool settings (pool size, waitTimeout, connectTimeout).
+- Consider using RDS Performance Insights for SQL-level analysis and slow query capture.
 
--- Grant privileges
-GRANT ALL PRIVILEGES ON vaulteer_db.* TO 'vaulteer_user'@'localhost';
-FLUSH PRIVILEGES;
+### 5. Backups & maintenance
 
--- Test connection
-SELECT user, host FROM mysql.user WHERE user = 'vaulteer_user';
+- Rely on automated RDS snapshots for daily backups and point-in-time restore.
+- For cross-region disaster recovery, consider automated snapshot copies or manual snapshot exports to S3.
 
-EXIT;
-```
-
-### 2. Import Initial Schema
-```bash
-# Upload your vaulteer_db.sql file to the server
-scp -i your-key.pem vaulteer_db.sql ubuntu@3.106.82.21:/tmp/
-
-# Import the schema
-mysql -u vaulteer_user -p vaulteer_db < /tmp/vaulteer_db.sql
-
-# Verify tables
-mysql -u vaulteer_user -p -e "SHOW TABLES;" vaulteer_db
-```
-
-### 3. Configure MySQL for Production
-```bash
-sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
-```
-
-Add/modify:
-```ini
-[mysqld]
-# Performance tuning
-max_connections = 200
-connect_timeout = 10
-wait_timeout = 300
-interactive_timeout = 300
-
-# Character set
-character-set-server = utf8mb4
-collation-server = utf8mb4_unicode_ci
-
-# Security
-bind-address = 127.0.0.1  # Only accept local connections
-```
-
-Restart MySQL:
-```bash
-sudo systemctl restart mariadb
-```
+---
 
 ---
 
 ## Application Setup
 
 ### 1. Clone Repository
+
 ```bash
 # Create application directory
 sudo mkdir -p /opt/vaulteer
@@ -232,12 +238,14 @@ cd app
 ### 2. Install Dependencies
 
 **Backend:**
+
 ```bash
 cd /opt/vaulteer/app/backend
 npm ci --production
 ```
 
 **Frontend:**
+
 ```bash
 cd /opt/vaulteer/app/frontend
 npm ci --production
@@ -252,12 +260,13 @@ nano .env
 ```
 
 Add the following (replace with your actual values):
+
 ```env
 NODE_ENV=production
 PORT=5000
 
 # Database Configuration
-DB_HOST=localhost
+DB_HOST=my-rds-endpoint.xxxxx.rds.amazonaws.com  # replace with your RDS endpoint
 DB_USER=vaulteer_user
 DB_PASS=YOUR_SECURE_PASSWORD_HERE
 DB_NAME=vaulteer_db
@@ -274,6 +283,7 @@ FIREBASE_SERVICE_ACCOUNT_BASE64=ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInBy
 ```
 
 **Security Note:** Set proper file permissions:
+
 ```bash
 chmod 600 /opt/vaulteer/app/backend/.env
 ```
@@ -286,6 +296,7 @@ nano .env.production
 ```
 
 Add:
+
 ```env
 NEXT_PUBLIC_API_URL=https://vaulteer.kuzaken.tech/api
 
@@ -294,20 +305,23 @@ NEXT_PUBLIC_API_URL=https://vaulteer.kuzaken.tech/api
 ```
 
 Rebuild frontend with production config:
+
 ```bash
 npm run build
 ```
 
 ### 5. Test Backend Locally
+
 ```bash
 cd /opt/vaulteer/app/backend
 NODE_ENV=production node server.js
 ```
 
 You should see:
+
 ```
 ✓ Firebase Admin initialized
-✓ DB connected: vaulteer_db @ localhost
+✓ DB connected: vaulteer_db @ my-rds-endpoint.xxxxx.rds.amazonaws.com
 🚀 Vaulteer Server
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   Local:   http://localhost:5000
@@ -376,22 +390,22 @@ server {
     location /api/ {
         proxy_pass http://127.0.0.1:5000;
         proxy_http_version 1.1;
-        
+
         # Preserve client information
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # WebSocket support (if needed in future)
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        
+
         # Timeouts
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
         proxy_read_timeout 60s;
-        
+
         # Buffering
         proxy_buffering off;
     }
@@ -400,16 +414,16 @@ server {
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
-        
+
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
-        
+
         # WebSocket support for Next.js HMR (not needed in production, but harmless)
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
-        
+
         # Timeouts
         proxy_connect_timeout 60s;
         proxy_send_timeout 60s;
@@ -421,7 +435,7 @@ server {
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
-        
+
         # Cache for 1 year
         expires 365d;
         add_header Cache-Control "public, immutable";
@@ -498,12 +512,14 @@ sudo nano /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 ```
 
 Add:
+
 ```bash
 #!/bin/bash
 systemctl reload nginx
 ```
 
 Make executable:
+
 ```bash
 sudo chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
 ```
@@ -522,6 +538,7 @@ nano ecosystem.config.js
 ```
 
 Add:
+
 ```javascript
 module.exports = {
   apps: [
@@ -639,8 +656,7 @@ sudo nano /etc/systemd/system/vaulteer-backend.service
 ```ini
 [Unit]
 Description=Vaulteer Backend API
-After=network.target mariadb.service
-Wants=mariadb.service
+After=network.target
 
 [Service]
 Type=simple
@@ -725,6 +741,7 @@ sudo nano /etc/ssh/sshd_config
 ```
 
 Ensure these settings:
+
 ```
 PermitRootLogin no
 PasswordAuthentication no
@@ -733,6 +750,7 @@ X11Forwarding no
 ```
 
 Restart SSH:
+
 ```bash
 sudo systemctl restart sshd
 ```
@@ -747,6 +765,7 @@ sudo nano /etc/fail2ban/jail.local
 ```
 
 Add:
+
 ```ini
 [sshd]
 enabled = true
@@ -765,28 +784,21 @@ bantime = 3600
 ```
 
 Start fail2ban:
+
 ```bash
 sudo systemctl enable fail2ban
 sudo systemctl start fail2ban
 sudo fail2ban-client status
 ```
 
-### 3. Secure MySQL
+### 3. RDS networking & security (if using RDS)
 
-```bash
-# Restrict MySQL to local connections only
-sudo nano /etc/mysql/mariadb.conf.d/50-server.cnf
-```
+If your database runs on RDS (recommended), you should not be managing a local MySQL instance on the EC2 host. Instead, ensure the following for RDS:
 
-Ensure:
-```ini
-bind-address = 127.0.0.1
-```
-
-Restart MySQL:
-```bash
-sudo systemctl restart mariadb
-```
+- The RDS security group permits access to port 3306 only from the EC2 instance's security group (or a tightly restricted CIDR). This prevents open internet access to your DB.
+- If you need access for administration from a developer workstation, create a temporary SSH tunnel or use a bastion/jump host instead of opening RDS publicly.
+- Enforce SSL/TLS for client connections to RDS and configure the mysql2 driver / pool to use the RDS CA bundle if required.
+- Monitor RDS events, enable automatic minor version upgrades (or schedule controlled upgrades), and use multi-AZ if high availability is required.
 
 ### 4. Set File Permissions
 
@@ -831,6 +843,7 @@ sudo nano /etc/logrotate.d/vaulteer
 ```
 
 Add:
+
 ```
 /var/log/vaulteer/*.log {
     daily
@@ -866,6 +879,7 @@ sudo nano /opt/vaulteer/scripts/health-check.sh
 ```
 
 Add:
+
 ```bash
 #!/bin/bash
 
@@ -893,16 +907,19 @@ fi
 ```
 
 Make executable:
+
 ```bash
 sudo chmod +x /opt/vaulteer/scripts/health-check.sh
 ```
 
 Add to crontab:
+
 ```bash
 sudo crontab -e
 ```
 
 Add:
+
 ```
 */5 * * * * /opt/vaulteer/scripts/health-check.sh
 ```
@@ -924,51 +941,23 @@ sudo /opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-config-wizard
 
 ## Backup Strategy
 
-### 1. Database Backup Script
+### 1. Database backups (RDS snapshot preferred)
+
+For RDS, rely primarily on **automated snapshots** and point-in-time recovery; these are the safest and most convenient backups:
+
+- Configure automated backups and set an appropriate retention period on the RDS instance.
+- Use manual snapshots before major schema changes or before migrations for easy rollback.
+- For cross-region DR or offline storage, export snapshots to S3 or use automated snapshot copy rules.
+
+If you still want application-level dumps (for exports, long-term archival, or extra copies), you can run a controlled mysqldump from a safe host (EC2 or CI) pointing at the RDS endpoint and push the result to S3:
 
 ```bash
-sudo mkdir -p /opt/vaulteer/backups
-sudo nano /opt/vaulteer/scripts/backup-db.sh
+# Example: run on a secure admin host (not the public internet)
+mysqldump -h my-rds-endpoint.xxxxx.rds.amazonaws.com -u vaulteer_user -p vaulteer_db | gzip > /opt/vaulteer/backups/vaulteer_db_$(date +%Y%m%d_%H%M%S).sql.gz
+aws s3 cp /opt/vaulteer/backups/vaulteer_db_$(date +%Y%m%d_%H%M%S).sql.gz s3://your-backup-bucket/vaulteer/db/
 ```
 
-Add:
-```bash
-#!/bin/bash
-
-BACKUP_DIR="/opt/vaulteer/backups"
-TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-BACKUP_FILE="$BACKUP_DIR/vaulteer_db_$TIMESTAMP.sql.gz"
-DB_NAME="vaulteer_db"
-DB_USER="vaulteer_user"
-DB_PASS="YOUR_SECURE_PASSWORD_HERE"
-
-# Create backup directory if it doesn't exist
-mkdir -p "$BACKUP_DIR"
-
-# Dump database and compress
-mysqldump -u "$DB_USER" -p"$DB_PASS" "$DB_NAME" | gzip > "$BACKUP_FILE"
-
-# Keep only last 7 days of backups
-find "$BACKUP_DIR" -name "vaulteer_db_*.sql.gz" -mtime +7 -delete
-
-echo "[$(date)] Database backup completed: $BACKUP_FILE"
-```
-
-Make executable:
-```bash
-sudo chmod +x /opt/vaulteer/scripts/backup-db.sh
-sudo chmod 700 /opt/vaulteer/scripts/backup-db.sh  # Secure (contains password)
-```
-
-Add to crontab (daily at 2 AM):
-```bash
-sudo crontab -e
-```
-
-Add:
-```
-0 2 * * * /opt/vaulteer/scripts/backup-db.sh >> /var/log/vaulteer/backup.log 2>&1
-```
+Use IAM roles and temporary credentials for any automated uploads and keep dumps off the public internet.
 
 ### 2. Application Backup
 
@@ -977,6 +966,7 @@ sudo nano /opt/vaulteer/scripts/backup-app.sh
 ```
 
 Add:
+
 ```bash
 #!/bin/bash
 
@@ -999,6 +989,7 @@ echo "[$(date)] Application backup completed: $BACKUP_FILE"
 ```
 
 Make executable:
+
 ```bash
 sudo chmod +x /opt/vaulteer/scripts/backup-app.sh
 ```
@@ -1014,6 +1005,7 @@ sudo -u vaulteer aws configure
 ```
 
 Update backup scripts to sync to S3:
+
 ```bash
 # Add to end of backup-db.sh
 aws s3 cp "$BACKUP_FILE" s3://your-backup-bucket/vaulteer/db/
@@ -1030,7 +1022,7 @@ aws s3 cp "$BACKUP_FILE" s3://your-backup-bucket/vaulteer/app/
 
 - [ ] Rotate Firebase service account credentials
 - [ ] Generate new base64-encoded Firebase credentials
-- [ ] Prepare strong MySQL password
+- [ ] Prepare DB credentials (RDS user) and/or confirm Secrets Manager entry
 - [ ] Ensure DNS A record points to 3.106.82.21
 - [ ] Have SSH key ready for EC2 access
 
@@ -1045,19 +1037,17 @@ aws s3 cp "$BACKUP_FILE" s3://your-backup-bucket/vaulteer/app/
 ### Dependencies
 
 - [ ] Install Node.js 20.x
-- [ ] Install MySQL/MariaDB
 - [ ] Install Nginx
 - [ ] Install Certbot
 - [ ] Install PM2 or configure systemd
 
-### Database
+### Database / RDS
 
-- [ ] Run `mysql_secure_installation`
-- [ ] Create vaulteer_db database
-- [ ] Create vaulteer_user with strong password
-- [ ] Import database schema
-- [ ] Configure MySQL production settings
-- [ ] Verify tables exist
+- [ ] Confirm AWS RDS instance is provisioned and available (endpoint noted)
+- [ ] Ensure RDS security group allows connections from the EC2 instance's security group only (port 3306)
+- [ ] Ensure automated backups/snapshots are enabled and retention is set appropriately
+- [ ] Import schema into the RDS instance (using the RDS endpoint) and verify tables exist
+- [ ] Confirm DB credentials are stored securely (env file or Secrets Manager)
 
 ### Application
 
@@ -1097,7 +1087,7 @@ aws s3 cp "$BACKUP_FILE" s3://your-backup-bucket/vaulteer/app/
 
 - [ ] Configure SSH (disable root login, password auth)
 - [ ] Install and configure fail2ban
-- [ ] Verify MySQL bind-address (127.0.0.1)
+- [ ] Verify RDS security group rules allow only trusted sources (EC2 security group) and no public access
 - [ ] Set proper file permissions (750 for app, 600 for .env)
 - [ ] Remove firebase-service-account.json file
 - [ ] Enable automatic security updates
@@ -1148,6 +1138,7 @@ aws s3 cp "$BACKUP_FILE" s3://your-backup-bucket/vaulteer/app/
 ### Issue: nginx fails to start after SSL config
 
 **Solution:**
+
 ```bash
 # Check nginx error log
 sudo tail -f /var/log/nginx/error.log
@@ -1164,25 +1155,32 @@ sudo nginx -t
 ### Issue: Backend can't connect to database
 
 **Solution:**
+
 ```bash
-# Check MySQL is running
-sudo systemctl status mariadb
+# For RDS-based databases:
+# 1) Confirm the RDS instance is available in the AWS Console or with the CLI
+#    aws rds describe-db-instances --db-instance-identifier your-db-id
 
-# Test connection manually
-mysql -u vaulteer_user -p vaulteer_db
+# 2) Verify the RDS security group allows connections from the EC2 instance (port 3306)
+#    Check the EC2 instance's security group ID and ensure it is listed as an inbound source.
 
-# Check backend logs
+# 3) Test a direct connection to the RDS endpoint from a secure host (EC2 or admin host):
+mysql -h my-rds-endpoint.xxxxx.rds.amazonaws.com -u vaulteer_user -p vaulteer_db
+
+# 4) Check backend logs for connection errors
 pm2 logs vaulteer-backend
 
 # Common causes:
-# 1. Wrong DB_PASS in .env
-# 2. MySQL user doesn't have permissions
-# 3. MySQL not accepting connections on localhost
+# 1. Wrong DB_HOST/DB_PASS in backend .env
+# 2. RDS security group does not allow access from EC2
+# 3. RDS instance is in a different VPC or private subnet without connectivity
+# 4. SSL/TLS requirements are not met (if RDS enforces SSL)
 ```
 
 ### Issue: Frontend shows 502 Bad Gateway
 
 **Solution:**
+
 ```bash
 # Check if Next.js is running
 pm2 status
@@ -1198,6 +1196,7 @@ pm2 restart vaulteer-frontend
 ### Issue: Rate limiting too aggressive
 
 **Solution:**
+
 ```bash
 # Edit backend/middleware/rateLimiter.js
 # Adjust `max` and `windowMs` values
@@ -1208,6 +1207,7 @@ pm2 restart vaulteer-backend
 ### Issue: Firebase authentication fails
 
 **Solution:**
+
 ```bash
 # Check backend logs
 pm2 logs vaulteer-backend | grep Firebase
@@ -1319,29 +1319,33 @@ curl https://vaulteer.kuzaken.tech/api/health
 If you suspect a security breach:
 
 1. **Immediately rotate all credentials:**
+
    ```bash
    # Database password
    mysql -u root -p
    ALTER USER 'vaulteer_user'@'localhost' IDENTIFIED BY 'NEW_STRONG_PASSWORD';
-   
+
    # Update .env file with new password
-   
+
    # Firebase service account (regenerate in Firebase Console)
    ```
 
 2. **Check access logs:**
+
    ```bash
    sudo tail -1000 /var/log/nginx/vaulteer-access.log | grep -i "POST\|PUT\|DELETE"
    sudo tail -1000 /var/log/auth.log | grep -i "accepted\|failed"
    ```
 
 3. **Review fail2ban bans:**
+
    ```bash
    sudo fail2ban-client status sshd
    sudo fail2ban-client status nginx-http-auth
    ```
 
 4. **Block suspicious IPs:**
+
    ```bash
    sudo ufw deny from SUSPICIOUS_IP
    ```
