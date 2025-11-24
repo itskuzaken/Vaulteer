@@ -4,6 +4,7 @@ const nextConfig = {
     "http://localhost:3000",
     "http://192.168.0.213:3000",
     "http://192.168.0.213:3001",
+    "http://vaulteer.kuzaken.tech",
   ],
   async headers() {
     return [
