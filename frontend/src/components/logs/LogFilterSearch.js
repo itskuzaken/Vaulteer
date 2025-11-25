@@ -87,8 +87,8 @@ export default function LogFilterSearch({
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3 shadow-sm">
-      <div className="flex flex-col md:flex-row md:flex-wrap md:items-center gap-3">
-        <div className="relative flex-1 min-w-[16rem] md:min-w-[20rem]">
+      <div className="flex flex-row md:flex-wrap md:items-center gap-3">
+        <div className="relative flex-1 min-w-[5rem] md:min-w-[20rem]">
           <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"

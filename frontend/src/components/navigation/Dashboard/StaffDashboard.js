@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { QuickActionCard } from "../../card/DashboardCard";
 import RealtimeStatsGrid from "../../ui/RealtimeStatsGrid";
 import DashboardSectionCard from "../../ui/DashboardSectionCard";
+import QuickActionsSection from "../../ui/QuickActionsSection";
 import {
   IoPeopleOutline,
   IoChatbubbleEllipsesOutline,
@@ -123,39 +124,35 @@ export default function StaffDashboard({ onNavigate }) {
             gridCols={3}
           />
 
-          <DashboardSectionCard
+          <QuickActionsSection
             title="Quick actions"
             subtitle="Priority shortcuts"
             icon={IoFlashOutline}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <QuickActionCard
-                title="Review Applications"
-                description="Check pending volunteer applications"
-                icon={<IoPeopleOutline />}
-                color="green"
-                onClick={() =>
-                  handleQuickAction("manage-volunteer", "application-approval")
-                }
-              />
-              <QuickActionCard
-                title="Create Post"
-                description="Share updates with volunteers"
-                icon={<IoChatbubbleEllipsesOutline />}
-                color="blue"
-                onClick={() => handleQuickAction("manage-post", "create-post")}
-              />
-              <QuickActionCard
-                title="Create Event"
-                description="Schedule a new event"
-                icon={<IoCalendarOutline />}
-                color="yellow"
-                onClick={() =>
-                  handleQuickAction("manage-events", "create-event")
-                }
-              />
-            </div>
-          </DashboardSectionCard>
+            <QuickActionCard
+              title="Review Applications"
+              description="Check pending volunteer applications"
+              icon={<IoPeopleOutline />}
+              color="green"
+              onClick={() =>
+                handleQuickAction("manage-volunteer", "application-approval")
+              }
+            />
+            <QuickActionCard
+              title="Create Post"
+              description="Share updates with volunteers"
+              icon={<IoChatbubbleEllipsesOutline />}
+              color="blue"
+              onClick={() => handleQuickAction("manage-post", "create-post")}
+            />
+            <QuickActionCard
+              title="Create Event"
+              description="Schedule a new event"
+              icon={<IoCalendarOutline />}
+              color="yellow"
+              onClick={() => handleQuickAction("manage-events", "create-event")}
+            />
+          </QuickActionsSection>
         </div>
 
         <div className="space-y-6">

@@ -17,11 +17,12 @@ function getClientIp(req) {
 }
 
 /**
- * General API rate limiter (100 requests per 15 minutes per IP)
+ * General API rate limiter (500 requests per 15 minutes per IP)
+ * Increased from 100 to accommodate auth-heavy dashboard patterns
  */
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100,
+  max: 500,
   // Use a custom key generator so we only rely on Express' computed `req.ip` (which
   // will respect trust proxy if set) and avoid express-rate-limit throwing when
   // X-Forwarded-For exists but trust proxy is not configured.
@@ -34,11 +35,12 @@ const apiLimiter = rateLimit({
 });
 
 /**
- * Strict rate limiter for authentication endpoints (10 attempts per 15 minutes per IP)
+ * Auth endpoint rate limiter (50 attempts per 15 minutes per IP)
+ * Increased from 10 to handle legitimate dashboard auth checks
  */
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 10,
+  max: 50,
   // For authentication endpoints prefer to rate limit by user (if authenticated)
   // otherwise by IP. Also skip counting successful requests so legitimate
   // logins don't count towards the limit.

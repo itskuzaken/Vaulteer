@@ -1,5 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  images: {
+    // Allow loading profile/avatar images hosted on Google user content URLs (used for OAuth avatars)
+    // Use remotePatterns if you need finer-grained control. This is intentionally narrow to avoid
+    // enabling arbitrary external hosts.
+    domains: ["lh3.googleusercontent.com"],
+  },
   allowedDevOrigins: [
     "http://localhost:3000",
     "http://192.168.0.213:3000",

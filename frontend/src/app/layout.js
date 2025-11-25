@@ -291,6 +291,38 @@ export default function RootLayout({ children }) {
           globalThis.__NEXT_ROUTER_PATHNAME__) ||
         ""; // fallback for SSR
 
+  // Catch noisy unhandled promise rejections coming from external scripts
+  // (eg. browser extensions / 3rd party bundles like content-all.js) and
+  // quietly handle the ones that are known and not actionable for the app.
+  useEffect(() => {
+    function onUnhandled(e) {
+      try {
+        const msg = e?.reason?.message || String(e?.reason || "");
+        if (
+          msg.includes("Cannot find menu item with id") ||
+          msg.includes("content-all.js")
+        ) {
+          console.warn(
+            "[External script] suppressed unhandled rejection:",
+            msg
+          );
+          // Prevent the browser from logging the default noisy message for
+          // these specific external-script problems encountered in dev.
+          e.preventDefault();
+        }
+      } catch (err) {
+        console.error("Error in unhandledrejection handler:", err);
+      }
+    }
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("unhandledrejection", onUnhandled);
+      return () =>
+        window.removeEventListener("unhandledrejection", onUnhandled);
+    }
+    return undefined;
+  }, []);
+
   return (
     <html
       lang="en"

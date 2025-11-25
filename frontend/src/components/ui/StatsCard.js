@@ -75,15 +75,11 @@ export default function StatsCard({
 
   return (
     <div
-      className={`
-        relative overflow-hidden rounded-2xl border border-gray-200 dark:border-gray-800
-        bg-white dark:bg-gray-900 p-5 shadow-sm transition-all duration-300
-        ${
-          onClick ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5" : ""
-        }
-        ${showPulse ? `ring-2 ${colors.pulse} animate-pulse-ring` : ""}
-      `}
+      className={`relative overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 sm:p-4 shadow-sm transition-all duration-300 ${
+        onClick ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5" : ""
+      } ${showPulse ? `ring-2 ${colors.pulse} animate-pulse-ring` : ""}`}
       onClick={onClick}
+      style={{ minHeight: 44 }}
     >
       {/* Loading Overlay */}
       {loading && (
@@ -106,16 +102,16 @@ export default function StatsCard({
         </div>
       )}
 
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3 sm:gap-4">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {Icon && (
             <span
-              className={`inline-flex h-11 w-11 items-center justify-center rounded-xl text-lg ${colors.chip}`}
+              className={`inline-flex items-center justify-center rounded-full p-1.5 sm:p-2 ${colors.chip}`}
             >
-              <Icon className="w-5 h-5" />
+              <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
           )}
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
+          <p className="text-[0.65rem] sm:text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400">
             {title}
           </p>
         </div>
@@ -134,19 +130,20 @@ export default function StatsCard({
       </div>
 
       <div
-        className={`mt-4 text-3xl font-semibold leading-tight ${colors.value} transition-all duration-300`}
+        className={`mt-3 text-xl sm:text-2xl font-semibold leading-tight ${colors.value} transition-all duration-300`}
       >
+        {" "}
         {loading ? "--" : animatedValue.toLocaleString()}
       </div>
       {!loading && subtitle && (
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-1 text-[0.65rem] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
           {subtitle}
         </p>
       )}
 
       {/* Hover Effect Border */}
       {onClick && (
-        <div className="absolute inset-0 border-2 border-transparent hover:border-red-300 dark:hover:border-red-700 rounded-2xl transition-colors pointer-events-none"></div>
+        <div className="absolute inset-0 border-2 border-transparent hover:border-red-300 dark:hover:border-red-700 rounded-xl sm:rounded-2xl transition-colors pointer-events-none"></div>
       )}
     </div>
   );

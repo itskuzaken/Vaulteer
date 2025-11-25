@@ -60,7 +60,10 @@ export default function BadgeCarousel({ badges = [], loading = false }) {
           ))}
         </div>
       ) : hasBadges ? (
-        <div className="flex gap-4 overflow-x-auto pb-2 snap-x" role="list">
+        <div
+          className="flex gap-3 sm:gap-4 overflow-x-auto pb-2 snap-x"
+          role="list"
+        >
           {badges.slice(0, 8).map((badge) => {
             const style =
               CATEGORY_STYLES[badge.achievement_category] ||
@@ -68,38 +71,40 @@ export default function BadgeCarousel({ badges = [], loading = false }) {
             return (
               <article
                 key={badge.user_achievement_id || badge.badge_code}
-                className="w-64 flex-shrink-0 rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4 shadow-sm snap-start"
+                className="w-56 sm:w-64 flex-shrink-0 rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 sm:p-4 shadow-sm snap-start"
                 role="listitem"
               >
-                <div className="flex items-center gap-3 mb-3">
+                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
                   <div
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center text-lg font-semibold uppercase ${style.chipBg} ${style.chipText}`}
+                    className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl flex items-center justify-center text-base sm:text-lg font-semibold uppercase ${style.chipBg} ${style.chipText}`}
                   >
                     {(badge.achievement_icon &&
                       badge.achievement_icon.slice(0, 2)) ||
                       badge.badge_code?.slice(0, 2) ||
                       "RV"}
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p
-                      className={`text-xs uppercase tracking-wide font-semibold ${style.chipText}`}
+                      className={`text-[0.65rem] sm:text-xs uppercase tracking-wide font-semibold ${style.chipText}`}
                     >
                       {badge.achievement_category || "Milestone"}
                     </p>
-                    <h4 className="text-lg font-semibold text-gray-900 dark:text-white leading-tight">
+                    <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white leading-tight truncate">
                       {badge.achievement_name}
                     </h4>
                   </div>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-gray-300 min-h-[48px]">
+                <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 line-clamp-2 sm:line-clamp-3 min-h-[36px] sm:min-h-[48px]">
                   {badge.achievement_description ||
                     "Keep volunteering to unlock more!"}
                 </p>
-                <div className="flex items-center justify-between text-xs font-semibold mt-3 text-gray-500 dark:text-gray-400">
-                  <span>{formatEarnedDate(badge.earned_date)}</span>
+                <div className="flex items-center justify-between text-[0.65rem] sm:text-xs font-semibold mt-2 sm:mt-3 text-gray-500 dark:text-gray-400">
+                  <span className="truncate">
+                    {formatEarnedDate(badge.earned_date)}
+                  </span>
                   {Number.isFinite(badge.achievement_points) &&
                   badge.achievement_points > 0 ? (
-                    <span className="text-gray-700 dark:text-gray-200">
+                    <span className="text-gray-700 dark:text-gray-200 whitespace-nowrap ml-2">
                       +{badge.achievement_points} pts
                     </span>
                   ) : null}

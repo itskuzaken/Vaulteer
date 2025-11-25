@@ -2,6 +2,7 @@ import { useState } from "react";
 import { QuickActionCard } from "../../card/DashboardCard";
 import RealtimeStatsGrid from "../../ui/RealtimeStatsGrid";
 import DashboardSectionCard from "../../ui/DashboardSectionCard";
+import QuickActionsSection from "../../ui/QuickActionsSection";
 import {
   IoPeopleOutline,
   IoPersonOutline,
@@ -142,37 +143,33 @@ export default function AdminDashboard({ onNavigate }) {
             onStatsUpdate={handleStatsUpdate}
           />
 
-          <DashboardSectionCard
+          <QuickActionsSection
             title="Quick actions"
             subtitle="Keep work moving"
             icon={IoFlashOutline}
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <QuickActionCard
-                title="Create Post"
-                description="Share updates with your team"
-                icon={<IoChatbubbleEllipsesOutline />}
-                color="blue"
-                onClick={() => handleQuickAction("manage-post", "create-post")}
-              />
-              <QuickActionCard
-                title="Create Event"
-                description="Schedule a new event"
-                icon={<IoAddCircleOutline />}
-                color="green"
-                onClick={() =>
-                  handleQuickAction("manage-events", "create-event")
-                }
-              />
-              <QuickActionCard
-                title="Review Forms"
-                description="Check submitted forms"
-                icon={<IoDocumentTextOutline />}
-                color="yellow"
-                onClick={() => handleQuickAction("hts-form", "form-submission")}
-              />
-            </div>
-          </DashboardSectionCard>
+            <QuickActionCard
+              title="Create Post"
+              description="Share updates with your team"
+              icon={<IoChatbubbleEllipsesOutline />}
+              color="blue"
+              onClick={() => handleQuickAction("manage-post", "create-post")}
+            />
+            <QuickActionCard
+              title="Create Event"
+              description="Schedule a new event"
+              icon={<IoAddCircleOutline />}
+              color="green"
+              onClick={() => handleQuickAction("manage-events", "create-event")}
+            />
+            <QuickActionCard
+              title="Review Forms"
+              description="Check submitted forms"
+              icon={<IoDocumentTextOutline />}
+              color="yellow"
+              onClick={() => handleQuickAction("hts-form", "form-submission")}
+            />
+          </QuickActionsSection>
         </div>
 
         <div className="space-y-6">
