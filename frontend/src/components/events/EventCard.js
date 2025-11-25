@@ -70,9 +70,14 @@ export default function EventCard({
 
   const isNearCapacity = capacityPercentage >= 80;
 
+  // Align hover/focus UX with other dashboard cards (subtle lift + shadow + focus ring)
+  const hoverClasses = "hover:-translate-y-0.5 hover:shadow-md";
+  const focusRing =
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-red-500 dark:focus-visible:ring-offset-gray-900";
+
   return (
     <div
-      className={`group flex h-full flex-col overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-0 text-left shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-gray-700 dark:bg-gray-900 min-h-[44px] ${
+      className={`group flex h-full flex-col overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-0 text-left shadow-md transition-all duration-300 ${hoverClasses} ${focusRing} dark:border-gray-700 dark:bg-gray-900 min-h-[44px] ${
         isClickable ? "cursor-pointer" : ""
       }`}
       onClick={isClickable ? onClick : undefined}
@@ -201,6 +206,9 @@ export default function EventCard({
               ))}
           </div>
         ) : null}
+
+        {/* Hover overlay border to match other cards */}
+        <div className="absolute inset-0 pointer-events-none rounded-xl sm:rounded-2xl border-2 border-transparent transition-colors group-hover:border-gray-200 dark:group-hover:border-gray-700" />
 
         {event.tags && event.tags.length > 0 && (
           <div className="flex flex-wrap gap-2">

@@ -73,10 +73,14 @@ export default function StatsCard({
 
   const colors = colorClasses[color] || colorClasses.gray;
 
+  // hover and shadow should match QuickActionCard for consistent UX
+  const hoverTransform = "hover:-translate-y-0.5 hover:shadow-md";
+  const cursorClass = onClick ? "cursor-pointer" : "";
+
   return (
     <div
       className={`relative overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 sm:p-4 shadow-sm transition-all duration-300 ${
-        onClick ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5" : ""
+        cursorClass + " " + hoverTransform
       } ${showPulse ? `ring-2 ${colors.pulse} animate-pulse-ring` : ""}`}
       onClick={onClick}
       style={{ minHeight: 44 }}
@@ -141,10 +145,27 @@ export default function StatsCard({
         </p>
       )}
 
-      {/* Hover Effect Border */}
-      {onClick && (
-        <div className="absolute inset-0 border-2 border-transparent hover:border-red-300 dark:hover:border-red-700 rounded-xl sm:rounded-2xl transition-colors pointer-events-none"></div>
-      )}
+      {/* Hover Effect Border (color aware) */}
+      {(() => {
+        const hoverBorderClass =
+          color === "red"
+            ? "hover:border-red-300 dark:hover:border-red-700"
+            : color === "blue"
+            ? "hover:border-blue-200 dark:hover:border-blue-500/40"
+            : color === "green"
+            ? "hover:border-emerald-200 dark:hover:border-emerald-500/40"
+            : color === "amber"
+            ? "hover:border-amber-200 dark:hover:border-amber-500/40"
+            : color === "purple"
+            ? "hover:border-purple-200 dark:hover:border-purple-500/40"
+            : "hover:border-gray-200 dark:hover:border-gray-700";
+
+        return (
+          <div
+            className={`absolute inset-0 border-2 border-transparent rounded-xl sm:rounded-2xl transition-colors pointer-events-none ${hoverBorderClass}`}
+          />
+        );
+      })()}
     </div>
   );
 }

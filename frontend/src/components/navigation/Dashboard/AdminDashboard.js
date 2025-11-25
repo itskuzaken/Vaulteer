@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { QuickActionCard } from "../../card/DashboardCard";
 import RealtimeStatsGrid from "../../ui/RealtimeStatsGrid";
-import DashboardSectionCard from "../../ui/DashboardSectionCard";
 import QuickActionsSection from "../../ui/QuickActionsSection";
 import {
   IoPeopleOutline,
