@@ -72,7 +72,7 @@ export default function EventCard({
 
   return (
     <div
-      className={`group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white p-0 text-left shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-gray-700 dark:bg-gray-900 ${
+      className={`group flex h-full flex-col overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-0 text-left shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 dark:border-gray-700 dark:bg-gray-900 min-h-[44px] ${
         isClickable ? "cursor-pointer" : ""
       }`}
       onClick={isClickable ? onClick : undefined}
@@ -80,63 +80,67 @@ export default function EventCard({
       tabIndex={isClickable ? 0 : undefined}
       onKeyDown={handleKeyDown}
     >
-      <div className="relative h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
+      <div className="relative h-40 sm:h-48 w-full overflow-hidden bg-gray-100 dark:bg-gray-900">
         {event.image_url ? (
           <Image
             src={event.image_url}
             alt={event.title}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
             className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-105"
+            priority={false}
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-red-400 dark:text-red-500">
-            <IoCalendarOutline className="text-6xl" />
+            <IoCalendarOutline className="text-5xl sm:text-6xl" />
           </div>
         )}
-        <EventStatusBadge status={event.status} className="top-4 right-4" />
+        <EventStatusBadge
+          status={event.status}
+          className="top-3 right-3 sm:top-4 sm:right-4"
+        />
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 p-6">
+      <div className="flex flex-1 flex-col gap-3 sm:gap-4 p-4 sm:p-5 md:p-6">
         <div className="flex flex-col gap-2">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
             <span
-              className={`inline-flex items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 ${getEventTypeColor(
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 sm:px-3 sm:py-1 text-xs font-semibold text-gray-600 dark:text-gray-300 ${getEventTypeColor(
                 event.event_type
               )} border-gray-300 dark:border-gray-700 bg-white/70 dark:bg-gray-900/70`}
             >
               {formatEventType(event.event_type)}
             </span>
-            <span className="text-xs font-semibold uppercase tracking-[0.3em] text-gray-400 dark:text-gray-500">
+            <span className="text-xs font-semibold uppercase tracking-[0.2em] sm:tracking-[0.3em] text-gray-400 dark:text-gray-500 truncate">
               {formatDate(event.start_datetime)}
             </span>
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
             {event.title}
           </h3>
           {event.description && (
-            <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
+            <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2 sm:line-clamp-3">
               {event.description}
             </p>
           )}
         </div>
 
-        <div className="flex flex-col gap-3 text-sm text-gray-600 dark:text-gray-300">
+        <div className="flex flex-col gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
           <div className="flex items-center gap-2">
-            <IoTimeOutline className="text-base" />
-            <span>
+            <IoTimeOutline className="text-base sm:text-lg flex-shrink-0" />
+            <span className="truncate">
               {formatTime(event.start_datetime)} -{" "}
               {formatTime(event.end_datetime)}
             </span>
           </div>
           {event.location && (
             <div className="flex items-center gap-2">
-              <IoLocationOutline className="text-base" />
+              <IoLocationOutline className="text-base sm:text-lg flex-shrink-0" />
               <span className="line-clamp-1">{event.location}</span>
             </div>
           )}
           <div className="flex items-center gap-2">
-            <IoPeopleOutline className="text-base" />
+            <IoPeopleOutline className="text-base sm:text-lg flex-shrink-0" />
             <span
               className={`font-semibold ${
                 isNearCapacity ? "text-amber-600 dark:text-amber-400" : ""

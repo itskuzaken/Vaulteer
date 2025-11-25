@@ -30,8 +30,8 @@ export default function DashboardCard({
     <div
       className={`
         bg-white dark:bg-gray-800 
-        rounded-2xl 
-        shadow-lg hover:shadow-xl 
+        rounded-xl sm:rounded-2xl 
+        shadow-md hover:shadow-xl 
         transition-all duration-300 
         border border-gray-200 dark:border-gray-700 
         overflow-hidden
@@ -42,20 +42,24 @@ export default function DashboardCard({
         <div
           className={`
             bg-gradient-to-r ${gradientClass} 
-            px-6 py-5 
-            flex items-center justify-between
+            px-4 py-3 sm:px-6 sm:py-5 
+            flex items-center justify-between gap-3
           `}
         >
-          <div className="flex items-center gap-3">
-            {icon && <div className="text-white text-2xl">{icon}</div>}
-            <h3 className="text-xl font-bold text-white tracking-tight">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+            {icon && (
+              <div className="text-white text-xl sm:text-2xl flex-shrink-0">
+                {icon}
+              </div>
+            )}
+            <h3 className="text-base sm:text-lg md:text-xl font-bold text-white tracking-tight truncate">
               {title}
             </h3>
           </div>
-          {action && <div className="text-white">{action}</div>}
+          {action && <div className="text-white flex-shrink-0">{action}</div>}
         </div>
       )}
-      <div className={noPadding ? "" : "p-6"}>{children}</div>
+      <div className={noPadding ? "" : "p-4 sm:p-5 md:p-6"}>{children}</div>
     </div>
   );
 }
@@ -111,28 +115,30 @@ export function StatCard({
 
   const CardContent = () => (
     <>
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs sm:text-sm font-medium text-gray-600 dark:text-gray-400 mb-1 sm:mb-2 truncate">
             {title}
           </p>
-          <p className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          <p className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2 truncate">
             {value}
           </p>
           {description && (
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 line-clamp-2">
               {description}
             </p>
           )}
           {trend && (
             <div
-              className={`inline-flex items-center gap-1.5 mt-3 text-sm font-medium px-2 py-1 rounded-lg ${
+              className={`inline-flex items-center gap-1.5 mt-2 sm:mt-3 text-xs sm:text-sm font-medium px-2 py-1 rounded-lg ${
                 trend.isPositive
                   ? "text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20"
                   : "text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20"
               }`}
             >
-              <span className="text-lg">{trend.isPositive ? "↑" : "↓"}</span>
+              <span className="text-base sm:text-lg">
+                {trend.isPositive ? "↑" : "↓"}
+              </span>
               <span className="font-semibold">{trend.value}</span>
               <span className="text-xs opacity-75">{trend.label}</span>
             </div>
@@ -142,11 +148,11 @@ export function StatCard({
           <div
             className={`
               ${colors.bg} ${colors.icon} ${colors.border}
-              p-4 rounded-xl border-2
-              shadow-sm
+              p-3 sm:p-4 rounded-lg sm:rounded-xl border-2
+              shadow-sm flex-shrink-0
             `}
           >
-            <div className="text-3xl">{icon}</div>
+            <div className="text-2xl sm:text-3xl">{icon}</div>
           </div>
         )}
       </div>
@@ -160,14 +166,15 @@ export function StatCard({
         className={`
           w-full text-left
           bg-white dark:bg-gray-800 
-          rounded-2xl 
+          rounded-xl sm:rounded-2xl 
           shadow-md hover:shadow-xl 
           transition-all duration-300 
           border border-gray-200 dark:border-gray-700 
           hover:border-${color}-500 dark:hover:border-${color}-400
-          p-6
+          p-4 sm:p-5 md:p-6
           hover:scale-[1.02]
           focus:outline-none focus:ring-2 focus:ring-${color}-500 dark:focus:ring-${color}-400
+          min-h-[44px]
         `}
       >
         <CardContent />
@@ -179,11 +186,11 @@ export function StatCard({
     <div
       className="
         bg-white dark:bg-gray-800 
-        rounded-2xl 
+        rounded-xl sm:rounded-2xl 
         shadow-md hover:shadow-xl 
         transition-all duration-300 
         border border-gray-200 dark:border-gray-700 
-        p-6
+        p-4 sm:p-5 md:p-6
       "
     >
       <CardContent />
@@ -251,48 +258,49 @@ export function QuickActionCard({
     <button
       onClick={onClick}
       className={`
-        group relative w-full rounded-2xl border border-gray-200 dark:border-gray-800
-        bg-white dark:bg-gray-900 p-5 text-left shadow-sm transition-all duration-300
+        group relative w-full rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-800
+        bg-white dark:bg-gray-900 p-4 sm:p-5 text-left shadow-sm transition-all duration-300
         hover:-translate-y-0.5 hover:shadow-md ${theme.hover}
         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
         focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900 ${theme.ring}
+        min-h-[44px]
       `}
     >
-      <div className="flex items-start gap-4">
+      <div className="flex items-start gap-3 sm:gap-4">
         {icon && (
           <span
-            className={`inline-flex h-12 w-12 items-center justify-center rounded-2xl text-2xl ${theme.chip}`}
+            className={`inline-flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl text-xl sm:text-2xl ${theme.chip} flex-shrink-0`}
           >
             {icon}
           </span>
         )}
         <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400">
+          <div className="flex items-start justify-between gap-2 sm:gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.15em] sm:tracking-[0.2em] text-gray-500 dark:text-gray-400 truncate">
                 Quick action
               </p>
-              <h4 className="text-lg font-semibold text-gray-900 dark:text-white">
+              <h4 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white truncate">
                 {title}
               </h4>
             </div>
             {badge && (
               <span
-                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${theme.badge}`}
+                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${theme.badge} flex-shrink-0`}
               >
                 {badge}
               </span>
             )}
           </div>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
             {description}
           </p>
           <div
-            className={`mt-4 inline-flex items-center text-sm font-semibold ${theme.accent}`}
+            className={`mt-3 sm:mt-4 inline-flex items-center text-xs sm:text-sm font-semibold ${theme.accent}`}
           >
             <span>Open</span>
             <svg
-              className="ml-1 h-4 w-4 transition-transform duration-200 group-hover:translate-x-1"
+              className="ml-1 h-3 w-3 sm:h-4 sm:w-4 transition-transform duration-200 group-hover:translate-x-1"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"

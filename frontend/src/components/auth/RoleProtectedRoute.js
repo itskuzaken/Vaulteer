@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { getCurrentUser } from "../../services/userService";
@@ -14,6 +14,10 @@ export default function RoleProtectedRoute({ children, requiredRole }) {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Debouncing refs to prevent rapid-fire API calls during Firebase auth events
+  const fetchInProgressRef = useRef(false);
+  const lastFetchTimeRef = useRef(0);
+
   useEffect(() => {
     const auth = getAuth();
 
@@ -26,6 +30,18 @@ export default function RoleProtectedRoute({ children, requiredRole }) {
         router.push("/403");
         return;
       }
+
+      // Debounce: Skip if fetch in progress or called within 1 second
+      const now = Date.now();
+      if (fetchInProgressRef.current || now - lastFetchTimeRef.current < 1000) {
+        console.log(
+          "[RoleProtection] Skipping duplicate getCurrentUser() call (debounced)"
+        );
+        return;
+      }
+
+      fetchInProgressRef.current = true;
+      lastFetchTimeRef.current = now;
 
       try {
         // Fetch user data from backend to verify role
@@ -57,6 +73,8 @@ export default function RoleProtectedRoute({ children, requiredRole }) {
         console.error("[RoleProtection] Error verifying user role:", error);
         // If there's an error fetching user info, redirect to 403
         router.push("/403");
+      } finally {
+        fetchInProgressRef.current = false;
       }
     });
 

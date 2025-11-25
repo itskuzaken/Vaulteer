@@ -188,10 +188,14 @@ export default function ModernSidebar({
             transition-all duration-300 ease-in-out
             text-gray-700 dark:text-gray-300
             hover:bg-gray-100 dark:hover:bg-gray-700
-            ${collapsed ? "justify-start p-3" : "justify-start p-3"}
+            ${
+              collapsed
+                ? "justify-start p-2.5 sm:p-3"
+                : "justify-start p-2.5 sm:p-3"
+            }
           `}
           style={{
-            minHeight: "3rem", // 48px in rem
+            minHeight: "44px", // Minimum touch target
           }}
           aria-label={
             showCloseIcon
@@ -205,9 +209,9 @@ export default function ModernSidebar({
           <div
             className="relative z-10 flex items-center justify-center flex-shrink-0 transition-all duration-300 ease-in-out"
             style={{
-              width: "2.5rem", // 40px
-              height: "2.5rem",
-              minWidth: "2.5rem",
+              width: "2rem", // 32px for better mobile sizing
+              height: "2rem",
+              minWidth: "2rem",
             }}
           >
             <span
@@ -220,9 +224,9 @@ export default function ModernSidebar({
             >
               {/* Show Close icon on touch/mobile layouts when expanded */}
               {showCloseIcon ? (
-                <IoCloseOutline className="w-6 h-6" />
+                <IoCloseOutline className="w-5 h-5 sm:w-6 sm:h-6" />
               ) : (
-                <IoMenuOutline className="w-6 h-6" />
+                <IoMenuOutline className="w-5 h-5 sm:w-6 sm:h-6" />
               )}
             </span>
           </div>
@@ -240,14 +244,16 @@ export default function ModernSidebar({
                 {!collapsed && roleColors && (
                   <div className="flex items-center gap-2">
                     <div
-                      className={`w-8 h-8 rounded-lg bg-gradient-to-r ${roleColors.gradient} flex items-center justify-center flex-shrink-0 transition-transform duration-200 ease-in-out`}
+                      className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-r ${roleColors.gradient} flex items-center justify-center flex-shrink-0 transition-transform duration-200 ease-in-out`}
                     >
-                      <span className="text-white font-bold text-sm">
+                      <span className="text-white font-bold text-xs sm:text-sm">
                         {role.charAt(0).toUpperCase()}
                       </span>
                     </div>
                     <div className="text-gray-900 dark:text-white min-w-0">
-                      <p className="text-s font-semibold truncate ">Vaulteer</p>
+                      <p className="text-sm sm:text-base font-semibold truncate">
+                        Vaulteer
+                      </p>
                     </div>
                   </div>
                 )}
@@ -277,7 +283,11 @@ export default function ModernSidebar({
                 className={`
                   w-full flex items-center rounded-lg overflow-hidden relative
                   transition-all duration-300 ease-in-out
-                  ${collapsed ? "justify-start p-3" : "justify-start p-3"}
+                  ${
+                    collapsed
+                      ? "justify-start p-2.5 sm:p-3"
+                      : "justify-start p-2.5 sm:p-3"
+                  }
                   ${
                     isActive
                       ? "text-red-700 dark:text-red-300 font-semibold"
@@ -285,7 +295,7 @@ export default function ModernSidebar({
                   }
                 `}
                 style={{
-                  minHeight: "3rem", // 48px in rem
+                  minHeight: "44px", // Minimum touch target
                 }}
                 aria-expanded={hasSubSections ? isExpanded : undefined}
                 aria-controls={
@@ -327,32 +337,32 @@ export default function ModernSidebar({
                 <div
                   className="relative z-10 flex items-center justify-center flex-shrink-0 transition-all duration-300 ease-in-out"
                   style={{
-                    width: "2.5rem", // 40px
-                    height: "2.5rem",
-                    minWidth: "2.5rem",
+                    width: "2rem", // 32px for better mobile sizing
+                    height: "2rem",
+                    minWidth: "2rem",
                   }}
                 >
                   <span
                     className="flex items-center justify-center transition-transform duration-200 ease-in-out"
                     style={{
                       transform: isActive ? "scale(1.1)" : "scale(1)",
-                      width: "1.5rem", // 24px
-                      height: "1.5rem",
+                      width: "1.25rem", // 20px
+                      height: "1.25rem",
                     }}
                   >
-                    {MenuIcon && <MenuIcon className="w-5 h-5" />}
+                    {MenuIcon && <MenuIcon className="w-4 h-4 sm:w-5 sm:h-5" />}
                   </span>
                 </div>
 
                 {/* Text label with smooth fade - Only in Expanded Mode */}
                 {!collapsed && (
                   <div
-                    className="relative z-10 flex items-center flex-1 min-w-0 transition-opacity duration-300 ease-in-out ml-3"
+                    className="relative z-10 flex items-center flex-1 min-w-0 transition-opacity duration-300 ease-in-out ml-2 sm:ml-3"
                     style={{
                       opacity: collapsed ? 0 : 1,
                     }}
                   >
-                    <span className="text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                    <span className="text-xs sm:text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis">
                       {menu.label}
                     </span>
                   </div>
@@ -420,7 +430,7 @@ export default function ModernSidebar({
                       key={subMenu.key}
                       type="button"
                       onClick={() => handleSubMenuClick(menuKey, subMenu.key)}
-                      className="w-full flex items-center rounded-lg overflow-hidden relative transition-all duration-150 ease-in-out p-2"
+                      className="w-full flex items-center rounded-lg overflow-hidden relative transition-all duration-150 ease-in-out p-2 min-h-[44px]"
                       style={{
                         animationDelay: `${index * 30}ms`,
                       }}
@@ -451,12 +461,14 @@ export default function ModernSidebar({
                           transform: isSubActive ? "scale(1.05)" : "scale(1)",
                         }}
                       >
-                        {SubIcon && <SubIcon className="w-5 h-5" />}
+                        {SubIcon && (
+                          <SubIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                        )}
                       </span>
 
                       {/* Text */}
                       <span
-                        className={`relative z-10 text-left truncate ml-2 text-sm transition-colors duration-200 ease-in-out ${
+                        className={`relative z-10 text-left truncate ml-2 text-xs sm:text-sm transition-colors duration-200 ease-in-out ${
                           isSubActive
                             ? "text-red-700 dark:text-red-400 font-medium"
                             : "text-gray-600 dark:text-gray-400"

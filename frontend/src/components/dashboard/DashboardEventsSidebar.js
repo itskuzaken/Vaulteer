@@ -60,12 +60,14 @@ function CalendarCell({
       }`}
       aria-pressed={isSelected}
     >
-      <span className="text-base font-semibold">{format(date, "d")}</span>
+      <span className="text-sm sm:text-base font-semibold">
+        {format(date, "d")}
+      </span>
       {hasEvents && !isSelected && (
-        <span className="mt-1 w-1.5 h-1.5 rounded-full bg-[var(--primary-red)]" />
+        <span className="mt-0.5 sm:mt-1 w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-[var(--primary-red)]" />
       )}
       {isSelected && (
-        <span className="mt-1 text-[10px] uppercase tracking-tight opacity-80">
+        <span className="mt-0.5 sm:mt-1 text-[0.5rem] sm:text-[10px] uppercase tracking-tight opacity-80">
           {isToday(date) ? "Today" : "Selected"}
         </span>
       )}
@@ -199,7 +201,7 @@ export default function DashboardEventsSidebar() {
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-2 sm:space-y-3">
         {events.map((event) => {
           const startTime = format(new Date(event.start_datetime), "h:mm a");
           const endTime = format(new Date(event.end_datetime), "h:mm a");
@@ -208,17 +210,18 @@ export default function DashboardEventsSidebar() {
               type="button"
               key={event.uid}
               onClick={() => openEventDetails(event.uid)}
-              className="w-full text-left p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-[var(--primary-red)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-red)]/60 transition-colors"
+              className="w-full text-left p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-[var(--primary-red)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-red)]/60 transition-colors"
             >
-              <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
-                <IoTimeOutline className="text-base" /> {startTime} – {endTime}
+              <p className="text-[0.65rem] sm:text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5 sm:gap-2">
+                <IoTimeOutline className="text-sm sm:text-base flex-shrink-0" />{" "}
+                {startTime} – {endTime}
               </p>
-              <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white line-clamp-2">
+              <p className="mt-1 text-sm sm:text-base font-semibold text-gray-900 dark:text-white line-clamp-2">
                 {event.title}
               </p>
               {event.location && (
-                <p className="mt-1 flex items-center gap-1 text-sm text-gray-600 dark:text-gray-300">
-                  <IoLocationOutline className="flex-shrink-0" />
+                <p className="mt-1 flex items-center gap-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+                  <IoLocationOutline className="flex-shrink-0 text-sm" />
                   <span className="line-clamp-1">{event.location}</span>
                 </p>
               )}
@@ -239,33 +242,33 @@ export default function DashboardEventsSidebar() {
         subtitleClassName="text-[0.65rem] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400"
         iconWrapperClassName="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800"
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <button
               type="button"
               onClick={goToPrevMonth}
-              className="p-2 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="p-1.5 sm:p-2 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               aria-label="Previous month"
             >
-              <IoChevronBackOutline className="w-5 h-5" />
+              <IoChevronBackOutline className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
             <button
               type="button"
               onClick={goToNextMonth}
-              className="p-2 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+              className="p-1.5 sm:p-2 rounded-full border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
               aria-label="Next month"
             >
-              <IoChevronForwardOutline className="w-5 h-5" />
+              <IoChevronForwardOutline className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
         }
-        bodyClassName="space-y-4"
+        bodyClassName="space-y-3 sm:space-y-4"
       >
-        <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-center text-[0.65rem] sm:text-xs font-semibold text-gray-500 dark:text-gray-400">
           {DAY_LABELS.map((day) => (
             <span key={day}>{day}</span>
           ))}
         </div>
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
           {weeks.map((week, index) => (
             <div key={`week-${index}`} className="contents">
               {week.map((day) => {
