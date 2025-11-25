@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { createUserCard } from "../../card/UserCard";
 
 // Dummy data for demonstration; replace with real fetch in production
@@ -92,16 +93,14 @@ export default function ViewSubmitted() {
               >
                 {/* Profile Picture + Name compressed */}
                 <div className="flex items-center gap-2 mb-2 sm:mb-0">
-                  <img
-                    src={s.avatarUrl}
+                  <Image
+                    src={s.avatarUrl || "/default-profile.png"}
                     alt={s.name}
+                    width={40}
+                    height={40}
                     className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover border border-red-300 flex-shrink-0"
                     loading="lazy"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src =
-                        "https://ui-avatars.com/api/?name=User&background=bb3031&color=fff";
-                    }}
+                    unoptimized
                   />
                   <span className="font-semibold text-gray-900 truncate w-24 sm:w-32">
                     {s.name}

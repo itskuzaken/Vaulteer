@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 
 // Accept externalArchivedPosts as prop for dynamic archiving
 export default function ArchivedPosts({ externalArchivedPosts }) {
@@ -70,10 +71,13 @@ export default function ArchivedPosts({ externalArchivedPosts }) {
                   className="bg-gray-100 border border-red-100 rounded-lg shadow p-4 opacity-80"
                 >
                   {post.imageUrl && (
-                    <img
+                    <Image
                       src={post.imageUrl}
                       alt={post.title}
+                      width={800}
+                      height={400}
                       className="w-full h-48 object-cover rounded mb-3"
+                      unoptimized
                     />
                   )}
                   <h3 className="text-xl font-bold text-gray-500 mb-1 line-through">

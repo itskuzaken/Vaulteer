@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { QuickActionCard } from "../../card/DashboardCard";
 import RealtimeStatsGrid from "../../ui/RealtimeStatsGrid";
 import DashboardSectionCard from "../../ui/DashboardSectionCard";
+import QuickActionsSection from "../../ui/QuickActionsSection";
 import {
   IoDocumentTextOutline,
   IoEyeOutline,
@@ -148,35 +149,33 @@ export default function VolunteerDashboard({
           </div>
         )}
 
-        <DashboardSectionCard
+        <QuickActionsSection
           title="Quick actions"
           subtitle="Stay productive"
           icon={IoFlashOutline}
         >
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            <QuickActionCard
-              title="Submit Form"
-              description="Submit a new HTS form"
-              icon={<IoDocumentTextOutline />}
-              color="yellow"
-              onClick={() => handleQuickAction("forms", "submit-form")}
-            />
-            <QuickActionCard
-              title="View Submissions"
-              description="Check your submitted forms"
-              icon={<IoEyeOutline />}
-              color="blue"
-              onClick={() => handleQuickAction("forms", "view-submitted")}
-            />
-            <QuickActionCard
-              title="My Events"
-              description="See registered and past events"
-              icon={<IoCalendarOutline />}
-              color="red"
-              onClick={() => handleQuickAction("my-events")}
-            />
-          </div>
-        </DashboardSectionCard>
+          <QuickActionCard
+            title="Submit Form"
+            description="Submit a new HTS form"
+            icon={<IoDocumentTextOutline />}
+            color="yellow"
+            onClick={() => handleQuickAction("forms", "submit-form")}
+          />
+          <QuickActionCard
+            title="View Submissions"
+            description="Check your submitted forms"
+            icon={<IoEyeOutline />}
+            color="blue"
+            onClick={() => handleQuickAction("forms", "view-submitted")}
+          />
+          <QuickActionCard
+            title="My Events"
+            description="See registered and past events"
+            icon={<IoCalendarOutline />}
+            color="red"
+            onClick={() => handleQuickAction("my-events")}
+          />
+        </QuickActionsSection>
       </div>
 
       <div className="space-y-6">

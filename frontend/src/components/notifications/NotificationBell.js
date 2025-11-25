@@ -222,7 +222,7 @@ export default function NotificationBell() {
                   No notifications yet
                 </p>
                 <p className="text-xs sm:text-sm text-gray-400 dark:text-gray-500 mt-1">
-                  We'll notify you when something new arrives
+                  We&apos;ll notify you when something new arrives
                 </p>
               </div>
             ) : (

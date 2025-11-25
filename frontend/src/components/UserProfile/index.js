@@ -84,6 +84,48 @@ export default function UserProfile() {
     setEditedSchoolDays([]);
   }, []);
 
+  const loadComprehensiveProfile = useCallback(
+    async (id) => {
+      const data = await fetchComprehensiveProfile(id);
+      setComprehensiveData(data);
+
+      if (data.profile) {
+        const completion = calculateProfileCompletion(data.profile);
+        setProfileCompletion(completion);
+      }
+
+      if (isEditing) {
+        populateEditedState(data);
+      }
+    },
+    [isEditing, populateEditedState]
+  );
+
+  const loadActivitySummary = useCallback(async (id) => {
+    const summary = await fetchActivitySummary(id);
+    setActivitySummary(summary);
+  }, []);
+
+  const initializeProfile = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const id = await getCurrentUserId();
+      setUserId(id);
+
+      await Promise.all([
+        loadComprehensiveProfile(id),
+        loadActivitySummary(id),
+      ]);
+    } catch (err) {
+      setError(err.message);
+      console.error("Error initializing profile:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, [loadComprehensiveProfile, loadActivitySummary]);
+
   useEffect(() => {
     const auth = getAuth();
     const currentUser = auth.currentUser;
@@ -96,7 +138,7 @@ export default function UserProfile() {
 
     setUser(currentUser);
     initializeProfile();
-  }, []);
+  }, [initializeProfile]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -118,46 +160,6 @@ export default function UserProfile() {
       );
     }
   }, []);
-
-  const initializeProfile = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const id = await getCurrentUserId();
-      setUserId(id);
-
-      await Promise.all([
-        loadComprehensiveProfile(id),
-        loadActivitySummary(id),
-      ]);
-    } catch (err) {
-      setError(err.message);
-      console.error("Error initializing profile:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadComprehensiveProfile = async (id) => {
-    const data = await fetchComprehensiveProfile(id);
-    setComprehensiveData(data);
-
-    // Calculate profile completion
-    if (data.profile) {
-      const completion = calculateProfileCompletion(data.profile);
-      setProfileCompletion(completion);
-    }
-
-    if (isEditing) {
-      populateEditedState(data);
-    }
-  };
-
-  const loadActivitySummary = async (id) => {
-    const summary = await fetchActivitySummary(id);
-    setActivitySummary(summary);
-  };
 
   const handleEditClick = () => {
     populateEditedState(comprehensiveData);

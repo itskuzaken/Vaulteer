@@ -2,6 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import {
   IoMenuOutline,
   IoCloseOutline,
@@ -13,7 +14,10 @@ import {
 import NotificationBell from "../notifications/NotificationBell";
 import { getComprehensiveUserProfile } from "../../services/profileService";
 import { API_BASE } from "../../config/config";
+import { getCurrentUser } from "../../services/userService";
 import { getAuth } from "firebase/auth";
+import useIsClient from "../../hooks/useIsClient";
+import useWindowSize from "../../hooks/useWindowSize";
 
 export default function ModernDashboardLayout({
   children,
@@ -28,14 +32,19 @@ export default function ModernDashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [isMounted, setIsMounted] = useState(false);
   const [dbProfile, setDbProfile] = useState(null);
+  const [avatarSrc, setAvatarSrc] = useState(
+    user?.photoURL || "/default-profile.png"
+  );
   const userMenuRef = useRef(null);
 
-  // Track mount state for responsive calculations
+  // SSR-safe client detection and window size tracking
+  const isClient = useIsClient();
+  const { width: windowWidth } = useWindowSize();
+
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
+    setAvatarSrc(user?.photoURL || "/default-profile.png");
+  }, [user?.photoURL]);
 
   // Fetch user ID and profile data from database
   useEffect(() => {
@@ -46,20 +55,11 @@ export default function ModernDashboardLayout({
       if (!firebaseUser) return;
 
       try {
-        // First get the user ID from /api/me
-        const token = await firebaseUser.getIdToken();
-        const meResponse = await fetch(`${API_BASE}/me`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        });
+        // Use centralized userService which supports caching/dedupe
+        const meData = await getCurrentUser();
+        const currentUserUid = meData?.uid;
 
-        if (meResponse.ok) {
-          const meData = await meResponse.json();
-          const currentUserUid = meData.uid;
-
-          // Then fetch comprehensive profile
+        if (currentUserUid) {
           const profileData = await getComprehensiveUserProfile(currentUserUid);
           setDbProfile(profileData);
         }
@@ -119,31 +119,23 @@ export default function ModernDashboardLayout({
   // Close mobile sidebar and user menu on resize to desktop
   // Auto-collapse sidebar on tablet and below
   useEffect(() => {
-    const handleResize = () => {
-      const width = window.innerWidth;
+    if (!isClient || !windowWidth) return;
 
-      // Desktop (≥1024px) - Keep sidebar expanded
-      if (width >= 1024) {
-        setMobileSidebarOpen(false);
-        setSidebarOpen(true);
-      }
-      // Tablet (768px - 1023px) - Auto-collapse sidebar
-      else if (width >= 768 && width < 1024) {
-        setMobileSidebarOpen(false);
-        setSidebarOpen(false);
-      }
-      // Mobile (<768px) - Use mobile sidebar overlay
-      else {
-        setSidebarOpen(false);
-      }
-    };
-
-    // Initial check
-    handleResize();
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
+    // Desktop (≥1024px) - Keep sidebar expanded
+    if (windowWidth >= 1024) {
+      setMobileSidebarOpen(false);
+      setSidebarOpen(true);
+    }
+    // Tablet (768px - 1023px) - Auto-collapse sidebar
+    else if (windowWidth >= 768 && windowWidth < 1024) {
+      setMobileSidebarOpen(false);
+      setSidebarOpen(false);
+    }
+    // Mobile (<768px) - Use mobile sidebar overlay
+    else {
+      setSidebarOpen(false);
+    }
+  }, [isClient, windowWidth]);
 
   // Handler for sidebar expansion request from collapsed state
   const handleExpandRequest = () => {
@@ -261,13 +253,13 @@ export default function ModernDashboardLayout({
         className="min-h-screen"
         style={{
           marginLeft:
-            isMounted && window.innerWidth >= 1024
+            isClient && windowWidth >= 1024
               ? sidebarOpen
                 ? "18rem"
                 : "5rem"
               : "0",
           width:
-            isMounted && window.innerWidth >= 1024
+            isClient && windowWidth >= 1024
               ? sidebarOpen
                 ? "calc(100% - 18rem)"
                 : "calc(100% - 5rem)"
@@ -292,7 +284,7 @@ export default function ModernDashboardLayout({
               </button>
 
               {/* Page Title - Responsive text size */}
-              <h1 className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-gray-900 dark:text-white truncate transition-all duration-300">
+              <h1 className="text-sm sm:text-base md:text-lg lg:text-2xl font-semibold text-gray-900 dark:text-white truncate transition-all duration-300 max-w-[150px] sm:max-w-[200px] md:max-w-none">
                 {pageTitle}
               </h1>
             </div>
@@ -310,31 +302,32 @@ export default function ModernDashboardLayout({
                     aria-label="User menu"
                     aria-expanded={userMenuOpen}
                   >
-                    <div className="hidden md:block text-right">
-                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                    <div className="hidden sm:block text-right min-w-0 max-w-[120px] md:max-w-none">
+                      <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white truncate">
                         {getFullName()}
                       </p>
                       <p
-                        className={`text-xs ${currentColors.text} capitalize font-medium`}
+                        className={`text-xs ${currentColors.text} capitalize font-medium truncate`}
                       >
                         {role}
                       </p>
                     </div>
-                    {user.photoURL ? (
-                      <img
-                        src={user.photoURL}
+                    {user?.photoURL ? (
+                      <Image
+                        src={avatarSrc}
                         alt={getFullName()}
-                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full border-2 ${currentColors.border} object-cover transition-transform duration-200`}
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = "/default-profile.png";
-                        }}
+                        width={40}
+                        height={40}
+                        sizes="(max-width: 640px) 36px, 40px"
+                        className={`w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full border-2 ${currentColors.border} object-cover transition-transform duration-200 flex-shrink-0`}
+                        onError={() => setAvatarSrc("/default-profile.png")}
+                        priority
                       />
                     ) : (
                       <div
-                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full ${
+                        className={`w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full ${
                           currentColors.bg
-                        } flex items-center justify-center text-white font-semibold text-sm transition-transform duration-200 ${
+                        } flex items-center justify-center text-white font-semibold text-xs sm:text-sm transition-transform duration-200 flex-shrink-0 ${
                           userMenuOpen
                             ? "ring-2 ring-offset-2 " + currentColors.border
                             : ""
@@ -404,29 +397,8 @@ export default function ModernDashboardLayout({
         </header>
 
         {/* Main Content - Responsive with Smooth Transitions */}
-        <main
-          className="min-h-[calc(100vh-4rem)]"
-          style={{
-            padding:
-              isMounted && window.innerWidth >= 1024
-                ? sidebarOpen
-                  ? "2rem"
-                  : "1.5rem"
-                : window.innerWidth >= 640
-                ? "1.5rem"
-                : "1rem",
-            transition: "padding 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          }}
-        >
-          <div
-            className="mx-auto"
-            style={{
-              maxWidth: "80rem",
-              transition: "max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-            }}
-          >
-            {children}
-          </div>
+        <main className="min-h-[calc(100vh-4rem)] p-3 sm:p-4 md:p-6 lg:p-8 transition-all duration-300">
+          <div className="mx-auto max-w-7xl">{children}</div>
         </main>
       </div>
     </div>

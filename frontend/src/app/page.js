@@ -199,7 +199,7 @@ export default function HomePage() {
               id="volunteer-header"
               className="text-xl md:text-2xl lg:text-3xl font-bold text-[var(--primary-red)] mb-2"
             >
-              We're looking for Volunteers! Sign up now!
+              We&apos;re looking for Volunteers! Sign up now!
             </h2>
             <p className="text-red-800 mb-2 text-sm md:text-base">
               If you intend to volunteer for Bagani Community Center, kindly

@@ -66,21 +66,22 @@ export function createUserCard({
     .join(" ");
   const style = statusStyles[status] || statusStyles.active;
 
-  // Card container - modern design
+  // Card container - modern design with mobile optimization
   const card = document.createElement("div");
   card.className = `
     bg-white dark:bg-gray-800 
-    rounded-2xl 
+    rounded-xl sm:rounded-2xl 
     shadow-md hover:shadow-xl 
     border border-gray-200 dark:border-gray-700 
-    p-6 
+    p-4 sm:p-5 md:p-6 
     flex flex-col 
-    gap-4 
+    gap-3 sm:gap-4 
     cursor-pointer 
     transition-all duration-300 
     hover:scale-[1.02] 
     hover:border-red-500 dark:hover:border-red-400
     focus:outline-none focus:ring-2 focus:ring-red-500 dark:focus:ring-red-400
+    min-h-[44px]
     ${className || ""}
   `
     .trim()
@@ -103,14 +104,14 @@ export function createUserCard({
 
   // --- Header with Avatar and Status ---
   const header = document.createElement("div");
-  header.className = "flex items-center gap-4";
+  header.className = "flex items-center gap-3 sm:gap-4";
 
   // Avatar wrapper with modern ring
   const avatarWrapper = document.createElement("div");
   avatarWrapper.className = "flex-shrink-0 relative";
 
   const avatar = document.createElement("img");
-  avatar.className = `w-16 h-16 rounded-full object-cover ${style.ring}`;
+  avatar.className = `w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full object-cover ${style.ring}`;
 
   // Determine avatar src
   let avatarUrl = "";
@@ -135,7 +136,7 @@ export function createUserCard({
 
   // Status indicator dot
   const statusDot = document.createElement("div");
-  statusDot.className = `absolute bottom-0 right-0 w-4 h-4 ${style.dot} rounded-full border-2 border-white dark:border-gray-800`;
+  statusDot.className = `absolute bottom-0 right-0 w-3 h-3 sm:w-4 sm:h-4 ${style.dot} rounded-full border-2 border-white dark:border-gray-800`;
   statusDot.setAttribute("aria-label", `Status: ${statusLabel}`);
 
   avatarWrapper.appendChild(avatar);
@@ -149,13 +150,14 @@ export function createUserCard({
   // Name
   const nameSpan = document.createElement("h3");
   nameSpan.className =
-    "font-bold text-gray-900 dark:text-white text-lg truncate mb-1";
+    "font-bold text-gray-900 dark:text-white text-base sm:text-lg truncate mb-1";
   nameSpan.textContent = user.name || "Unknown User";
   info.appendChild(nameSpan);
 
   // Email
   const emailSpan = document.createElement("p");
-  emailSpan.className = "text-sm text-gray-600 dark:text-gray-400 truncate";
+  emailSpan.className =
+    "text-xs sm:text-sm text-gray-600 dark:text-gray-400 truncate";
   emailSpan.textContent = user.email || "";
   info.appendChild(emailSpan);
 
@@ -166,18 +168,19 @@ export function createUserCard({
   if (Array.isArray(extraFields) && extraFields.length > 0) {
     const fieldsContainer = document.createElement("div");
     fieldsContainer.className =
-      "space-y-2 pt-3 border-t border-gray-200 dark:border-gray-700";
+      "space-y-2 pt-2 sm:pt-3 border-t border-gray-200 dark:border-gray-700";
 
     extraFields.forEach((field) => {
       const fieldRow = document.createElement("div");
-      fieldRow.className = "flex justify-between items-center text-sm";
+      fieldRow.className =
+        "flex justify-between items-center text-xs sm:text-sm gap-2";
 
       const label = document.createElement("span");
-      label.className = "text-gray-600 dark:text-gray-400 font-medium";
+      label.className = "text-gray-600 dark:text-gray-400 font-medium truncate";
       label.textContent = field.label + ":";
 
       const value = document.createElement("span");
-      value.className = "text-gray-900 dark:text-white font-semibold";
+      value.className = "text-gray-900 dark:text-white font-semibold truncate";
       value.textContent = field.value;
 
       fieldRow.appendChild(label);

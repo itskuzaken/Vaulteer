@@ -1,8 +1,12 @@
 import { fetchWithAuth } from "./apiClient";
 
 export async function getGamificationSummary() {
-  const response = await fetchWithAuth("/gamification/summary");
-  return response.data;
+  // Cache gamification summary for 2 minutes - non-critical but frequently fetched
+  const response = await fetchWithAuth("/gamification/summary", {
+    method: "GET",
+    cacheTTL: 120_000,
+  });
+  return response?.data ?? response;
 }
 
 export async function getLeaderboard(period = "all", limit = 5) {

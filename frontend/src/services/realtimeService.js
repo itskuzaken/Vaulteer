@@ -14,7 +14,7 @@ class RealtimeService {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
     this.useWebSocket = true; // Try WebSocket first
-    this.pollingInterval = 15000; // 15 seconds for polling fallback
+    this.pollingInterval = 120000; // 2 minutes for polling fallback (reduced traffic)
     this.activityLogEnabled = true;
   }
 
@@ -111,12 +111,18 @@ class RealtimeService {
    * @param {object} subscription - Subscription object
    */
   startPolling(subscription) {
-    // Initial fetch
-    this.fetchAndUpdate(subscription);
+    // Initial fetch (skip if tab is hidden)
+    if (typeof document === "undefined" || !document.hidden) {
+      this.fetchAndUpdate(subscription);
+    }
 
     // Set up polling interval
     const intervalId = setInterval(() => {
-      if (subscription.active) {
+      // Avoid polling when tab is not visible
+      if (
+        subscription.active &&
+        (typeof document === "undefined" || !document.hidden)
+      ) {
         this.fetchAndUpdate(subscription);
       }
     }, subscription.interval);
