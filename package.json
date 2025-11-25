@@ -4,7 +4,6 @@
   "description": "",
   "private": true,
   "main": "index.js",
-
   "workspaces": [
     "frontend",
     "backend"
@@ -21,12 +20,12 @@
     "install:all": "npm install",
     "clean": "rm -rf node_modules backend/node_modules frontend/node_modules"
   },
-  
   "devDependencies": {
     "concurrently": "^9.1.2"
   },
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "firebase-admin": "^13.4.0"
   }
 }
