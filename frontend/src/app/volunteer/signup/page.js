@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { signInWithPopup } from "firebase/auth";
+import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
 import { auth, googleProvider } from "../../../services/firebase";
+import { API_BASE } from "../../../config/config";
 
 export default function VolunteerSignupPage() {
   const [form, setForm] = useState({
@@ -38,15 +39,13 @@ export default function VolunteerSignupPage() {
     volunteerFrequency: "",
     volunteerTrainings: [],
     volunteerReason: "",
-    // Declaration of Volunteer Commitment
     declarationCommitment: "",
   });
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [step, setStep] = useState(1);
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [pendingSubmit, setPendingSubmit] = useState(false);
-  const [googleSignedIn, setGoogleSignedIn] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -357,20 +356,104 @@ export default function VolunteerSignupPage() {
   };
 
   // Final form submission logic (after Google sign-in)
-  const doFinalSubmit = () => {
-    setSubmitted(true);
+  const doFinalSubmit = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    try {
+      // Get current Firebase user
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("You must be signed in to submit an application");
+      }
+
+      // Prepare user data
+      const userData = {
+        uid: currentUser.uid,
+        name: currentUser.displayName || `${form.firstName} ${form.lastName}`,
+        email: currentUser.email,
+      };
+
+      // Prepare form data
+      const formData = {
+        firstName: form.firstName,
+        middleInitial: form.middleInitial || null,
+        lastName: form.lastName,
+        nickname: form.nickname,
+        birthdate: form.birthdate,
+        gender: form.gender,
+        genderOther: form.genderOther || null,
+        consent: form.consent,
+        mobileNumber: form.mobileNumber,
+        city: form.city,
+        facebook: form.facebook || null,
+        twitter: form.twitter || null,
+        instagram: form.instagram || null,
+        tiktok: form.tiktok || null,
+        currentStatus: form.currentStatus,
+        declarationCommitment: form.declarationCommitment,
+        volunteerReason: form.volunteerReason,
+        volunteerFrequency: form.volunteerFrequency,
+        volunteerRoles: form.volunteerRoles || [],
+        volunteerDays: form.volunteerDays || [],
+        volunteerTrainings: form.volunteerTrainings || [],
+        // Work profile fields (only if currentStatus is "Working Professional")
+        position: form.position || null,
+        industry: form.industry || null,
+        company: form.company || null,
+        workShift: form.workShift || null,
+        workOtherSkills: form.workOtherSkills || null,
+        workingDays: form.workingDays || [],
+        // Student profile fields (only if currentStatus is "Student")
+        school: form.school || null,
+        course: form.course || null,
+        graduation: form.graduation || null,
+        studentOtherSkills: form.studentOtherSkills || null,
+        schoolDays: form.schoolDays || [],
+      };
+
+      // Submit to backend
+      const response = await fetch(`${API_BASE}/applicants`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user: userData,
+          form: formData,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "Failed to submit application");
+      }
+
+      // Clear localStorage on success
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("volunteerForm");
+      }
+
+      // Show success message
+      setSubmitted(true);
+    } catch (error) {
+      console.error("Error submitting application:", error);
+      setSubmitError(error.message);
+      setIsSubmitting(false);
+    }
   };
 
   // Only show modal on final submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newErrors = validateDeclaration();
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-    // Remove Google sign-in modal logic, just submit directly
-    doFinalSubmit();
+    // Submit application
+    await doFinalSubmit();
   };
 
   const progressPercent = ((step - 1) / (8 - 1)) * 100;
@@ -961,7 +1044,9 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">Company</label>
+                <label className="block font-semibold mb-1 text-gray-900">
+                  Company
+                </label>
                 <input
                   type="text"
                   name="company"
@@ -984,7 +1069,10 @@ export default function VolunteerSignupPage() {
                     "Saturday",
                     "Sunday",
                   ].map((day) => (
-                    <label key={day} className="inline-flex items-center text-gray-800 cursor-pointer">
+                    <label
+                      key={day}
+                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         name="workingDays"
@@ -1181,7 +1269,10 @@ export default function VolunteerSignupPage() {
                     "Saturday",
                     "Sunday",
                   ].map((day) => (
-                    <label key={day} className="inline-flex items-center text-gray-800 cursor-pointer">
+                    <label
+                      key={day}
+                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         name="schoolDays"
@@ -1273,7 +1364,10 @@ export default function VolunteerSignupPage() {
                     "Organization Development",
                     "Information Technology",
                   ].map((role) => (
-                    <label key={role} className="inline-flex items-center text-gray-800 cursor-pointer">
+                    <label
+                      key={role}
+                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         name="volunteerRoles"
@@ -1330,7 +1424,10 @@ export default function VolunteerSignupPage() {
                     "Saturday",
                     "Sunday",
                   ].map((day) => (
-                    <label key={day} className="inline-flex items-center text-gray-800 cursor-pointer">
+                    <label
+                      key={day}
+                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         name="volunteerDays"
@@ -1423,7 +1520,10 @@ export default function VolunteerSignupPage() {
                     "Community-Based HIV Screening",
                     "Case Management / Life Coaching",
                   ].map((training) => (
-                    <label key={training} className="inline-flex items-center text-gray-800 cursor-pointer">
+                    <label
+                      key={training}
+                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                    >
                       <input
                         type="checkbox"
                         name="volunteerTrainings"
@@ -1562,6 +1662,13 @@ export default function VolunteerSignupPage() {
                 </p>
               )}
             </div>
+            {/* Show submission error if any */}
+            {submitError && (
+              <div className="mt-4 p-4 bg-red-100 border border-red-400 rounded">
+                <p className="text-red-700 font-semibold">Error:</p>
+                <p className="text-red-600">{submitError}</p>
+              </div>
+            )}
             <div className="flex justify-between mt-8 gap-4">
               {/* First column: Back button */}
               <div className=" items-center">
@@ -1569,6 +1676,7 @@ export default function VolunteerSignupPage() {
                   type="button"
                   className="bg-gray-300 text-gray-800 font-bold px-6 py-2 rounded hover:bg-gray-400 transition w-full"
                   onClick={handleBack}
+                  disabled={isSubmitting}
                 >
                   Back
                 </button>
@@ -1579,19 +1687,20 @@ export default function VolunteerSignupPage() {
                   type="button"
                   className="text-red-700 hover:text-gray-800 px-6"
                   onClick={handleClearForm}
+                  disabled={isSubmitting}
                 >
                   Clear form
                 </button>
                 <button
                   type="submit"
                   className={`bg-[var(--primary-red)] text-white font-bold px-6 py-2 rounded hover:bg-red-800 transition ${
-                    form.declarationCommitment !== "agree"
+                    form.declarationCommitment !== "agree" || isSubmitting
                       ? "opacity-50 cursor-not-allowed"
                       : ""
                   }`}
-                  disabled={form.declarationCommitment !== "agree"}
+                  disabled={form.declarationCommitment !== "agree" || isSubmitting}
                 >
-                  Submit
+                  {isSubmitting ? "Submitting..." : "Submit"}
                 </button>
               </div>
             </div>
@@ -1606,7 +1715,6 @@ export default function VolunteerSignupPage() {
             ></div>
           </div>
         </div>
-        {/* Remove Google Sign-In Modal */}
       </form>
     </div>
   );
