@@ -95,12 +95,14 @@ If you're using Firebase services, place your `firebase-service-account.json` fi
 ### Development Mode
 
 1. Start the backend server:
+
    ```bash
    cd backend
    npm run dev
    ```
 
 2. In a new terminal, start the frontend:
+
    ```bash
    cd frontend
    npm run dev
@@ -127,6 +129,7 @@ For production deployment, refer to the deployment documentation in the `docs/` 
 ### Getting Help
 
 If you encounter issues not covered here, please check:
+
 - The main README.md for project overview
 - GitHub Issues for known problems
 - The docs/ folder for additional documentation
@@ -134,6 +137,7 @@ If you encounter issues not covered here, please check:
 ## Next Steps
 
 Once your local installation is complete, you can:
+
 - Explore the application features
 - Run the test suites
 - Contribute to the codebase

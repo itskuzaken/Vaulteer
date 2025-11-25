@@ -13,8 +13,32 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// Validate essential config early to give a clearer error
+if (!firebaseConfig.apiKey || typeof firebaseConfig.apiKey !== "string") {
+  const helpful =
+    "Missing or invalid NEXT_PUBLIC_FIREBASE_API_KEY — set the public web API key for your Firebase web app in your frontend environment (.env.local or your deployment environment).";
+  // On the server (SSR) fail early with a helpful error to avoid obscure 'invalid-api-key' messages
+  console.error("[Firebase] config error:", helpful);
+  throw new Error(helpful);
+}
+
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+try {
+  app = initializeApp(firebaseConfig);
+} catch (err) {
+  // Firebase initialization can fail with errors like 'auth/invalid-api-key'.
+  // Provide a clearer message to help debugging during SSR and deployments.
+  const message =
+    err && err.code === "auth/invalid-api-key"
+      ? "[Firebase] invalid API key provided. Check NEXT_PUBLIC_FIREBASE_API_KEY in your environment (frontend/.env.local or your deployment env). Make sure this key matches the key listed under Firebase Console > Project settings > General > Your apps."
+      : `[Firebase] initialization failed: ${
+          err && err.message ? err.message : String(err)
+        }`;
+  console.error(message, err);
+  // Throw a clearer error for SSR so deployment logs will show the root cause.
+  throw new Error(message);
+}
 
 // Export Firebase Authentication and Google Auth Provider
 export const auth = getAuth(app);

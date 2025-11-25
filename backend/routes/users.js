@@ -12,6 +12,7 @@ const {
   updateUserActivity,
 } = require("../controllers/usersController");
 const { authenticate } = require("../middleware/auth");
+const { writeLimiter } = require("../middleware/rateLimiter");
 
 // Get all users
 router.get("/", getUsers);
@@ -29,15 +30,15 @@ router.get("/applicants", getApplicants);
 router.get("/admins", getAdmins);
 
 // Add new user
-router.post("/", addUser);
+router.post("/", writeLimiter, addUser);
 
 // Update user status (admin only)
-router.patch("/:id/status", authenticate, updateUserStatus);
+router.patch("/:id/status", authenticate, writeLimiter, updateUserStatus);
 
 // Update user role (admin only)
-router.patch("/:id/role", authenticate, updateUserRole);
+router.patch("/:id/role", authenticate, writeLimiter, updateUserRole);
 
 // Update user activity (self or admin)
-router.patch("/:id/activity", authenticate, updateUserActivity);
+router.patch("/:id/activity", authenticate, writeLimiter, updateUserActivity);
 
 module.exports = router;

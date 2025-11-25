@@ -15,7 +15,7 @@ import realtimeService from "../services/realtimeService";
 export function useRealtimeStats(fetchCallback, options = {}) {
   const {
     channel = "stats",
-    interval = 15000,
+    interval = 120000,
     enableAnimations = true,
     onUpdate = null,
   } = options;

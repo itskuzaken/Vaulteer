@@ -104,42 +104,42 @@ export default function MyImpactWidget({ summary }) {
       subtitle="My Impact"
       icon={IoSparklesOutline}
     >
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4 sm:mb-6">
         {statCards.map((card) => (
           <div
             key={card.label}
-            className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40"
+            className="p-3 sm:p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <span className="inline-flex items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/20 p-2">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+              <span className="inline-flex items-center justify-center rounded-full bg-amber-100 dark:bg-amber-500/20 p-1.5 sm:p-2">
                 {card.icon}
               </span>
-              <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              <span className="text-[0.65rem] sm:text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                 {card.label}
               </span>
             </div>
-            <p className="text-2xl font-semibold text-slate-900 dark:text-white">
+            <p className="text-xl sm:text-2xl font-semibold text-slate-900 dark:text-white">
               {isLoading ? "--" : card.value}
             </p>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-[0.65rem] sm:text-xs text-slate-500 dark:text-slate-400 mt-1">
               {card.helper}
             </p>
           </div>
         ))}
       </div>
 
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-2 text-sm text-slate-600 dark:text-slate-400">
+      <div className="mb-4 sm:mb-6">
+        <div className="flex items-center justify-between mb-2 text-xs sm:text-sm text-slate-600 dark:text-slate-400">
           <span>Progress to level {currentLevel + 1}</span>
           <span>{isLoading ? "--" : `${Math.round(levelProgress)}%`}</span>
         </div>
-        <div className="h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+        <div className="h-2.5 sm:h-3 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all"
             style={{ width: `${isLoading ? 0 : levelProgress}%` }}
           />
         </div>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-2">
+        <p className="text-[0.65rem] sm:text-xs text-slate-500 dark:text-slate-400 mt-2">
           {isLoading
             ? "Crunching numbers..."
             : `${pointsToNext} pts until level ${currentLevel + 1}`}
@@ -167,22 +167,22 @@ export default function MyImpactWidget({ summary }) {
             ))}
           </div>
         ) : recentEvents.length ? (
-          <ul className="space-y-3">
+          <ul className="space-y-2 sm:space-y-3">
             {recentEvents.map((event, index) => (
               <li
                 key={`${event.action}-${event.created_at}-${index}`}
-                className="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-100 dark:border-slate-800"
+                className="flex items-center justify-between gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl border border-slate-100 dark:border-slate-800"
               >
-                <div>
-                  <p className="text-sm font-medium text-slate-900 dark:text-white">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm font-medium text-slate-900 dark:text-white truncate">
                     {formatActionLabel(event)}
                   </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                  <p className="text-[0.65rem] sm:text-xs text-slate-500 dark:text-slate-400">
                     {formatRelativeDate(event.created_at) || "Just now"}
                   </p>
                 </div>
                 <span
-                  className={`text-sm font-semibold ${
+                  className={`text-xs sm:text-sm font-semibold whitespace-nowrap ${
                     (event.points_delta || 0) >= 0
                       ? "text-emerald-600"
                       : "text-rose-500"

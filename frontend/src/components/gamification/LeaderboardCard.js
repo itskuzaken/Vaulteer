@@ -68,12 +68,12 @@ export default function LeaderboardCard({ limit = 5 }) {
       subtitleClassName="text-[0.65rem] font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400"
       iconWrapperClassName="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-gray-100 dark:bg-gray-800"
       action={
-        <div className="flex items-center gap-2 bg-gray-50 dark:bg-gray-800 p-1 rounded-full">
+        <div className="flex items-center gap-1 sm:gap-2 bg-gray-50 dark:bg-gray-800 p-1 rounded-full">
           {PERIOD_OPTIONS.map((option) => (
             <button
               key={option.key}
               type="button"
-              className={`text-xs font-semibold px-3 py-1.5 rounded-full transition-all ${
+              className={`text-[0.65rem] sm:text-xs font-semibold px-2 sm:px-3 py-1 sm:py-1.5 rounded-full transition-all ${
                 period === option.key
                   ? "bg-white dark:bg-gray-900 shadow text-gray-900 dark:text-white"
                   : "text-gray-500 dark:text-gray-400"
@@ -98,11 +98,11 @@ export default function LeaderboardCard({ limit = 5 }) {
       ) : error ? (
         <div className="text-sm text-red-500 dark:text-red-400">{error}</div>
       ) : decoratedEntries.length ? (
-        <ul className="space-y-4" role="list">
+        <ul className="space-y-2 sm:space-y-4" role="list">
           {decoratedEntries.map((entry) => (
             <li
               key={`${entry.user_id || entry.email}-${entry.rank}`}
-              className={`flex items-center gap-4 p-3 rounded-xl border border-gray-200 dark:border-gray-800 ${
+              className={`flex items-center gap-3 sm:gap-4 p-2.5 sm:p-3 rounded-xl border border-gray-200 dark:border-gray-800 ${
                 entry.rank === 1
                   ? "bg-amber-50/60 dark:bg-amber-500/10 border-amber-200 dark:border-amber-500/40"
                   : "bg-white dark:bg-gray-900"
@@ -110,7 +110,7 @@ export default function LeaderboardCard({ limit = 5 }) {
               role="listitem"
             >
               <div
-                className={`w-10 h-10 flex items-center justify-center rounded-full text-sm font-semibold ${
+                className={`w-8 h-8 sm:w-10 sm:h-10 flex items-center justify-center rounded-full text-xs sm:text-sm font-semibold flex-shrink-0 ${
                   entry.rank === 1
                     ? "bg-amber-500 text-white"
                     : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
@@ -119,18 +119,18 @@ export default function LeaderboardCard({ limit = 5 }) {
                 {entry.rank}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                <p className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-white truncate">
                   {formatName(entry)}
                 </p>
-                <p className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]">
+                <p className="text-[0.65rem] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
                   {entry.email || "No email"}
                 </p>
               </div>
-              <div className="text-right">
-                <p className="text-xs uppercase text-gray-500 dark:text-gray-400 font-medium">
+              <div className="text-right flex-shrink-0">
+                <p className="text-[0.65rem] sm:text-xs uppercase text-gray-500 dark:text-gray-400 font-medium">
                   Points
                 </p>
-                <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                <p className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                   {entry.points?.toLocaleString() ?? 0}
                 </p>
               </div>

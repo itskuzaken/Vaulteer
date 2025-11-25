@@ -29,7 +29,7 @@ const GRID_COL_CLASS = {
 export default function RealtimeStatsGrid({
   statsConfig = [],
   fetchCallback,
-  updateInterval = 15000,
+  updateInterval = 120000,
   channel = "stats",
   gridCols = 4,
   onStatsUpdate = null,
@@ -67,7 +67,9 @@ export default function RealtimeStatsGrid({
           Failed to load statistics. Please try again.
         </div>
       ) : (
-        <div className={`grid grid-cols-1 sm:grid-cols-2 ${lgColsClass} gap-4`}>
+        <div
+          className={`grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 ${lgColsClass} gap-3 sm:gap-4`}
+        >
           {statsConfig.map((config, index) => {
             const value = data ? data[config.key] : 0;
             const isChanged = changedFields.includes(config.key);

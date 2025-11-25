@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { getAuth, onAuthStateChanged } from "firebase/auth";
 import { API_BASE } from "../config/config";
 import { getGamificationSummary } from "../services/gamificationService";
+import { getCurrentUser } from "../services/userService";
 import realtimeService from "../services/realtimeService";
 
 /**
@@ -31,29 +32,8 @@ export function useDashboardUser() {
         }
 
         try {
-          const token = await firebaseUser.getIdToken();
-          const response = await fetch(`${API_BASE}/me`, {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          });
-
-          if (!response.ok) {
-            console.warn(
-              "Dashboard user fetch failed, falling back to Firebase data"
-            );
-            setUser({
-              uid: firebaseUser.uid,
-              displayName: firebaseUser.displayName || "Unknown User",
-              photoURL: firebaseUser.photoURL || null,
-              email: firebaseUser.email || null,
-            });
-            setGamification(null);
-            setStatus("ready");
-            return;
-          }
-
-          const userData = await response.json();
+          // Use centralized userService getCurrentUser which supports caching
+          const userData = await getCurrentUser();
           setUser({
             user_id: userData.user_id,
             uid: userData.uid || firebaseUser.uid,
@@ -123,7 +103,7 @@ export function useDashboardUser() {
       try {
         if (realtimeService.getConnectionState() === "disconnected") {
           await realtimeService.initialize(null, {
-            pollingInterval: 20000,
+            pollingInterval: 120000,
             enableActivityLog: process.env.NODE_ENV === "development",
           });
         }
@@ -138,7 +118,7 @@ export function useDashboardUser() {
               setGamification(data);
             }
           },
-          20000
+          120000
         );
 
         gamificationSubscriptionRef.current = subscriptionId;
@@ -156,7 +136,7 @@ export function useDashboardUser() {
       isMounted = false;
       cleanupSubscription();
     };
-  }, [user?.uid]);
+  }, [user]);
 
   return { user, status, error, gamification, refreshGamification };
 }

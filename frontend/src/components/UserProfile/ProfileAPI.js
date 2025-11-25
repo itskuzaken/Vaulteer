@@ -1,5 +1,6 @@
 import { getAuth } from "firebase/auth";
 import { API_BASE } from "../../config/config";
+import { getCurrentUser } from "../../services/userService";
 
 /**
  * Get the current authenticated user's identifiers (numeric ID + UID)
@@ -12,18 +13,7 @@ export const getCurrentUserIdentifiers = async () => {
     throw new Error("User not authenticated");
   }
 
-  const token = await currentUser.getIdToken();
-  const meResponse = await fetch(`${API_BASE}/me`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!meResponse.ok) {
-    throw new Error("Failed to fetch user data");
-  }
-
-  const meData = await meResponse.json();
+  const meData = await getCurrentUser();
   return {
     userId: meData.user_id,
     userUid: meData.uid,

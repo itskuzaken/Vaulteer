@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import Image from "next/image";
 
 // Dummy fetch function for scheduled posts (replace with real API)
 async function fetchScheduledPosts() {
@@ -65,10 +66,13 @@ export default function ScheduledPosts() {
                   className="bg-white border border-red-100 rounded-lg shadow p-4"
                 >
                   {post.imageUrl && (
-                    <img
+                    <Image
                       src={post.imageUrl}
                       alt={post.title}
+                      width={800}
+                      height={400}
                       className="w-full h-48 object-cover rounded mb-3"
+                      unoptimized
                     />
                   )}
                   <h3 className="text-xl font-bold text-[var(--primary-red)] mb-1">

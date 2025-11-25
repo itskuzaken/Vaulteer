@@ -1,38 +1,7 @@
-import { getIdToken } from "./firebase";
-import { API_BASE } from "../config/config";
+import { fetchWithAuth } from "./apiClient";
 
-// Helper for fetch with error handling
-async function fetchWithAuth(url, options = {}) {
-  const token = await getIdToken();
-  if (!token) throw new Error("Not authenticated");
-  const method = (options.method || "GET").toUpperCase();
-  const headers = {
-    ...(options.headers || {}),
-    Authorization: `Bearer ${token}`,
-  };
-
-  if (["PUT", "POST", "PATCH"].includes(method) && !headers["Content-Type"]) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  const res = await fetch(url, {
-    ...options,
-    method,
-    headers,
-    credentials: "include",
-  });
-  let data;
-  try {
-    data = await res.json();
-  } catch {
-    data = null;
-  }
-  if (!res.ok) {
-    const msg = data?.error || data?.message || "Request failed";
-    throw new Error(msg);
-  }
-  return data;
-}
+// Note: we use the centralized fetchWithAuth from apiClient.js which handles
+// authentication token resolution, retries, deduplication and optional cacheTTL.
 
 // Fetch all users by role with optional filter query
 export async function getUsersByRole(role, filterQuery = "") {
@@ -48,37 +17,37 @@ export async function getUsersByRole(role, filterQuery = "") {
       ? "admins"
       : `roles/${role}`;
 
-  return await fetchWithAuth(`${API_BASE}/users/${endpoint}${filterQuery}`);
+  return await fetchWithAuth(`/users/${endpoint}${filterQuery}`);
 }
 
 // Get all users
 export async function getAllUsers() {
-  return await fetchWithAuth(`${API_BASE}/users`);
+  return await fetchWithAuth(`/users`);
 }
 
 // Get volunteers
 export async function getVolunteers() {
-  return await fetchWithAuth(`${API_BASE}/users/volunteers`);
+  return await fetchWithAuth(`/users/volunteers`);
 }
 
 // Get staff members
 export async function getStaffs() {
-  return await fetchWithAuth(`${API_BASE}/users/staffs`);
+  return await fetchWithAuth(`/users/staffs`);
 }
 
 // Get applicants (alternative to applicantsService)
 export async function getApplicants() {
-  return await fetchWithAuth(`${API_BASE}/users/applicants`);
+  return await fetchWithAuth(`/users/applicants`);
 }
 
 // Get admins
 export async function getAdmins() {
-  return await fetchWithAuth(`${API_BASE}/users/admins`);
+  return await fetchWithAuth(`/users/admins`);
 }
 
 // Create a new user
 export async function createUser(userData) {
-  return await fetchWithAuth(`${API_BASE}/users`, {
+  return await fetchWithAuth(`/users`, {
     method: "POST",
     body: JSON.stringify(userData),
   });
@@ -86,28 +55,28 @@ export async function createUser(userData) {
 
 // Update user by ID (now supports status update)
 export async function updateUser(userId, updateData) {
-  return await fetchWithAuth(`${API_BASE}/users/${userId}`, {
+  return await fetchWithAuth(`/users/${userId}`, {
     method: "PUT",
     body: JSON.stringify(updateData),
   });
 }
 
 export async function updateUserStatus(userId, status) {
-  return await fetchWithAuth(`${API_BASE}/users/${userId}/status`, {
+  return await fetchWithAuth(`/users/${userId}/status`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
   });
 }
 
 export async function updateUserRole(userId, role) {
-  return await fetchWithAuth(`${API_BASE}/users/${userId}/role`, {
+  return await fetchWithAuth(`/users/${userId}/role`, {
     method: "PATCH",
     body: JSON.stringify({ role }),
   });
 }
 
 export async function updateUserActivity(userId, payload = {}) {
-  return await fetchWithAuth(`${API_BASE}/users/${userId}/activity`, {
+  return await fetchWithAuth(`/users/${userId}/activity`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
@@ -115,16 +84,17 @@ export async function updateUserActivity(userId, payload = {}) {
 
 // Delete user by ID
 export async function deleteUser(userId) {
-  return await fetchWithAuth(`${API_BASE}/users/${userId}`, {
+  return await fetchWithAuth(`/users/${userId}`, {
     method: "DELETE",
   });
 }
 
 export async function getUserById(userId) {
-  return await fetchWithAuth(`${API_BASE}/users/${userId}`);
+  return await fetchWithAuth(`/users/${userId}`);
 }
 
 // Get current user info and role
 export async function getCurrentUser() {
-  return await fetchWithAuth(`${API_BASE}/me`);
+  // Cache this call for 5 minutes - used heavily during dashboard load/route protection
+  return await fetchWithAuth(`/me`, { method: "GET", cacheTTL: 300_000 });
 }
