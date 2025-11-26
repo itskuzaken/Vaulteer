@@ -185,6 +185,7 @@ export default function EventCard({
               <JoinEventButton
                 event={event}
                 isRegistered={event.is_registered}
+                participationStatus={event.participation_status}
                 onStatusChange={() => {
                   // Refresh event data if needed
                 }}

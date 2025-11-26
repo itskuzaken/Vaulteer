@@ -8,14 +8,8 @@ const nextConfig = {
   },
   allowedDevOrigins: [
     "http://localhost:3000",
-<<<<<<< HEAD
     "http://192.168.1.8:3000",
     "http://192.168.1.8:3001",
-=======
-    "http://192.168.0.213:3000",
-    "http://192.168.0.213:3001",
-    "http://vaulteer.kuzaken.tech",
->>>>>>> 6fa16d3b56a92d55d313b1769b495decc5524ee5
   ],
   async headers() {
     return [

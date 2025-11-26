@@ -16,9 +16,7 @@ import ViewAllStaff from "../../../../components/navigation/Staff/ViewAllStaff";
 import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
-import GeneralSettings from "../../../../components/navigation/Settings/GeneralSettings";
-import Appearance from "../../../../components/navigation/Settings/Appearance";
-import UserAccountSettings from "../../../../components/navigation/Settings/UserAccountSettings";
+import UserSettings from "../../../../components/navigation/Settings/UserSettings";
 
 const adminMainRoutes = {
   dashboard: {
@@ -36,7 +34,7 @@ const adminMainRoutes = {
   },
   settings: {
     label: "Settings",
-    defaultSub: "general-settings",
+    defaultSub: "user-settings",
   },
   "manage-events": {
     label: "Manage Events",
@@ -135,11 +133,11 @@ const adminSubRoutes = {
     component: AdminViewAllStaff,
     withNavigate: true,
   },
-  "general-settings": {
-    key: "general-settings",
+  "user-settings": {
+    key: "user-settings",
     label: "General Settings",
     parent: "settings",
-    component: GeneralSettings,
+    component: UserSettings,
   },
   appearance: {
     key: "appearance",

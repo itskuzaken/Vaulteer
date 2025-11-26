@@ -244,3 +244,80 @@ export async function createNotification(notificationData) {
     throw error;
   }
 }
+
+// ============================================
+// PUSH NOTIFICATION FUNCTIONS (FCM)
+// ============================================
+
+/**
+ * Subscribe to push notifications using FCM
+ * @returns {Promise<string>} FCM token
+ */
+export async function subscribeToFCM() {
+  // Check if browser supports notifications
+  if (!("Notification" in window)) {
+    throw new Error("This browser does not support notifications");
+  }
+
+  if (!("serviceWorker" in navigator)) {
+    throw new Error("This browser does not support service workers");
+  }
+
+  // Request permission
+  const permission = await Notification.requestPermission();
+  
+  if (permission !== "granted") {
+    throw new Error("Notification permission denied");
+  }
+
+  // TODO: Implement FCM token retrieval and backend registration
+  // This is a placeholder that simulates the flow
+  console.log("[NotificationService] Permission granted, FCM integration pending");
+  
+  // In production, this would:
+  // 1. Register service worker
+  // 2. Get FCM token using messaging.getToken()
+  // 3. POST token to backend /api/notifications/subscribe
+  
+  // Return mock token for now
+  return "mock-fcm-token-" + Date.now();
+}
+
+/**
+ * Unsubscribe from push notifications
+ * @returns {Promise<void>}
+ */
+export async function unsubscribeFromFCM() {
+  // TODO: Implement FCM token deletion and backend unregistration
+  // This would:
+  // 1. Get current token
+  // 2. POST to backend /api/notifications/unsubscribe
+  // 3. Delete token via messaging.deleteToken()
+  
+  console.log("[NotificationService] Unsubscribe called, FCM integration pending");
+  return Promise.resolve();
+}
+
+/**
+ * Check if push notifications are supported
+ * @returns {boolean}
+ */
+export function isPushSupported() {
+  return (
+    typeof window !== "undefined" &&
+    "Notification" in window &&
+    "serviceWorker" in navigator &&
+    "PushManager" in window
+  );
+}
+
+/**
+ * Get current notification permission status
+ * @returns {NotificationPermission | null}
+ */
+export function getNotificationPermission() {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return null;
+  }
+  return Notification.permission;
+}

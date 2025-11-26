@@ -337,18 +337,20 @@ class EventsController {
         });
       }
 
-      // Check if current user is registered
+      // Get current user's participation status
       const userId = req.currentUserId;
-      const isRegistered = await eventRepository.checkParticipantExists(
+      const participationStatus = await eventRepository.getParticipantStatus(
         uid,
         userId
       );
+      const isRegistered = participationStatus === "registered" || participationStatus === "waitlisted";
 
       res.json({
         success: true,
         data: {
           ...event,
           is_registered: isRegistered,
+          participation_status: participationStatus,
         },
       });
     } catch (error) {
