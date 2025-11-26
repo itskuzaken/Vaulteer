@@ -15,9 +15,7 @@ import ApplicationApproval from "../../../../components/navigation/Volunteer/App
 import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
-import GeneralSettings from "../../../../components/navigation/Settings/GeneralSettings";
-import Appearance from "../../../../components/navigation/Settings/Appearance";
-import UserAccountSettings from "../../../../components/navigation/Settings/UserAccountSettings";
+import UserSettings from "../../../../components/navigation/Settings/UserSettings";
 
 const staffMainRoutes = {
   dashboard: {
@@ -35,7 +33,7 @@ const staffMainRoutes = {
   },
   settings: {
     label: "Settings",
-    defaultSub: "general-settings",
+    defaultSub: "user-settings",
   },
   "manage-events": {
     label: "Manage Events",
@@ -123,23 +121,11 @@ const staffSubRoutes = {
     component: StaffApplicationApproval,
     withNavigate: true,
   },
-  "general-settings": {
-    key: "general-settings",
-    label: "General Settings",
+  "user-settings": {
+    key: "user-settings",
+    label: "Settings",
     parent: "settings",
-    component: GeneralSettings,
-  },
-  appearance: {
-    key: "appearance",
-    label: "Appearance",
-    parent: "settings",
-    component: Appearance,
-  },
-  "user-account-settings": {
-    key: "user-account-settings",
-    label: "User & Account Settings",
-    parent: "settings",
-    component: UserAccountSettings,
+    component: UserSettings,
   },
 };
 

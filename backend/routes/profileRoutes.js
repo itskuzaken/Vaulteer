@@ -958,4 +958,151 @@ router.put("/:uid/school-days", authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @route   PUT /api/profile/:uid/settings
+ * @desc    Update user settings (theme, notifications, etc.)
+ * @access  Private (Own profile only)
+ */
+router.put("/:uid/settings", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
+    const { settings } = req.body;
+
+    // Get requesting user
+    const requestingUser = await getUserFromFirebaseUid(req.firebaseUid);
+    if (!requestingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Only allow users to edit their own settings
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+
+    if (!isEditingOwnProfile) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to edit settings for this profile" });
+    }
+
+    // Validate settings object
+    if (!settings || typeof settings !== "object") {
+      return res.status(400).json({
+        error: "Settings must be a valid object",
+      });
+    }
+
+    // Get or create profile_id
+    let [profileRows] = await pool.query(
+      `SELECT profile_id, settings AS current_settings FROM user_profiles WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (profileRows.length === 0) {
+      // Create user_profiles entry if it doesn't exist
+      const [insertResult] = await pool.query(
+        `INSERT INTO user_profiles (user_id, settings) VALUES (?, ?)`,
+        [userId, JSON.stringify(settings)]
+      );
+      const profileId = insertResult.insertId;
+
+      return res.json({
+        success: true,
+        message: "Settings saved successfully",
+        data: { settings },
+      });
+    }
+
+    const profileId = profileRows[0].profile_id;
+    const currentSettings = profileRows[0].current_settings
+      ? JSON.parse(profileRows[0].current_settings)
+      : {};
+
+    // Merge new settings with existing settings
+    const mergedSettings = {
+      ...currentSettings,
+      ...settings,
+    };
+
+    // Update settings in user_profiles
+    await pool.query(
+      `UPDATE user_profiles SET settings = ? WHERE profile_id = ?`,
+      [JSON.stringify(mergedSettings), profileId]
+    );
+
+    res.json({
+      success: true,
+      message: "Settings updated successfully",
+      data: { settings: mergedSettings },
+    });
+  } catch (error) {
+    console.error("Error updating settings:", error);
+    res.status(500).json({ error: "Failed to update settings" });
+  }
+});
+
+/**
+ * @route   GET /api/profile/:uid/settings
+ * @desc    Get user settings
+ * @access  Private (Own profile only)
+ */
+router.get("/:uid/settings", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
+
+    // Get requesting user
+    const requestingUser = await getUserFromFirebaseUid(req.firebaseUid);
+    if (!requestingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Only allow users to view their own settings
+    const isViewingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+
+    if (!isViewingOwnProfile) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to view settings for this profile" });
+    }
+
+    // Get settings from user_profiles
+    const [profileRows] = await pool.query(
+      `SELECT settings FROM user_profiles WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (profileRows.length === 0 || !profileRows[0].settings) {
+      // Return default settings if none exist
+      return res.json({
+        success: true,
+        data: {
+          settings: {
+            theme: "system",
+            pushNotifications: {
+              enabled: false,
+            },
+            emailNotifications: true,
+          },
+        },
+      });
+    }
+
+    const settings = JSON.parse(profileRows[0].settings);
+
+    res.json({
+      success: true,
+      data: { settings },
+    });
+  } catch (error) {
+    console.error("Error fetching settings:", error);
+    res.status(500).json({ error: "Failed to fetch settings" });
+  }
+});
+
 module.exports = router;
