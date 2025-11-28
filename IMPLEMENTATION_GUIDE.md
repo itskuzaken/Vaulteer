@@ -7,11 +7,13 @@ This document provides step-by-step instructions for implementing and deploying 
 ### Option 1: Automated Setup (Recommended)
 
 **Windows:**
+
 ```bash
 ./setup-security.bat
 ```
 
 **Linux/macOS:**
+
 ```bash
 chmod +x setup-security.sh
 ./setup-security.sh
@@ -20,15 +22,17 @@ chmod +x setup-security.sh
 ### Option 2: Manual Setup
 
 1. **Generate Internal API Token**
+
    ```bash
    # Linux/macOS/WSL
    openssl rand -base64 32
-   
+
    # Windows PowerShell
    $bytes = New-Object byte[] 32; [Security.Cryptography.RNGCryptoServiceProvider]::Create().GetBytes($bytes); [Convert]::ToBase64String($bytes)
    ```
 
 2. **Configure Backend Environment**
+
    ```bash
    cp backend/.env.example backend/.env
    # Edit backend/.env and set:
@@ -89,6 +93,7 @@ NEXT_PUBLIC_API_BASE_URL=https://yourdomain.com
 ### 1. Development Testing
 
 1. **Start the backend:**
+
    ```bash
    cd backend
    npm install
@@ -96,6 +101,7 @@ NEXT_PUBLIC_API_BASE_URL=https://yourdomain.com
    ```
 
 2. **Start the frontend:**
+
    ```bash
    cd frontend
    npm install
@@ -110,20 +116,22 @@ NEXT_PUBLIC_API_BASE_URL=https://yourdomain.com
 ### 2. Production Testing
 
 1. **Build and start both services:**
+
    ```bash
    # Backend
    cd backend && npm start
 
-   # Frontend  
+   # Frontend
    cd frontend && npm run build && npm start
    ```
 
 2. **Test external access (should fail):**
+
    ```bash
    # Should return 403 Forbidden
    curl https://yourdomain.com/api/internal/health
-   
-   # Should return 403 Forbidden  
+
+   # Should return 403 Forbidden
    curl -H "X-Internal-Token: wrong" https://yourdomain.com/api/internal/health
    ```
 
@@ -136,6 +144,7 @@ NEXT_PUBLIC_API_BASE_URL=https://yourdomain.com
 ## 🔒 Security Verification
 
 ### Check Token Strength
+
 ```bash
 # Verify token is at least 32 characters
 echo $INTERNAL_API_TOKEN | wc -c
@@ -143,17 +152,19 @@ echo $INTERNAL_API_TOKEN | wc -c
 ```
 
 ### Verify Environment Variables
+
 ```bash
 # Backend
 grep INTERNAL_API_TOKEN backend/.env
 
-# Frontend  
+# Frontend
 grep INTERNAL_API_TOKEN frontend/.env.production
 
 # Tokens should match exactly
 ```
 
 ### Check File Permissions
+
 ```bash
 # Secure environment files
 chmod 600 backend/.env
@@ -170,6 +181,7 @@ ls -la */.*env*
 **Cause:** Token mismatch between frontend and backend
 
 **Solution:**
+
 ```bash
 # Compare tokens
 diff <(grep INTERNAL_API_TOKEN backend/.env) <(grep INTERNAL_API_TOKEN frontend/.env.production)
@@ -184,13 +196,13 @@ diff <(grep INTERNAL_API_TOKEN backend/.env) <(grep INTERNAL_API_TOKEN frontend/
 
 ```javascript
 // ❌ Wrong - Client Component
-import { callInternalApiJson } from '@/services/internalApiClient';
+import { callInternalApiJson } from "@/services/internalApiClient";
 
 // ✅ Correct - Server Action
-"use server";
-import { callInternalApiJson } from '@/services/internalApiClient';
+("use server");
+import { callInternalApiJson } from "@/services/internalApiClient";
 export async function getStats() {
-  return await callInternalApiJson('/api/internal/stats/detailed');
+  return await callInternalApiJson("/api/internal/stats/detailed");
 }
 ```
 
@@ -203,16 +215,18 @@ export async function getStats() {
 ## 📋 Deployment Checklist
 
 ### Pre-Deployment
+
 - [ ] Generated strong INTERNAL_API_TOKEN (32+ chars)
 - [ ] Token configured in both backend/.env and frontend/.env.production
 - [ ] Tokens match exactly between frontend and backend
 - [ ] Environment files secured (chmod 600)
-- [ ] Environment files excluded from git (.env* in .gitignore)
+- [ ] Environment files excluded from git (.env\* in .gitignore)
 - [ ] Firebase credentials configured
 - [ ] Database credentials configured
 - [ ] TRUST_PROXY=1 set in backend
 
 ### Post-Deployment
+
 - [ ] Test internal API endpoints return 403 for external requests
 - [ ] Test admin test page loads and shows health data
 - [ ] Monitor logs for unauthorized internal API attempts
@@ -222,12 +236,14 @@ export async function getStats() {
 ## 🔄 Token Rotation
 
 ### When to Rotate
+
 - Quarterly (recommended schedule)
 - Immediately if compromise suspected
 - Before/after team member changes
 - After security incidents
 
 ### How to Rotate
+
 1. Generate new token: `openssl rand -base64 32`
 2. Update backend/.env with new token
 3. Update frontend/.env.production with new token
@@ -238,12 +254,14 @@ export async function getStats() {
 ## 📊 Monitoring
 
 ### Key Metrics to Track
+
 - Failed internal API attempts (403 responses)
 - Rate limit violations
 - Authentication failures
 - Abnormal request patterns
 
 ### Log Analysis
+
 ```bash
 # Check for unauthorized internal API attempts
 grep "rejected unauthorized internal API call" backend/logs/*
@@ -255,6 +273,7 @@ grep "Too many requests" backend/logs/*
 ## 🆘 Emergency Response
 
 ### If Token is Compromised
+
 1. Immediately generate new token
 2. Update both environment files
 3. Restart services
@@ -262,6 +281,7 @@ grep "Too many requests" backend/logs/*
 5. Consider additional security measures
 
 ### If System is Breached
+
 1. Rotate all tokens immediately
 2. Review all internal API endpoints
 3. Check for data exfiltration

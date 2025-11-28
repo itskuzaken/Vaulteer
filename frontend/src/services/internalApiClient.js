@@ -102,10 +102,22 @@ async function checkInternalHealth() {
   });
 }
 
-module.exports = {
+// Export using both CommonJS and ES6 for compatibility
+export {
   callInternalApi,
   callInternalApiJson,
   getDetailedStats,
   refreshCache,
   checkInternalHealth,
 };
+
+// Also provide CommonJS exports for Node.js compatibility
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    callInternalApi,
+    callInternalApiJson,
+    getDetailedStats,
+    refreshCache,
+    checkInternalHealth,
+  };
+}
