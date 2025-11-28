@@ -2,11 +2,8 @@
 import { useState, useEffect } from "react";
 import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
 import { auth, googleProvider } from "../../../services/firebase";
-<<<<<<< HEAD
 import { API_BASE } from "../../../config/config";
-=======
 import { submitVolunteerApplication } from "../../../services/applicantsService";
->>>>>>> 6fa16d3b56a92d55d313b1769b495decc5524ee5
 
 export default function VolunteerSignupPage() {
   const [form, setForm] = useState({
@@ -50,8 +47,6 @@ export default function VolunteerSignupPage() {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
-<<<<<<< HEAD
-=======
   const [user, setUser] = useState(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -64,7 +59,6 @@ export default function VolunteerSignupPage() {
     });
     return () => unsubscribe();
   }, []);
->>>>>>> 6fa16d3b56a92d55d313b1769b495decc5524ee5
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -352,81 +346,6 @@ export default function VolunteerSignupPage() {
     setErrors({});
   };
 
-  // Final form submission logic
-  const doFinalSubmit = async () => {
-    setIsSubmitting(true);
-    setSubmitError(null);
-
-    try {
-      // Get current Firebase user
-      const currentUser = auth.currentUser;
-      if (!currentUser) {
-        throw new Error("You must be signed in to submit an application");
-      }
-
-      // Prepare user data
-      const userData = {
-        uid: currentUser.uid,
-        name: currentUser.displayName || `${form.firstName} ${form.lastName}`,
-        email: currentUser.email,
-      };
-
-      // Prepare form data
-      const formData = {
-        firstName: form.firstName,
-        middleInitial: form.middleInitial || null,
-        lastName: form.lastName,
-        nickname: form.nickname,
-        birthdate: form.birthdate,
-        gender: form.gender,
-        genderOther: form.genderOther || null,
-        consent: form.consent,
-        mobileNumber: form.mobileNumber,
-        city: form.city,
-        facebook: form.facebook || null,
-        twitter: form.twitter || null,
-        instagram: form.instagram || null,
-        tiktok: form.tiktok || null,
-        currentStatus: form.currentStatus,
-        declarationCommitment: form.declarationCommitment,
-        volunteerReason: form.volunteerReason,
-        volunteerFrequency: form.volunteerFrequency,
-        volunteerRoles: form.volunteerRoles || [],
-        volunteerDays: form.volunteerDays || [],
-        volunteerTrainings: form.volunteerTrainings || [],
-        // Work profile fields (only if currentStatus is "Working Professional")
-        position: form.position || null,
-        industry: form.industry || null,
-        company: form.company || null,
-        workShift: form.workShift || null,
-        workOtherSkills: form.workOtherSkills || null,
-        workingDays: form.workingDays || [],
-        // Student profile fields (only if currentStatus is "Student")
-        school: form.school || null,
-        course: form.course || null,
-        graduation: form.graduation || null,
-        studentOtherSkills: form.studentOtherSkills || null,
-        schoolDays: form.schoolDays || [],
-      };
-
-      // Submit to backend using service
-      const result = await submitVolunteerApplication(userData, formData);
-
-      // Clear localStorage on success
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("volunteerForm");
-      }
-
-      // Show success message
-      setSubmitted(true);
-    } catch (error) {
-      console.error("Error submitting application:", error);
-      setSubmitError(error.message);
-      setIsSubmitting(false);
-    }
-  };
-
-<<<<<<< HEAD
   // Final form submission logic (after Google sign-in)
   const doFinalSubmit = async () => {
     setIsSubmitting(true);
@@ -439,68 +358,15 @@ export default function VolunteerSignupPage() {
         throw new Error("You must be signed in to submit an application");
       }
 
-      // Prepare user data
-      const userData = {
-        uid: currentUser.uid,
-        name: currentUser.displayName || `${form.firstName} ${form.lastName}`,
-        email: currentUser.email,
-      };
-
-      // Prepare form data
-      const formData = {
-        firstName: form.firstName,
-        middleInitial: form.middleInitial || null,
-        lastName: form.lastName,
-        nickname: form.nickname,
-        birthdate: form.birthdate,
-        gender: form.gender,
-        genderOther: form.genderOther || null,
-        consent: form.consent,
-        mobileNumber: form.mobileNumber,
-        city: form.city,
-        facebook: form.facebook || null,
-        twitter: form.twitter || null,
-        instagram: form.instagram || null,
-        tiktok: form.tiktok || null,
-        currentStatus: form.currentStatus,
-        declarationCommitment: form.declarationCommitment,
-        volunteerReason: form.volunteerReason,
-        volunteerFrequency: form.volunteerFrequency,
-        volunteerRoles: form.volunteerRoles || [],
-        volunteerDays: form.volunteerDays || [],
-        volunteerTrainings: form.volunteerTrainings || [],
-        // Work profile fields (only if currentStatus is "Working Professional")
-        position: form.position || null,
-        industry: form.industry || null,
-        company: form.company || null,
-        workShift: form.workShift || null,
-        workOtherSkills: form.workOtherSkills || null,
-        workingDays: form.workingDays || [],
-        // Student profile fields (only if currentStatus is "Student")
-        school: form.school || null,
-        course: form.course || null,
-        graduation: form.graduation || null,
-        studentOtherSkills: form.studentOtherSkills || null,
-        schoolDays: form.schoolDays || [],
-      };
-
-      // Submit to backend
-      const response = await fetch(`${API_BASE}/applicants`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // Use the applicantsService instead of direct fetch
+      const result = await submitVolunteerApplication(
+        {
+          uid: currentUser.uid,
+          name: currentUser.displayName || `${form.firstName} ${form.lastName}`,
+          email: currentUser.email,
         },
-        body: JSON.stringify({
-          user: userData,
-          form: formData,
-        }),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        throw new Error(result.error || "Failed to submit application");
-      }
+        form
+      );
 
       // Clear localStorage on success
       if (typeof window !== "undefined") {
@@ -516,8 +382,6 @@ export default function VolunteerSignupPage() {
     }
   };
 
-=======
->>>>>>> 6fa16d3b56a92d55d313b1769b495decc5524ee5
   // Only show modal on final submit
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -1841,13 +1705,9 @@ export default function VolunteerSignupPage() {
                       ? "opacity-50 cursor-not-allowed"
                       : ""
                   }`}
-<<<<<<< HEAD
-                  disabled={form.declarationCommitment !== "agree" || isSubmitting}
-=======
                   disabled={
                     form.declarationCommitment !== "agree" || isSubmitting
                   }
->>>>>>> 6fa16d3b56a92d55d313b1769b495decc5524ee5
                 >
                   {isSubmitting ? "Submitting..." : "Submit"}
                 </button>
