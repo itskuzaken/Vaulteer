@@ -34,7 +34,7 @@ const adminMainRoutes = {
   },
   settings: {
     label: "Settings",
-    defaultSub: "user-settings",
+    component: UserSettings,
   },
   "manage-events": {
     label: "Manage Events",
@@ -133,24 +133,9 @@ const adminSubRoutes = {
     component: AdminViewAllStaff,
     withNavigate: true,
   },
-  "user-settings": {
-    key: "user-settings",
-    label: "General Settings",
-    parent: "settings",
-    component: UserSettings,
-  },
-  appearance: {
-    key: "appearance",
-    label: "Appearance",
-    parent: "settings",
-    component: Appearance,
-  },
-  "user-account-settings": {
-    key: "user-account-settings",
-    label: "User & Account Settings",
-    parent: "settings",
-    component: UserAccountSettings,
-  },
+  // Settings are a single combined page (UserSettings); individual setting
+  // sub-routes like 'appearance' and 'user-account-settings' have been
+  // consolidated into the top-level settings page.
 };
 
 export default function AdminDashboardPage({

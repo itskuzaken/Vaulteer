@@ -1,8 +1,12 @@
 "use client";
 
 import { useTheme } from "@/hooks/useTheme";
-import SettingSection from "./SettingSection";
-import { IoSunnyOutline, IoMoonOutline, IoPhonePortraitOutline } from "react-icons/io5";
+// SettingSection removed - content is embedded directly in UserSettings
+import {
+  IoSunnyOutline,
+  IoMoonOutline,
+  IoPhonePortraitOutline,
+} from "react-icons/io5";
 
 export default function Appearance() {
   const { theme, setTheme, themes } = useTheme();
@@ -29,10 +33,7 @@ export default function Appearance() {
   ];
 
   return (
-    <SettingSection
-      title="Appearance"
-      description="Customize how Vaulteer looks on your device"
-    >
+    <div className="space-y-4">
       <div className="space-y-3">
         <label className="text-sm font-medium text-gray-900 dark:text-white">
           Theme
@@ -84,9 +85,7 @@ export default function Appearance() {
 
       {/* Preview indicator */}
       <div className="mt-4 p-4 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-          Preview
-        </p>
+        <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">Preview</p>
         <div className="flex items-center gap-2">
           <div className="w-12 h-12 rounded-lg bg-gray-100 dark:bg-gray-700" />
           <div className="flex-1 space-y-2">
@@ -95,6 +94,6 @@ export default function Appearance() {
           </div>
         </div>
       </div>
-    </SettingSection>
+    </div>
   );
 }
