@@ -66,8 +66,9 @@ export default function DashboardRouteRenderer({
   const subRoute = currentSub ? subRoutes[currentSub] : null;
 
   const resolvedSettingsRoute = useMemo(() => {
+    // Default settings route now goes to a single user settings page without subcontent.
     if (settingsRoute === undefined) {
-      return { content: "settings", subContent: "general-settings" };
+      return { content: "settings" };
     }
     return settingsRoute;
   }, [settingsRoute]);

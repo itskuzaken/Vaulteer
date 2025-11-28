@@ -605,6 +605,20 @@ class EventRepository {
     return rows.length > 0;
   }
 
+  async getParticipantStatus(eventUid, userId) {
+    const event = await this.getEventByUid(eventUid);
+    if (!event) return null;
+
+    const [rows] = await getPool().execute(
+      `SELECT status FROM event_participants 
+       WHERE event_id = ? AND user_id = ? AND status IN ('registered', 'waitlisted')
+       LIMIT 1`,
+      [event.event_id, userId]
+    );
+
+    return rows.length > 0 ? rows[0].status : null;
+  }
+
   async getParticipantCount(eventUid) {
     const event = await this.getEventByUid(eventUid);
     if (!event) return 0;

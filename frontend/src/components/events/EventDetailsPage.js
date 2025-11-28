@@ -694,11 +694,17 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
                   % capacity filled
                 </p>
               )}
+              {eventData.waitlist_count > 0 && (
+                <p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+                  {eventData.waitlist_count} on waitlist
+                </p>
+              )}
             </div>
             {eventData.status === "published" && (
               <JoinEventButton
                 event={eventData}
                 isRegistered={eventData.is_registered}
+                participationStatus={eventData.participation_status}
                 onStatusChange={mutatingParticipantCount}
               />
             )}
