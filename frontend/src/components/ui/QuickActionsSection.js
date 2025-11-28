@@ -29,6 +29,25 @@ export default function QuickActionsSection({
 
   // keep a current index ref so auto-advance knows which child to show next
   const currentIndexRef = useRef(0);
+  // when component triggers a programmatic smooth scroll (auto-advance or dot click)
+  // we don't want the indicator to update prematurely while smooth scrolling is in progress.
+  const programmaticScrollRef = useRef(false);
+
+  // Helper: scroll the container horizontally so the child with index `idx` is centered
+  const scrollToIndex = (idx) => {
+    const container = containerRef.current;
+    const el = childRefs.current[idx];
+    if (!container || !el) return;
+    try {
+      // mark that this scroll was initiated programmatically
+      programmaticScrollRef.current = true;
+      const target =
+        el.offsetLeft + el.offsetWidth / 2 - container.clientWidth / 2;
+      container.scrollTo({ left: Math.max(0, target), behavior: "smooth" });
+    } catch (err) {
+      // ignore
+    }
+  };
 
   // Track viewport width to enable auto-scroll only on smaller (mobile) screens
   useEffect(() => {
@@ -74,15 +93,10 @@ export default function QuickActionsSection({
     const advance = () => {
       try {
         currentIndexRef.current = (currentIndexRef.current + 1) % childCount;
+        // When auto-advancing programmatically, update the visible indicator
+        // immediately so the dots remain visually in sync with the motion.
         setActiveIndex(currentIndexRef.current);
-        const el = childRefs.current[currentIndexRef.current];
-        if (el && el.scrollIntoView) {
-          el.scrollIntoView({
-            behavior: "smooth",
-            inline: "center",
-            block: "nearest",
-          });
-        }
+        scrollToIndex(currentIndexRef.current);
       } catch (err) {
         // swallow errors to avoid noisy logs
       }
@@ -94,30 +108,49 @@ export default function QuickActionsSection({
 
     // if user manually scrolls, briefly pause auto-advance and update current index
     const onScroll = () => {
+      // always pause auto-advance while there's user activity
       setIsPaused(true);
       if (scrollTimeout) clearTimeout(scrollTimeout);
+
+      const container = containerRef.current;
+      if (!container) return;
+      const containerRect = container.getBoundingClientRect();
+      let bestIdx = 0;
+      let bestDist = Infinity;
+
+      childRefs.current.forEach((child, idx) => {
+        if (!child) return;
+        const rect = child.getBoundingClientRect();
+        const childCenter = rect.left + rect.width / 2;
+        const center = containerRect.left + containerRect.width / 2;
+        const d = Math.abs(childCenter - center);
+        if (d < bestDist) {
+          bestDist = d;
+          bestIdx = idx;
+        }
+      });
+
+      // update the current index always (keeps internal ref correct).
+      currentIndexRef.current = bestIdx;
+
+      // If this scroll event was triggered by the UI (user) then update the indicator
+      // immediately to keep the dots in sync with the moving cards. If the scroll
+      // was programmatic (auto-advance / dot click), delay the visual indicator
+      // update until scrolling settles to avoid the indicator moving ahead of the
+      // centered card.
+      if (!programmaticScrollRef.current) {
+        setActiveIndex(bestIdx);
+      }
+
+      // After scrolling settles, clear paused state and clear the programmatic flag.
       scrollTimeout = setTimeout(() => {
         setIsPaused(false);
-        // refresh current index to nearest centered child
-        const container = containerRef.current;
-        if (!container) return;
-        const containerRect = container.getBoundingClientRect();
-        let bestIdx = 0;
-        let bestDist = Infinity;
-        childRefs.current.forEach((child, idx) => {
-          if (!child) return;
-          const rect = child.getBoundingClientRect();
-          const childCenter = rect.left + rect.width / 2;
-          const center = containerRect.left + containerRect.width / 2;
-          const d = Math.abs(childCenter - center);
-          if (d < bestDist) {
-            bestDist = d;
-            bestIdx = idx;
-          }
-        });
-        currentIndexRef.current = bestIdx;
-        setActiveIndex(bestIdx);
-      }, 250);
+        // if programmatic scrolling was in progress, now we can update the visible indicator.
+        if (programmaticScrollRef.current) {
+          setActiveIndex(currentIndexRef.current);
+        }
+        programmaticScrollRef.current = false;
+      }, 150);
     };
 
     const container = containerRef.current;
@@ -182,15 +215,11 @@ export default function QuickActionsSection({
               key={idx}
               onClick={() => {
                 const el = childRefs.current[idx];
-                if (el && el.scrollIntoView) {
+                if (el) {
                   // ensure the index updates as we jump
                   currentIndexRef.current = idx;
                   setActiveIndex(idx);
-                  el.scrollIntoView({
-                    behavior: "smooth",
-                    inline: "center",
-                    block: "nearest",
-                  });
+                  scrollToIndex(idx);
                 }
               }}
               aria-label={`Go to quick action ${idx + 1}`}

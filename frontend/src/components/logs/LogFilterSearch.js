@@ -88,14 +88,14 @@ export default function LogFilterSearch({
   return (
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3 shadow-sm">
       <div className="flex flex-row md:flex-wrap md:items-center gap-3">
-        <div className="relative flex-1 min-w-[5rem] md:min-w-[20rem]">
+        <div className="relative flex-1 min-w-[4rem] sm:min-w-[12rem] md:min-w-[20rem]">
           <IoSearchOutline className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
           <input
             type="text"
             value={filters.search || ""}
             onChange={handleSearchChange}
             placeholder={config.searchPlaceholder}
-            className="w-full min-w-0 pl-10 pr-12 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+            className="w-full min-w-0 pl-10 pr-12 py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent transition text-xs sm:text-sm"
           />
           {filters.search && filters.search.trim() ? (
             <button
@@ -120,7 +120,7 @@ export default function LogFilterSearch({
             <button
               type="button"
               onClick={onReset}
-              className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition"
+              className="inline-flex items-center gap-2 px-2 py-2 rounded-lg border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 transition text-xs"
             >
               <IoRefreshOutline className="w-4 h-4" />
               Clear All
@@ -129,7 +129,7 @@ export default function LogFilterSearch({
           <button
             type="button"
             onClick={toggleFilters}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition"
+            className="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 transition text-xs sm:text-sm"
           >
             <IoFilterOutline className="w-5 h-5" />
             Filters
@@ -147,7 +147,7 @@ export default function LogFilterSearch({
           {activeChips.map((chip) => (
             <span
               key={chip.key}
-              className="inline-flex items-center gap-2 px-3 py-1 text-xs font-medium rounded-full bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+              className="inline-flex items-center gap-2 px-2 py-1 text-xs font-medium rounded-full bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
             >
               {chip.label}
               <button

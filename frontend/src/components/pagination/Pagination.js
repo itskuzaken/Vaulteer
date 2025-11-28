@@ -90,14 +90,16 @@ const Pagination = memo(function Pagination({
     onPageChange(page);
   };
 
+  // compact on very small mobile: smaller diameter + min-width and text; larger on sm+
+  // h-8 can feel slightly large on tiny phones; use h-7 and small min-width for very compact circles
   const sharedButtonClasses =
-    "relative inline-flex items-center justify-center h-10 min-w-[2.5rem] rounded-full border text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+    "relative inline-flex items-center justify-center h-7 min-w-[1.4rem] sm:h-10 sm:min-w-[2.5rem] rounded-full border text-[10px] sm:text-sm font-medium transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 
   const numberButtonClasses =
     "data-[inactive=true]:bg-white data-[inactive=true]:dark:bg-gray-900 data-[inactive=true]:text-gray-600 data-[inactive=true]:dark:text-gray-300 data-[inactive=true]:border-gray-200 data-[inactive=true]:dark:border-gray-700 hover:data-[inactive=true]:border-gray-400 hover:data-[inactive=true]:text-gray-900 hover:data-[inactive=true]:dark:text-white hover:data-[inactive=true]:-translate-y-0.5";
 
   const controlButtonClasses =
-    "px-4 gap-2 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:border-gray-400 hover:text-gray-900 hover:dark:text-white";
+    "px-2 gap-2 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-200 border border-gray-200 dark:border-gray-700 hover:border-gray-400 hover:text-gray-900 hover:dark:text-white text-sm";
 
   const accentStyles = { outlineColor: accentColor };
 
@@ -110,7 +112,7 @@ const Pagination = memo(function Pagination({
       <div className="sr-only" aria-live="polite">
         {pageDescriptor}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-1">
         <button
           type="button"
           className={`${sharedButtonClasses} ${controlButtonClasses}`}
@@ -137,7 +139,7 @@ const Pagination = memo(function Pagination({
           <span className="hidden sm:inline">{previousLabel}</span>
         </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           {pages.map((pageNumber) => {
             const isActive = pageNumber === safeCurrentPage;
             return (

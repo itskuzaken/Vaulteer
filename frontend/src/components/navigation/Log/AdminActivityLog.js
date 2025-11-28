@@ -19,6 +19,7 @@ import {
 } from "../../../services/activityLogService";
 import Pagination from "../../pagination/Pagination";
 import LogFilterSearch from "../../logs/LogFilterSearch";
+import LogItemCompact from "../../logs/LogItemCompact";
 import { useLogFiltersState } from "../../../hooks/useLogFiltersState";
 import { createLogQueryParams } from "../../../utils/logFilters";
 
@@ -406,7 +407,7 @@ export default function AdminActivityLog() {
         isBusy={pageLoading}
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <div className="text-sm text-gray-600 dark:text-gray-400">
             Total Logs
@@ -468,78 +469,13 @@ export default function AdminActivityLog() {
                       key={log.log_id}
                       className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                     >
-                      <div className="flex items-start gap-4">
-                        <div
-                          className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-700 ${
-                            LOG_TYPES[log.type]?.color || "text-gray-600"
-                          }`}
-                        >
-                          {getLogIcon(log.type)}
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-medium text-gray-900 dark:text-white">
-                                {log.action}
-                              </span>
-                              <span
-                                className={`text-xs px-2 py-0.5 rounded-full border ${
-                                  SEVERITY_COLORS[log.severity] ||
-                                  SEVERITY_COLORS.INFO
-                                }`}
-                              >
-                                {log.severity}
-                              </span>
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                                {LOG_TYPES[log.type]?.label || log.type}
-                              </span>
-                            </div>
-                            <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                              {formatTimestamp(log.created_at, log.metadata)}
-                            </span>
-                          </div>
-
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            {log.description}
-                          </p>
-
-                          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
-                            <span className="flex items-center gap-1">
-                              <IoPersonOutline className="w-4 h-4" />
-                              {log.performed_by_name} ({log.performed_by_role})
-                            </span>
-                            {log.ip_address && (
-                              <span className="flex items-center gap-1">
-                                IP: {log.ip_address}
-                              </span>
-                            )}
-                            {log.metadata &&
-                              typeof log.metadata === "object" &&
-                              log.metadata.localTime && (
-                                <span className="flex items-center gap-1">
-                                  <IoTimeOutline className="w-4 h-4" />
-                                  {log.metadata.localTime}
-                                </span>
-                              )}
-                          </div>
-
-                          {log.changes && typeof log.changes === "object" ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {Object.entries(log.changes).map(
-                                ([key, value]) => (
-                                  <span
-                                    key={key}
-                                    className="text-xs px-2 py-1 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded"
-                                  >
-                                    {key}: {String(value)}
-                                  </span>
-                                )
-                              )}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
+                      <LogItemCompact
+                        log={log}
+                        getLogIcon={getLogIcon}
+                        formatTimestamp={formatTimestamp}
+                        LOG_TYPES={LOG_TYPES}
+                        SEVERITY_COLORS={SEVERITY_COLORS}
+                      />
                     </div>
                   ))}
                   {pageLoading && (

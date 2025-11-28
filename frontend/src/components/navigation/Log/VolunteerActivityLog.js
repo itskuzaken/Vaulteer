@@ -19,6 +19,7 @@ import {
 } from "../../../services/activityLogService";
 import Pagination from "../../pagination/Pagination";
 import LogFilterSearch from "../../logs/LogFilterSearch";
+import LogItemCompact from "../../logs/LogItemCompact";
 import { useLogFiltersState } from "../../../hooks/useLogFiltersState";
 import { createLogQueryParams } from "../../../utils/logFilters";
 
@@ -424,67 +425,13 @@ export default function VolunteerActivityLog() {
                 key={log.log_id}
                 className="p-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
               >
-                <div className="flex items-start gap-4">
-                  <div
-                    className={`p-2 rounded-lg bg-gray-100 dark:bg-gray-700 ${
-                      LOG_TYPES[log.type]?.color || "text-gray-600"
-                    }`}
-                  >
-                    {getLogIcon(log.type)}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {log.action}
-                        </span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
-                          {LOG_TYPES[log.type]?.label || log.type}
-                        </span>
-                        {log.status === "success" || log.severity === "INFO" ? (
-                          <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 flex items-center gap-1">
-                            <IoCheckmarkCircleOutline className="w-3 h-3" />
-                            Completed
-                          </span>
-                        ) : null}
-                      </div>
-                      <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                        {formatTimestamp(log.created_at, log.metadata)}
-                      </span>
-                    </div>
-
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                      {log.description}
-                    </p>
-
-                    {log.metadata && typeof log.metadata === "object" && (
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        {log.metadata.localTime && (
-                          <span className="px-2 py-1 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded flex items-center gap-1">
-                            <IoTimeOutline className="w-3 h-3" />
-                            {log.metadata.localTime}
-                          </span>
-                        )}
-                        {log.metadata.hours && (
-                          <span className="px-2 py-1 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 rounded">
-                            {log.metadata.hours} hours
-                          </span>
-                        )}
-                        {log.metadata.location && (
-                          <span className="px-2 py-1 bg-gray-50 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded">
-                            Location: {log.metadata.location}
-                          </span>
-                        )}
-                        {log.certificate && (
-                          <span className="px-2 py-1 bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-400 rounded">
-                            Certificate Earned
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <LogItemCompact
+                  log={log}
+                  getLogIcon={getLogIcon}
+                  formatTimestamp={formatTimestamp}
+                  LOG_TYPES={LOG_TYPES}
+                  SEVERITY_COLORS={{}}
+                />
               </div>
             ))}
             {pageLoading && (
