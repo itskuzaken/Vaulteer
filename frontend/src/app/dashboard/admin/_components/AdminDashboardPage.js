@@ -16,9 +16,7 @@ import ViewAllStaff from "../../../../components/navigation/Staff/ViewAllStaff";
 import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
-import GeneralSettings from "../../../../components/navigation/Settings/GeneralSettings";
-import Appearance from "../../../../components/navigation/Settings/Appearance";
-import UserAccountSettings from "../../../../components/navigation/Settings/UserAccountSettings";
+import UserSettings from "../../../../components/navigation/Settings/UserSettings";
 
 const adminMainRoutes = {
   dashboard: {
@@ -36,7 +34,7 @@ const adminMainRoutes = {
   },
   settings: {
     label: "Settings",
-    defaultSub: "general-settings",
+    component: UserSettings,
   },
   "manage-events": {
     label: "Manage Events",
@@ -135,24 +133,9 @@ const adminSubRoutes = {
     component: AdminViewAllStaff,
     withNavigate: true,
   },
-  "general-settings": {
-    key: "general-settings",
-    label: "General Settings",
-    parent: "settings",
-    component: GeneralSettings,
-  },
-  appearance: {
-    key: "appearance",
-    label: "Appearance",
-    parent: "settings",
-    component: Appearance,
-  },
-  "user-account-settings": {
-    key: "user-account-settings",
-    label: "User & Account Settings",
-    parent: "settings",
-    component: UserAccountSettings,
-  },
+  // Settings are a single combined page (UserSettings); individual setting
+  // sub-routes like 'appearance' and 'user-account-settings' have been
+  // consolidated into the top-level settings page.
 };
 
 export default function AdminDashboardPage({

@@ -7,29 +7,45 @@ import { useNotify } from "../ui/NotificationProvider";
 export default function JoinEventButton({
   event,
   isRegistered: initialIsRegistered,
+  participationStatus: initialParticipationStatus,
   onStatusChange,
 }) {
-  const [isRegistered, setIsRegistered] = useState(initialIsRegistered);
+  // Use participationStatus if provided, otherwise fall back to isRegistered boolean
+  const [participationStatus, setParticipationStatus] = useState(
+    initialParticipationStatus || (initialIsRegistered ? "registered" : null)
+  );
   const [isLoading, setIsLoading] = useState(false);
   const notify = useNotify();
 
   useEffect(() => {
-    setIsRegistered(initialIsRegistered);
-  }, [initialIsRegistered]);
+    if (initialParticipationStatus !== undefined) {
+      setParticipationStatus(initialParticipationStatus);
+    } else {
+      setParticipationStatus(initialIsRegistered ? "registered" : null);
+    }
+  }, [initialIsRegistered, initialParticipationStatus]);
+
+  // Derive boolean states from participation status
+  const isRegistered = participationStatus === "registered";
+  const isWaitlisted = participationStatus === "waitlisted";
 
   const handleJoin = async () => {
     try {
       setIsLoading(true);
       const response = await joinEvent(event.uid);
 
-      setIsRegistered(true);
+      // Update participation status based on server response
+      const newStatus = response.data?.status || "registered";
+      setParticipationStatus(newStatus);
+      
       notify?.push(
-        response.message || "Successfully joined the event",
+        response.message || 
+        (newStatus === "waitlisted" ? "Added to waitlist" : "Successfully joined the event"),
         "success"
       );
 
       if (onStatusChange) {
-        onStatusChange(true);
+        onStatusChange(newStatus === "registered");
       }
     } catch (error) {
       console.error("Error joining event:", error);
@@ -40,7 +56,11 @@ export default function JoinEventButton({
   };
 
   const handleLeave = async () => {
-    if (!confirm("Are you sure you want to leave this event?")) {
+    const confirmMessage = isWaitlisted
+      ? "Are you sure you want to leave the waitlist?"
+      : "Are you sure you want to leave this event?";
+    
+    if (!confirm(confirmMessage)) {
       return;
     }
 
@@ -48,9 +68,10 @@ export default function JoinEventButton({
       setIsLoading(true);
       const response = await leaveEvent(event.uid);
 
-      setIsRegistered(false);
+      setParticipationStatus(null);
       notify?.push(
-        response.message || "Successfully left the event",
+        response.message || 
+        (isWaitlisted ? "Successfully left the waitlist" : "Successfully left the event"),
         "success"
       );
 
@@ -101,6 +122,20 @@ export default function JoinEventButton({
     );
   }
 
+  // If user is on waitlist
+  if (isWaitlisted) {
+    return (
+      <button
+        onClick={handleLeave}
+        disabled={isLoading}
+        className="w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-amber-600 hover:bg-amber-700 text-white"
+      >
+        {isLoading ? "Processing..." : "Leave Waitlist"}
+      </button>
+    );
+  }
+
+  // If user is registered
   if (isRegistered) {
     return (
       <button
@@ -121,10 +156,11 @@ export default function JoinEventButton({
     );
   }
 
+  // Not registered or waitlisted - allow joining
   return (
     <button
       onClick={handleJoin}
-      disabled={isLoading || isFull}
+      disabled={isLoading}
       className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
         isFull
           ? "bg-amber-500 hover:bg-amber-600 text-white"
