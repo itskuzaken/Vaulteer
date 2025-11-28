@@ -56,5 +56,9 @@ backend/firebase-service-account.json
 /document/
 docs
 AWS_DEPLOYMENT_INSTRUCTIONS.md
-HYBRID_API_SECURITY.md
-.gitignore
+# HYBRID_API_SECURITY.md - Keep this for documentation
+# .gitignore - Don't ignore this file itself
+
+# Security setup scripts (keep)
+!setup-security.sh
+!setup-security.bat

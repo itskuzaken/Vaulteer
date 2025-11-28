@@ -151,6 +151,11 @@ app.get("/api", (req, res) => {
   res.json({
     message: "Vaulteer API",
     version: "1.0.0",
+    security: {
+      model: "Hybrid Authentication",
+      publicRoutes: "Protected by Firebase ID tokens",
+      internalRoutes: "Server-only access with secret token",
+    },
     endpoints: {
       health: "/api/health",
       me: "/api/me",
@@ -161,6 +166,7 @@ app.get("/api", (req, res) => {
       profile: "/api/profile",
       notifications: "/api/notifications",
       events: "/api/events",
+      gamification: "/api/gamification",
     },
     time: new Date().toISOString(),
   });
