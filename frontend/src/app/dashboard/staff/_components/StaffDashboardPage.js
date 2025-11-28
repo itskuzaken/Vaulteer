@@ -33,7 +33,7 @@ const staffMainRoutes = {
   },
   settings: {
     label: "Settings",
-    defaultSub: "user-settings",
+    component: UserSettings,
   },
   "manage-events": {
     label: "Manage Events",
@@ -121,12 +121,7 @@ const staffSubRoutes = {
     component: StaffApplicationApproval,
     withNavigate: true,
   },
-  "user-settings": {
-    key: "user-settings",
-    label: "Settings",
-    parent: "settings",
-    component: UserSettings,
-  },
+  // 'user-settings' sub-route removed - settings are a single combined page
 };
 
 export default function StaffDashboardPage({
