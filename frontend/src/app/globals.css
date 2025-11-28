@@ -560,6 +560,28 @@ body {
   }
 }
 
+/* Compact log item helpers - used to make logs match dashboard compact style on mobile */
+.log-compact .log-action {
+  font-size: 0.75rem; /* 12px */
+}
+.log-compact .log-desc {
+  font-size: 0.75rem; /* 12px */
+  line-height: 1.2;
+}
+.log-compact .log-meta,
+.log-compact .log-chip {
+  font-size: 0.65rem; /* ~10.5px */
+}
+.log-compact .icon-container {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+}
+.log-compact .compact-badge {
+  padding: 0.15rem 0.4rem; /* smaller chip */
+  border-radius: 0.45rem;
+}
+
 /* Tablet optimizations */
 @media (min-width: 768px) and (max-width: 1023px) {
   /* Auto-collapse sidebar for better content space */
