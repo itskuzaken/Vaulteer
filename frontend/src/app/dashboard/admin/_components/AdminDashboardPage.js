@@ -11,7 +11,7 @@ import ArchivedPosts from "../../../../components/navigation/Post/ArchivedPosts"
 import ScheduledPosts from "../../../../components/navigation/Post/ScheduledPosts";
 import CreateAnnouncement from "../../../../components/navigation/Post/CreateAnnouncement";
 import ManageVolunteer from "../../../../components/navigation/Volunteer/ManageVolunteer";
-import ManageApplications from "../../../../components/navigation/Volunteer/ManageApplications";
+import ManageApplications from "../../../../components/navigation/Application/ManageApplications";
 import ManageStaff from "../../../../components/navigation/Staff/ManageStaff";
 import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
@@ -76,10 +76,7 @@ function AdminViewAllStaff(props) {
 
 function AdminApplicationApproval(props) {
   return (
-    <ManageApplications
-      profileBasePath="/dashboard/admin/profile"
-      {...props}
-    />
+    <ManageApplications profileBasePath="/dashboard/admin/profile" {...props} />
   );
 }
 
