@@ -60,27 +60,17 @@ const adminMenu = {
   "manage-volunteer": {
     label: "Manage Volunteer",
     icon: IoPeopleOutline,
-    defaultSubSection: "view-all-volunteers",
-    subSections: [
-      {
-        key: "view-all-volunteers",
-        label: "View All Volunteers",
-        icon: IoEyeOutline,
-      },
-      {
-        key: "application-approval",
-        label: "Application Approval",
-        icon: IoCheckmarkCircleOutline,
-      },
-    ],
+    subSections: [],
   },
   "manage-staff": {
     label: "Manage Staff",
     icon: IoPersonOutline,
-    defaultSubSection: "view-all-staff",
-    subSections: [
-      { key: "view-all-staff", label: "View All Staff", icon: IoPeopleOutline },
-    ],
+    subSections: [],
+  },
+  "manage-applications": {
+    label: "Manage Applications",
+    icon: IoCheckmarkCircleOutline,
+    subSections: [],
   },
   "manage-events": {
     label: "Manage Events",
@@ -139,19 +129,12 @@ const staffMenu = {
   "manage-volunteer": {
     label: "Manage Volunteer",
     icon: IoPeopleOutline,
-    defaultSubSection: "view-all-volunteers",
-    subSections: [
-      {
-        key: "view-all-volunteers",
-        label: "View All Volunteers",
-        icon: IoEyeOutline,
-      },
-      {
-        key: "application-approval",
-        label: "Application Approval",
-        icon: IoCheckmarkCircleOutline,
-      },
-    ],
+    subSections: [],
+  },
+  "manage-applications": {
+    label: "Manage Applications",
+    icon: IoCheckmarkCircleOutline,
+    subSections: [],
   },
   "manage-events": {
     label: "Manage Events",
