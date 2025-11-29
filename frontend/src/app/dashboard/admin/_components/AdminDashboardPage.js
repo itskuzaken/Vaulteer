@@ -10,9 +10,9 @@ import PublishedPosts from "../../../../components/navigation/Post/PublishedPost
 import ArchivedPosts from "../../../../components/navigation/Post/ArchivedPosts";
 import ScheduledPosts from "../../../../components/navigation/Post/ScheduledPosts";
 import CreateAnnouncement from "../../../../components/navigation/Post/CreateAnnouncement";
-import ViewAllVolunteers from "../../../../components/navigation/Volunteer/ViewAllVolunteers";
-import ApplicationApproval from "../../../../components/navigation/Volunteer/ApplicationApproval";
-import ViewAllStaff from "../../../../components/navigation/Staff/ViewAllStaff";
+import ManageVolunteer from "../../../../components/navigation/Volunteer/ManageVolunteer";
+import ManageApplications from "../../../../components/navigation/Volunteer/ManageApplications";
+import ManageStaff from "../../../../components/navigation/Staff/ManageStaff";
 import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
@@ -66,17 +66,17 @@ const adminMainRoutes = {
 
 function AdminViewAllVolunteers(props) {
   return (
-    <ViewAllVolunteers profileBasePath="/dashboard/admin/profile" {...props} />
+    <ManageVolunteer profileBasePath="/dashboard/admin/profile" {...props} />
   );
 }
 
 function AdminViewAllStaff(props) {
-  return <ViewAllStaff profileBasePath="/dashboard/admin/profile" {...props} />;
+  return <ManageStaff profileBasePath="/dashboard/admin/profile" {...props} />;
 }
 
 function AdminApplicationApproval(props) {
   return (
-    <ApplicationApproval
+    <ManageApplications
       profileBasePath="/dashboard/admin/profile"
       {...props}
     />

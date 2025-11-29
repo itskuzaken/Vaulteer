@@ -1,37 +1,84 @@
-"use client";
-
-import { useEffect, useState, useRef, useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getAllApplicants } from "../../../services/applicantsService";
 import { searchUsersByRoleAndName } from "../../../services/searchService";
 import { useFilteredAndSortedUsers } from "../../../hooks/useFilters";
-import { createUserCard } from "../../card/UserCard";
 import { SkeletonList } from "../../ui/SkeletonList";
-import Pagination from "../../pagination/Pagination";
+import { createUserCard } from "../../card/UserCard";
 import LogFilterSearch from "../../logs/LogFilterSearch";
+import Pagination from "../../pagination/Pagination";
 import { useLogFiltersState } from "../../../hooks/useLogFiltersState";
 
 const ITEMS_PER_PAGE = 9;
 
 const STATUS_OPTIONS = [
-  { value: "", label: "All Statuses" },
-  { value: "active", label: "Active" },
-  { value: "inactive", label: "Inactive" },
-  { value: "deactivated", label: "Deactivated" },
+  { value: "", label: "All statuses" },
+  { value: "pending", label: "Pending" },
+  { value: "under_review", label: "Under Review" },
+  { value: "interview_scheduled", label: "Interview Scheduled" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
 ];
 
 const SORT_OPTIONS = [
-  { value: "date_desc", label: "Date Added - Newest" },
-  { value: "date_asc", label: "Date Added - Oldest" },
+  { value: "date_desc", label: "Application Date - Newest" },
+  { value: "date_asc", label: "Application Date - Oldest" },
   { value: "name_asc", label: "Name A-Z" },
   { value: "name_desc", label: "Name Z-A" },
 ];
 
-export default function ViewAllVolunteers({
+// Avatar helper
+function getAvatarUrl(applicant) {
+  if (applicant.photoUrl) return applicant.photoUrl;
+  if (applicant.email)
+    return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      applicant.name || applicant.email
+    )}&background=bb3031&color=fff&size=128`;
+  return "https://ui-avatars.com/api/?name=User&background=bb3031&color=fff&size=128";
+}
+
+function normalizeStatus(value) {
+  if (!value) return "pending";
+  return value.toString().trim().toLowerCase();
+}
+
+function formatStatusLabel(value) {
+  return normalizeStatus(value)
+    .split(/[ _]+/)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+    .join(" ");
+}
+
+function normalizeApplicant(applicant) {
+  if (!applicant || typeof applicant !== "object") return applicant;
+
+  const normalizedStatus = normalizeStatus(
+    applicant.application_status || applicant.status
+  );
+
+  return {
+    ...applicant,
+    application_status: normalizedStatus,
+    status: normalizedStatus,
+  };
+}
+
+const mapApplicants = (list) =>
+  Array.isArray(list) ? list.map((item) => normalizeApplicant(item)) : [];
+
+export default function ManageApplications({
   onNavigate,
   profileBasePath = "/dashboard/admin/profile",
 }) {
   const router = useRouter();
+  const [applicants, setApplicants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
+  const [notification, setNotification] = useState({ message: "", type: "" });
+  const [refreshKey, setRefreshKey] = useState(0);
   const gridRef = useRef(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageLoading, setPageLoading] = useState(false);
 
   const initialFilters = useMemo(
     () => ({
@@ -52,18 +99,11 @@ export default function ViewAllVolunteers({
     patchFilters,
     resetFilters,
     activeFilters,
-  } = useLogFiltersState("volunteer-directory-filters", initialFilters, 400);
-
-  const [allVolunteers, setAllVolunteers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageLoading, setPageLoading] = useState(false);
+  } = useLogFiltersState("applicant-approval-filters", initialFilters, 400);
 
   const filterConfig = useMemo(
     () => ({
-      searchPlaceholder: "Search volunteers by name...",
+      searchPlaceholder: "Search applicants by name...",
       fields: [
         {
           type: "select",
@@ -112,7 +152,19 @@ export default function ViewAllVolunteers({
   );
 
   useEffect(() => {
-    async function fetchData() {
+    async function hydrateInitial() {
+      try {
+        const baseApplicants = await getAllApplicants();
+        setApplicants(mapApplicants(baseApplicants));
+      } catch (error) {
+        console.warn("Unable to hydrate applicants", error);
+      }
+    }
+    hydrateInitial();
+  }, []);
+
+  useEffect(() => {
+    async function fetchApplicants() {
       setLoading(true);
       setLoadError(null);
       setPageLoading(false);
@@ -124,21 +176,20 @@ export default function ViewAllVolunteers({
           dateOrder: filters.dateOrder,
         };
         const data = await searchUsersByRoleAndName(
-          "volunteer",
+          "applicant",
           debouncedSearch,
           queryFilters
         );
-        setAllVolunteers(data);
+        setApplicants(mapApplicants(data));
       } catch (error) {
-        setAllVolunteers([]);
-        setLoadError(
-          error?.message || "Unable to load volunteers at this time."
-        );
+        console.error("Failed to load applicants", error);
+        setApplicants([]);
+        setLoadError(error?.message || "Unable to load applicants right now.");
       }
       setLoading(false);
     }
 
-    fetchData();
+    fetchApplicants();
   }, [
     debouncedSearch,
     filters.status,
@@ -153,65 +204,7 @@ export default function ViewAllVolunteers({
   }, [debouncedSearch, filters.status, filters.sort, refreshKey]);
 
   useEffect(() => {
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-
-    const handleStatusUpdated = (event) => {
-      const detail = event?.detail || {};
-      const targetId = detail.userId;
-      const nextStatus =
-        typeof detail.status === "string" ? detail.status : undefined;
-
-      if (targetId != null && nextStatus) {
-        const targetIdString = String(targetId);
-        setAllVolunteers((prev) => {
-          if (!Array.isArray(prev) || !prev.length) {
-            return prev;
-          }
-          return prev.map((volunteer) => {
-            if (volunteer?.id == null) {
-              return volunteer;
-            }
-            return String(volunteer.id) === targetIdString
-              ? { ...volunteer, status: nextStatus }
-              : volunteer;
-          });
-        });
-      }
-
-      setRefreshKey((prev) => prev + 1);
-    };
-
-    window.addEventListener(
-      "vaulteer:user-status-updated",
-      handleStatusUpdated
-    );
-
-    return () => {
-      window.removeEventListener(
-        "vaulteer:user-status-updated",
-        handleStatusUpdated
-      );
-    };
-  }, []);
-
-  const filteredVolunteers = useFilteredAndSortedUsers(allVolunteers, filters);
-  const totalVolunteers = filteredVolunteers.length;
-  const totalPages = Math.max(1, Math.ceil(totalVolunteers / ITEMS_PER_PAGE));
-  const hasResults = totalVolunteers > 0;
-  const shouldShowPagination = hasResults && totalPages > 1;
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
-
-  useEffect(() => {
-    if (!pageLoading) {
-      return undefined;
-    }
+    if (!pageLoading) return undefined;
     const timeout = setTimeout(() => setPageLoading(false), 220);
     return () => clearTimeout(timeout);
   }, [pageLoading, currentPage]);
@@ -222,61 +215,72 @@ export default function ViewAllVolunteers({
     }
   }, [loading]);
 
-  const paginatedVolunteers = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredVolunteers.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredVolunteers, currentPage]);
-
-  const pageRangeStart = totalVolunteers
-    ? (currentPage - 1) * ITEMS_PER_PAGE + 1
-    : 0;
-  const pageRangeEnd = totalVolunteers
-    ? Math.min(currentPage * ITEMS_PER_PAGE, totalVolunteers)
-    : 0;
-
-  const formatLastLogin = useCallback((value) => {
-    if (!value) {
-      return "Never";
+  // Notifications auto dismiss
+  const notificationRef = useRef(null);
+  useEffect(() => {
+    if (notification.message) {
+      const t = setTimeout(
+        () => setNotification({ message: "", type: "" }),
+        4000
+      );
+      return () => clearTimeout(t);
     }
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return "Never";
-    }
-    return date.toLocaleString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  }, []);
+  }, [notification]);
+  useEffect(() => {
+    if (notification.message && notificationRef.current)
+      notificationRef.current.focus();
+  }, [notification]);
 
-  const handleVolunteerCardClick = (volunteer) => {
-    const volunteerUid = volunteer?.uid;
-    if (!volunteerUid) {
+  // Handle card click - navigate to profile
+  const handleApplicantCardClick = (applicant) => {
+    const applicantUid = applicant?.uid;
+    if (!applicantUid) {
+      console.warn("Applicant UID not found:", applicant);
       return;
     }
+
     if (typeof onNavigate === "function") {
       onNavigate("profile", null, {
         extraParams: {
-          userUid: volunteerUid,
+          userUid: applicantUid,
         },
       });
       return;
     }
 
     const basePath = profileBasePath || "/dashboard/admin/profile";
-    router.push(`${basePath}?userUid=${encodeURIComponent(volunteerUid)}`);
+    router.push(`${basePath}?userUid=${encodeURIComponent(applicantUid)}`);
   };
+
+  // Derived (reuse hook for sorting/filtering consistency)
+  const filteredApplicants = useFilteredAndSortedUsers(applicants, filters);
+  const totalApplicants = filteredApplicants.length;
+  const totalPages = Math.max(1, Math.ceil(totalApplicants / ITEMS_PER_PAGE));
+  const hasResults = totalApplicants > 0;
+  const shouldShowPagination = hasResults && totalPages > 1;
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const paginatedApplicants = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredApplicants.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredApplicants, currentPage]);
+
+  const pageRangeStart = totalApplicants
+    ? (currentPage - 1) * ITEMS_PER_PAGE + 1
+    : 0;
+  const pageRangeEnd = totalApplicants
+    ? Math.min(currentPage * ITEMS_PER_PAGE, totalApplicants)
+    : 0;
 
   const handlePageChange = useCallback(
     (nextPage) => {
-      if (nextPage === currentPage) {
-        return;
-      }
-      if (nextPage < 1 || nextPage > totalPages) {
-        return;
-      }
+      if (nextPage === currentPage) return;
+      if (nextPage < 1 || nextPage > totalPages) return;
       setPageLoading(true);
       setCurrentPage(nextPage);
       window.requestAnimationFrame(() => {
@@ -293,6 +297,28 @@ export default function ViewAllVolunteers({
 
   return (
     <div className="flex flex-col w-full gap-6">
+      {notification.message && (
+        <div
+          ref={notificationRef}
+          tabIndex={0}
+          className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-md shadow-md text-white text-center font-semibold ${
+            notification.type === "success"
+              ? "bg-green-600"
+              : "bg-[var(--color-brand-primary)]"
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {notification.message}
+          <button
+            className="ml-4 font-bold"
+            onClick={() => setNotification({ message: "", type: "" })}
+            aria-label="Dismiss notification"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <div className="flex-1 flex flex-col gap-6">
         <div className="flex justify-center">
           <div className="flex flex-col w-full max-w-7xl gap-2">
@@ -325,7 +351,7 @@ export default function ViewAllVolunteers({
               ) : !hasResults ? (
                 <div className="text-center text-sm md:text-base text-gray-500 py-12">
                   <div className="mb-2 font-semibold text-[var(--color-text-subtle)]">
-                    No volunteers found
+                    No applicants found
                   </div>
                   <button
                     onClick={resetFilters}
@@ -343,7 +369,7 @@ export default function ViewAllVolunteers({
                   >
                     <span>
                       Showing {pageRangeStart}-{pageRangeEnd} of{" "}
-                      {totalVolunteers} volunteers
+                      {totalApplicants} applicants
                     </span>
                     <span>
                       Page {currentPage} of {totalPages}
@@ -354,26 +380,36 @@ export default function ViewAllVolunteers({
                       <SkeletonList count={ITEMS_PER_PAGE} />
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {paginatedVolunteers.map((volunteer) => {
-                          const card = createUserCard({
-                            user: volunteer,
-                            onClick: handleVolunteerCardClick,
+                        {paginatedApplicants.map((applicant) => {
+                          const normalized = normalizeApplicant({
+                            ...applicant,
+                            name:
+                              applicant.name ||
+                              applicant.full_name ||
+                              applicant.email,
+                          });
+                          const cardEl = createUserCard({
+                            user: normalized,
+                            onClick: () => handleApplicantCardClick(normalized),
                             tabIndex: 0,
                             extraFields: [
                               {
-                                label: "Last Login",
-                                value: formatLastLogin(volunteer.last_login_at),
+                                label: "Application",
+                                value: formatStatusLabel(
+                                  normalized.application_status
+                                ),
                               },
                             ],
                           });
+
                           return (
                             <div
-                              key={volunteer.id}
+                              key={normalized.id}
                               className="ds-card cursor-pointer"
                               ref={(node) => {
-                                if (node && node.firstChild !== card) {
+                                if (node && node.firstChild !== cardEl) {
                                   node.innerHTML = "";
-                                  node.appendChild(card);
+                                  node.appendChild(cardEl);
                                 }
                               }}
                             />
@@ -389,12 +425,12 @@ export default function ViewAllVolunteers({
               <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 md:px-6 md:py-4">
                 <Pagination
                   currentPage={currentPage}
-                  totalItems={totalVolunteers}
+                  totalItems={totalApplicants}
                   itemsPerPage={ITEMS_PER_PAGE}
                   onPageChange={handlePageChange}
                   maxPageButtons={5}
                   accentColor="var(--primary-red, #bb3031)"
-                  ariaLabel="Volunteers pagination"
+                  ariaLabel="Applicant pagination"
                   previousLabel="Previous"
                   nextLabel="Next"
                 />
