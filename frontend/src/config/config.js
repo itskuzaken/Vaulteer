@@ -18,8 +18,11 @@ const normalizeBase = (value) => {
   return `${trimmed}/api`;
 };
 
+// Support multiple environment var names for historical reasons (BASE vs URL)
 const resolvedEnvBase =
-  process.env.NEXT_PUBLIC_API_URL || "https://vaulteer.kuzaken.tech/api";
+  process.env.NEXT_PUBLIC_API_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "https://vaulteer.kuzaken.tech/api";
 
 const resolvedDefaultBase = `${getDefaultProtocol()}//${getDefaultHost()}:${DEFAULT_API_PORT}/api`;
 
@@ -29,6 +32,17 @@ if (typeof window !== "undefined") {
   console.log(
     `[Vaulteer] Frontend configured to reach backend via API base: ${API_BASE}`
   );
+}
+
+// Useful: warn during development if the configured API_BASE appears to be pointing
+// to the production host rather than the local dev server. This commonly causes
+// a "Failed to fetch" error when the dev backend is running on a different host.
+if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
+  if (API_BASE.includes("vaulteer.kuzaken.tech") && !API_BASE.includes("localhost")) {
+    console.warn(
+      `[Vaulteer] Warning: API_BASE (${API_BASE}) points to production host; if you're developing locally, set NEXT_PUBLIC_API_URL to your local server (e.g., http://192.168.1.14:5000)`
+    );
+  }
 }
 
 // Add other shared constants here as needed
