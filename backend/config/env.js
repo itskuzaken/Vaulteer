@@ -23,7 +23,8 @@ const CONFIG = {
   FRONTEND_URL: req(
     "FRONTEND_URL",
     "http://localhost:3000",
-    "http://192.168.68.102:3000"
+    "http://192.168.68.102:3000",
+    "https://vaulteer.kuzaken.tech"
   ),
 };
 
