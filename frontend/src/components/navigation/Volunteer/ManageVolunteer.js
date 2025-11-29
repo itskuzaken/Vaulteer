@@ -26,7 +26,7 @@ const SORT_OPTIONS = [
   { value: "name_desc", label: "Name Z-A" },
 ];
 
-export default function ViewAllStaff({
+export default function ManageVolunteer({
   onNavigate,
   profileBasePath = "/dashboard/admin/profile",
 }) {
@@ -52,9 +52,9 @@ export default function ViewAllStaff({
     patchFilters,
     resetFilters,
     activeFilters,
-  } = useLogFiltersState("staff-directory-filters", initialFilters, 400);
+  } = useLogFiltersState("volunteer-directory-filters", initialFilters, 400);
 
-  const [allStaff, setAllStaff] = useState([]);
+  const [allVolunteers, setAllVolunteers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -63,7 +63,7 @@ export default function ViewAllStaff({
 
   const filterConfig = useMemo(
     () => ({
-      searchPlaceholder: "Search staff by name...",
+      searchPlaceholder: "Search volunteers by name...",
       fields: [
         {
           type: "select",
@@ -124,15 +124,16 @@ export default function ViewAllStaff({
           dateOrder: filters.dateOrder,
         };
         const data = await searchUsersByRoleAndName(
-          "staff",
+          "volunteer",
           debouncedSearch,
           queryFilters
         );
-        setAllStaff(data);
+        setAllVolunteers(data);
       } catch (error) {
-        console.error("Unable to load staff:", error);
-        setAllStaff([]);
-        setLoadError(error?.message || "Unable to load staff at this time.");
+        setAllVolunteers([]);
+        setLoadError(
+          error?.message || "Unable to load volunteers at this time."
+        );
       }
       setLoading(false);
     }
@@ -164,17 +165,17 @@ export default function ViewAllStaff({
 
       if (targetId != null && nextStatus) {
         const targetIdString = String(targetId);
-        setAllStaff((prev) => {
+        setAllVolunteers((prev) => {
           if (!Array.isArray(prev) || !prev.length) {
             return prev;
           }
-          return prev.map((staff) => {
-            if (staff?.id == null) {
-              return staff;
+          return prev.map((volunteer) => {
+            if (volunteer?.id == null) {
+              return volunteer;
             }
-            return String(staff.id) === targetIdString
-              ? { ...staff, status: nextStatus }
-              : staff;
+            return String(volunteer.id) === targetIdString
+              ? { ...volunteer, status: nextStatus }
+              : volunteer;
           });
         });
       }
@@ -195,10 +196,10 @@ export default function ViewAllStaff({
     };
   }, []);
 
-  const filteredStaff = useFilteredAndSortedUsers(allStaff, filters);
-  const totalStaff = filteredStaff.length;
-  const totalPages = Math.max(1, Math.ceil(totalStaff / ITEMS_PER_PAGE));
-  const hasResults = totalStaff > 0;
+  const filteredVolunteers = useFilteredAndSortedUsers(allVolunteers, filters);
+  const totalVolunteers = filteredVolunteers.length;
+  const totalPages = Math.max(1, Math.ceil(totalVolunteers / ITEMS_PER_PAGE));
+  const hasResults = totalVolunteers > 0;
   const shouldShowPagination = hasResults && totalPages > 1;
 
   useEffect(() => {
@@ -221,16 +222,16 @@ export default function ViewAllStaff({
     }
   }, [loading]);
 
-  const paginatedStaff = useMemo(() => {
+  const paginatedVolunteers = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredStaff.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredStaff, currentPage]);
+    return filteredVolunteers.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredVolunteers, currentPage]);
 
-  const pageRangeStart = totalStaff
+  const pageRangeStart = totalVolunteers
     ? (currentPage - 1) * ITEMS_PER_PAGE + 1
     : 0;
-  const pageRangeEnd = totalStaff
-    ? Math.min(currentPage * ITEMS_PER_PAGE, totalStaff)
+  const pageRangeEnd = totalVolunteers
+    ? Math.min(currentPage * ITEMS_PER_PAGE, totalVolunteers)
     : 0;
 
   const formatLastLogin = useCallback((value) => {
@@ -250,23 +251,22 @@ export default function ViewAllStaff({
     });
   }, []);
 
-  const handleStaffCardClick = (staff) => {
-    const staffUid = staff?.uid;
-    if (!staffUid) {
+  const handleVolunteerCardClick = (volunteer) => {
+    const volunteerUid = volunteer?.uid;
+    if (!volunteerUid) {
       return;
     }
-
     if (typeof onNavigate === "function") {
       onNavigate("profile", null, {
         extraParams: {
-          userUid: staffUid,
+          userUid: volunteerUid,
         },
       });
       return;
     }
 
     const basePath = profileBasePath || "/dashboard/admin/profile";
-    router.push(`${basePath}?userUid=${encodeURIComponent(staffUid)}`);
+    router.push(`${basePath}?userUid=${encodeURIComponent(volunteerUid)}`);
   };
 
   const handlePageChange = useCallback(
@@ -325,7 +325,7 @@ export default function ViewAllStaff({
               ) : !hasResults ? (
                 <div className="text-center text-sm md:text-base text-gray-500 py-12">
                   <div className="mb-2 font-semibold text-[var(--color-text-subtle)]">
-                    No staff found
+                    No volunteers found
                   </div>
                   <button
                     onClick={resetFilters}
@@ -342,8 +342,8 @@ export default function ViewAllStaff({
                     aria-live="polite"
                   >
                     <span>
-                      Showing {pageRangeStart}-{pageRangeEnd} of {totalStaff}{" "}
-                      staff members
+                      Showing {pageRangeStart}-{pageRangeEnd} of{" "}
+                      {totalVolunteers} volunteers
                     </span>
                     <span>
                       Page {currentPage} of {totalPages}
@@ -354,21 +354,21 @@ export default function ViewAllStaff({
                       <SkeletonList count={ITEMS_PER_PAGE} />
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {paginatedStaff.map((staff) => {
+                        {paginatedVolunteers.map((volunteer) => {
                           const card = createUserCard({
-                            user: staff,
-                            onClick: handleStaffCardClick,
+                            user: volunteer,
+                            onClick: handleVolunteerCardClick,
                             tabIndex: 0,
                             extraFields: [
                               {
                                 label: "Last Login",
-                                value: formatLastLogin(staff.last_login_at),
+                                value: formatLastLogin(volunteer.last_login_at),
                               },
                             ],
                           });
                           return (
                             <div
-                              key={staff.id}
+                              key={volunteer.id}
                               className="ds-card cursor-pointer"
                               ref={(node) => {
                                 if (node && node.firstChild !== card) {
@@ -389,12 +389,12 @@ export default function ViewAllStaff({
               <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 md:px-6 md:py-4">
                 <Pagination
                   currentPage={currentPage}
-                  totalItems={totalStaff}
+                  totalItems={totalVolunteers}
                   itemsPerPage={ITEMS_PER_PAGE}
                   onPageChange={handlePageChange}
                   maxPageButtons={5}
-                  accentColor="var(--staff-accent, #16a34a)"
-                  ariaLabel="Staff pagination"
+                  accentColor="var(--primary-red, #bb3031)"
+                  ariaLabel="Volunteers pagination"
                   previousLabel="Previous"
                   nextLabel="Next"
                 />

@@ -10,8 +10,8 @@ import PublishedPosts from "../../../../components/navigation/Post/PublishedPost
 import ArchivedPosts from "../../../../components/navigation/Post/ArchivedPosts";
 import ScheduledPosts from "../../../../components/navigation/Post/ScheduledPosts";
 import CreateAnnouncement from "../../../../components/navigation/Post/CreateAnnouncement";
-import ViewAllVolunteers from "../../../../components/navigation/Volunteer/ViewAllVolunteers";
-import ApplicationApproval from "../../../../components/navigation/Volunteer/ApplicationApproval";
+import ManageVolunteer from "../../../../components/navigation/Volunteer/ManageVolunteer";
+import ManageApplications from "../../../../components/navigation/Volunteer/ManageApplications";
 import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
@@ -60,13 +60,13 @@ const staffMainRoutes = {
 
 function StaffViewAllVolunteers(props) {
   return (
-    <ViewAllVolunteers profileBasePath="/dashboard/staff/profile" {...props} />
+    <ManageVolunteer profileBasePath="/dashboard/staff/profile" {...props} />
   );
 }
 
 function StaffApplicationApproval(props) {
   return (
-    <ApplicationApproval
+    <ManageApplications
       profileBasePath="/dashboard/staff/profile"
       {...props}
     />
