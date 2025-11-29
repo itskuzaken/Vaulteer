@@ -9,7 +9,7 @@ const nextConfig = {
   allowedDevOrigins: [
     "http://localhost:3000",
     "http://192.168.1.8:3000",
-    "http://192.168.1.8:3001",
+    "https://vaulteer.kuzaken.tech",
   ],
   async headers() {
     return [
