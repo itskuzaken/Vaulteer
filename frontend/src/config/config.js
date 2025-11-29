@@ -38,7 +38,10 @@ if (typeof window !== "undefined") {
 // to the production host rather than the local dev server. This commonly causes
 // a "Failed to fetch" error when the dev backend is running on a different host.
 if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
-  if (API_BASE.includes("vaulteer.kuzaken.tech") && !API_BASE.includes("localhost")) {
+  if (
+    API_BASE.includes("vaulteer.kuzaken.tech") &&
+    !API_BASE.includes("localhost")
+  ) {
     console.warn(
       `[Vaulteer] Warning: API_BASE (${API_BASE}) points to production host; if you're developing locally, set NEXT_PUBLIC_API_URL to your local server (e.g., http://192.168.1.14:5000)`
     );

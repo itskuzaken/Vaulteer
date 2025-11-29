@@ -2,16 +2,36 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 
-// Your web app's Firebase configuration (now pulled from env when available)
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-};
+// Allow developers to pass the entire Firebase configuration as a single
+// `NEXT_PUBLIC_FIREBASE` JSON string during development, otherwise fall back to
+// individual `NEXT_PUBLIC_FIREBASE_*` environment variables.
+let firebaseConfig = null;
+
+if (
+  typeof process.env.NEXT_PUBLIC_FIREBASE === "string" &&
+  process.env.NEXT_PUBLIC_FIREBASE.trim().length > 0
+) {
+  try {
+    firebaseConfig = JSON.parse(process.env.NEXT_PUBLIC_FIREBASE);
+  } catch (err) {
+    console.warn(
+      "Invalid JSON for NEXT_PUBLIC_FIREBASE — falling back to individual env vars",
+      err
+    );
+  }
+}
+
+if (!firebaseConfig) {
+  firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    databaseURL: process.env.NEXT_PUBLIC_FIREBASE_DATABASE_URL,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  };
+}
 
 // Validate essential config early to give a clearer error
 if (!firebaseConfig.apiKey || typeof firebaseConfig.apiKey !== "string") {
