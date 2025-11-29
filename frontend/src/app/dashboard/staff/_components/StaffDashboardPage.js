@@ -11,7 +11,7 @@ import ArchivedPosts from "../../../../components/navigation/Post/ArchivedPosts"
 import ScheduledPosts from "../../../../components/navigation/Post/ScheduledPosts";
 import CreateAnnouncement from "../../../../components/navigation/Post/CreateAnnouncement";
 import ManageVolunteer from "../../../../components/navigation/Volunteer/ManageVolunteer";
-import ManageApplications from "../../../../components/navigation/Volunteer/ManageApplications";
+import ManageApplications from "../../../../components/navigation/Application/ManageApplications";
 import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
@@ -66,10 +66,7 @@ function StaffViewAllVolunteers(props) {
 
 function StaffApplicationApproval(props) {
   return (
-    <ManageApplications
-      profileBasePath="/dashboard/staff/profile"
-      {...props}
-    />
+    <ManageApplications profileBasePath="/dashboard/staff/profile" {...props} />
   );
 }
 
