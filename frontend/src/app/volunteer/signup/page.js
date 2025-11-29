@@ -4,8 +4,11 @@ import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
 import { auth, googleProvider } from "../../../services/firebase";
 import { API_BASE } from "../../../config/config";
 import { submitVolunteerApplication } from "../../../services/applicantsService";
+import { getApplicationSettings } from "../../../services/applicationSettingsService";
 
 export default function VolunteerSignupPage() {
+  const [applicationSettings, setApplicationSettings] = useState(null);
+  const [loadingSettings, setLoadingSettings] = useState(true);
   const [form, setForm] = useState({
     lastName: "",
     firstName: "",
@@ -50,6 +53,24 @@ export default function VolunteerSignupPage() {
   const [user, setUser] = useState(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
+
+  // Fetch application settings
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        setLoadingSettings(true);
+        const result = await getApplicationSettings();
+        if (result.success) {
+          setApplicationSettings(result.data);
+        }
+      } catch (error) {
+        console.error('Error fetching application settings:', error);
+      } finally {
+        setLoadingSettings(false);
+      }
+    }
+    fetchSettings();
+  }, []);
 
   // Check Firebase auth state
   useEffect(() => {
@@ -478,8 +499,119 @@ export default function VolunteerSignupPage() {
     );
   }
 
+  // Show loading state while checking settings
+  if (loadingSettings || isLoadingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-red-100 via-white to-red-200">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-red-700 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show applications closed message
+  if (!applicationSettings?.is_open) {
+    const hasDeadline = applicationSettings?.deadline;
+    
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-red-100 via-white to-red-200 p-6">
+        <div className="w-full max-w-2xl bg-white border-2 border-red-700 rounded-2xl shadow-2xl p-8 text-center">
+          <div className="mb-6">
+            <svg
+              className="mx-auto h-24 w-24 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-extrabold text-red-700 mb-4">
+            Applications Currently Closed
+          </h1>
+          <p className="text-gray-700 text-lg mb-6">
+            We're not accepting new volunteer applications at this time.
+            {hasDeadline && (
+              <span className="block mt-2 text-gray-600">
+                Please check back later for updates.
+              </span>
+            )}
+          </p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6 mb-6">
+            <p className="text-gray-800 text-sm mb-4">
+              Thank you for your interest in volunteering with Bagani Community Center!
+              We periodically open applications for new volunteers.
+            </p>
+            <p className="text-gray-700 text-sm">
+              Follow us on social media to stay updated on when applications reopen:
+            </p>
+          </div>
+          <div className="flex justify-center gap-4 mt-6">
+            <a
+              href="https://facebook.com/baganicommunity"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Follow on Facebook
+            </a>
+            <a
+              href="/"
+              className="px-6 py-3 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+            >
+              Return Home
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-red-100 via-white to-red-200 p-6">
+      {/* Application Deadline Notice */}
+      {applicationSettings?.deadline && (
+        <div className="w-full max-w-xl mb-4 bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4">
+          <div className="flex items-start gap-3">
+            <svg
+              className="h-6 w-6 text-yellow-600 mt-0.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <div>
+              <p className="font-semibold text-yellow-800 mb-1">Application Deadline</p>
+              <p className="text-yellow-700 text-sm">
+                Applications close on{' '}
+                <span className="font-bold">
+                  {new Date(applicationSettings.deadline).toLocaleString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Container */}
       <div className="w-full max-w-xl mb-4">
         <h1 className="text-2xl font-extrabold text-red-700 text-center tracking-tight bg-white border-2 border-red-700 rounded-2xl shadow-2xl py-6">

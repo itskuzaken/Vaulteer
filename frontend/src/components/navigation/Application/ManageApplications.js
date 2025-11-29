@@ -8,6 +8,7 @@ import { createUserCard } from "../../card/UserCard";
 import LogFilterSearch from "../../logs/LogFilterSearch";
 import Pagination from "../../pagination/Pagination";
 import { useLogFiltersState } from "../../../hooks/useLogFiltersState";
+import ApplicationControlPanel from "./ApplicationControlPanel";
 
 const ITEMS_PER_PAGE = 9;
 
@@ -321,7 +322,8 @@ export default function ManageApplications({
       )}
       <div className="flex-1 flex flex-col gap-6">
         <div className="flex justify-center">
-          <div className="flex flex-col w-full max-w-7xl gap-2">
+          <div className="flex flex-col w-full max-w-7xl gap-6">
+            <ApplicationControlPanel />
             <LogFilterSearch
               filters={filters}
               defaults={initialFilters}
