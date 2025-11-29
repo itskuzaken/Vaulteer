@@ -58,7 +58,12 @@ export async function createActivityLog({
 
     return payload;
   } catch (error) {
-    console.error("Error creating activity log:", error);
+    // Include the base URL in the log for debugging network failures
+    console.error("Error creating activity log:", {
+      url: `${API_BASE_URL}/logs`,
+      message: error?.message || String(error),
+      stack: error?.stack,
+    });
     throw error;
   }
 }
