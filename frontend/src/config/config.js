@@ -19,7 +19,7 @@ const normalizeBase = (value) => {
 };
 
 const resolvedEnvBase =
-  process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE;
+  process.env.NEXT_PUBLIC_API_URL || "https://vaulteer.kuzaken.tech/api";
 
 const resolvedDefaultBase = `${getDefaultProtocol()}//${getDefaultHost()}:${DEFAULT_API_PORT}/api`;
 
