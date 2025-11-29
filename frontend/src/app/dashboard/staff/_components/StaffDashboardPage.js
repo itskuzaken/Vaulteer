@@ -40,6 +40,16 @@ const staffMainRoutes = {
     component: ManageEvents,
     withNavigate: true,
   },
+  "manage-volunteer": {
+    label: "Manage Volunteer",
+    component: StaffViewAllVolunteers,
+    withNavigate: true,
+  },
+  "manage-applications": {
+    label: "Manage Applications",
+    component: StaffApplicationApproval,
+    withNavigate: true,
+  },
   event: {
     label: "Event Details",
     component: EventDetailsContent,
@@ -106,20 +116,6 @@ const staffSubRoutes = {
     label: "Create Announcement",
     parent: "manage-post",
     component: CreateAnnouncement,
-  },
-  "view-all-volunteers": {
-    key: "view-all-volunteers",
-    label: "View All Volunteers",
-    parent: "manage-volunteer",
-    component: StaffViewAllVolunteers,
-    withNavigate: true,
-  },
-  "application-approval": {
-    key: "application-approval",
-    label: "Application Approval",
-    parent: "manage-volunteer",
-    component: StaffApplicationApproval,
-    withNavigate: true,
   },
   // 'user-settings' sub-route removed - settings are a single combined page
 };

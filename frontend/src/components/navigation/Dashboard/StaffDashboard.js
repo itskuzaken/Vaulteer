@@ -133,9 +133,7 @@ export default function StaffDashboard({ onNavigate }) {
               description="Check pending volunteer applications"
               icon={<IoPeopleOutline />}
               color="green"
-              onClick={() =>
-                handleQuickAction("manage-volunteer", "application-approval")
-              }
+              onClick={() => handleQuickAction("manage-applications")}
             />
             <QuickActionCard
               title="Create Post"

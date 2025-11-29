@@ -41,6 +41,21 @@ const adminMainRoutes = {
     component: ManageEvents,
     withNavigate: true,
   },
+  "manage-volunteer": {
+    label: "Manage Volunteer",
+    component: AdminViewAllVolunteers,
+    withNavigate: true,
+  },
+  "manage-staff": {
+    label: "Manage Staff",
+    component: AdminViewAllStaff,
+    withNavigate: true,
+  },
+  "manage-applications": {
+    label: "Manage Applications",
+    component: AdminApplicationApproval,
+    withNavigate: true,
+  },
   event: {
     label: "Event Details",
     component: EventDetailsContent,
@@ -111,27 +126,6 @@ const adminSubRoutes = {
     label: "Create Announcement",
     parent: "manage-post",
     component: CreateAnnouncement,
-  },
-  "view-all-volunteers": {
-    key: "view-all-volunteers",
-    label: "View All Volunteers",
-    parent: "manage-volunteer",
-    component: AdminViewAllVolunteers,
-    withNavigate: true,
-  },
-  "application-approval": {
-    key: "application-approval",
-    label: "Application Approval",
-    parent: "manage-volunteer",
-    component: AdminApplicationApproval,
-    withNavigate: true,
-  },
-  "view-all-staff": {
-    key: "view-all-staff",
-    label: "View All Staff",
-    parent: "manage-staff",
-    component: AdminViewAllStaff,
-    withNavigate: true,
   },
   // Settings are a single combined page (UserSettings); individual setting
   // sub-routes like 'appearance' and 'user-account-settings' have been
