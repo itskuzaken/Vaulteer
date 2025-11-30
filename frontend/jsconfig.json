@@ -6,8 +6,10 @@
       "@/hooks/*": ["hooks/*"],
       "@/utils/*": ["utils/*"],
       "@/services/*": ["services/*"],
+      "@/services": ["services/index.js"],
       "@services/*": ["services/*"],
-      "@dashboards/*": ["dashboards/*"]
+      "@dashboards/*": ["dashboards/*"],
+      "@modals/*": ["modals/*"]
     }
   }
 }

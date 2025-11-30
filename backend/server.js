@@ -7,6 +7,9 @@ const { CONFIG } = require("./config/env");
 const { initPool } = require("./db/pool");
 const { corsMiddleware, lanAddress } = require("./middleware/cors");
 const { scheduleInactiveUserJob } = require("./jobs/inactiveUserScheduler");
+const {
+  startDeadlineScheduler,
+} = require("./jobs/applicationDeadlineScheduler");
 const { apiLimiter } = require("./middleware/rateLimiter");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
@@ -21,6 +24,7 @@ const profileRoute = require("./routes/profileRoutes");
 const eventsRoute = require("./routes/eventsRoutes");
 const gamificationRoute = require("./routes/gamificationRoutes");
 const internalRoute = require("./routes/internalRoutes");
+const applicationSettingsRoute = require("./routes/applicationSettingsRoutes");
 
 // Middleware for internal-only routes
 const internalOnly = require("./middleware/internalOnly");
@@ -146,6 +150,7 @@ app.use("/api/notifications", notificationRoute);
 app.use("/api/profile", profileRoute);
 app.use("/api/events", eventsRoute);
 app.use("/api/gamification", gamificationRoute);
+app.use("/api/application", applicationSettingsRoute);
 
 app.get("/api", (req, res) => {
   res.json({
@@ -183,6 +188,7 @@ async function start() {
     await initPool();
 
     scheduleInactiveUserJob();
+    startDeadlineScheduler();
 
     app.listen(CONFIG.PORT, "0.0.0.0", () => {
       console.log("\n🚀 Vaulteer Server");

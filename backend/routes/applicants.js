@@ -12,6 +12,7 @@ const {
   createApplicantWithProfile,
 } = require("../repositories/applicantRepository");
 const { getPool } = require("../db/pool");
+const applicationSettingsRepository = require("../repositories/applicationSettingsRepository");
 
 // Helper to resolve UID to user_id
 async function getUserIdFromUid(uid) {
@@ -46,6 +47,17 @@ async function getCurrentUserIdFromFirebaseUid(firebaseUid) {
 router.post(
   "/",
   asyncHandler(async (req, res) => {
+    // Check if applications are open
+    const settings = await applicationSettingsRepository.getSettings();
+
+    if (!settings || !settings.is_open) {
+      return res.status(403).json({
+        success: false,
+        message: "Applications are currently closed",
+        code: "APPLICATIONS_CLOSED",
+      });
+    }
+
     const { user, form } = req.body;
 
     // Validate required user fields

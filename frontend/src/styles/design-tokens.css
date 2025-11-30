@@ -295,6 +295,11 @@ body.dashboard-locked {
 .btn:focus-visible {
   box-shadow: var(--focus-ring);
 }
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 .btn-primary {
   background: var(--color-brand-primary);
   color: #fff;

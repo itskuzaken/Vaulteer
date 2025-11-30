@@ -4,6 +4,7 @@ import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
 import { auth, googleProvider } from "../../../services/firebase";
 import { API_BASE } from "../../../config/config";
 import { submitVolunteerApplication } from "../../../services/applicantsService";
+import { getApplicationSettings } from "@/services";
 
 export default function VolunteerSignupPage() {
   const [form, setForm] = useState({
@@ -50,6 +51,8 @@ export default function VolunteerSignupPage() {
   const [user, setUser] = useState(null);
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [applicationSettings, setApplicationSettings] = useState(null);
+  const [loadingSettings, setLoadingSettings] = useState(true);
 
   // Check Firebase auth state
   useEffect(() => {
@@ -70,6 +73,22 @@ export default function VolunteerSignupPage() {
         } catch {}
       }
     }
+  }, []);
+
+  // Fetch application settings
+  useEffect(() => {
+    async function fetchSettings() {
+      try {
+        setLoadingSettings(true);
+        const result = await getApplicationSettings();
+        if (result?.success) setApplicationSettings(result.data);
+      } catch (err) {
+        console.error("Failed to fetch application settings:", err);
+      } finally {
+        setLoadingSettings(false);
+      }
+    }
+    fetchSettings();
   }, []);
 
   // Save to localStorage on every form change
@@ -352,6 +371,12 @@ export default function VolunteerSignupPage() {
     setSubmitError(null);
 
     try {
+      // Prevent submission if applications closed
+      if (applicationSettings && !applicationSettings.is_open) {
+        throw new Error(
+          "Applications are currently closed. Please check for future openings."
+        );
+      }
       // Get current Firebase user
       const currentUser = auth.currentUser;
       if (!currentUser) {
@@ -488,6 +513,22 @@ export default function VolunteerSignupPage() {
       </div>
 
       {/* Form Container */}
+      {!loadingSettings &&
+        applicationSettings &&
+        !applicationSettings.is_open && (
+          <div className="w-full max-w-xl mb-4">
+            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
+              Applications are currently closed. Please check back later for
+              future openings.
+              {applicationSettings.deadline && (
+                <div className="text-xs text-gray-600 mt-1">
+                  Deadline:{" "}
+                  {new Date(applicationSettings.deadline).toLocaleString()}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       <form
         className="w-full max-w-xl bg-white border-2 border-red-700 rounded-2xl shadow-2xl p-8 space-y-8"
         onSubmit={step === 8 ? handleSubmit : handleNext}

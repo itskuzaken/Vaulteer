@@ -46,14 +46,37 @@ export async function createActivityLog({
       }),
     });
 
-    if (!response.ok) {
-      throw new Error("Failed to create activity log");
+    const text = await response.text();
+    let payload;
+    try {
+      payload = JSON.parse(text || "{}");
+    } catch (e) {
+      payload = { message: text };
     }
 
-    const payload = await response.json();
+    if (!response.ok) {
+      const msg =
+        payload?.message ||
+        payload?.error ||
+        response.statusText ||
+        "Unknown error";
+      // Return a consistent failure object instead of throwing to avoid unhandled rejections
+      return {
+        success: false,
+        status: response.status,
+        message: `Failed to create activity log: ${response.status} ${msg}`,
+        payload,
+      };
+    }
 
     if (!payload.success) {
-      throw new Error(payload.error || "Failed to fetch activity logs");
+      return {
+        success: false,
+        status: response.status,
+        message:
+          payload.error || payload.message || "Failed to create activity log",
+        payload,
+      };
     }
 
     return payload;
@@ -62,9 +85,17 @@ export async function createActivityLog({
     console.error("Error creating activity log:", {
       url: `${API_BASE_URL}/logs`,
       message: error?.message || String(error),
+      status: error?.status,
+      payload: error?.payload,
       stack: error?.stack,
     });
-    throw error;
+    // Do not rethrow; return a failure object so callers don't crash from logging issues
+    return {
+      success: false,
+      message: error?.message || String(error) || "Unknown error",
+      status: error?.status,
+      payload: error?.payload,
+    };
   }
 }
 
@@ -267,7 +298,7 @@ export const logActions = {
     }
 
     try {
-      await createActivityLog({
+      const res = await createActivityLog({
         type: "AUTH",
         action: "LOGIN_FAILED",
         description: `Login attempt failed: ${reason}`,
@@ -280,6 +311,12 @@ export const logActions = {
         },
         severity: "MEDIUM",
       });
+      if (res && res.success === false) {
+        console.warn(
+          "Failed to create activity log for login failure:",
+          res.message || res.payload || res
+        );
+      }
     } catch (error) {
       console.warn("Could not log failed login attempt:", error);
     }
