@@ -55,10 +55,14 @@ async function createLog({
         changes, description, severity, ip_address, user_agent, session_id, metadata`;
     let placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
 
+    // Set performed_by_user_id to NULL for system operations to avoid FK constraint
+    const performedByUserId =
+      performedBy.userId === "system" ? null : performedBy.userId;
+
     const values = [
       type,
       action,
-      performedBy.userId,
+      performedByUserId,
       performedBy.name,
       performedBy.role,
       targetResource?.type || null,
