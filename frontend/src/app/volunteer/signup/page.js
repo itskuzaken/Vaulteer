@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
+import Link from "next/link";
 import { auth, googleProvider } from "../../../services/firebase";
 import { API_BASE } from "../../../config/config";
 import { submitVolunteerApplication } from "../../../services/applicantsService";
@@ -53,6 +54,7 @@ export default function VolunteerSignupPage() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [applicationSettings, setApplicationSettings] = useState(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [timeRemaining, setTimeRemaining] = useState("");
 
   // Check Firebase auth state
   useEffect(() => {
@@ -90,6 +92,48 @@ export default function VolunteerSignupPage() {
     }
     fetchSettings();
   }, []);
+
+  // Calculate time remaining until deadline (for open applications)
+  useEffect(() => {
+    if (!applicationSettings?.is_open || !applicationSettings?.deadline) {
+      setTimeRemaining("");
+      return;
+    }
+
+    const calculateTimeRemaining = () => {
+      const now = new Date();
+      const deadline = new Date(applicationSettings.deadline);
+      const diff = deadline - now;
+
+      if (diff <= 0) {
+        setTimeRemaining("Deadline passed");
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor(
+        (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (days > 0) {
+        setTimeRemaining(`${days}d ${hours}h remaining`);
+      } else if (hours > 0) {
+        setTimeRemaining(`${hours}h ${minutes}m remaining`);
+      } else {
+        if (minutes <= 0) {
+          setTimeRemaining("Less than a minute");
+        } else {
+          setTimeRemaining(`${minutes}m remaining`);
+        }
+      }
+    };
+
+    calculateTimeRemaining();
+    const interval = setInterval(calculateTimeRemaining, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [applicationSettings]);
 
   // Save to localStorage on every form change
   useEffect(() => {
@@ -490,6 +534,58 @@ export default function VolunteerSignupPage() {
     );
   }
 
+  // Show full-page closed message if applications are closed
+  if (!loadingSettings && applicationSettings && !applicationSettings.is_open) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-red-100 via-white to-red-200 p-6">
+        <div className="max-w-xl w-full bg-white border-2 border-red-700 rounded-2xl shadow-2xl p-8 text-center">
+          <div className="mb-6">
+            <svg
+              className="w-20 h-20 mx-auto text-red-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+              />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-red-700 mb-4">
+            Applications Closed
+          </h1>
+          <p className="text-gray-700 text-lg mb-4">
+            Volunteer applications are currently not being accepted.
+          </p>
+          <p className="text-gray-600 text-sm">
+            Please check back later for future volunteer opportunities. We appreciate your interest in joining Bagani Community Center!
+          </p>
+          {applicationSettings.deadline && (
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-xs text-gray-500">
+                Last application deadline:{" "}
+                <span className="font-medium text-gray-700">
+                  {new Date(applicationSettings.deadline).toLocaleString()}
+                </span>
+              </p>
+            </div>
+          )}
+          <div className="mt-8">
+            <Link
+              href="/"
+              className="inline-block bg-red-700 text-white font-semibold px-6 py-3 rounded-lg hover:bg-red-800 transition"
+            >
+              Return to Home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (submitted) {
     return (
       <div className="max-w-xl mx-auto mt-12 bg-white border-2 border-red-700 rounded-2xl shadow-2xl p-8 text-center">
@@ -505,35 +601,58 @@ export default function VolunteerSignupPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-red-100 via-white to-red-200 p-6">
+      
+
+      {/* Applications Status Banner - Only show when OPEN */}
+      {!loadingSettings && applicationSettings && applicationSettings.is_open && (
+        <div className="w-full max-w-xl mb-4">
+          {/* Applications Open with Deadline */}
+          {applicationSettings.deadline && (
+            <div className="bg-green-50 border border-green-500 text-green-800 px-4 py-3 rounded-lg text-sm">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold">Applications are OPEN!</div>
+                  <div className="text-xs text-gray-700 mt-1">
+                    Deadline:{" "}
+                    {new Date(applicationSettings.deadline).toLocaleString()}
+                  </div>
+                </div>
+                {timeRemaining && (
+                  <div className="text-right">
+                    <div className="font-bold text-green-700">
+                      {timeRemaining}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Applications Open without Deadline */}
+          {!applicationSettings.deadline && (
+            <div className="bg-green-50 border border-green-500 text-green-800 px-4 py-3 rounded-lg text-sm">
+              <div className="font-semibold">Applications are OPEN!</div>
+              <div className="text-xs text-gray-700 mt-1">
+                No deadline set - apply anytime!
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Header Container */}
       <div className="w-full max-w-xl mb-4">
         <h1 className="text-2xl font-extrabold text-red-700 text-center tracking-tight bg-white border-2 border-red-700 rounded-2xl shadow-2xl py-6">
           Volunteer Sign Up Form
         </h1>
       </div>
-
-      {/* Form Container */}
-      {!loadingSettings &&
-        applicationSettings &&
-        !applicationSettings.is_open && (
-          <div className="w-full max-w-xl mb-4">
-            <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
-              Applications are currently closed. Please check back later for
-              future openings.
-              {applicationSettings.deadline && (
-                <div className="text-xs text-gray-600 mt-1">
-                  Deadline:{" "}
-                  {new Date(applicationSettings.deadline).toLocaleString()}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       <form
         className="w-full max-w-xl bg-white border-2 border-red-700 rounded-2xl shadow-2xl p-8 space-y-8"
         onSubmit={step === 8 ? handleSubmit : handleNext}
         noValidate
       >
+
+        
         {/* Step 1: Data Privacy Consent */}
         {step === 1 && (
           <div>

@@ -28,6 +28,9 @@ export default function Login({ onClose }) {
 
     try {
       const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
@@ -41,7 +44,10 @@ export default function Login({ onClose }) {
         userInfo = null;
       }
 
-      if (currentUserError?.message === "Account is deactivated by admin.") {
+      if (
+        currentUserError?.status === 403 &&
+        currentUserError?.message === "Account is deactivated by admin."
+      ) {
         setLoginError(
           "Your account has been deactivated by an administrator. Please contact support to regain access."
         );
@@ -127,9 +133,26 @@ export default function Login({ onClose }) {
 
         router.push(roleRoute);
         closeModal();
+      } else if (currentUserError?.status === 403) {
+        // Check for structured error codes from backend
+        const errorCode = currentUserError?.payload?.code;
+        const msg = currentUserError?.message || currentUserError?.payload?.message || "Access forbidden";
+        
+        if (errorCode === "NOT_REGISTERED" || msg === "User not registered") {
+          setNotRegistered(true);
+          setLoginError("You need to sign up as a volunteer first.");
+        } else if (errorCode === "DEACTIVATED" || msg === "Account is deactivated by admin.") {
+          setLoginError("Your account has been deactivated by an administrator. Please contact support.");
+          await auth.signOut();
+        } else {
+          // Other 403 reason - show as not registered fallback
+          setNotRegistered(true);
+          setLoginError(msg);
+        }
       } else {
-        // User has no record in the database or no recognized role
+        // Fallback: user has no record in the database or no recognized role
         setNotRegistered(true);
+        if (currentUserError?.message) setLoginError(currentUserError.message);
 
         // Log failed login - user not registered
         try {
@@ -176,7 +199,7 @@ export default function Login({ onClose }) {
 
   const handleSignupRedirect = () => {
     closeModal();
-    window.location.href = "/volunteer/signup";
+    router.push("/volunteer/signup");
   };
 
   if (!isModalOpen) return null;
