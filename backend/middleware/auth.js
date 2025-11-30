@@ -53,19 +53,27 @@ async function authenticate(req, res, next) {
     }
 
     if (!userRow) {
+      console.warn(`[Auth] No DB record found for UID=${decodedToken.uid}. Request path=${req?.path || 'unknown'}`);
       if (lastError) {
         console.error("[Auth] DB query failed after retries:", lastError);
         return res
           .status(503)
           .json({ error: "Service temporarily unavailable" });
       }
-      return res.status(403).json({ error: "User not registered" });
+      return res.status(403).json({ 
+        code: "NOT_REGISTERED",
+        message: "User not registered",
+        error: "User not registered" 
+      });
     }
 
     if ((userRow.status || "").toLowerCase() === "deactivated") {
       return res
         .status(403)
-        .json({ message: "Account is deactivated by admin." });
+        .json({ 
+          code: "DEACTIVATED",
+          message: "Account is deactivated by admin."
+        });
     }
 
     req.authenticatedUser = {

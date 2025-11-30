@@ -164,6 +164,10 @@ export async function fetchWithAuth(endpoint, options = {}, attempt = 0) {
           const error = new Error(message);
           error.status = response.status;
           error.payload = data;
+          // Developer-friendly logging for 403 during local development
+          if (response.status === 403 && typeof window !== "undefined") {
+            console.warn(`[apiClient] Request to ${endpoint} returned 403:`, message);
+          }
           throw error;
         }
 
