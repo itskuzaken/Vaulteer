@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   IoNotificationsOutline,
   IoCheckmarkCircle,
@@ -20,6 +21,8 @@ import {
   markAllAsRead,
   deleteNotification,
 } from "../../services/notificationService";
+import { buildEventDetailPath, buildPostDetailPath, buildNotificationsPath } from "@/utils/dashboardRouteHelpers";
+import NotificationMessage from "./NotificationMessage";
 
 /**
  * Get icon component based on notification type
@@ -53,7 +56,8 @@ const timeAgo = (timestamp) => {
   return date.toLocaleDateString();
 };
 
-export default function NotificationBell() {
+export default function NotificationBell({ currentUser }) {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -126,9 +130,30 @@ export default function NotificationBell() {
       }
     }
 
-    // If there's an action URL, navigate to it
-    if (notification.action_url) {
-      window.location.href = notification.action_url;
+    // Close the dropdown
+    setIsOpen(false);
+
+    // If there's an action URL, navigate to it with role-based routing
+    if (notification.action_url && currentUser) {
+      const userRole = currentUser.role?.toLowerCase() || "volunteer";
+      let targetUrl = notification.action_url;
+
+      // Check if it's an event notification
+      const eventUidMatch = notification.action_url.match(/eventUid=([a-zA-Z0-9-]+)/);
+      if (eventUidMatch) {
+        const eventUid = eventUidMatch[1];
+        targetUrl = buildEventDetailPath(userRole, eventUid);
+      }
+      // Check if it's a post notification
+      else {
+        const postUidMatch = notification.action_url.match(/postUid=([a-zA-Z0-9-]+)/);
+        if (postUidMatch) {
+          const postUid = postUidMatch[1];
+          targetUrl = buildPostDetailPath(userRole, postUid);
+        }
+      }
+
+      router.push(targetUrl);
     }
   };
 
@@ -153,6 +178,7 @@ export default function NotificationBell() {
       await fetchData();
     } catch (error) {
       console.error("Error deleting notification:", error);
+      alert("Failed to delete notification. Please try again.");
     }
   };
 
@@ -268,9 +294,9 @@ export default function NotificationBell() {
                             <IoTrashOutline className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-red-500" />
                           </button>
                         </div>
-                        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
-                          {notification.message}
-                        </p>
+                        <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">
+                          <NotificationMessage message={notification.message} />
+                        </div>
                         <p className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500 mt-1">
                           {timeAgo(notification.created_at)}
                         </p>
@@ -293,8 +319,9 @@ export default function NotificationBell() {
               <button
                 onClick={() => {
                   setIsOpen(false);
-                  // TODO: Navigate to full notifications page
-                  // window.location.href = '/notifications';
+                  if (currentUser?.role) {
+                    router.push(buildNotificationsPath(currentUser.role));
+                  }
                 }}
                 className="w-full text-center text-xs sm:text-sm text-red-600 hover:text-red-700 dark:text-red-500 dark:hover:text-red-400 font-medium transition-colors py-1 sm:py-0"
               >

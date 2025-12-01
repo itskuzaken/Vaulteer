@@ -11,6 +11,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../services/firebase";
 import { usePathname } from "next/navigation";
 import { signup } from "../services/auth/signup";
+import { NotificationProvider } from "@/components/ui/NotificationProvider";
 
 const geistSans = Inter({
   variable: "--font-geist-sans",
@@ -333,9 +334,11 @@ export default function RootLayout({ children }) {
         className={`${poppins.className} bg-white text-[var(--primary-red)] font-sans`}
         suppressHydrationWarning={true}
       >
-        <Header />
-        <main>{children}</main>
-        <Footer />
+        <NotificationProvider>
+          <Header />
+          <main>{children}</main>
+          <Footer />
+        </NotificationProvider>
         <Script
           type="module"
           src="https://cdn.jsdelivr.net/npm/ionicons@latest/dist/ionicons/ionicons.esm.js"

@@ -12,6 +12,8 @@ async function authenticate(req, res, next) {
     const decodedToken = await admin.auth().verifyIdToken(token);
 
     req.firebaseUid = decodedToken.uid;
+    
+    console.log(`[Auth] Attempting authentication for UID: ${decodedToken.uid}, Email: ${decodedToken.email || 'N/A'}`);
 
     const pool = getPool();
 
@@ -23,7 +25,7 @@ async function authenticate(req, res, next) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         const [[row]] = await pool.query(
-          `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.last_login_at, u.updated_at, r.role
+          `SELECT u.user_id, u.uid, u.name, u.email, u.status, u.last_login_at, u.updated_at, u.profile_picture, r.role
            FROM users u
            JOIN roles r ON u.role_id = r.role_id
            WHERE u.uid = ?
@@ -31,6 +33,11 @@ async function authenticate(req, res, next) {
           [decodedToken.uid]
         );
         userRow = row;
+        if (userRow) {
+          console.log(`[Auth] Found user in DB: user_id=${userRow.user_id}, role=${userRow.role}, status=${userRow.status}`);
+        } else {
+          console.warn(`[Auth] No user found in DB for UID=${decodedToken.uid}`);
+        }
         break; // Success, exit retry loop
       } catch (dbError) {
         lastError = dbError;
@@ -60,9 +67,23 @@ async function authenticate(req, res, next) {
           .status(503)
           .json({ error: "Service temporarily unavailable" });
       }
+      
+      // Additional debugging: Check if user exists with this email
+      try {
+        const [[emailCheck]] = await pool.query(
+          `SELECT uid, email, status FROM users WHERE email = ? LIMIT 1`,
+          [decodedToken.email]
+        );
+        if (emailCheck) {
+          console.error(`[Auth] MISMATCH DETECTED! User exists with email ${decodedToken.email} but different UID. DB_UID=${emailCheck.uid}, Firebase_UID=${decodedToken.uid}`);
+        }
+      } catch (debugError) {
+        console.warn(`[Auth] Debug query failed:`, debugError.message);
+      }
+      
       return res.status(403).json({ 
         code: "NOT_REGISTERED",
-        message: "User not registered",
+        message: "User not registered. Please complete the application form first.",
         error: "User not registered" 
       });
     }
@@ -74,6 +95,21 @@ async function authenticate(req, res, next) {
           code: "DEACTIVATED",
           message: "Account is deactivated by admin."
         });
+    }
+
+    // Sync Firebase photoURL to database if profile_picture is null
+    if (!userRow.profile_picture && decodedToken.picture) {
+      try {
+        await pool.query(
+          `UPDATE users SET profile_picture = ? WHERE uid = ?`,
+          [decodedToken.picture, decodedToken.uid]
+        );
+        userRow.profile_picture = decodedToken.picture;
+        console.log(`[Auth] Synced Firebase photoURL to database for user ${decodedToken.uid}`);
+      } catch (syncError) {
+        // Don't block authentication if sync fails
+        console.warn(`[Auth] Failed to sync photoURL for user ${decodedToken.uid}:`, syncError.message);
+      }
     }
 
     req.authenticatedUser = {

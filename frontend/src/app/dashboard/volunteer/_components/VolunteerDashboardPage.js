@@ -9,6 +9,9 @@ import ViewSubmitted from "../../../../components/navigation/Form/ViewSubmitted"
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import MyEvents from "../../../../components/navigation/Event/MyEvents";
 
+import UserSettings from "../../../../components/navigation/Settings/UserSettings";
+import NotificationsPage from "../../../../components/notifications/NotificationsPage";
+
 const volunteerMainRoutes = {
   dashboard: {
     label: "Dashboard",
@@ -26,6 +29,14 @@ const volunteerMainRoutes = {
   profile: {
     label: "Profile",
     component: UserProfile,
+  },
+  settings: {
+    label: "Settings",
+    component: UserSettings,
+  },
+  notifications: {
+    label: "Notifications",
+    component: NotificationsPage,
   },
   event: {
     label: "Event Details",
@@ -64,10 +75,7 @@ export default function VolunteerDashboardPage({
       mainRoutes={volunteerMainRoutes}
       subRoutes={volunteerSubRoutes}
       routingStrategy={routingStrategy}
-      settingsRoute={null}
-      onSettingsClickOverride={() => {
-        window.alert("Settings feature coming soon!");
-      }}
+      settingsRoute={{ content: "settings" }}
     />
   );
 }

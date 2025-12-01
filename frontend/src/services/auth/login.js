@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { getCurrentUser, updateUserActivity } from "../userService";
 import { logActions } from "../activityLogService";
 import { STORAGE_KEYS } from "../../config/config";
+import { clearAuthCache } from "../apiClient";
 
 const TOKEN_STORAGE_KEY = STORAGE_KEYS?.AUTH_TOKEN || "token";
 
@@ -27,18 +28,28 @@ export default function Login({ onClose }) {
     setLoginError("");
 
     try {
+      // Clear any cached auth data from previous user
+      clearAuthCache();
+      
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({
         prompt: 'select_account'
       });
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
+      
+      // Get fresh token for the new user
+      const freshToken = await user.getIdToken(true);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(TOKEN_STORAGE_KEY, freshToken);
+      }
 
       // Only allow login if user has a record in the database
+      // Force fresh fetch without cache to avoid using previous user's data
       let userInfo;
       let currentUserError = null;
       try {
-        userInfo = await getCurrentUser();
+        userInfo = await getCurrentUser(true); // Pass true to skip cache
       } catch (fetchError) {
         currentUserError = fetchError;
         userInfo = null;
@@ -122,14 +133,7 @@ export default function Login({ onClose }) {
           }
         }
 
-        try {
-          const freshToken = await user.getIdToken(true);
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(TOKEN_STORAGE_KEY, freshToken);
-          }
-        } catch (tokenError) {
-          console.warn("Unable to refresh auth token", tokenError);
-        }
+        // Token already stored at the start of login flow
 
         router.push(roleRoute);
         closeModal();

@@ -282,3 +282,61 @@ export const updateSchoolDays = async (userUid, dayIds) => {
 
   return await response.json();
 };
+
+/**
+ * Update volunteer info (reason and frequency)
+ */
+export const updateVolunteerInfo = async (userUid, volunteerData) => {
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    throw new Error("User not authenticated");
+  }
+
+  const token = await currentUser.getIdToken();
+  const response = await fetch(`${API_BASE}/profile/${userUid}/volunteer-info`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(volunteerData),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to update volunteer info");
+  }
+
+  return await response.json();
+};
+
+/**
+ * Update volunteer roles
+ */
+export const updateVolunteerRoles = async (userUid, roleNames) => {
+  const auth = getAuth();
+  const currentUser = auth.currentUser;
+
+  if (!currentUser) {
+    throw new Error("User not authenticated");
+  }
+
+  const token = await currentUser.getIdToken();
+  const response = await fetch(`${API_BASE}/profile/${userUid}/volunteer-roles`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ roleNames }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || "Failed to update volunteer roles");
+  }
+
+  return await response.json();
+};

@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
+import { getStorage, ref, getDownloadURL } from "firebase/storage";
 
 // Allow developers to pass the entire Firebase configuration as a single
 // `NEXT_PUBLIC_FIREBASE` JSON string during development, otherwise fall back to
@@ -64,9 +65,21 @@ try {
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
+// Export Firebase Storage (still available for other uses)
+export const storage = getStorage(app);
+
 export const getIdToken = async (forceRefresh = false) => {
   if (auth.currentUser) {
-    return await auth.currentUser.getIdToken(forceRefresh);
+    try {
+      return await auth.currentUser.getIdToken(forceRefresh);
+    } catch (error) {
+      // If token is expired, force refresh and try again
+      if (error.code === 'auth/id-token-expired' || error.code === 'auth/user-token-expired') {
+        console.log('[Firebase] Token expired, forcing refresh...');
+        return await auth.currentUser.getIdToken(true);
+      }
+      throw error;
+    }
   }
   return null;
 };

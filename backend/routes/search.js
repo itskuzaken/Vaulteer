@@ -67,7 +67,8 @@ router.get("/users/search", async (req, res) => {
          u.status,
          u.date_added,
          u.last_login_at,
-         u.updated_at`;
+         u.updated_at,
+         u.profile_picture`;
 
     if (isApplicant) {
       sql += `,

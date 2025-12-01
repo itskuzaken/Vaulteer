@@ -45,6 +45,12 @@ export async function getNotifications({
       const errorData = await response
         .json()
         .catch(() => ({ error: "Unknown error" }));
+      console.error(`[NotificationService] Failed to fetch notifications:`, {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+        url: `${API_BASE}/notifications?${queryParams}`
+      });
       throw new Error(
         errorData.error || `Failed to fetch notifications: ${response.status}`
       );
@@ -53,7 +59,18 @@ export async function getNotifications({
     const result = await response.json();
     return result.data;
   } catch (error) {
-    console.error("Error fetching notifications:", error);
+    console.error("[NotificationService] Error fetching notifications:", {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      apiBase: API_BASE
+    });
+    
+    // Provide more helpful error message
+    if (error.name === 'TypeError' && error.message.includes('fetch')) {
+      throw new Error('Unable to connect to server. Please check if the backend is running.');
+    }
+    
     throw error;
   }
 }
@@ -194,13 +211,68 @@ export async function deleteNotification(notificationId) {
     );
 
     if (!response.ok) {
-      throw new Error("Failed to delete notification");
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: "Unknown error" }));
+      console.error("Delete notification failed:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+      });
+      throw new Error(
+        errorData.error || `Failed to delete notification: ${response.status}`
+      );
     }
 
     const result = await response.json();
     return result.data;
   } catch (error) {
     console.error("Error deleting notification:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete all read notifications
+ * @returns {Promise<Object>} Result data with deleted count
+ */
+export async function deleteAllReadNotifications() {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const token = await user.getIdToken();
+
+    const response = await fetch(`${API_BASE}/notifications/all-read`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response
+        .json()
+        .catch(() => ({ error: "Unknown error" }));
+      console.error("Delete all read notifications failed:", {
+        status: response.status,
+        statusText: response.statusText,
+        error: errorData,
+      });
+      throw new Error(
+        errorData.error || `Failed to delete all read notifications: ${response.status}`
+      );
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    console.error("Error deleting all read notifications:", error);
     throw error;
   }
 }

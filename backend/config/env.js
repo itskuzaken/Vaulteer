@@ -26,6 +26,23 @@ const CONFIG = {
     "http://192.168.68.102:3000",
     "https://vaulteer.kuzaken.tech"
   ),
+  email: {
+    provider: req("EMAIL_PROVIDER", "ses"), // 'sendgrid', 'smtp', or 'ses'
+    sendgridApiKey: req("SENDGRID_API_KEY", ""),
+    smtp: {
+      host: req("SMTP_HOST", ""),
+      port: parseInt(req("SMTP_PORT", "587"), 10),
+      user: req("SMTP_USER", ""),
+      pass: req("SMTP_PASS", ""),
+    },
+    ses: {
+      region: req("AWS_SES_REGION", "us-east-1"),
+      accessKeyId: req("AWS_ACCESS_KEY_ID", ""),
+      secretAccessKey: req("AWS_SECRET_ACCESS_KEY", ""),
+    },
+    fromEmail: req("FROM_EMAIL", "noreply@vaulteer.com"),
+    fromName: req("FROM_NAME", "Vaulteer"),
+  },
 };
 
 // Validate Firebase credentials in production

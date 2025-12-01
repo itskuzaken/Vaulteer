@@ -5,11 +5,12 @@ const fs = require("fs");
 const path = require("path");
 const { CONFIG } = require("./config/env");
 const { initPool } = require("./db/pool");
-const { corsMiddleware, lanAddress } = require("./middleware/cors");
+const { corsMiddleware, staticFilesCorsMiddleware, lanAddress } = require("./middleware/cors");
 const { scheduleInactiveUserJob } = require("./jobs/inactiveUserScheduler");
 const {
   startDeadlineScheduler,
 } = require("./jobs/applicationDeadlineScheduler");
+const { startPostScheduler } = require("./jobs/postScheduler");
 const { apiLimiter } = require("./middleware/rateLimiter");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
@@ -25,6 +26,8 @@ const eventsRoute = require("./routes/eventsRoutes");
 const gamificationRoute = require("./routes/gamificationRoutes");
 const internalRoute = require("./routes/internalRoutes");
 const applicationSettingsRoute = require("./routes/applicationSettingsRoutes");
+const postsRoute = require("./routes/postsRoutes");
+const userSettingsRoute = require("./routes/userSettingsRoutes");
 
 // Middleware for internal-only routes
 const internalOnly = require("./middleware/internalOnly");
@@ -124,6 +127,14 @@ app.use(corsMiddleware);
 // Body parsing
 app.use(express.json());
 
+// Serve static files from uploads directory with permissive CORS and CORP headers
+app.use("/uploads", staticFilesCorsMiddleware, (req, res, next) => {
+  // Set Cross-Origin Resource Policy to allow cross-origin access
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cross-Origin-Embedder-Policy', 'unsafe-none');
+  next();
+}, express.static(path.join(__dirname, "uploads")));
+
 // Rate limiting for all API routes
 app.use("/api", apiLimiter);
 
@@ -141,6 +152,7 @@ app.use("/api/internal", internalOnly, internalRoute);
 
 // Public API routes (protected by Firebase auth where needed)
 app.use("/api/applicants", applicantsRoute);
+app.use("/api/users", userSettingsRoute); // User settings routes (must come before general users route)
 app.use("/api/users", usersRoute);
 app.use("/api/me", meRoute);
 app.use("/api", searchRoute);
@@ -151,6 +163,7 @@ app.use("/api/profile", profileRoute);
 app.use("/api/events", eventsRoute);
 app.use("/api/gamification", gamificationRoute);
 app.use("/api/application", applicationSettingsRoute);
+app.use("/api/posts", postsRoute);
 
 app.get("/api", (req, res) => {
   res.json({
@@ -172,6 +185,7 @@ app.get("/api", (req, res) => {
       notifications: "/api/notifications",
       events: "/api/events",
       gamification: "/api/gamification",
+      posts: "/api/posts",
     },
     time: new Date().toISOString(),
   });
@@ -189,6 +203,7 @@ async function start() {
 
     scheduleInactiveUserJob();
     startDeadlineScheduler();
+    startPostScheduler();
 
     app.listen(CONFIG.PORT, "0.0.0.0", () => {
       console.log("\n🚀 Vaulteer Server");

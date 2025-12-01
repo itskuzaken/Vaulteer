@@ -28,9 +28,15 @@ const resolvedDefaultBase = `${getDefaultProtocol()}//${getDefaultHost()}:${DEFA
 
 export const API_BASE = normalizeBase(resolvedEnvBase) || resolvedDefaultBase;
 
+// Backend base URL (without /api suffix) for static file serving
+export const BACKEND_URL = API_BASE.replace(/\/api$/, '');
+
 if (typeof window !== "undefined") {
   console.log(
     `[Vaulteer] Frontend configured to reach backend via API base: ${API_BASE}`
+  );
+  console.log(
+    `[Vaulteer] Backend URL for static files: ${BACKEND_URL}`
   );
 }
 
@@ -46,6 +52,28 @@ if (typeof window !== "undefined" && process.env.NODE_ENV !== "production") {
       `[Vaulteer] Warning: API_BASE (${API_BASE}) points to production host; if you're developing locally, set NEXT_PUBLIC_API_URL to your local server (e.g., http://192.168.1.14:5000)`
     );
   }
+}
+
+/**
+ * Normalize attachment URL to handle both relative and absolute paths
+ * @param {string} url - The attachment URL from API
+ * @returns {string} - Normalized absolute URL
+ */
+export function normalizeAttachmentUrl(url) {
+  if (!url) return '';
+  
+  // If already absolute URL (starts with http:// or https://), return as-is
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url;
+  }
+  
+  // If relative URL (starts with /), prepend BACKEND_URL
+  if (url.startsWith('/')) {
+    return `${BACKEND_URL}${url}`;
+  }
+  
+  // Otherwise, treat as relative and prepend BACKEND_URL with /
+  return `${BACKEND_URL}/${url}`;
 }
 
 // Add other shared constants here as needed

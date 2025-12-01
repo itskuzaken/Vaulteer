@@ -42,9 +42,16 @@ export default function ModernDashboardLayout({
   const isClient = useIsClient();
   const { width: windowWidth } = useWindowSize();
 
+  // Update avatar from database profile or Firebase Auth
   useEffect(() => {
-    setAvatarSrc(user?.photoURL || "/default-profile.png");
-  }, [user?.photoURL]);
+    if (dbProfile?.user?.profile_picture) {
+      setAvatarSrc(dbProfile.user.profile_picture);
+    } else if (user?.photoURL) {
+      setAvatarSrc(user.photoURL);
+    } else {
+      setAvatarSrc("/default-profile.png");
+    }
+  }, [dbProfile?.user?.profile_picture, user?.photoURL]);
 
   // Fetch user ID and profile data from database
   useEffect(() => {
@@ -292,7 +299,7 @@ export default function ModernDashboardLayout({
             {user && (
               <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
                 {/* Notification Bell */}
-                <NotificationBell />
+                <NotificationBell currentUser={user} />
 
                 {/* User Profile Dropdown */}
                 <div className="relative" ref={userMenuRef}>
@@ -392,7 +399,7 @@ export default function ModernDashboardLayout({
                   )}
                 </div>
               </div>
-            )}{" "}
+            )}
           </div>
         </header>
 

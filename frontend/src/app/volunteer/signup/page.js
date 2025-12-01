@@ -217,6 +217,20 @@ export default function VolunteerSignupPage() {
 
   const handleChange = (e) => {
     const { name, value, type } = e.target;
+    
+    // Handle mobile number with 11-digit limit and numbers only
+    if (name === "mobileNumber") {
+      const numericValue = value.replace(/\D/g, ""); // Remove non-digits
+      if (numericValue.length <= 11) {
+        setForm((prev) => ({
+          ...prev,
+          [name]: numericValue,
+        }));
+        setErrors((prev) => ({ ...prev, [name]: undefined }));
+      }
+      return;
+    }
+    
     setForm((prev) => ({
       ...prev,
       [name]: type === "radio" ? value : value,
@@ -254,8 +268,13 @@ export default function VolunteerSignupPage() {
 
   const validateContact = () => {
     const newErrors = {};
-    if (!form.mobileNumber.trim())
+    if (!form.mobileNumber.trim()) {
       newErrors.mobileNumber = "Mobile Number is required.";
+    } else if (form.mobileNumber.length !== 11) {
+      newErrors.mobileNumber = "Mobile Number must be exactly 11 digits.";
+    } else if (!form.mobileNumber.startsWith("09")) {
+      newErrors.mobileNumber = "Mobile Number must start with 09.";
+    }
     if (!form.city.trim())
       newErrors.city = "Current City/Municipality is required.";
     return newErrors;
@@ -600,16 +619,16 @@ export default function VolunteerSignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-red-100 via-white to-red-200 p-6">
+    <div className="min-h-screen flex flex-col items-center bg-gradient-to-br from-red-100 via-white to-red-200 p-3 sm:p-6">
       
 
       {/* Applications Status Banner - Only show when OPEN */}
       {!loadingSettings && applicationSettings && applicationSettings.is_open && (
-        <div className="w-full max-w-xl mb-4">
+        <div className="w-full max-w-xl mb-3 sm:mb-4 px-0">
           {/* Applications Open with Deadline */}
           {applicationSettings.deadline && (
-            <div className="bg-green-50 border border-green-500 text-green-800 px-4 py-3 rounded-lg text-sm">
-              <div className="flex items-center justify-between">
+            <div className="bg-green-50 border border-green-500 text-green-800 px-3 sm:px-4 py-2.5 sm:py-3 rounded-lg text-xs sm:text-sm">
+              <div className="flex items-center justify-between gap-2">
                 <div>
                   <div className="font-semibold">Applications are OPEN!</div>
                   <div className="text-xs text-gray-700 mt-1">
@@ -641,13 +660,13 @@ export default function VolunteerSignupPage() {
       )}
 
       {/* Header Container */}
-      <div className="w-full max-w-xl mb-4">
-        <h1 className="text-2xl font-extrabold text-red-700 text-center tracking-tight bg-white border-2 border-red-700 rounded-2xl shadow-2xl py-6">
+      <div className="w-full max-w-xl mb-3 sm:mb-4px-0">
+        <h1 className="text-xl sm:text-2xl font-extrabold text-red-700 text-center tracking-tight bg-white border-2 border-red-700 rounded-xl sm:rounded-2xl shadow-2xl py-4 sm:py-6">
           Volunteer Sign Up Form
         </h1>
       </div>
       <form
-        className="w-full max-w-xl bg-white border-2 border-red-700 rounded-2xl shadow-2xl p-8 space-y-8"
+        className="w-full max-w-xl bg-white border-2 border-red-700 rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-8 space-y-6 sm:space-y-8 mx-2 sm:mx-0"
         onSubmit={step === 8 ? handleSubmit : handleNext}
         noValidate
       >
@@ -656,11 +675,11 @@ export default function VolunteerSignupPage() {
         {/* Step 1: Data Privacy Consent */}
         {step === 1 && (
           <div>
-            <h2 className="text-xl font-bold text-red-700 mb-2">
+            <h2 className="text-lg sm:text-xl font-bold text-red-700 mb-2">
               Data Privacy Notice
             </h2>
             <div
-              className="bg-red-50 border border-red-200 rounded p-4 mb-4 text-gray-800 text-sm"
+              className="bg-red-50 border border-red-200 rounded p-3 sm:p-4 mb-4 text-gray-800 text-xs sm:text-sm "
               dangerouslySetInnerHTML={{
                 __html: `
                 Bagani Community Center, as a registered community-based and Non-Government Organization (NGO) in Negros Island Region (NIR), aims to continuously recruit and train volunteers who will whole-heartedly devote their precious time and effort in community-building.<br>
@@ -766,12 +785,12 @@ export default function VolunteerSignupPage() {
         {/* Step 2: Personal Information */}
         {step === 2 && (
           <div>
-            <h2 className="text-xl font-bold text-red-700 mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-red-700 mb-3 sm:mb-4">
               Personal Information
             </h2>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Last Name <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -779,16 +798,16 @@ export default function VolunteerSignupPage() {
                   name="lastName"
                   value={form.lastName}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.lastName ? "border-red-500" : "border-gray-300"
                   }`}
                 />
                 {errors.lastName && (
-                  <p className="text-red-600 text-sm">{errors.lastName}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.lastName}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   First Name <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -796,7 +815,7 @@ export default function VolunteerSignupPage() {
                   name="firstName"
                   value={form.firstName}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.firstName ? "border-red-500" : "border-gray-300"
                   }`}
                 />
@@ -852,51 +871,51 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Gender Identity <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="gender"
                       value="Male"
                       checked={form.gender === "Male"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Male
                   </label>
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="gender"
                       value="Female"
                       checked={form.gender === "Female"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Female
                   </label>
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="gender"
                       value="Prefer not to say"
                       checked={form.gender === "Prefer not to say"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Prefer not to say
                   </label>
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="gender"
                       value="Other"
                       checked={form.gender === "Other"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Other
                     {form.gender === "Other" && (
@@ -906,7 +925,7 @@ export default function VolunteerSignupPage() {
                         value={form.genderOther}
                         onChange={handleChange}
                         placeholder="Please specify"
-                        className={`ml-2 border rounded px-2 py-1 text-gray-900 ${
+                        className={`ml-2 border rounded px-2 py-1 text-gray-900 text-sm sm:text-base touch-manipulation ${
                           errors.genderOther
                             ? "border-red-500"
                             : "border-gray-300"
@@ -916,36 +935,36 @@ export default function VolunteerSignupPage() {
                   </label>
                 </div>
                 {errors.gender && (
-                  <p className="text-red-600 text-sm">{errors.gender}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.gender}</p>
                 )}
                 {errors.genderOther && (
-                  <p className="text-red-600 text-sm">{errors.genderOther}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.genderOther}</p>
                 )}
               </div>
             </div>
-            <div className="flex justify-between mt-8 gap-4">
+            <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
               {/* First column: Back button */}
-              <div className=" items-center">
+              <div className="w-full sm:w-auto">
                 <button
                   type="button"
-                  className="bg-gray-300 text-gray-800 font-bold px-6 py-2 rounded hover:bg-gray-400 transition w-full"
+                  className="bg-gray-300 text-gray-800 font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-gray-400 transition w-full text-sm sm:text-base touch-manipulation"
                   onClick={handleBack}
                 >
                   Back
                 </button>
               </div>
               {/* Second column: Clear form and Next buttons */}
-              <div className=" justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  className="text-red-700 hover:text-gray-800 px-6"
+                  className="text-red-700 hover:text-gray-800 px-4 sm:px-6 py-2 sm:py-0 text-sm sm:text-base order-2 sm:order-1 touch-manipulation"
                   onClick={handleClearForm}
                 >
                   Clear form
                 </button>
                 <button
                   type="submit"
-                  className="bg-[var(--primary-red)] text-white font-bold px-6 py-2 rounded hover:bg-red-800 transition"
+                  className="bg-[var(--primary-red)] text-white font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-red-800 transition text-sm sm:text-base order-1 sm:order-2 touch-manipulation"
                 >
                   Next
                 </button>
@@ -956,31 +975,34 @@ export default function VolunteerSignupPage() {
         {/* Step 3: Contact Information */}
         {step === 3 && (
           <div>
-            <h2 className="text-xl font-bold text-red-700 mb-4">
+            <h2 className="text-lg sm:text-xl font-bold text-red-700 mb-3 sm:mb-4">
               Contact Information
             </h2>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Mobile Number <span className="text-red-600">*</span>
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="mobileNumber"
                   value={form.mobileNumber}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.mobileNumber ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="09XXXXXXXXX"
+                  maxLength="11"
+                  inputMode="numeric"
                   required
                 />
+                
                 {errors.mobileNumber && (
-                  <p className="text-red-600 text-sm">{errors.mobileNumber}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.mobileNumber}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Current City/Municipality of Residence{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -989,18 +1011,18 @@ export default function VolunteerSignupPage() {
                   name="city"
                   value={form.city}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.city ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="e.g. Bacolod City"
                   required
                 />
                 {errors.city && (
-                  <p className="text-red-600 text-sm">{errors.city}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.city}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Social Media Account: Facebook
                 </label>
                 <input
@@ -1008,13 +1030,13 @@ export default function VolunteerSignupPage() {
                   name="facebook"
                   value={form.facebook}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   placeholder="https://facebook.com/yourprofile"
                   pattern="https?://.+"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Social Media Account: Twitter
                 </label>
                 <input
@@ -1022,13 +1044,13 @@ export default function VolunteerSignupPage() {
                   name="twitter"
                   value={form.twitter}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   placeholder="https://twitter.com/yourprofile"
                   pattern="https?://.+"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Social Media Account: Instagram
                 </label>
                 <input
@@ -1036,13 +1058,13 @@ export default function VolunteerSignupPage() {
                   name="instagram"
                   value={form.instagram}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   placeholder="https://instagram.com/yourprofile"
                   pattern="https?://.+"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Social Media Account: Tiktok
                 </label>
                 <input
@@ -1050,35 +1072,35 @@ export default function VolunteerSignupPage() {
                   name="tiktok"
                   value={form.tiktok}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   placeholder="https://tiktok.com/@yourprofile"
                   pattern="https?://.+"
                 />
               </div>
             </div>
-            <div className="flex justify-between mt-8 gap-4">
+            <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
               {/* First column: Back button */}
-              <div className=" items-center">
+              <div className="w-full sm:w-auto">
                 <button
                   type="button"
-                  className="bg-gray-300 text-gray-800 font-bold px-6 py-2 rounded hover:bg-gray-400 transition w-full"
+                  className="bg-gray-300 text-gray-800 font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-gray-400 transition w-full text-sm sm:text-base touch-manipulation"
                   onClick={handleBack}
                 >
                   Back
                 </button>
               </div>
               {/* Second column: Clear form and Next buttons */}
-              <div className=" justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  className="text-red-700 hover:text-gray-800 px-6"
+                  className="text-red-700 hover:text-gray-800 px-4 sm:px-6 py-2 sm:py-0 text-sm sm:text-base order-2 sm:order-1 touch-manipulation"
                   onClick={handleClearForm}
                 >
                   Clear form
                 </button>
                 <button
                   type="submit"
-                  className="bg-[var(--primary-red)] text-white font-bold px-6 py-2 rounded hover:bg-red-800 transition"
+                  className="bg-[var(--primary-red)] text-white font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-red-800 transition text-sm sm:text-base order-1 sm:order-2 touch-manipulation"
                 >
                   Next
                 </button>
@@ -1089,79 +1111,79 @@ export default function VolunteerSignupPage() {
         {/* Step 4: Student/Employment Profile */}
         {step === 4 && (
           <div>
-            <h2 className="text-xl font-bold text-red-700 mb-2">
+            <h2 className="text-lg sm:text-xl font-bold text-red-700 mb-2">
               Student/Employment Profile
             </h2>
-            <p className="mb-4 text-gray-800">
+            <p className="mb-3 sm:mb-4 text-gray-800 text-sm sm:text-base">
               We gather this information to determine to which committee or role
               you are most able to contribute.
             </p>
-            <div className="flex flex-col gap-4">
-              <label className="font-semibold mb-1 text-gray-900">
+            <div className="flex flex-col gap-3 sm:gap-4">
+              <label className="font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                 Current Status: <span className="text-red-600">*</span>
               </label>
               <div className="flex flex-col gap-2">
-                <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                   <input
                     type="radio"
                     name="currentStatus"
                     value="Working Professional"
                     checked={form.currentStatus === "Working Professional"}
                     onChange={handleChange}
-                    className="mr-2"
+                    className="mr-2 w-4 h-4"
                   />
                   Working Professional
                 </label>
-                <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                   <input
                     type="radio"
                     name="currentStatus"
                     value="Student"
                     checked={form.currentStatus === "Student"}
                     onChange={handleChange}
-                    className="mr-2"
+                    className="mr-2 w-4 h-4"
                   />
                   Student
                 </label>
-                <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                   <input
                     type="radio"
                     name="currentStatus"
                     value="Not Applicable"
                     checked={form.currentStatus === "Not Applicable"}
                     onChange={handleChange}
-                    className="mr-2"
+                    className="mr-2 w-4 h-4"
                   />
                   Not Applicable
                 </label>
               </div>
               {errors.currentStatus && (
-                <p className="text-red-600 text-sm">{errors.currentStatus}</p>
+                <p className="text-red-600 text-xs sm:text-sm">{errors.currentStatus}</p>
               )}
             </div>
-            <div className="flex justify-between mt-8 gap-4">
+            <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
               {/* First column: Back button */}
-              <div className=" items-center">
+              <div className="w-full sm:w-auto">
                 <button
                   type="button"
-                  className="bg-gray-300 text-gray-800 font-bold px-6 py-2 rounded hover:bg-gray-400 transition w-full"
+                  className="bg-gray-300 text-gray-800 font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-gray-400 transition w-full text-sm sm:text-base touch-manipulation"
                   onClick={handleBack}
                 >
                   Back
                 </button>
               </div>
               {/* Second column: Clear form and Next buttons */}
-              <div className=" justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  className="text-red-700 hover:text-gray-800 px-6"
+                  className="text-red-700 hover:text-gray-800 px-4 sm:px-6 py-2 sm:py-0 text-sm sm:text-base order-2 sm:order-1 touch-manipulation"
                   onClick={handleClearForm}
                 >
                   Clear form
                 </button>
                 <button
                   type="submit"
-                  className="bg-[var(--primary-red)] text-white font-bold px-6 py-2 rounded hover:bg-red-800 transition"
+                  className="bg-[var(--primary-red)] text-white font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-red-800 transition text-sm sm:text-base order-1 sm:order-2 touch-manipulation"
                 >
                   Next
                 </button>
@@ -1172,12 +1194,12 @@ export default function VolunteerSignupPage() {
         {/* Step 5: Working Professional Section */}
         {step === 5 && (
           <div>
-            <h2 className="text-xl font-bold text-red-700 mb-2">
+            <h2 className="text-lg sm:text-xl font-bold text-red-700 mb-2">
               Work Profile
             </h2>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Position <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -1185,16 +1207,16 @@ export default function VolunteerSignupPage() {
                   name="position"
                   value={form.position}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.position ? "border-red-500" : "border-gray-300"
                   }`}
                 />
                 {errors.position && (
-                  <p className="text-red-600 text-sm">{errors.position}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.position}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Industry <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -1202,16 +1224,16 @@ export default function VolunteerSignupPage() {
                   name="industry"
                   value={form.industry}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.industry ? "border-red-500" : "border-gray-300"
                   }`}
                 />
                 {errors.industry && (
-                  <p className="text-red-600 text-sm">{errors.industry}</p>
+                  <p className="text-xs-red-600 text-xs sm:text-sm">{errors.industry}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Company
                 </label>
                 <input
@@ -1219,11 +1241,11 @@ export default function VolunteerSignupPage() {
                   name="company"
                   value={form.company}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Working Days <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
@@ -1238,7 +1260,7 @@ export default function VolunteerSignupPage() {
                   ].map((day) => (
                     <label
                       key={day}
-                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                      className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation"
                     >
                       <input
                         type="checkbox"
@@ -1246,72 +1268,72 @@ export default function VolunteerSignupPage() {
                         value={day}
                         checked={form.workingDays.includes(day)}
                         onChange={(e) => handleCheckboxArray(e, "workingDays")}
-                        className="mr-1"
+                        className="mr-2 w-4 h-4"
                       />
                       {day}
                     </label>
                   ))}
                 </div>
                 {errors.workingDays && (
-                  <p className="text-red-600 text-sm">{errors.workingDays}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.workingDays}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   General Work Shift <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="workShift"
                       value="Day shift"
                       checked={form.workShift === "Day shift"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Day shift (8AM - 10AM start of shift)
                   </label>
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="workShift"
                       value="Mid shift"
                       checked={form.workShift === "Mid shift"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Mid shift (1PM - 3PM start of shift)
                   </label>
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="workShift"
                       value="Night shift"
                       checked={form.workShift === "Night shift"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Night shift (6PM onwards start of shift)
                   </label>
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="workShift"
                       value="Not Applicable"
                       checked={form.workShift === "Not Applicable"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Not Applicable
                   </label>
                 </div>
                 {errors.workShift && (
-                  <p className="text-red-600 text-sm">{errors.workShift}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.workShift}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Other Skills, Hobbies, or Passions{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1319,41 +1341,41 @@ export default function VolunteerSignupPage() {
                   name="workOtherSkills"
                   value={form.workOtherSkills}
                   onChange={handleChange}
-                  className={`w-full border border-gray-300 rounded px-3 py-2 text-gray-900${
+                  className={`w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation${
                     errors.workOtherSkills ? " border-red-500" : ""
                   }`}
-                  rows={2}
+                  rows={3}
                 />
                 {errors.workOtherSkills && (
-                  <p className="text-red-600 text-sm">
+                  <p className="text-red-600 text-xs sm:text-sm">
                     {errors.workOtherSkills}
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex justify-between mt-8 gap-4">
+            <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
               {/* First column: Back button */}
-              <div className=" items-center">
+              <div className="w-full sm:w-auto">
                 <button
                   type="button"
-                  className="bg-gray-300 text-gray-800 font-bold px-6 py-2 rounded hover:bg-gray-400 transition w-full"
+                  className="bg-gray-300 text-gray-800 font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-gray-400 transition w-full text-sm sm:text-base touch-manipulation"
                   onClick={handleBack}
                 >
                   Back
                 </button>
               </div>
               {/* Second column: Clear form and Next buttons */}
-              <div className=" justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  className="text-red-700 hover:text-gray-800 px-6"
+                  className="text-red-700 hover:text-gray-800 px-4 sm:px-6 py-2 sm:py-0 text-sm sm:text-base order-2 sm:order-1 touch-manipulation"
                   onClick={handleClearForm}
                 >
                   Clear form
                 </button>
                 <button
                   type="submit"
-                  className="bg-[var(--primary-red)] text-white font-bold px-6 py-2 rounded hover:bg-red-800 transition"
+                  className="bg-[var(--primary-red)] text-white font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-red-800 transition text-sm sm:text-base order-1 sm:order-2 touch-manipulation"
                 >
                   Next
                 </button>
@@ -1364,12 +1386,12 @@ export default function VolunteerSignupPage() {
         {/* Step 6: Student Profile Section */}
         {step === 6 && (
           <div>
-            <h2 className="text-xl font-bold text-red-700 mb-2">
+            <h2 className="text-lg sm:text-xl font-bold text-red-700 mb-2">
               Student Profile
             </h2>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Name of your School and Location{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1378,16 +1400,16 @@ export default function VolunteerSignupPage() {
                   name="school"
                   value={form.school}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.school ? "border-red-500" : "border-gray-300"
                   }`}
                 />
                 {errors.school && (
-                  <p className="text-red-600 text-sm">{errors.school}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.school}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Course / Major <span className="text-red-600">*</span>
                 </label>
                 <input
@@ -1395,16 +1417,16 @@ export default function VolunteerSignupPage() {
                   name="course"
                   value={form.course}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.course ? "border-red-500" : "border-gray-300"
                   }`}
                 />
                 {errors.course && (
-                  <p className="text-red-600 text-sm">{errors.course}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.course}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Year of Expected Graduation{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1413,17 +1435,17 @@ export default function VolunteerSignupPage() {
                   name="graduation"
                   value={form.graduation}
                   onChange={handleChange}
-                  className={`w-full border rounded px-3 py-2 text-gray-900 ${
+                  className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.graduation ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="e.g. 2025"
                 />
                 {errors.graduation && (
-                  <p className="text-red-600 text-sm">{errors.graduation}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.graduation}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   School Days <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
@@ -1438,7 +1460,7 @@ export default function VolunteerSignupPage() {
                   ].map((day) => (
                     <label
                       key={day}
-                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                      className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation"
                     >
                       <input
                         type="checkbox"
@@ -1446,18 +1468,18 @@ export default function VolunteerSignupPage() {
                         value={day}
                         checked={form.schoolDays.includes(day)}
                         onChange={(e) => handleCheckboxArray(e, "schoolDays")}
-                        className="mr-1"
+                        className="mr-2 w-4 h-4"
                       />
                       {day}
                     </label>
                   ))}
                 </div>
                 {errors.schoolDays && (
-                  <p className="text-red-600 text-sm">{errors.schoolDays}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.schoolDays}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Other Skills, Hobbies, or Passions{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1465,41 +1487,41 @@ export default function VolunteerSignupPage() {
                   name="studentOtherSkills"
                   value={form.studentOtherSkills}
                   onChange={handleChange}
-                  className={`w-full border border-gray-300 rounded px-3 py-2 text-gray-900${
+                  className={`w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation${
                     errors.studentOtherSkills ? " border-red-500" : ""
                   }`}
-                  rows={2}
+                  rows={3}
                 />
                 {errors.studentOtherSkills && (
-                  <p className="text-red-600 text-sm">
+                  <p className="text-red-600 text-xs sm:text-sm">
                     {errors.studentOtherSkills}
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex justify-between mt-8 gap-4">
+            <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
               {/* First column: Back button */}
-              <div className=" items-center">
+              <div className="w-full sm:w-auto">
                 <button
                   type="button"
-                  className="bg-gray-300 text-gray-800 font-bold px-6 py-2 rounded hover:bg-gray-400 transition w-full"
+                  className="bg-gray-300 text-gray-800 font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-gray-400 transition w-full text-sm sm:text-base touch-manipulation"
                   onClick={handleBack}
                 >
                   Back
                 </button>
               </div>
               {/* Second column: Clear form and Next buttons */}
-              <div className=" justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  className="text-red-700 hover:text-gray-800 px-6"
+                  className="text-red-700 hover:text-gray-800 px-4 sm:px-6 py-2 sm:py-0 text-sm sm:text-base order-2 sm:order-1 touch-manipulation"
                   onClick={handleClearForm}
                 >
                   Clear form
                 </button>
                 <button
                   type="submit"
-                  className="bg-[var(--primary-red)] text-white font-bold px-6 py-2 rounded hover:bg-red-800 transition"
+                  className="bg-[var(--primary-red)] text-white font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-red-800 transition text-sm sm:text-base order-1 sm:order-2 touch-manipulation"
                 >
                   Next
                 </button>
@@ -1510,16 +1532,16 @@ export default function VolunteerSignupPage() {
         {/* Step 7: Volunteer Profile Section */}
         {step === 7 && (
           <div>
-            <h2 className="text-xl font-bold text-red-700 mb-2">
+            <h2 className="text-lg sm:text-xl font-bold text-red-700 mb-2">
               Volunteer Profile
             </h2>
-            <p className="mb-4 text-gray-800">
+            <p className="mb-3 sm:mb-4 text-gray-800 text-sm sm:text-base">
               We gather this information to determine to which committee or role
               you are most able to contribute.
             </p>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-3 sm:gap-4">
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   What aspect / role in the organization are you most inclined
                   to contribute to? <span className="text-red-600">*</span>
                 </label>
@@ -1533,7 +1555,7 @@ export default function VolunteerSignupPage() {
                   ].map((role) => (
                     <label
                       key={role}
-                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                      className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation"
                     >
                       <input
                         type="checkbox"
@@ -1543,19 +1565,19 @@ export default function VolunteerSignupPage() {
                         onChange={(e) =>
                           handleCheckboxArray(e, "volunteerRoles")
                         }
-                        className="mr-2"
+                        className="mr-2 w-4 h-4"
                       />
                       {role}
                     </label>
                   ))}
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="checkbox"
                       name="volunteerRoles"
                       value="Other"
                       checked={form.volunteerRoles.includes("Other")}
                       onChange={(e) => handleCheckboxArray(e, "volunteerRoles")}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Other
                     {form.volunteerRoles.includes("Other") && (
@@ -1564,20 +1586,20 @@ export default function VolunteerSignupPage() {
                         name="volunteerOtherRole"
                         value={form.volunteerOtherRole}
                         onChange={handleChange}
-                        className="ml-2 border rounded px-2 py-1 text-gray-900"
+                        className="ml-2 border rounded px-2 py-1 text-gray-900 text-sm sm:text-base touch-manipulation"
                         placeholder="Please specify"
                       />
                     )}
                   </label>
                 </div>
                 {errors.volunteerRoles && (
-                  <p className="text-red-600 text-sm">
+                  <p className="text-red-600 text-xs sm:text-sm">
                     {errors.volunteerRoles}
                   </p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Which Days are you most available for volunteering?{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1593,7 +1615,7 @@ export default function VolunteerSignupPage() {
                   ].map((day) => (
                     <label
                       key={day}
-                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                      className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation"
                     >
                       <input
                         type="checkbox"
@@ -1603,63 +1625,63 @@ export default function VolunteerSignupPage() {
                         onChange={(e) =>
                           handleCheckboxArray(e, "volunteerDays")
                         }
-                        className="mr-1"
+                        className="mr-2 w-4 h-4"
                       />
                       {day}
                     </label>
                   ))}
                 </div>
                 {errors.volunteerDays && (
-                  <p className="text-red-600 text-sm">{errors.volunteerDays}</p>
+                  <p className="text-red-600 text-xs sm:text-sm">{errors.volunteerDays}</p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   How often do you have time to volunteer?{" "}
                   <span className="text-red-600">*</span>
                 </label>
                 <div className="flex flex-col gap-2">
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="volunteerFrequency"
                       value="Always"
                       checked={form.volunteerFrequency === "Always"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Always (daily)
                   </label>
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="volunteerFrequency"
                       value="Often"
                       checked={form.volunteerFrequency === "Often"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Often (3 or more times a week)
                   </label>
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="volunteerFrequency"
                       value="Seldom"
                       checked={form.volunteerFrequency === "Seldom"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Seldom (3 times a month)
                   </label>
-                  <label className="inline-flex items-center text-gray-800 cursor-pointer">
+                  <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                     <input
                       type="radio"
                       name="volunteerFrequency"
                       value="Rarely"
                       checked={form.volunteerFrequency === "Rarely"}
                       onChange={handleChange}
-                      className="mr-2"
+                      className="mr-2 w-4 h-4"
                     />
                     Rarely (once every few months)
                   </label>
@@ -1669,13 +1691,13 @@ export default function VolunteerSignupPage() {
                   contribution of time.
                 </span>
                 {errors.volunteerFrequency && (
-                  <p className="text-red-600 text-sm">
+                  <p className="text-red-600 text-xs sm:text-sm">
                     {errors.volunteerFrequency}
                   </p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   What kind of trainings were you able to complete?{" "}
                   <span className="text-red-600">*</span>
                 </label>
@@ -1689,7 +1711,7 @@ export default function VolunteerSignupPage() {
                   ].map((training) => (
                     <label
                       key={training}
-                      className="inline-flex items-center text-gray-800 cursor-pointer"
+                      className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation"
                     >
                       <input
                         type="checkbox"
@@ -1699,20 +1721,20 @@ export default function VolunteerSignupPage() {
                         onChange={(e) =>
                           handleCheckboxArray(e, "volunteerTrainings")
                         }
-                        className="mr-2"
+                        className="mr-2 w-4 h-4"
                       />
                       {training}
                     </label>
                   ))}
                 </div>
                 {errors.volunteerTrainings && (
-                  <p className="text-red-600 text-sm">
+                  <p className="text-red-600 text-xs sm:text-sm">
                     {errors.volunteerTrainings}
                   </p>
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   In 5–10 sentences, please write the reason why you want to be
                   a volunteer of Bagani? <span className="text-red-600">*</span>
                 </label>
@@ -1720,40 +1742,40 @@ export default function VolunteerSignupPage() {
                   name="volunteerReason"
                   value={form.volunteerReason}
                   onChange={handleChange}
-                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   rows={4}
                   placeholder="Your answer..."
                 />
                 {errors.volunteerReason && (
-                  <p className="text-red-600 text-sm">
+                  <p className="text-red-600 text-xs sm:text-sm">
                     {errors.volunteerReason}
                   </p>
                 )}
               </div>
             </div>
-            <div className="flex justify-between mt-8 gap-4">
+            <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
               {/* First column: Back button */}
-              <div className=" items-center">
+              <div className="w-full sm:w-auto">
                 <button
                   type="button"
-                  className="bg-gray-300 text-gray-800 font-bold px-6 py-2 rounded hover:bg-gray-400 transition w-full"
+                  className="bg-gray-300 text-gray-800 font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-gray-400 transition w-full text-sm sm:text-base touch-manipulation"
                   onClick={handleBack}
                 >
                   Back
                 </button>
               </div>
               {/* Second column: Clear form and Next buttons */}
-              <div className=" justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  className="text-red-700 hover:text-gray-800 px-6"
+                  className="text-red-700 hover:text-gray-800 px-4 sm:px-6 py-2 sm:py-0 text-sm sm:text-base order-2 sm:order-1 touch-manipulation"
                   onClick={handleClearForm}
                 >
                   Clear form
                 </button>
                 <button
                   type="submit"
-                  className="bg-[var(--primary-red)] text-white font-bold px-6 py-2 rounded hover:bg-red-800 transition"
+                  className="bg-[var(--primary-red)] text-white font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-red-800 transition text-sm sm:text-base order-1 sm:order-2 touch-manipulation"
                 >
                   Next
                 </button>
@@ -1764,13 +1786,13 @@ export default function VolunteerSignupPage() {
         {/* Step 8: Declaration of Volunteer Commitment */}
         {step === 8 && (
           <div>
-            <h2 className="text-xl font-bold text-red-700 mb-2">
+            <h2 className="text-lg sm:text-xl font-bold text-red-700 mb-2">
               Declaration of Volunteer Commitment
             </h2>
-            <div className="mb-4 text-gray-800">
+            <div className="mb-3 sm:mb-4 text-gray-800 text-sm sm:text-base max-h-60 sm:max-h-96 overflow-y-auto border border-gray-200 rounded p-3 sm:p-4">
               In my intention to volunteer for Bagani Community Center, I commit
               to the following:
-              <ul className="list-disc pl-6 mt-2 mb-2">
+              <ul className="list-disc pl-5 sm:pl-6 mt-2 mb-2">
                 <li>
                   To help the organization fulfill its goals and objectives for
                   the community.
@@ -1796,35 +1818,35 @@ export default function VolunteerSignupPage() {
               not intended to be legally binding, except for cases that breach
               any laws within the jurisdiction of the Philippines.
             </div>
-            <div className="mb-2 font-semibold text-gray-900">
+            <div className="mb-2 font-semibold text-gray-900 text-sm sm:text-base">
               Do you agree with the Declaration of Volunteer Commitment?
             </div>
             <div className="flex flex-col gap-2">
-              <label className="inline-flex items-center text-gray-800 cursor-pointer">
+              <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                 <input
                   type="radio"
                   name="declarationCommitment"
                   value="agree"
                   checked={form.declarationCommitment === "agree"}
                   onChange={handleChange}
-                  className="mr-2"
+                  className="mr-2 w-4 h-4"
                   required
                 />
                 I Agree
               </label>
-              <label className="inline-flex items-center text-gray-800 cursor-pointer">
+              <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
                 <input
                   type="radio"
                   name="declarationCommitment"
                   value="disagree"
                   checked={form.declarationCommitment === "disagree"}
                   onChange={handleChange}
-                  className="mr-2"
+                  className="mr-2 w-4 h-4"
                 />
                 I Disagree
               </label>
               {errors.declarationCommitment && (
-                <p className="text-red-600 text-sm">
+                <p className="text-red-600 text-xs sm:text-sm">
                   {errors.declarationCommitment}
                 </p>
               )}
@@ -1836,12 +1858,12 @@ export default function VolunteerSignupPage() {
                 <p className="text-red-600">{submitError}</p>
               </div>
             )}
-            <div className="flex justify-between mt-8 gap-4">
+            <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
               {/* First column: Back button */}
-              <div className=" items-center">
+              <div className="w-full sm:w-auto">
                 <button
                   type="button"
-                  className="bg-gray-300 text-gray-800 font-bold px-6 py-2 rounded hover:bg-gray-400 transition w-full"
+                  className="bg-gray-300 text-gray-800 font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-gray-400 transition w-full text-sm sm:text-base touch-manipulation"
                   onClick={handleBack}
                   disabled={isSubmitting}
                 >
@@ -1849,10 +1871,10 @@ export default function VolunteerSignupPage() {
                 </button>
               </div>
               {/* Second column: Clear form and Next buttons */}
-              <div className=" justify-end gap-2">
+              <div className="flex flex-col sm:flex-row justify-end gap-2 w-full sm:w-auto">
                 <button
                   type="button"
-                  className="text-red-700 hover:text-gray-800 px-6"
+                  className="text-red-700 hover:text-gray-800 px-4 sm:px-6 py-2 sm:py-0 text-sm sm:text-base order-2 sm:order-1 touch-manipulation"
                   onClick={handleClearForm}
                   disabled={isSubmitting}
                 >
@@ -1860,7 +1882,7 @@ export default function VolunteerSignupPage() {
                 </button>
                 <button
                   type="submit"
-                  className={`bg-[var(--primary-red)] text-white font-bold px-6 py-2 rounded hover:bg-red-800 transition ${
+                  className={`bg-[var(--primary-red)] text-white font-bold px-4 sm:px-6 py-2.5 sm:py-2 rounded hover:bg-red-800 transition text-sm sm:text-base order-1 sm:order-2 touch-manipulation ${
                     form.declarationCommitment !== "agree" || isSubmitting
                       ? "opacity-50 cursor-not-allowed"
                       : ""
@@ -1876,8 +1898,8 @@ export default function VolunteerSignupPage() {
           </div>
         )}
         {/* Progress Bar */}
-        <div className="w-full max-w-xl ">
-          <div className="w-full bg-gray-200 rounded-full h-2 relative">
+        <div className="w-full max-w-xl px-2 sm:px-0">
+          <div className="w-full bg-gray-200 rounded-full h-1.5 sm:h-2 relative">
             <div
               className="bg-[var(--primary-red)] h-2 rounded-full transition-all duration-300"
               style={{ width: `${progressPercent}%` }}

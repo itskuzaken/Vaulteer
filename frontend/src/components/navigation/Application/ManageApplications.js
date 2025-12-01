@@ -30,10 +30,11 @@ const SORT_OPTIONS = [
 
 // Avatar helper
 function getAvatarUrl(applicant) {
+  if (applicant.profile_picture) return applicant.profile_picture;
   if (applicant.photoUrl) return applicant.photoUrl;
-  if (applicant.email)
+  if (applicant.email || applicant.name)
     return `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      applicant.name || applicant.email
+      applicant.name || applicant.email || "User"
     )}&background=bb3031&color=fff&size=128`;
   return "https://ui-avatars.com/api/?name=User&background=bb3031&color=fff&size=128";
 }

@@ -5,18 +5,17 @@ import AdminDashboard from "../../../../components/navigation/Dashboard/AdminDas
 import AdminActivityLog from "../../../../components/navigation/Log/AdminActivityLog";
 import UserProfile from "../../../../components/navigation/Profile/UserProfile";
 import FormSubmission from "../../../../components/navigation/Form/FormSubmission";
-import CreatePost from "../../../../components/navigation/Post/CreatePost";
-import PublishedPosts from "../../../../components/navigation/Post/PublishedPosts";
-import ArchivedPosts from "../../../../components/navigation/Post/ArchivedPosts";
-import ScheduledPosts from "../../../../components/navigation/Post/ScheduledPosts";
-import CreateAnnouncement from "../../../../components/navigation/Post/CreateAnnouncement";
+import NewsUpdates from "@/components/navigation/Post/NewsUpdates";
+import Announcements from "@/components/navigation/Post/Announcements";
 import ManageVolunteer from "../../../../components/navigation/Volunteer/ManageVolunteer";
 import ManageApplications from "../../../../components/navigation/Application/ManageApplications";
 import ManageStaff from "../../../../components/navigation/Staff/ManageStaff";
 import ManageEvents from "../../../../components/navigation/Event/ManageEvents";
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
+import PostDetailsContent from "../../../../components/navigation/Post/PostDetailsContent";
 import UserSettings from "../../../../components/navigation/Settings/UserSettings";
+import NotificationsPage from "../../../../components/notifications/NotificationsPage";
 
 const adminMainRoutes = {
   dashboard: {
@@ -35,6 +34,10 @@ const adminMainRoutes = {
   settings: {
     label: "Settings",
     component: UserSettings,
+  },
+  notifications: {
+    label: "Notifications",
+    component: NotificationsPage,
   },
   "manage-events": {
     label: "Manage Events",
@@ -62,6 +65,12 @@ const adminMainRoutes = {
     withNavigate: true,
     sidebarKey: "manage-events",
   },
+  post: {
+    label: "Post Details",
+    component: PostDetailsContent,
+    withNavigate: true,
+    sidebarKey: "manage-post",
+  },
 };
 
 function AdminViewAllVolunteers(props) {
@@ -87,11 +96,17 @@ const adminSubRoutes = {
     parent: "hts-form",
     component: FormSubmission,
   },
-  "create-post": {
-    key: "create-post",
-    label: "Create Post",
+  "news-updates": {
+    key: "news-updates",
+    label: "News & Updates",
     parent: "manage-post",
-    component: CreatePost,
+    component: NewsUpdates,
+  },
+  "announcements": {
+    key: "announcements",
+    label: "Announcements",
+    parent: "manage-post",
+    component: Announcements,
   },
   "create-event": {
     key: "create-event",
@@ -99,30 +114,6 @@ const adminSubRoutes = {
     parent: "manage-events",
     component: CreateEvent,
     withNavigate: true,
-  },
-  "published-posts": {
-    key: "published-posts",
-    label: "Published Posts",
-    parent: "manage-post",
-    component: PublishedPosts,
-  },
-  "archived-posts": {
-    key: "archived-posts",
-    label: "Archived Posts",
-    parent: "manage-post",
-    component: ArchivedPosts,
-  },
-  "scheduled-posts": {
-    key: "scheduled-posts",
-    label: "Scheduled Posts",
-    parent: "manage-post",
-    component: ScheduledPosts,
-  },
-  "create-announcement": {
-    key: "create-announcement",
-    label: "Create Announcement",
-    parent: "manage-post",
-    component: CreateAnnouncement,
   },
   // Settings are a single combined page (UserSettings); individual setting
   // sub-routes like 'appearance' and 'user-account-settings' have been

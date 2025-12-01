@@ -178,10 +178,10 @@ export default function ApplicantAdminControls({
 
   if (loading) {
     return (
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-2 border-indigo-200 dark:border-indigo-800">
-        <div className="animate-pulse space-y-4">
-          <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
-          <div className="space-y-3">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+        <div className="animate-pulse space-y-3 sm:space-y-4">
+          <div className="h-5 sm:h-6 bg-gray-200 dark:bg-gray-700 rounded w-2/3 sm:w-1/3"></div>
+          <div className="space-y-2 sm:space-y-3">
             {[1, 2, 3].map((i) => (
               <div
                 key={i}
@@ -199,8 +199,8 @@ export default function ApplicantAdminControls({
 
   return (
     <>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 border-2 border-indigo-200 dark:border-indigo-800">
-        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
+        <h3 className="text-lg sm:text-xl font-semibold sm:font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           <svg
             className="w-6 h-6 text-indigo-600"
             fill="none"
@@ -218,11 +218,11 @@ export default function ApplicantAdminControls({
         </h3>
 
         {/* Workflow Progress */}
-        <div className="mb-6 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+          <h4 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
             Application Progress
           </h4>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between overflow-x-auto pb-2">
             {workflowOrder
               .filter((s) => s !== "rejected")
               .map((status, index) => {
@@ -237,12 +237,12 @@ export default function ApplicantAdminControls({
                 const isRejected = currentStatus?.toLowerCase() === "rejected";
 
                 return (
-                  <div key={status} className="flex items-center flex-1">
+                  <div key={status} className="flex items-center flex-1 min-w-0">
                     <div className="flex flex-col items-center flex-1">
                       <div
-                        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm ${
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm flex-shrink-0 ${
                           isCurrent
-                            ? "bg-indigo-600 text-white ring-4 ring-indigo-200 dark:ring-indigo-800"
+                            ? "bg-indigo-600 text-white ring-2 sm:ring-4 ring-indigo-200 dark:ring-indigo-800"
                             : isCompleted
                             ? "bg-green-500 text-white"
                             : "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400"
@@ -251,7 +251,7 @@ export default function ApplicantAdminControls({
                         {isCompleted ? "✓" : index + 1}
                       </div>
                       <span
-                        className={`mt-2 text-xs font-medium text-center ${
+                        className={`mt-1 sm:mt-2 text-[10px] sm:text-xs font-medium text-center leading-tight px-1 ${
                           isCurrent
                             ? "text-indigo-600 dark:text-indigo-400"
                             : isCompleted
@@ -269,7 +269,7 @@ export default function ApplicantAdminControls({
                       workflowOrder.filter((s) => s !== "rejected").length -
                         1 && (
                       <div
-                        className={`h-1 flex-1 mx-2 ${
+                        className={`h-0.5 sm:h-1 flex-1 mx-1 sm:mx-2 ${
                           isCompleted
                             ? "bg-green-500"
                             : "bg-gray-300 dark:bg-gray-600"
@@ -281,8 +281,8 @@ export default function ApplicantAdminControls({
               })}
           </div>
           {currentStatus?.toLowerCase() === "rejected" && (
-            <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
-              <p className="text-sm text-red-600 dark:text-red-400 font-medium text-center">
+            <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
+              <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 font-medium text-center">
                 ✗ Application was rejected
               </p>
             </div>
@@ -290,21 +290,21 @@ export default function ApplicantAdminControls({
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+          <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <p className="text-xs sm:text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         )}
 
         {isInFinalState && (
-          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <p className="text-sm text-blue-600 dark:text-blue-400 text-center">
+          <div className="mb-3 sm:mb-4 p-2 sm:p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-xs sm:text-sm text-blue-600 dark:text-blue-400 text-center">
               This application is in a final state. No further status changes
               are allowed.
             </p>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Status Selector */}
           <div>
             <StatusSelector
