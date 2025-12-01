@@ -15,7 +15,7 @@ export default function PostDetailsContent({ currentUser, onNavigate }) {
     normalizedRole === "admin" || normalizedRole === "staff"
       ? "manage-post"
       : "dashboard";
-  const fallbackSubContent = "news-updates";
+  const fallbackSubContent = normalizedRole === "volunteer" ? undefined : "news-updates";
 
   useEffect(() => {
     if (postUid) {
