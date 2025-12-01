@@ -15,11 +15,15 @@ import {
   IoImageOutline,
   IoDocumentOutline,
   IoDownloadOutline,
+  IoShareSocialOutline,
 } from "react-icons/io5";
-import { getPostByUid } from "@/services/postService";
+import { getPostByUid, deletePost, archivePost, unarchivePost } from "@/services/postService";
 import { useRouter } from "next/navigation";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import ImageLightbox from "@/components/ui/ImageLightbox";
+import Button from "@/components/ui/Button";
+import StatusBadge from "@/components/ui/StatusBadge";
+import ConfirmModal from "@/components/ui/ConfirmModal";
 import { normalizeAttachmentUrl } from "../../config/config";
 
 export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }) {
@@ -31,6 +35,12 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
   const [lightboxImage, setLightboxImage] = useState(null);
   const [lightboxImages, setLightboxImages] = useState([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
+  
+  // Action states
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [archiveModalOpen, setArchiveModalOpen] = useState(false);
+  const [unarchiveModalOpen, setUnarchiveModalOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     if (!postUid) return;
@@ -66,6 +76,66 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
     }
   };
 
+  const handleDelete = async () => {
+    try {
+      setActionLoading(true);
+      await deletePost(post.post_uid);
+      setDeleteModalOpen(false);
+      handleBack();
+    } catch (err) {
+      console.error("Failed to delete post:", err);
+      alert("Failed to delete post. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    try {
+      setActionLoading(true);
+      await archivePost(post.post_uid);
+      setArchiveModalOpen(false);
+      // Refresh post data
+      const data = await getPostByUid(postUid);
+      setPost(data);
+    } catch (err) {
+      console.error("Failed to archive post:", err);
+      alert("Failed to archive post. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleUnarchive = async () => {
+    try {
+      setActionLoading(true);
+      await unarchivePost(post.post_uid);
+      setUnarchiveModalOpen(false);
+      // Refresh post data
+      const data = await getPostByUid(postUid);
+      setPost(data);
+    } catch (err) {
+      console.error("Failed to unarchive post:", err);
+      alert("Failed to unarchive post. Please try again.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleShare = () => {
+    const url = window.location.href;
+    if (navigator.share) {
+      navigator.share({
+        title: post.title,
+        text: post.title,
+        url: url,
+      }).catch(err => console.log('Error sharing:', err));
+    } else {
+      navigator.clipboard.writeText(url);
+      alert('Link copied to clipboard!');
+    }
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -77,19 +147,14 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
     });
   };
 
-  const getStatusBadge = (status) => {
-    const statusStyles = {
-      published: "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-100",
-      draft: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300",
-      scheduled: "bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-100",
-      archived: "bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-100",
-    };
-
-    return (
-      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${statusStyles[status] || statusStyles.draft}`}>
-        {status?.toUpperCase() || "DRAFT"}
-      </span>
-    );
+  const calculateReadTime = (content) => {
+    if (!content) return 1;
+    // Remove HTML tags
+    const text = content.replace(/<[^>]*>/g, '');
+    // Average reading speed is 200 words per minute
+    const words = text.trim().split(/\s+/).length;
+    const minutes = Math.ceil(words / 200);
+    return minutes || 1;
   };
 
   const getPostTypeLabel = (postType) => {
@@ -161,25 +226,76 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
   return (
     <div className="flex justify-center w-full">
       <div className="w-full max-w-5xl space-y-4 sm:space-y-6">
-        {/* Header with Back Button */}
+        {/* Header with Back Button and Actions */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <button
+          <Button
+            variant="ghost"
+            icon={IoArrowBackOutline}
             onClick={handleBack}
-            className="inline-flex items-center justify-center sm:justify-start gap-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors px-3 py-2 sm:px-0 sm:py-0"
+            className="justify-start"
           >
-            <IoArrowBackOutline className="h-5 w-5" />
-            <span className="font-medium">Back to Posts</span>
-          </button>
+            Back to Posts
+          </Button>
 
-          {canEdit && (
-            <button
-              onClick={handleEdit}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm sm:text-base rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors w-full sm:w-auto"
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* Share Button - Available to all */}
+            <Button
+              variant="secondary"
+              icon={IoShareSocialOutline}
+              onClick={handleShare}
+              size="medium"
             >
-              <IoCreateOutline className="h-5 w-5" />
-              <span>Edit Post</span>
-            </button>
-          )}
+              Share
+            </Button>
+
+            {/* Author-only Actions */}
+            {canEdit && (
+              <>
+                {/* Archive/Unarchive Button */}
+                {post.status === "archived" ? (
+                  <Button
+                    variant="primary"
+                    icon={IoCheckmarkCircleOutline}
+                    onClick={() => setUnarchiveModalOpen(true)}
+                    size="medium"
+                  >
+                    Unarchive
+                  </Button>
+                ) : post.status !== "draft" && (
+                  <Button
+                    variant="ghost"
+                    icon={IoArchiveOutline}
+                    onClick={() => setArchiveModalOpen(true)}
+                    size="medium"
+                  >
+                    Archive
+                  </Button>
+                )}
+
+                {/* Delete Button - Only for drafts */}
+                {post.status === "draft" && (
+                  <Button
+                    variant="danger"
+                    icon={IoTrashOutline}
+                    onClick={() => setDeleteModalOpen(true)}
+                    size="medium"
+                  >
+                    Delete
+                  </Button>
+                )}
+
+                {/* Edit Button */}
+                <Button
+                  variant="primary"
+                  icon={IoCreateOutline}
+                  onClick={handleEdit}
+                  size="medium"
+                >
+                  Edit
+                </Button>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Post Content Card */}
@@ -191,7 +307,7 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white flex-1">
                   {post.title}
                 </h1>
-                {getStatusBadge(post.status)}
+                <StatusBadge status={post.status} />
               </div>
               <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
                 <IoDocumentTextOutline className="h-4 w-4" />
@@ -200,27 +316,41 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
             </div>
 
             {/* Metadata */}
-            <div className="flex flex-wrap gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400 border-t border-b border-gray-200 dark:border-gray-700 py-3 sm:py-4">
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <IoPersonOutline className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>By {post.author_name || "Unknown"}</span>
-              </div>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <IoCalendarOutline className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                <span>Created {formatDate(post.created_at)}</span>
-              </div>
-              {post.publish_at && (
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <IoTimeOutline className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span>Published {formatDate(post.publish_at)}</span>
+            <div className="space-y-3 border-t border-b border-gray-200 dark:border-gray-700 py-4">
+              <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-600 dark:text-gray-400">
+                <div className="flex items-center gap-2">
+                  <IoPersonOutline className="h-4 w-4 text-gray-400" />
+                  <span className="font-medium text-gray-900 dark:text-white">{post.author_name || "Unknown"}</span>
                 </div>
-              )}
-              {post.scheduled_for && post.status === "scheduled" && (
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <IoTimeOutline className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                  <span>Scheduled for {formatDate(post.scheduled_for)}</span>
+                <div className="flex items-center gap-2">
+                  <IoTimeOutline className="h-4 w-4 text-gray-400" />
+                  <span>{calculateReadTime(post.content)} min read</span>
                 </div>
-              )}
+                {post.attachments && post.attachments.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <IoAttachOutline className="h-4 w-4 text-gray-400" />
+                    <span>{post.attachments.length} {post.attachments.length === 1 ? 'attachment' : 'attachments'}</span>
+                  </div>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-500 dark:text-gray-500">
+                <div className="flex items-center gap-1.5">
+                  <IoCalendarOutline className="h-3.5 w-3.5" />
+                  <span>Created {formatDate(post.created_at)}</span>
+                </div>
+                {post.publish_at && (
+                  <div className="flex items-center gap-1.5">
+                    <IoCheckmarkCircleOutline className="h-3.5 w-3.5" />
+                    <span>Published {formatDate(post.publish_at)}</span>
+                  </div>
+                )}
+                {post.scheduled_for && post.status === "scheduled" && (
+                  <div className="flex items-center gap-1.5">
+                    <IoTimeOutline className="h-3.5 w-3.5" />
+                    <span>Scheduled for {formatDate(post.scheduled_for)}</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Content */}
@@ -327,6 +457,40 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
         images={lightboxImages.map(img => ({ ...img, url: normalizeAttachmentUrl(img.url) }))}
         currentIndex={lightboxIndex}
         onNavigate={handleLightboxNavigate}
+      />
+
+      {/* Confirmation Modals */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Post"
+        message="Are you sure you want to delete this post? This action cannot be undone."
+        confirmText="Delete"
+        confirmVariant="danger"
+        loading={actionLoading}
+      />
+
+      <ConfirmModal
+        isOpen={archiveModalOpen}
+        onClose={() => setArchiveModalOpen(false)}
+        onConfirm={handleArchive}
+        title="Archive Post"
+        message="Are you sure you want to archive this post? It will be hidden from the main feed but can be restored later."
+        confirmText="Archive"
+        confirmVariant="primary"
+        loading={actionLoading}
+      />
+
+      <ConfirmModal
+        isOpen={unarchiveModalOpen}
+        onClose={() => setUnarchiveModalOpen(false)}
+        onConfirm={handleUnarchive}
+        title="Unarchive Post"
+        message="Are you sure you want to restore this post? It will be visible in the main feed again."
+        confirmText="Unarchive"
+        confirmVariant="success"
+        loading={actionLoading}
       />
     </div>
   );
