@@ -152,7 +152,7 @@ export default function AdminDashboard({ onNavigate }) {
               description="Share updates with your team"
               icon={<IoChatbubbleEllipsesOutline />}
               color="blue"
-              onClick={() => handleQuickAction("manage-post", "create-post")}
+              onClick={() => handleQuickAction("manage-post", "news-updates")}
             />
             <QuickActionCard
               title="Create Event"

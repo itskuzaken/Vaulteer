@@ -113,13 +113,15 @@ export function createUserCard({
   const avatar = document.createElement("img");
   avatar.className = `w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full object-cover ${style.ring}`;
 
-  // Determine avatar src
+  // Determine avatar src - prioritize profile_picture from database
   let avatarUrl = "";
-  if (user.photoUrl) {
+  if (user.profile_picture) {
+    avatarUrl = user.profile_picture;
+  } else if (user.photoUrl) {
     avatarUrl = user.photoUrl;
-  } else if (user.email) {
+  } else if (user.email || user.name) {
     avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-      user.name || user.email
+      user.name || user.email || "User"
     )}&background=D32F2F&color=fff&size=128`;
   } else {
     avatarUrl =
@@ -130,8 +132,11 @@ export function createUserCard({
   avatar.alt = user.name ? `${user.name}'s profile picture` : "Profile picture";
   avatar.onerror = function () {
     avatar.onerror = null;
-    avatar.src =
-      "https://ui-avatars.com/api/?name=User&background=D32F2F&color=fff&size=128";
+    // Fallback to generated avatar on error
+    const fallbackName = user.name || user.email || "User";
+    avatar.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+      fallbackName
+    )}&background=D32F2F&color=fff&size=128`;
   };
 
   // Status indicator dot

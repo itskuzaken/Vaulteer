@@ -94,7 +94,12 @@ export async function getUserById(userId) {
 }
 
 // Get current user info and role
-export async function getCurrentUser() {
+export async function getCurrentUser(skipCache = false) {
   // Cache this call for 5 minutes - used heavily during dashboard load/route protection
-  return await fetchWithAuth(`/me`, { method: "GET", cacheTTL: 300_000 });
+  // Unless skipCache is true (used during login to ensure fresh data)
+  const options = { method: "GET" };
+  if (!skipCache) {
+    options.cacheTTL = 300_000;
+  }
+  return await fetchWithAuth(`/me`, options);
 }

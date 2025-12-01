@@ -47,8 +47,8 @@ router.get("/", authenticate, async (req, res) => {
         is_read,
         action_url,
         metadata,
-        created_at,
-        read_at
+        CONVERT_TZ(created_at, '+00:00', '+08:00') as created_at,
+        CONVERT_TZ(read_at, '+00:00', '+08:00') as read_at
       FROM notifications
       WHERE user_id = ?
     `;
@@ -300,6 +300,56 @@ router.delete("/:id", authenticate, async (req, res) => {
   } catch (error) {
     console.error("Error deleting notification:", error);
     res.status(500).json({ error: "Failed to delete notification" });
+  }
+});
+
+/**
+ * @route   DELETE /api/notifications/all-read
+ * @desc    Delete all read notifications for the authenticated user
+ * @access  Private
+ */
+router.delete("/all-read", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const userId = req.firebaseUid;
+
+    console.log("[Notifications] Deleting all read notifications");
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Get user's database ID
+    const [userRows] = await pool.query(
+      "SELECT user_id FROM users WHERE uid = ?",
+      [userId]
+    );
+
+    if (!userRows.length) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const userDbId = userRows[0].user_id;
+
+    // Delete all read notifications
+    const [result] = await pool.query(
+      "DELETE FROM notifications WHERE user_id = ? AND is_read = TRUE",
+      [userDbId]
+    );
+
+    console.log(
+      `[Notifications] Deleted ${result.affectedRows} read notifications for user ${userDbId}`
+    );
+
+    res.json({
+      success: true,
+      data: {
+        deleted_count: result.affectedRows,
+      },
+    });
+  } catch (error) {
+    console.error("Error deleting read notifications:", error);
+    res.status(500).json({ error: "Failed to delete read notifications" });
   }
 });
 

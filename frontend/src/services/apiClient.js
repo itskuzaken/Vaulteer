@@ -14,6 +14,13 @@ const JITTER_FACTOR = 0.2;
 const activeRequests = new Map();
 const responseCache = new Map();
 
+// Export function to clear caches (useful on login/logout)
+export const clearAuthCache = () => {
+  responseCache.clear();
+  activeRequests.clear();
+  persistToken(null);
+};
+
 const readStoredToken = () => {
   if (typeof window === "undefined") return null;
 

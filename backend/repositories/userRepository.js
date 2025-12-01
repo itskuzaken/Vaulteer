@@ -70,4 +70,42 @@ async function remove(id) {
   await pool.query(`DELETE FROM users WHERE user_id = ?`, [id]);
   return { id };
 }
-module.exports = { getByUid, listByRole, create, update, remove };
+
+/**
+ * Get all active users (for bulk notifications)
+ * @returns {Promise<Array>} Array of user IDs
+ */
+async function getAllActiveUsers() {
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `SELECT user_id FROM users WHERE status = 'active'`
+  );
+  return rows.map((row) => row.user_id);
+}
+
+/**
+ * Get active users by role (for targeted notifications)
+ * @param {string} role - Role name (e.g., 'volunteer', 'staff', 'admin')
+ * @returns {Promise<Array>} Array of user IDs
+ */
+async function getActiveUsersByRole(role) {
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `SELECT u.user_id 
+    FROM users u 
+    JOIN roles r ON u.role_id = r.role_id 
+    WHERE u.status = 'active' AND r.role = ?`,
+    [role]
+  );
+  return rows.map((row) => row.user_id);
+}
+
+module.exports = {
+  getByUid,
+  listByRole,
+  create,
+  update,
+  remove,
+  getAllActiveUsers,
+  getActiveUsersByRole,
+};

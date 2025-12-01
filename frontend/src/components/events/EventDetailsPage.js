@@ -70,6 +70,9 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
 
   const role = (currentUser?.role || "volunteer").toLowerCase();
   const canManageEvent = role === "admin" || role === "staff";
+  // Only the event creator can edit/delete their event
+  const isEventCreator = currentUser?.user_id && eventData?.created_by_user_id && currentUser.user_id == eventData.created_by_user_id;
+  const canEditEvent = isEventCreator;
   const isPostponed = (eventData?.status || "").toLowerCase() === "postponed";
 
   const sharePath = useMemo(() => {
@@ -189,7 +192,7 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
   };
 
   const handleEditToggle = () => {
-    if (!canManageEvent) return;
+    if (!canEditEvent) return;
     setIsEditing((prev) => !prev);
   };
 
@@ -329,7 +332,7 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
         </button>
         <div className="flex flex-wrap items-center gap-3">
           {eventData.status && <EventStatusBadge status={eventData.status} />}
-          {canManageEvent && (
+          {canEditEvent && (
             <>
               <button
                 type="button"
@@ -742,7 +745,7 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
         </aside>
       </div>
 
-      {canManageEvent && (
+      {canEditEvent && (
         <>
           <PostponeEventModal
             isOpen={showPostponeModal}

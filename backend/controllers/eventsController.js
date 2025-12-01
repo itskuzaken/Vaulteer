@@ -2,6 +2,7 @@ const eventRepository = require("../repositories/eventRepository");
 const gamificationService = require("../services/gamificationService");
 const { GAMIFICATION_ACTIONS } = require("../config/gamificationRules");
 const { logHelpers } = require("../services/activityLogService");
+const notificationService = require("../services/notificationService");
 
 class EventsController {
   // ============================================
@@ -43,6 +44,22 @@ class EventsController {
         },
       });
 
+      // Send notifications if event is created as published
+      if (event.status === "published") {
+        try {
+          await notificationService.notifyEventPublished(event);
+          console.log(
+            `✅ Notifications sent for newly published event: ${event.title}`
+          );
+        } catch (notifError) {
+          console.error(
+            "Error sending event created notifications:",
+            notifError
+          );
+          // Don't fail the request if notifications fail
+        }
+      }
+
       res.status(201).json({
         success: true,
         message: "Event created successfully",
@@ -63,6 +80,29 @@ class EventsController {
       const { uid } = req.params;
       const updates = req.body;
       const userId = req.currentUserId;
+
+      // Check if event exists and get creator info
+      const existingEvent = await eventRepository.getEventByUid(uid);
+      if (!existingEvent) {
+        return res.status(404).json({
+          success: false,
+          message: "Event not found",
+        });
+      }
+
+      // Only event creator can edit (use loose equality to handle type coercion)
+      if (existingEvent.created_by_user_id != userId) {
+        console.log('[DEBUG] Creator check failed:', {
+          existingEventCreatedBy: existingEvent.created_by_user_id,
+          existingEventCreatedByType: typeof existingEvent.created_by_user_id,
+          userId: userId,
+          userIdType: typeof userId,
+        });
+        return res.status(403).json({
+          success: false,
+          message: "Only the event creator can edit this event",
+        });
+      }
 
       // Validate dates if provided
       if (updates.start_datetime && updates.end_datetime) {
@@ -176,6 +216,14 @@ class EventsController {
         eventTitle: event.title,
         performedBy: req.authenticatedUser,
       });
+
+      // Send notifications to all active users (in-app + push)
+      try {
+        await notificationService.notifyEventPublished(event);
+      } catch (notifError) {
+        console.error("Error sending event published notifications:", notifError);
+        // Don't fail the request if notifications fail
+      }
 
       res.json({
         success: true,

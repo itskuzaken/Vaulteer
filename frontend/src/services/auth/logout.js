@@ -1,6 +1,7 @@
 import { getAuth, signOut } from "firebase/auth";
 import { logActions } from "../activityLogService";
 import { STORAGE_KEYS } from "../../config/config";
+import { clearAuthCache } from "../apiClient";
 
 const TOKEN_STORAGE_KEY = STORAGE_KEYS?.AUTH_TOKEN || "token";
 
@@ -21,13 +22,8 @@ export async function confirmLogout(setShowLogoutModal, setUser) {
 
     await signOut(auth);
 
-    if (typeof window !== "undefined") {
-      try {
-        window.localStorage.removeItem(TOKEN_STORAGE_KEY);
-      } catch (storageError) {
-        console.warn("Unable to clear cached auth token", storageError);
-      }
-    }
+    // Clear all cached auth data and tokens
+    clearAuthCache();
 
     console.log("User logged out");
     if (typeof setUser === "function") {

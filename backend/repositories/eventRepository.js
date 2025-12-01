@@ -235,7 +235,15 @@ class EventRepository {
   async getEventByUid(eventUid) {
     const [rows] = await getPool().execute(
       `SELECT 
-        e.*,
+        e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
+        e.location, e.location_type,
+        CONVERT_TZ(e.start_datetime, '+00:00', '+08:00') as start_datetime,
+        CONVERT_TZ(e.end_datetime, '+00:00', '+08:00') as end_datetime,
+        e.max_participants, e.min_participants, e.image_url,
+        e.tags, e.created_by_user_id,
+        CONVERT_TZ(e.created_at, '+00:00', '+08:00') as created_at,
+        CONVERT_TZ(e.updated_at, '+00:00', '+08:00') as updated_at,
+        CONVERT_TZ(e.archived_at, '+00:00', '+08:00') as archived_at,
         u.name as created_by_name,
         u.email as created_by_email,
         (SELECT COUNT(*) FROM event_participants ep 
@@ -269,7 +277,15 @@ class EventRepository {
 
     let dataQuery = `
       SELECT 
-        e.*,
+        e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
+        e.location, e.location_type,
+        CONVERT_TZ(e.start_datetime, '+00:00', '+08:00') as start_datetime,
+        CONVERT_TZ(e.end_datetime, '+00:00', '+08:00') as end_datetime,
+        e.max_participants, e.min_participants, e.image_url,
+        e.tags, e.created_by_user_id,
+        CONVERT_TZ(e.created_at, '+00:00', '+08:00') as created_at,
+        CONVERT_TZ(e.updated_at, '+00:00', '+08:00') as updated_at,
+        CONVERT_TZ(e.archived_at, '+00:00', '+08:00') as archived_at,
         u.name as created_by_name,
         (SELECT COUNT(*) FROM event_participants ep 
          WHERE ep.event_id = e.event_id AND ep.status = 'registered') as participant_count,
@@ -314,7 +330,15 @@ class EventRepository {
   async getUpcomingEvents(limit = 10) {
     const [rows] = await getPool().execute(
       `SELECT 
-        e.*,
+        e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
+        e.location, e.location_type,
+        CONVERT_TZ(e.start_datetime, '+00:00', '+08:00') as start_datetime,
+        CONVERT_TZ(e.end_datetime, '+00:00', '+08:00') as end_datetime,
+        e.max_participants, e.min_participants, e.image_url,
+        e.tags, e.created_by_user_id,
+        CONVERT_TZ(e.created_at, '+00:00', '+08:00') as created_at,
+        CONVERT_TZ(e.updated_at, '+00:00', '+08:00') as updated_at,
+        CONVERT_TZ(e.archived_at, '+00:00', '+08:00') as archived_at,
         u.name as created_by_name,
         (SELECT COUNT(*) FROM event_participants ep 
          WHERE ep.event_id = e.event_id AND ep.status = 'registered') as participant_count,

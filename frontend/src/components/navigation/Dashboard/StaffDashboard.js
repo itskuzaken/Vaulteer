@@ -140,7 +140,7 @@ export default function StaffDashboard({ onNavigate }) {
               description="Share updates with volunteers"
               icon={<IoChatbubbleEllipsesOutline />}
               color="blue"
-              onClick={() => handleQuickAction("manage-post", "create-post")}
+              onClick={() => handleQuickAction("manage-post", "news-updates")}
             />
             <QuickActionCard
               title="Create Event"

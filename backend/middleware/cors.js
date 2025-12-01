@@ -74,6 +74,41 @@ const corsMiddleware = cors({
     return callback(new Error("CORS not allowed for origin: " + origin));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Length', 'Content-Type'],
 });
 
-module.exports = { corsMiddleware, lanAddress };
+// More permissive CORS for static files (images, etc.)
+const staticFilesCorsMiddleware = cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like curl, Postman, or same-origin)
+    if (!origin) {
+      return callback(null, true);
+    }
+
+    // Allow all localhost and LAN origins in development
+    if (CONFIG.NODE_ENV !== "production") {
+      try {
+        const { hostname } = new URL(origin);
+        if (isPrivateNetworkHost(hostname)) {
+          return callback(null, true);
+        }
+      } catch (parseError) {
+        // If URL parsing fails, allow it in development
+        return callback(null, true);
+      }
+    }
+
+    // Allow configured origins
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(null, true); // More permissive for static files
+  },
+  credentials: false, // Static files don't need credentials
+  methods: ['GET', 'HEAD', 'OPTIONS'],
+});
+
+module.exports = { corsMiddleware, staticFilesCorsMiddleware, lanAddress };

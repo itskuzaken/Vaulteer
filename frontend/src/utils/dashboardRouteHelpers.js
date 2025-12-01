@@ -38,3 +38,17 @@ export function buildEventDetailPath(role, eventUid) {
     params: { eventUid },
   });
 }
+
+export function buildPostDetailPath(role, postUid) {
+  if (!postUid) return null;
+  return buildDashboardQueryPath(role, {
+    content: "post",
+    params: { postUid },
+  });
+}
+
+export function buildNotificationsPath(role) {
+  return buildDashboardQueryPath(role, {
+    content: "notifications",
+  });
+}

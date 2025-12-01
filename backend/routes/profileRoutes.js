@@ -263,6 +263,7 @@ router.get("/:uid/comprehensive", authenticate, async (req, res) => {
       availableDays: [],
       workingDays: [],
       schoolDays: [],
+      volunteerRoles: [],
     };
 
     // If user is an applicant, fetch application data
@@ -296,6 +297,13 @@ router.get("/:uid/comprehensive", authenticate, async (req, res) => {
     );
     if (profileRows.length > 0) {
       profileData.profile = profileRows[0];
+      // Include volunteer info for applicants
+      if (profileData.user.role === "applicant") {
+        profileData.volunteerInfo = {
+          volunteer_reason: profileRows[0].volunteer_reason,
+          volunteer_frequency: profileRows[0].volunteer_frequency,
+        };
+      }
     }
 
     // 3. Work profile (if working professional)
@@ -387,6 +395,17 @@ router.get("/:uid/comprehensive", authenticate, async (req, res) => {
       [userId]
     );
     profileData.schoolDays = schoolDaysRows;
+
+    // 10. Volunteer roles (for applicants and volunteers)
+    const [volunteerRolesRows] = await pool.query(
+      `SELECT r.role_id, r.role_name
+       FROM user_roles r
+       JOIN user_profile_roles upr ON r.role_id = upr.role_id
+       JOIN user_profiles up ON upr.profile_id = up.profile_id
+       WHERE up.user_id = ?`,
+      [userId]
+    );
+    profileData.volunteerRoles = volunteerRolesRows;
 
     res.json({
       success: true,
@@ -955,6 +974,144 @@ router.put("/:uid/school-days", authenticate, async (req, res) => {
   } catch (error) {
     console.error("Error updating school days:", error);
     res.status(500).json({ error: "Failed to update school days" });
+  }
+});
+
+/**
+ * @route   PUT /api/profile/:uid/volunteer-info
+ * @desc    Update volunteer reason and frequency for applicants
+ * @access  Private (Own profile or Admin/Staff)
+ */
+router.put("/:uid/volunteer-info", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
+    const { volunteer_reason, volunteer_frequency } = req.body;
+
+    // Get requesting user
+    const requestingUser = await getUserFromFirebaseUid(req.firebaseUid);
+    if (!requestingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+    const canEdit =
+      isEditingOwnProfile ||
+      requestingUser.role === "admin" ||
+      requestingUser.role === "staff";
+
+    if (!canEdit) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to edit this profile" });
+    }
+
+    // Update volunteer info in user_profiles
+    const updates = [];
+    const values = [];
+
+    if (volunteer_reason !== undefined) {
+      updates.push("volunteer_reason = ?");
+      values.push(volunteer_reason);
+    }
+
+    if (volunteer_frequency !== undefined) {
+      updates.push("volunteer_frequency = ?");
+      values.push(volunteer_frequency);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+
+    values.push(userId);
+
+    await pool.query(
+      `UPDATE user_profiles SET ${updates.join(", ")} WHERE user_id = ?`,
+      values
+    );
+
+    res.json({ success: true, message: "Volunteer info updated successfully" });
+  } catch (error) {
+    console.error("Error updating volunteer info:", error);
+    res.status(500).json({ error: "Failed to update volunteer info" });
+  }
+});
+
+/**
+ * @route   PUT /api/profile/:uid/volunteer-roles
+ * @desc    Update volunteer roles for applicants
+ * @access  Private (Own profile or Admin/Staff)
+ */
+router.put("/:uid/volunteer-roles", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
+    const { roleNames } = req.body;
+
+    // Get requesting user
+    const requestingUser = await getUserFromFirebaseUid(req.firebaseUid);
+    if (!requestingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const isEditingOwnProfile =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid;
+    const canEdit =
+      isEditingOwnProfile ||
+      requestingUser.role === "admin" ||
+      requestingUser.role === "staff";
+
+    if (!canEdit) {
+      return res
+        .status(403)
+        .json({ error: "Unauthorized to edit this profile" });
+    }
+
+    // Get profile_id
+    const [profileRows] = await pool.query(
+      `SELECT profile_id FROM user_profiles WHERE user_id = ?`,
+      [userId]
+    );
+
+    if (profileRows.length === 0) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+
+    const profileId = profileRows[0].profile_id;
+
+    // Delete existing volunteer roles
+    await pool.query(
+      `DELETE FROM user_profile_roles WHERE profile_id = ?`,
+      [profileId]
+    );
+
+    // Insert new volunteer roles
+    if (roleNames && roleNames.length > 0) {
+      for (const roleName of roleNames) {
+        const [roleRows] = await pool.query(
+          `SELECT role_id FROM user_roles WHERE role_name = ?`,
+          [roleName]
+        );
+        
+        if (roleRows.length > 0) {
+          await pool.query(
+            `INSERT INTO user_profile_roles (profile_id, role_id) VALUES (?, ?)`,
+            [profileId, roleRows[0].role_id]
+          );
+        }
+      }
+    }
+
+    res.json({ success: true, message: "Volunteer roles updated successfully" });
+  } catch (error) {
+    console.error("Error updating volunteer roles:", error);
+    res.status(500).json({ error: "Failed to update volunteer roles" });
   }
 });
 

@@ -14,6 +14,8 @@ import {
   updateAvailableDays as updateAvailableDaysAPI,
   updateWorkingDays as updateWorkingDaysAPI,
   updateSchoolDays as updateSchoolDaysAPI,
+  updateVolunteerInfo as updateVolunteerInfoAPI,
+  updateVolunteerRoles as updateVolunteerRolesAPI,
 } from "../../UserProfile/ProfileAPI";
 import {
   calculateProfileCompletion,
@@ -38,6 +40,7 @@ import ActivitySummary from "../../UserProfile/ActivitySummary";
 import Achievements from "../../UserProfile/Achievements";
 import AdminControls from "../../UserProfile/AdminControls";
 import ApplicantAdminControls from "../../UserProfile/ApplicantAdminControls";
+import VolunteerProfile from "../../UserProfile/VolunteerProfile";
 
 const dedupeByKey = (items, key) => {
   if (!Array.isArray(items)) {
@@ -98,6 +101,8 @@ export default function UserProfile() {
   const [editedAvailableDays, setEditedAvailableDays] = useState([]);
   const [editedWorkingDays, setEditedWorkingDays] = useState([]);
   const [editedSchoolDays, setEditedSchoolDays] = useState([]);
+  const [editedVolunteerInfo, setEditedVolunteerInfo] = useState({});
+  const [editedVolunteerRoles, setEditedVolunteerRoles] = useState([]);
   const [roleUpdating, setRoleUpdating] = useState(false);
   const [adminRoleDraft, setAdminRoleDraft] = useState("");
   const [showStatusConfirm, setShowStatusConfirm] = useState(false);
@@ -353,6 +358,7 @@ export default function UserProfile() {
     setEditedPersonalProfile(deepClone(comprehensiveData.profile || {}));
     setEditedWorkProfile(deepClone(comprehensiveData.workProfile || {}));
     setEditedStudentProfile(deepClone(comprehensiveData.studentProfile || {}));
+    setEditedVolunteerInfo(deepClone(comprehensiveData.volunteerInfo || {}));
 
     // Deduplicate arrays before setting them
     setEditedTrainings([
@@ -367,6 +373,9 @@ export default function UserProfile() {
     setEditedSchoolDays([
       ...new Set((comprehensiveData.schoolDays || []).map((d) => d.day_id)),
     ]);
+    setEditedVolunteerRoles(
+      (comprehensiveData.volunteerRoles || []).map((r) => r.role_name)
+    );
 
     setAdminRoleDraft((comprehensiveData?.user?.role || "").toLowerCase());
     setPendingStatus(null);
@@ -450,6 +459,11 @@ export default function UserProfile() {
             updateWorkingDaysAPI(profileUserUid, editedWorkingDays),
           comprehensiveData.studentProfile &&
             updateSchoolDaysAPI(profileUserUid, editedSchoolDays),
+          comprehensiveData.user?.role === "applicant" &&
+            Object.keys(editedVolunteerInfo).length > 0 &&
+            updateVolunteerInfoAPI(profileUserUid, editedVolunteerInfo),
+          comprehensiveData.user?.role === "applicant" &&
+            updateVolunteerRolesAPI(profileUserUid, editedVolunteerRoles),
         ].filter(Boolean)
       );
 
@@ -775,7 +789,7 @@ export default function UserProfile() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 p-4">
+    <div className="max-w-6xl mx-auto space-y-4">
       {showStatusConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-4 border border-gray-200 dark:border-gray-700">
@@ -828,7 +842,7 @@ export default function UserProfile() {
 
       {/* Success/Error Messages */}
       {success && (
-        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3">
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg flex items-center gap-3">
           <svg
             className="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0"
             fill="none"
@@ -849,7 +863,7 @@ export default function UserProfile() {
       )}
 
       {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3">
           <svg
             className="w-5 h-5 text-red-600 dark:text-red-400 flex-shrink-0"
             fill="none"
@@ -868,7 +882,7 @@ export default function UserProfile() {
       )}
 
       {isViewingDeactivatedProfile && (
-        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 p-4 text-amber-800 dark:text-amber-200">
+        <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200">
           {currentUserRole === "admin"
             ? "This user is currently deactivated. They will regain access once reactivated, and edits you make will reflect after activation."
             : "This profile is currently deactivated. Editing is disabled until an administrator reactivates your account."}
@@ -924,6 +938,22 @@ export default function UserProfile() {
         onChange={setEditedPersonalProfile}
       />
 
+      {/* Volunteer Application Details - Only for Applicants */}
+      {comprehensiveData?.user?.role === "applicant" && (
+        <VolunteerProfile
+          volunteerInfo={comprehensiveData?.volunteerInfo}
+          volunteerRoles={comprehensiveData?.volunteerRoles}
+          availableDays={comprehensiveData?.availableDays}
+          isEditing={isEditing}
+          editedVolunteerInfo={editedVolunteerInfo}
+          editedRoles={editedVolunteerRoles}
+          editedDays={editedAvailableDays}
+          onVolunteerInfoChange={setEditedVolunteerInfo}
+          onRolesChange={setEditedVolunteerRoles}
+          onDaysChange={setEditedAvailableDays}
+        />
+      )}
+
       {/* Work Profile */}
       {comprehensiveData?.workProfile && (
         <WorkProfile
@@ -951,7 +981,7 @@ export default function UserProfile() {
       )}
 
       {/* Trainings & Available Days Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Trainings */}
         <Trainings
           trainings={comprehensiveData?.trainings}
