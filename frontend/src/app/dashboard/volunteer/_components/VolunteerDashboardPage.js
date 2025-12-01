@@ -8,6 +8,7 @@ import SubmitForm from "../../../../components/navigation/Form/SubmitForm";
 import ViewSubmitted from "../../../../components/navigation/Form/ViewSubmitted";
 import EventDetailsContent from "../../../../components/navigation/Event/EventDetailsContent";
 import MyEvents from "../../../../components/navigation/Event/MyEvents";
+import PostDetailsContent from "../../../../components/navigation/Post/PostDetailsContent";
 
 import UserSettings from "../../../../components/navigation/Settings/UserSettings";
 import NotificationsPage from "../../../../components/notifications/NotificationsPage";
@@ -41,6 +42,11 @@ const volunteerMainRoutes = {
   event: {
     label: "Event Details",
     component: EventDetailsContent,
+    withNavigate: true,
+  },
+  post: {
+    label: "Post Details",
+    component: PostDetailsContent,
     withNavigate: true,
   },
 };
