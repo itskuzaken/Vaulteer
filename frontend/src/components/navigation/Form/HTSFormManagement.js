@@ -1,6 +1,5 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import Image from "next/image";
 import { IoCamera, IoClose, IoCheckmark, IoCloudUploadOutline, IoDocumentText, IoTime, IoCheckmarkCircle, IoAlertCircle, IoHourglassOutline, IoAddCircle, IoListOutline } from "react-icons/io5";
 import { getAuth } from "firebase/auth";
 import Button from "../../ui/Button";
@@ -84,6 +83,10 @@ export default function HTSFormManagement() {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
+        // Ensure video plays after stream is set
+        videoRef.current.play().catch(err => {
+          console.error("Error playing video:", err);
+        });
       }
       // Successful permission grant - reset the attempt flag and set state
       setHasAttemptedCameraRequest(false);
@@ -507,38 +510,43 @@ export default function HTSFormManagement() {
 
         {/* Camera Modal */}
         {isCameraOpen && (currentStep === "front" || currentStep === "back") && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 flex flex-col items-center max-w-2xl w-full mx-4">
-              <div className="w-full mb-4">
-                <div className="bg-primary-red/10 border border-primary-red rounded-lg px-4 py-2 text-center">
-                  <p className="text-primary-red font-semibold">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-95 p-4">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-4 sm:p-6 flex flex-col items-center w-full max-w-xl h-full max-h-screen overflow-hidden">
+              <div className="w-full mb-3 sm:mb-4 flex-shrink-0">
+                <div className="bg-primary-red/10 border border-primary-red rounded-lg px-3 py-2 text-center">
+                  <p className="text-primary-red font-semibold text-sm sm:text-base">
                     📸 Capturing {currentStep === "front" ? "Front" : "Back"} Side of HTS Form
                   </p>
                 </div>
               </div>
-              <video
-                ref={videoRef}
-                autoPlay
-                playsInline
-                className="w-full max-w-xl h-auto rounded-lg mb-4 bg-black"
-              />
+              <div className="relative w-full flex-1 flex items-center justify-center mb-4 overflow-hidden">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover rounded-lg bg-black"
+                  style={{ aspectRatio: '3/4', maxHeight: 'calc(100vh - 180px)' }}
+                />
+              </div>
               <canvas ref={canvasRef} style={{ display: "none" }} />
-              <div className="flex gap-4">
+              <div className="flex gap-3 sm:gap-4 w-full flex-shrink-0">
                 <Button 
                   onClick={captureImage} 
                   variant="primary" 
-                  className="gap-2 px-6 py-3 text-lg"
+                  className="gap-2 px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg flex-1"
                   disabled={isRequestingCameraPermission}
                 >
-                  <IoCamera className="w-6 h-6" />
-                  Capture
+                  <IoCamera className="w-5 h-5 sm:w-6 sm:h-6" />
+                  <span className="hidden xs:inline">Capture</span>
+                  <span className="xs:hidden">Take Photo</span>
                 </Button>
                 <Button 
                   onClick={stopCamera} 
                   variant="secondary" 
-                  className="gap-2 px-6 py-3 text-lg"
+                  className="gap-2 px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg flex-1"
                 >
-                  <IoClose className="w-6 h-6" />
+                  <IoClose className="w-5 h-5 sm:w-6 sm:h-6" />
                   Cancel
                 </Button>
               </div>
@@ -611,8 +619,8 @@ export default function HTSFormManagement() {
             {frontImage && (
               <div>
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Front Side (Captured)</h3>
-                <div className="relative rounded-lg overflow-hidden border border-green-500 aspect-[3/4]">
-                  <Image src={frontImage} alt="Front of form" fill className="object-cover" unoptimized />
+                <div className="relative rounded-lg overflow-hidden border border-green-500">
+                  <img src={frontImage} alt="Front of form" className="w-full h-auto object-cover" style={{ aspectRatio: '3/4' }} />
                   <div className="absolute top-2 right-2">
                     <Button onClick={() => retakeImage("front")} variant="secondary" size="small">
                       Retake
@@ -669,8 +677,8 @@ export default function HTSFormManagement() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Front Side</h3>
-                <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 aspect-[3/4]">
-                  <Image src={frontImage} alt="Front" fill className="object-cover" unoptimized />
+                <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <img src={frontImage} alt="Front" className="w-full h-auto object-cover" style={{ aspectRatio: '3/4' }} />
                   <Button onClick={() => retakeImage("front")} variant="secondary" size="small" className="absolute top-2 right-2">
                     Retake
                   </Button>
@@ -678,8 +686,8 @@ export default function HTSFormManagement() {
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Back Side</h3>
-                <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 aspect-[3/4]">
-                  <Image src={backImage} alt="Back" fill className="object-cover" unoptimized />
+                <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+                  <img src={backImage} alt="Back" className="w-full h-auto object-cover" style={{ aspectRatio: '3/4' }} />
                   <Button onClick={() => retakeImage("back")} variant="secondary" size="small" className="absolute top-2 right-2">
                     Retake
                   </Button>
