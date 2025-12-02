@@ -6,6 +6,13 @@ import { getAuth } from "firebase/auth";
 import Button from "../../ui/Button";
 import { API_BASE } from "../../../config/config";
 import { encryptFormImages } from "../../../utils/imageEncryption";
+import {
+  isCameraSupported,
+  getCameraPermission,
+  requestCameraPermissionWithFallback,
+  stopCameraStream,
+  isCameraPermissionDenied,
+} from "../../../services/cameraPermissionService";
 
 export default function HTSFormManagement() {
   const [activeTab, setActiveTab] = useState("submit"); // 'submit' or 'history'
@@ -18,6 +25,7 @@ export default function HTSFormManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [controlNumber, setControlNumber] = useState(null);
+  const [cameraPermission, setCameraPermission] = useState("prompt"); // "granted", "denied", "prompt", "unsupported"
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -27,57 +35,56 @@ export default function HTSFormManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const checkCameraPermission = async () => {
-    try {
-      if (!navigator.permissions || !navigator.permissions.query) {
-        // Permissions API not supported, proceed with direct camera access
-        return "prompt";
+  // Check camera permission on mount
+  useEffect(() => {
+    const checkPermission = async () => {
+      if (isCameraSupported()) {
+        const permission = await getCameraPermission();
+        setCameraPermission(permission);
+      } else {
+        setCameraPermission("unsupported");
       }
-
-      const permissionStatus = await navigator.permissions.query({ name: "camera" });
-      return permissionStatus.state; // "granted", "denied", or "prompt"
-    } catch (error) {
-      console.log("Permissions API not available, will request directly");
-      return "prompt";
-    }
-  };
+    };
+    checkPermission();
+  }, []);
 
   const startCamera = async (side) => {
     try {
-      // Check if mediaDevices API is available
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error("Camera API not supported in this browser. Please use HTTPS or a modern browser.");
+      // Check if camera is supported
+      if (!isCameraSupported()) {
+        alert(
+          "📷 Camera Not Supported\n\n" +
+          "Your browser doesn't support camera access.\n\n" +
+          "Please:\n" +
+          "• Use a modern browser (Chrome, Firefox, Edge, Safari)\n" +
+          "• Ensure you're using HTTPS connection\n" +
+          "• Update your browser to the latest version"
+        );
+        return;
       }
 
-      // Check current camera permission status
-      const permissionStatus = await checkCameraPermission();
-      
-      if (permissionStatus === "denied") {
-        // Permission was previously denied, show instructions
+      // Check if permission was previously denied
+      if (await isCameraPermissionDenied()) {
         alert(
           "📷 Camera Permission Required\n\n" +
           "Camera access was previously blocked. To enable:\n\n" +
           "1. Click the 🔒 lock icon (or camera icon) in the address bar\n" +
           "2. Find 'Camera' and change to 'Allow'\n" +
           "3. Refresh the page and click 'Capture' again\n\n" +
-          "Or go to:\n" +
-          "Chrome Settings → Privacy and security → Site Settings → Camera\n" +
-          "→ Add vaulteer.kuzaken.tech to 'Allowed to use your camera'"
+          "Browser-specific instructions:\n" +
+          "• Chrome: Settings → Privacy → Site Settings → Camera\n" +
+          "• Firefox: Settings → Privacy → Permissions → Camera\n" +
+          "• Safari: Safari → Settings → Websites → Camera\n" +
+          "→ Add this site to 'Allowed' list"
         );
         return;
       }
 
       // Request camera permission (this triggers the browser's Allow/Block popup)
-      console.log("📷 Requesting camera permission...");
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      });
+      const stream = await requestCameraPermissionWithFallback();
       
-      console.log("✅ Camera permission granted!");
+      // Update permission state
+      setCameraPermission("granted");
       
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -89,52 +96,19 @@ export default function HTSFormManagement() {
     } catch (error) {
       console.error("Error accessing camera:", error);
       
-      // Handle specific permission errors
-      let errorMessage = "Unable to access camera. ";
-      
-      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-        errorMessage = "📷 Camera Permission Denied\n\n" +
-          "You clicked 'Block' on the camera permission popup.\n\n" +
-          "To enable camera access:\n" +
-          "1. Click the 🔒 lock icon (or camera icon) in the address bar\n" +
-          "2. Find 'Camera' and select 'Allow'\n" +
-          "3. Refresh the page and click 'Capture' again\n\n" +
-          "Or go to Chrome Settings → Privacy and security → Site Settings → Camera → " +
-          "Add vaulteer.kuzaken.tech to 'Allowed to use your camera'";
-      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-        errorMessage = "No camera found on this device. Please connect a camera and try again.";
-      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
-        errorMessage = "Camera is already in use by another application. Please close other apps using the camera.";
-      } else if (error.name === "OverconstrainedError") {
-        errorMessage = "Camera doesn't support the requested settings. Trying with default settings...";
-        
-        // Retry with basic settings
-        try {
-          const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
-          if (videoRef.current) {
-            videoRef.current.srcObject = fallbackStream;
-            streamRef.current = fallbackStream;
-          }
-          setIsCameraOpen(true);
-          setCurrentStep(side);
-          setSubmitSuccess(false);
-          return; // Success with fallback
-        } catch (fallbackError) {
-          errorMessage = "Unable to access camera with any settings. " + fallbackError.message;
-        }
-      } else if (error.name === "SecurityError") {
-        errorMessage = "Security error: Camera access is not allowed on this page. Make sure you're using HTTPS (https://vaulteer.kuzaken.tech).";
-      } else {
-        errorMessage += error.message || "Unknown error occurred.";
+      // Update permission state if denied
+      if (error.userAction === "permission_denied") {
+        setCameraPermission("denied");
       }
       
-      alert(errorMessage);
+      // Show error message from cameraPermissionService
+      alert(error.message);
     }
   };
 
   const stopCamera = () => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track) => track.stop());
+      stopCameraStream(streamRef.current);
       streamRef.current = null;
     }
     setIsCameraOpen(false);
@@ -424,10 +398,29 @@ export default function HTSFormManagement() {
 
         {/* Front Image Preview */}
         {!isCameraOpen && currentStep === "front" && !frontImage && (
-          <div className="text-center">
-            <Button onClick={() => startCamera("front")} variant="primary" className="gap-2">
+          <div className="text-center space-y-3">
+            {cameraPermission === "unsupported" && (
+              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-3">
+                <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                  ⚠️ Camera not supported in this browser. Please use Chrome, Firefox, Safari, or Edge with HTTPS.
+                </p>
+              </div>
+            )}
+            {cameraPermission === "denied" && (
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-3">
+                <p className="text-sm text-red-800 dark:text-red-200">
+                  🔒 Camera access is blocked. Click the button below for instructions to enable it.
+                </p>
+              </div>
+            )}
+            <Button 
+              onClick={() => startCamera("front")} 
+              variant="primary" 
+              className="gap-2"
+              disabled={cameraPermission === "unsupported"}
+            >
               <IoCamera className="w-5 h-5" />
-              Capture Front
+              {cameraPermission === "denied" ? "Grant Camera Access" : "Capture Front"}
             </Button>
           </div>
         )}
@@ -449,10 +442,22 @@ export default function HTSFormManagement() {
               </div>
             )}
             {!backImage && (
-              <div className="text-center">
-                <Button onClick={() => startCamera("back")} variant="primary" className="gap-2">
+              <div className="text-center space-y-3">
+                {cameraPermission === "denied" && (
+                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-3">
+                    <p className="text-sm text-red-800 dark:text-red-200">
+                      🔒 Camera access is blocked. Click the button below for instructions to enable it.
+                    </p>
+                  </div>
+                )}
+                <Button 
+                  onClick={() => startCamera("back")} 
+                  variant="primary" 
+                  className="gap-2"
+                  disabled={cameraPermission === "unsupported"}
+                >
                   <IoCamera className="w-5 h-5" />
-                  Capture Back
+                  {cameraPermission === "denied" ? "Grant Camera Access" : "Capture Back"}
                 </Button>
               </div>
             )}
@@ -538,17 +543,31 @@ export default function HTSFormManagement() {
         )}
       </div>
 
-      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
-          📸 Photo Guidelines
-        </h3>
-        <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-          <li>• Capture both front and back sides of the form</li>
-          <li>• Ensure all form fields are clearly visible</li>
-          <li>• Use good lighting conditions</li>
-          <li>• Keep the form flat and avoid shadows</li>
-          <li>• Make sure text is readable</li>
-        </ul>
+      <div className="space-y-4">
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <h3 className="font-semibold text-blue-900 dark:text-blue-100 mb-2">
+            📸 Photo Guidelines
+          </h3>
+          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+            <li>• Capture both front and back sides of the form</li>
+            <li>• Ensure all form fields are clearly visible</li>
+            <li>• Use good lighting conditions</li>
+            <li>• Keep the form flat and avoid shadows</li>
+            <li>• Make sure text is readable</li>
+          </ul>
+        </div>
+
+        {cameraPermission === "prompt" && (
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+            <h3 className="font-semibold text-green-900 dark:text-green-100 mb-2">
+              📷 Camera Permission Required
+            </h3>
+            <p className="text-sm text-green-800 dark:text-green-200">
+              When you click &quot;Capture Front&quot;, your browser will show an <strong>Allow/Block</strong> popup requesting camera access. 
+              Click <strong>&quot;Allow&quot;</strong> to enable the camera for capturing HTS form images. This is similar to enabling push notifications.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
