@@ -27,16 +27,58 @@ export default function HTSFormManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const checkCameraPermission = async () => {
+    try {
+      if (!navigator.permissions || !navigator.permissions.query) {
+        // Permissions API not supported, proceed with direct camera access
+        return "prompt";
+      }
+
+      const permissionStatus = await navigator.permissions.query({ name: "camera" });
+      return permissionStatus.state; // "granted", "denied", or "prompt"
+    } catch (error) {
+      console.log("Permissions API not available, will request directly");
+      return "prompt";
+    }
+  };
+
   const startCamera = async (side) => {
     try {
       // Check if mediaDevices API is available
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error("Camera API not supported in this browser. Please use HTTPS or a modern browser.");
       }
+
+      // Check current camera permission status
+      const permissionStatus = await checkCameraPermission();
       
+      if (permissionStatus === "denied") {
+        // Permission was previously denied, show instructions
+        alert(
+          "📷 Camera Permission Required\n\n" +
+          "Camera access was previously blocked. To enable:\n\n" +
+          "1. Click the 🔒 lock icon (or camera icon) in the address bar\n" +
+          "2. Find 'Camera' and change to 'Allow'\n" +
+          "3. Refresh the page and click 'Capture' again\n\n" +
+          "Or go to:\n" +
+          "Chrome Settings → Privacy and security → Site Settings → Camera\n" +
+          "→ Add vaulteer.kuzaken.tech to 'Allowed to use your camera'"
+        );
+        return;
+      }
+
+      // Request camera permission (this triggers the browser's Allow/Block popup)
+      console.log("📷 Requesting camera permission...");
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment" }
+        video: { 
+          facingMode: "environment",
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
       });
+      
+      console.log("✅ Camera permission granted!");
+      
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
@@ -46,7 +88,47 @@ export default function HTSFormManagement() {
       setSubmitSuccess(false);
     } catch (error) {
       console.error("Error accessing camera:", error);
-      alert(error.message || "Unable to access camera. Please check permissions and ensure you're using HTTPS.");
+      
+      // Handle specific permission errors
+      let errorMessage = "Unable to access camera. ";
+      
+      if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+        errorMessage = "📷 Camera Permission Denied\n\n" +
+          "You clicked 'Block' on the camera permission popup.\n\n" +
+          "To enable camera access:\n" +
+          "1. Click the 🔒 lock icon (or camera icon) in the address bar\n" +
+          "2. Find 'Camera' and select 'Allow'\n" +
+          "3. Refresh the page and click 'Capture' again\n\n" +
+          "Or go to Chrome Settings → Privacy and security → Site Settings → Camera → " +
+          "Add vaulteer.kuzaken.tech to 'Allowed to use your camera'";
+      } else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+        errorMessage = "No camera found on this device. Please connect a camera and try again.";
+      } else if (error.name === "NotReadableError" || error.name === "TrackStartError") {
+        errorMessage = "Camera is already in use by another application. Please close other apps using the camera.";
+      } else if (error.name === "OverconstrainedError") {
+        errorMessage = "Camera doesn't support the requested settings. Trying with default settings...";
+        
+        // Retry with basic settings
+        try {
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          if (videoRef.current) {
+            videoRef.current.srcObject = fallbackStream;
+            streamRef.current = fallbackStream;
+          }
+          setIsCameraOpen(true);
+          setCurrentStep(side);
+          setSubmitSuccess(false);
+          return; // Success with fallback
+        } catch (fallbackError) {
+          errorMessage = "Unable to access camera with any settings. " + fallbackError.message;
+        }
+      } else if (error.name === "SecurityError") {
+        errorMessage = "Security error: Camera access is not allowed on this page. Make sure you're using HTTPS (https://vaulteer.kuzaken.tech).";
+      } else {
+        errorMessage += error.message || "Unknown error occurred.";
+      }
+      
+      alert(errorMessage);
     }
   };
 
