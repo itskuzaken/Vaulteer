@@ -63,27 +63,13 @@ export default function HTSFormManagement() {
         return;
       }
 
-      // Check if permission was previously denied
-      if (await isCameraPermissionDenied()) {
-        alert(
-          "📷 Camera Permission Required\n\n" +
-          "Camera access was previously blocked. To enable:\n\n" +
-          "1. Click the 🔒 lock icon (or camera icon) in the address bar\n" +
-          "2. Find 'Camera' and change to 'Allow'\n" +
-          "3. Refresh the page and click 'Capture' again\n\n" +
-          "Browser-specific instructions:\n" +
-          "• Chrome: Settings → Privacy → Site Settings → Camera\n" +
-          "• Firefox: Settings → Privacy → Permissions → Camera\n" +
-          "• Safari: Safari → Settings → Websites → Camera\n" +
-          "→ Add this site to 'Allowed' list"
-        );
-        return;
-      }
-
-      // Request camera permission (this triggers the browser's Allow/Block popup)
+      // ALWAYS request camera permission - this triggers the browser's Allow/Block popup
+      // The browser will automatically handle if permission was previously granted
+      console.log("📷 Requesting camera access...");
       const stream = await requestCameraPermissionWithFallback();
       
-      // Update permission state
+      // If we get here, permission was granted
+      console.log("✅ Camera access granted by user!");
       setCameraPermission("granted");
       
       if (videoRef.current) {
@@ -94,14 +80,15 @@ export default function HTSFormManagement() {
       setCurrentStep(side);
       setSubmitSuccess(false);
     } catch (error) {
-      console.error("Error accessing camera:", error);
+      console.error("❌ Camera access error:", error);
       
-      // Update permission state if denied
+      // Update permission state based on error type
       if (error.userAction === "permission_denied") {
+        console.log("🔒 User denied camera permission");
         setCameraPermission("denied");
       }
       
-      // Show error message from cameraPermissionService
+      // Show user-friendly error message from cameraPermissionService
       alert(error.message);
     }
   };
@@ -333,6 +320,69 @@ export default function HTSFormManagement() {
   // Render Submit Form Content
   const renderSubmitForm = () => (
     <div className="space-y-6">
+      {/* Camera Permission Status Banner */}
+      {cameraPermission === "granted" && (
+        <div className="bg-green-50 dark:bg-green-900/20 border-l-4 border-green-500 rounded-lg p-4 flex items-start gap-3">
+          <IoCheckmarkCircle className="w-6 h-6 text-green-600 dark:text-green-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-green-900 dark:text-green-100 mb-1">
+              Camera Access Granted ✓
+            </h4>
+            <p className="text-sm text-green-800 dark:text-green-200">
+              Your camera is ready to capture HTS form images. Click the buttons below to start.
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {cameraPermission === "denied" && (
+        <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg p-4 flex items-start gap-3">
+          <IoAlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-red-900 dark:text-red-100 mb-1">
+              Camera Access Blocked 🔒
+            </h4>
+            <p className="text-sm text-red-800 dark:text-red-200 mb-2">
+              Camera permission was denied. To enable camera access:
+            </p>
+            <ol className="text-sm text-red-800 dark:text-red-200 list-decimal list-inside space-y-1">
+              <li>Click the <strong>🔒 lock icon</strong> in your browser&apos;s address bar</li>
+              <li>Find <strong>&quot;Camera&quot;</strong> and change to <strong>&quot;Allow&quot;</strong></li>
+              <li>Refresh the page or click the capture button again</li>
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {cameraPermission === "prompt" && (
+        <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-lg p-4 flex items-start gap-3">
+          <IoCamera className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+              Camera Permission Required 📷
+            </h4>
+            <p className="text-sm text-blue-800 dark:text-blue-200">
+              When you click <strong>&quot;Capture Front&quot;</strong>, your browser will show a popup asking for camera permission. 
+              Click <strong>&quot;Allow&quot;</strong> to enable the camera (similar to enabling push notifications).
+            </p>
+          </div>
+        </div>
+      )}
+
+      {cameraPermission === "unsupported" && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-500 rounded-lg p-4 flex items-start gap-3">
+          <IoAlertCircle className="w-6 h-6 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-yellow-900 dark:text-yellow-100 mb-1">
+              Camera Not Supported ⚠️
+            </h4>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200">
+              Your browser doesn&apos;t support camera access. Please use a modern browser (Chrome, Firefox, Safari, or Edge) with HTTPS connection.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Progress Steps */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
         <div className="flex items-center justify-between">
@@ -413,29 +463,49 @@ export default function HTSFormManagement() {
 
         {/* Front Image Preview */}
         {!isCameraOpen && currentStep === "front" && !frontImage && (
-          <div className="text-center space-y-3">
-            {cameraPermission === "unsupported" && (
-              <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 mb-3">
-                <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                  ⚠️ Camera not supported in this browser. Please use Chrome, Firefox, Safari, or Edge with HTTPS.
+          <div className="text-center space-y-4">
+            <div className="flex flex-col items-center gap-3 p-6 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+              <IoCamera className="w-16 h-16 text-gray-400" />
+              <div>
+                <p className="font-semibold text-gray-900 dark:text-white mb-1">
+                  Front Side of HTS Form
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Click the button below to capture the front side
                 </p>
               </div>
-            )}
-            {cameraPermission === "denied" && (
-              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-3">
-                <p className="text-sm text-red-800 dark:text-red-200">
-                  🔒 Camera access is blocked. Click the button below for instructions to enable it.
-                </p>
-              </div>
-            )}
+            </div>
+            
             <Button 
               onClick={() => startCamera("front")} 
               variant="primary" 
-              className="gap-2"
+              className="gap-2 w-full py-4 text-lg font-semibold"
               disabled={cameraPermission === "unsupported"}
             >
-              <IoCamera className="w-5 h-5" />
-              {cameraPermission === "denied" ? "Grant Camera Access" : "Capture Front"}
+              {cameraPermission === "prompt" && (
+                <>
+                  <IoCamera className="w-6 h-6" />
+                  Capture Front (Permission Required)
+                </>
+              )}
+              {cameraPermission === "denied" && (
+                <>
+                  <IoAlertCircle className="w-6 h-6" />
+                  Grant Camera Access
+                </>
+              )}
+              {cameraPermission === "granted" && (
+                <>
+                  <IoCamera className="w-6 h-6" />
+                  Capture Front
+                </>
+              )}
+              {cameraPermission === "unsupported" && (
+                <>
+                  <IoClose className="w-6 h-6" />
+                  Camera Not Available
+                </>
+              )}
             </Button>
           </div>
         )}
@@ -457,22 +527,36 @@ export default function HTSFormManagement() {
               </div>
             )}
             {!backImage && (
-              <div className="text-center space-y-3">
-                {cameraPermission === "denied" && (
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3 mb-3">
-                    <p className="text-sm text-red-800 dark:text-red-200">
-                      🔒 Camera access is blocked. Click the button below for instructions to enable it.
+              <div className="text-center space-y-4">
+                <div className="flex flex-col items-center gap-3 p-6 bg-gray-50 dark:bg-gray-900/50 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                  <IoCamera className="w-16 h-16 text-gray-400" />
+                  <div>
+                    <p className="font-semibold text-gray-900 dark:text-white mb-1">
+                      Back Side of HTS Form
+                    </p>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      Click the button below to capture the back side
                     </p>
                   </div>
-                )}
+                </div>
+                
                 <Button 
                   onClick={() => startCamera("back")} 
                   variant="primary" 
-                  className="gap-2"
+                  className="gap-2 w-full py-4 text-lg font-semibold"
                   disabled={cameraPermission === "unsupported"}
                 >
-                  <IoCamera className="w-5 h-5" />
-                  {cameraPermission === "denied" ? "Grant Camera Access" : "Capture Back"}
+                  {cameraPermission === "denied" ? (
+                    <>
+                      <IoAlertCircle className="w-6 h-6" />
+                      Grant Camera Access
+                    </>
+                  ) : (
+                    <>
+                      <IoCamera className="w-6 h-6" />
+                      Capture Back
+                    </>
+                  )}
                 </Button>
               </div>
             )}
