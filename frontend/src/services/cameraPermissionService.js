@@ -42,10 +42,9 @@ export async function getCameraPermission() {
  * Request camera permission from user
  * This triggers the browser's native Allow/Block popup
  * Uses simple constraints by default for maximum compatibility (like old implementation)
- * @param {Object} constraints - Camera constraints (optional, defaults to { video: true })
  * @returns {Promise<MediaStream>} Camera stream if granted
  */
-export async function requestCameraPermission(constraints = null) {
+export async function requestCameraPermission() {
   if (!isCameraSupported()) {
     const error = new Error("Camera is not supported in this browser. Please use a modern browser with HTTPS.");
     error.userAction = "unsupported";
@@ -55,7 +54,7 @@ export async function requestCameraPermission(constraints = null) {
   try {
     // Use simple constraints by default (matches old implementation)
     // This has the highest compatibility across browsers and devices
-    const finalConstraints = constraints || { video: true };
+    const finalConstraints = { video: true };
 
     // This will trigger the browser's Allow/Block permission popup
     console.log("📷 Requesting camera permission...");
