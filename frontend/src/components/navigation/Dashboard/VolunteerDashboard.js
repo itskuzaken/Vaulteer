@@ -18,6 +18,8 @@ import DashboardEventsSidebar from "../../dashboard/DashboardEventsSidebar";
 import MyImpactWidget from "../../gamification/MyImpactWidget";
 import BadgeCarousel from "../../gamification/BadgeCarousel";
 import LeaderboardCard from "../../gamification/LeaderboardCard";
+import NewsUpdatesCarousel from "../../dashboard/NewsUpdatesCarousel";
+import AnnouncementsSidebarPanel from "../../dashboard/AnnouncementsSidebarPanel";
 
 export default function VolunteerDashboard({
   onNavigate,
@@ -122,23 +124,15 @@ export default function VolunteerDashboard({
           </div>
         )}
 
-        {/* Real-time Statistics Grid - Only show for volunteers */}
-        {userRole === "volunteer" && (
-          <RealtimeStatsGrid
-            statsConfig={statsConfig}
-            fetchCallback={fetchStats}
-            updateInterval={15000}
-            channel="volunteer-dashboard-stats"
-            gridCols={2}
-          />
-        )}
-
         <MyImpactWidget summary={gamificationSummary} />
 
         <BadgeCarousel
           badges={gamificationSummary?.badges}
           loading={!gamificationSummary}
         />
+
+        {/* News & Updates Carousel */}
+        <NewsUpdatesCarousel />
 
         {/* Show message for non-volunteers */}
         {userRole && userRole !== "volunteer" && (
@@ -180,6 +174,7 @@ export default function VolunteerDashboard({
 
       <div className="space-y-6">
         <DashboardEventsSidebar />
+        <AnnouncementsSidebarPanel />
         <LeaderboardCard limit={6} />
       </div>
     </div>
