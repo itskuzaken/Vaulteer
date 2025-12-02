@@ -17,7 +17,7 @@ import {
 export default function HTSFormManagement() {
   const [activeTab, setActiveTab] = useState("submit"); // 'submit' or 'history'
   // Submit form state
-  const [currentStep, setCurrentStep] = useState("front"); // 'front', 'back', 'result', or 'review'
+  const [currentStep, setCurrentStep] = useState("front"); // 'front', 'back', 'result', 'ocr-review', or 'review'
   const [isCameraOpen, setIsCameraOpen] = useState(false);
   const [frontImage, setFrontImage] = useState(null);
   const [backImage, setBackImage] = useState(null);
@@ -31,6 +31,11 @@ export default function HTSFormManagement() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+
+  // OCR-first workflow state
+  const [extractedData, setExtractedData] = useState(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showOCRReview, setShowOCRReview] = useState(false);
 
   // Submissions history state
   const [submissions, setSubmissions] = useState([]);
@@ -155,10 +160,16 @@ export default function HTSFormManagement() {
       return;
     }
 
+    if (!extractedData) {
+      alert("Please analyze images with OCR before submitting.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Encrypt images before submission
+      // Encrypt images AFTER user confirms OCR results
+      console.log("[Submit] Encrypting images after OCR confirmation...");
       const encryptedData = await encryptFormImages(frontImage, backImage);
       
       const idToken = await user.getIdToken();
@@ -174,7 +185,9 @@ export default function HTSFormManagement() {
           frontImageIV: encryptedData.frontImageIV,
           backImageIV: encryptedData.backImageIV,
           encryptionKey: encryptedData.encryptionKey,
-          testResult: testResult
+          testResult: testResult,
+          extractedData: extractedData,
+          extractionConfidence: extractedData.confidence
         })
       });
 
@@ -186,9 +199,11 @@ export default function HTSFormManagement() {
         setFrontImage(null);
         setBackImage(null);
         setTestResult(null);
+        setExtractedData(null);
+        setShowOCRReview(false);
         setCurrentStep("front");
       } else {
-        alert("Failed to submit form. Please try again.");
+        alert(`Failed to submit form: ${data.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error("Error submitting form:", error);
@@ -198,12 +213,65 @@ export default function HTSFormManagement() {
     }
   };
 
+  const handleAnalyzeImages = async () => {
+    if (!frontImage || !backImage) {
+      alert("Please capture both front and back images first.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+
+      if (!user) {
+        alert("You must be logged in to analyze images.");
+        return;
+      }
+
+      // Convert base64 to blob for multipart upload
+      const frontBlob = await fetch(frontImage).then(r => r.blob());
+      const backBlob = await fetch(backImage).then(r => r.blob());
+
+      const formData = new FormData();
+      formData.append('frontImage', frontBlob, 'front.jpg');
+      formData.append('backImage', backBlob, 'back.jpg');
+
+      const idToken = await user.getIdToken();
+      const response = await fetch(`${API_BASE}/hts-forms/analyze-ocr`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${idToken}`
+        },
+        body: formData
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setExtractedData(data.data);
+        setShowOCRReview(true);
+        console.log("[OCR Analysis] Extraction completed:", data.data);
+      } else {
+        alert(`Failed to analyze images: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Error analyzing images:", error);
+      alert("Failed to analyze images. Please ensure images are clear and try again.");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const resetForm = () => {
     setSubmitSuccess(false);
     setControlNumber(null);
     setFrontImage(null);
     setBackImage(null);
     setTestResult(null);
+    setExtractedData(null);
+    setShowOCRReview(false);
     setCurrentStep("front");
     // Switch to history tab and refresh
     setActiveTab("history");
@@ -619,56 +687,129 @@ export default function HTSFormManagement() {
               </div>
             </div>
 
-            <div>
-              <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
-                What is the test result?
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <button
-                  onClick={() => setTestResult("non-reactive")}
-                  className={`p-6 rounded-lg border-2 transition-all ${
-                    testResult === "non-reactive"
-                      ? "border-green-500 bg-green-50 dark:bg-green-900/20"
-                      : "border-gray-200 dark:border-gray-700 hover:border-green-300"
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <IoCheckmarkCircle className={`w-12 h-12 ${testResult === "non-reactive" ? "text-green-600" : "text-gray-400"}`} />
-                    <span className={`font-semibold ${testResult === "non-reactive" ? "text-green-600" : "text-gray-700 dark:text-gray-300"}`}>
-                      Non-Reactive
-                    </span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setTestResult("reactive")}
-                  className={`p-6 rounded-lg border-2 transition-all ${
-                    testResult === "reactive"
-                      ? "border-red-500 bg-red-50 dark:bg-red-900/20"
-                      : "border-gray-200 dark:border-gray-700 hover:border-red-300"
-                  }`}
-                >
-                  <div className="flex flex-col items-center gap-2">
-                    <IoAlertCircle className={`w-12 h-12 ${testResult === "reactive" ? "text-red-600" : "text-gray-400"}`} />
-                    <span className={`font-semibold ${testResult === "reactive" ? "text-red-600" : "text-gray-700 dark:text-gray-300"}`}>
-                      Reactive
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {testResult && (
-              <div className="flex justify-center pt-4">
+            {/* Step 1: Analyze Images with OCR */}
+            {!extractedData && (
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6 text-center">
+                <IoDocumentText className="w-12 h-12 text-blue-600 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                  Analyze Images with OCR
+                </h3>
+                <p className="text-sm text-blue-800 dark:text-blue-200 mb-4">
+                  Extract text from your HTS form images to verify accuracy before submission.
+                </p>
                 <Button
-                  onClick={submitForm}
+                  onClick={handleAnalyzeImages}
                   variant="primary"
-                  disabled={isSubmitting}
+                  disabled={isAnalyzing}
                   className="gap-2 min-w-[200px]"
                 >
-                  <IoCloudUploadOutline className="w-5 h-5" />
-                  {isSubmitting ? "Submitting..." : "Submit Form"}
+                  {isAnalyzing ? (
+                    <>
+                      <span className="animate-spin h-5 w-5 border-b-2 border-white rounded-full" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <IoDocumentText className="w-5 h-5" />
+                      Analyze Images
+                    </>
+                  )}
                 </Button>
               </div>
+            )}
+
+            {/* Step 2: Review OCR Results and Select Test Result */}
+            {extractedData && (
+              <>
+                <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <IoCheckmarkCircle className="w-5 h-5 text-green-600" />
+                    <h3 className="font-semibold text-green-900 dark:text-green-100">
+                      OCR Analysis Completed
+                    </h3>
+                  </div>
+                  <p className="text-sm text-green-800 dark:text-green-200 mb-2">
+                    Confidence: <strong>{extractedData.confidence}%</strong>
+                  </p>
+                  <button
+                    onClick={() => setShowOCRReview(true)}
+                    className="text-sm text-green-700 dark:text-green-300 underline hover:no-underline"
+                  >
+                    View extracted data →
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+                    What is the test result?
+                  </h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <button
+                      onClick={() => setTestResult("non-reactive")}
+                      className={`p-6 rounded-lg border-2 transition-all ${
+                        testResult === "non-reactive"
+                          ? "border-green-500 bg-green-50 dark:bg-green-900/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-green-300"
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <IoCheckmarkCircle className={`w-12 h-12 ${testResult === "non-reactive" ? "text-green-600" : "text-gray-400"}`} />
+                        <span className={`font-semibold ${testResult === "non-reactive" ? "text-green-600" : "text-gray-700 dark:text-gray-300"}`}>
+                          Non-Reactive
+                        </span>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setTestResult("reactive")}
+                      className={`p-6 rounded-lg border-2 transition-all ${
+                        testResult === "reactive"
+                          ? "border-red-500 bg-red-50 dark:bg-red-900/20"
+                          : "border-gray-200 dark:border-gray-700 hover:border-red-300"
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <IoAlertCircle className={`w-12 h-12 ${testResult === "reactive" ? "text-red-600" : "text-gray-400"}`} />
+                        <span className={`font-semibold ${testResult === "reactive" ? "text-red-600" : "text-gray-700 dark:text-gray-300"}`}>
+                          Reactive
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+
+                  {/* Mismatch warning */}
+                  {testResult && extractedData.testResult && 
+                   testResult !== extractedData.testResult.toLowerCase().replace(/[-\s]/g, '-') && (
+                    <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                      <div className="flex items-start gap-2">
+                        <IoAlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                        <div>
+                          <h4 className="font-semibold text-yellow-900 dark:text-yellow-100">
+                            Mismatch Detected
+                          </h4>
+                          <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                            Your selection ({testResult}) doesn&apos;t match the extracted result ({extractedData.testResult}). 
+                            Please verify the form carefully.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {testResult && (
+                  <div className="flex justify-center pt-4">
+                    <Button
+                      onClick={submitForm}
+                      variant="primary"
+                      disabled={isSubmitting}
+                      className="gap-2 min-w-[200px]"
+                    >
+                      <IoCloudUploadOutline className="w-5 h-5" />
+                      {isSubmitting ? "Submitting..." : "Submit Form"}
+                    </Button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -793,42 +934,177 @@ export default function HTSFormManagement() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Tab Navigation */}
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
-        <div className="flex border-b border-gray-200 dark:border-gray-700">
-          <button
-            onClick={() => setActiveTab("submit")}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-              activeTab === "submit"
-                ? "bg-primary-red text-white border-b-2 border-primary-red"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700/50"
-            }`}
-          >
-            <IoCamera className="w-5 h-5" />
-            Submit Form
-          </button>
-          <button
-            onClick={() => setActiveTab("history")}
-            className={`flex-1 px-6 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-              activeTab === "history"
-                ? "bg-primary-red text-white border-b-2 border-primary-red"
-                : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700/50"
-            }`}
-          >
-            <IoListOutline className="w-5 h-5" />
-            My Submissions
-            {submissions.length > 0 && (
-              <span className="ml-1 px-2 py-0.5 text-xs bg-gray-200 dark:bg-gray-600 rounded-full">
-                {submissions.length}
-              </span>
-            )}
-          </button>
+    <>
+      <div className="space-y-6">
+        {/* Tab Navigation */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setActiveTab("submit")}
+              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                activeTab === "submit"
+                  ? "bg-primary-red text-white border-b-2 border-primary-red"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              }`}
+            >
+              <IoCamera className="w-5 h-5" />
+              Submit Form
+            </button>
+            <button
+              onClick={() => setActiveTab("history")}
+              className={`flex-1 px-6 py-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
+                activeTab === "history"
+                  ? "bg-primary-red text-white border-b-2 border-primary-red"
+                  : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-700/50"
+              }`}
+            >
+              <IoListOutline className="w-5 h-5" />
+              My Submissions
+              {submissions.length > 0 && (
+                <span className="ml-1 px-2 py-0.5 text-xs bg-gray-200 dark:bg-gray-600 rounded-full">
+                  {submissions.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
+
+        {/* Tab Content */}
+        {activeTab === "submit" ? renderSubmitForm() : renderSubmissionsHistory()}
       </div>
 
-      {/* Tab Content */}
-      {activeTab === "submit" ? renderSubmitForm() : renderSubmissionsHistory()}
-    </div>
+      {/* OCR Review Modal */}
+      {showOCRReview && extractedData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                <IoDocumentText className="w-6 h-6 text-primary-red" />
+                Extracted OCR Data
+              </h2>
+              <button
+                onClick={() => setShowOCRReview(false)}
+                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              >
+                <IoClose className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Confidence Score */}
+              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                    Overall Confidence
+                  </span>
+                  <span className="text-lg font-bold text-blue-600">
+                    {extractedData.confidence}%
+                  </span>
+                </div>
+                <div className="mt-2 w-full bg-blue-200 dark:bg-blue-900 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all"
+                    style={{ width: `${extractedData.confidence}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Extracted Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {extractedData.testResult && (
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Result</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {extractedData.testResult}
+                    </p>
+                  </div>
+                )}
+                {extractedData.fullName && (
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Full Name</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {extractedData.fullName}
+                    </p>
+                  </div>
+                )}
+                {extractedData.testDate && (
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Date</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {extractedData.testDate}
+                    </p>
+                  </div>
+                )}
+                {extractedData.birthDate && (
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Birth Date</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {extractedData.birthDate}
+                    </p>
+                  </div>
+                )}
+                {extractedData.philHealthNumber && (
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">PhilHealth Number</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {extractedData.philHealthNumber}
+                    </p>
+                  </div>
+                )}
+                {extractedData.testingFacility && (
+                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Testing Facility</p>
+                    <p className="font-semibold text-gray-900 dark:text-white">
+                      {extractedData.testingFacility}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Confidence Warning */}
+              {extractedData.confidence < 80 && (
+                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                  <div className="flex items-start gap-2">
+                    <IoAlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-yellow-900 dark:text-yellow-100">
+                        Low Confidence Score
+                      </h4>
+                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                        The OCR extraction has low confidence. Please verify the data carefully or consider retaking the images.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  onClick={() => setShowOCRReview(false)}
+                  variant="primary"
+                  className="flex-1"
+                >
+                  <IoCheckmark className="w-5 h-5" />
+                  Looks Good
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowOCRReview(false);
+                    setExtractedData(null);
+                    setCurrentStep("front");
+                  }}
+                  variant="secondary"
+                  className="flex-1"
+                >
+                  <IoCamera className="w-5 h-5" />
+                  Retake Images
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

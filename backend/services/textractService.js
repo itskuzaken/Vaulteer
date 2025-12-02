@@ -326,7 +326,47 @@ function parseHTSFormData(frontResult, backResult) {
 }
 
 /**
+ * Analyze HTS form images and return extracted data
+ * Called by /api/hts-forms/analyze-ocr endpoint BEFORE encryption
+ * This is the OCR-first workflow function
+ */
+async function analyzeHTSForm(frontImageBuffer, backImageBuffer) {
+  console.log('📤 Sending raw images to AWS Textract...');
+  
+  try {
+    // Send to Textract (parallel processing)
+    const [frontResult, backResult] = await Promise.all([
+      analyzeDocument(frontImageBuffer, ['FORMS']),
+      analyzeDocument(backImageBuffer, ['FORMS'])
+    ]);
+    
+    console.log('✅ Textract completed. Parsing results...');
+    
+    // Parse extracted data
+    const extractedData = parseHTSFormData(frontResult, backResult);
+    
+    // Calculate confidence
+    const frontConfidence = calculateAverageConfidence(frontResult.Blocks || []);
+    const backConfidence = calculateAverageConfidence(backResult.Blocks || []);
+    const avgConfidence = (frontConfidence + backConfidence) / 2;
+    
+    console.log(`✅ Extraction complete. Confidence: ${avgConfidence.toFixed(2)}%`);
+    
+    return {
+      ...extractedData,
+      confidence: avgConfidence,
+      frontConfidence,
+      backConfidence
+    };
+  } catch (error) {
+    console.error('❌ OCR analysis failed:', error);
+    throw error;
+  }
+}
+
+/**
  * Process encrypted HTS form with Textract OCR
+ * @deprecated Use analyzeHTSForm for OCR-first workflow
  */
 async function processEncryptedHTSForm(formId) {
   const pool = await getPool();
@@ -408,6 +448,7 @@ async function processEncryptedHTSForm(formId) {
 
 module.exports = {
   analyzeDocument,
+  analyzeHTSForm,
   extractTextLines,
   extractKeyValuePairs,
   extractTestResult,
@@ -416,6 +457,7 @@ module.exports = {
   extractPhilHealthNumber,
   extractTestingFacility,
   extractControlNumber,
+  calculateAverageConfidence,
   parseHTSFormData,
   processEncryptedHTSForm
 };

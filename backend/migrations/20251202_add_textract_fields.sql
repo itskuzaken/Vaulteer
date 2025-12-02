@@ -1,3 +1,4 @@
+-- Active: 1758876153427@@vaulteer-db.c7csay8a2c32.ap-southeast-2.rds.amazonaws.com@3306@vaulteer_db
 -- Add columns for OCR/Textract data
 ALTER TABLE hts_forms 
 ADD COLUMN extracted_data JSON NULL COMMENT 'Parsed data from AWS Textract OCR';

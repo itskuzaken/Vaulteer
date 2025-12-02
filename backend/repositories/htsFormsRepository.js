@@ -2,12 +2,46 @@ const { getPool } = require('../db/pool');
 
 const htsFormsRepository = {
   async createSubmission(data) {
-    const { controlNumber, userId, frontImageUrl, backImageUrl, frontImageIV, backImageIV, encryptionKey, testResult } = data;
+    const { 
+      controlNumber, 
+      userId, 
+      frontImageS3Key, 
+      backImageS3Key, 
+      frontImageIV, 
+      backImageIV, 
+      encryptionKey, 
+      testResult,
+      extractedData,
+      extractionConfidence
+    } = data;
     const pool = getPool();
     const [result] = await pool.query(
-      `INSERT INTO hts_forms (control_number, user_id, front_image_url, back_image_url, front_image_iv, back_image_iv, encryption_key, test_result)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [controlNumber, userId, frontImageUrl, backImageUrl, frontImageIV, backImageIV, encryptionKey, testResult]
+      `INSERT INTO hts_forms (
+        control_number, 
+        user_id, 
+        front_image_s3_key, 
+        back_image_s3_key, 
+        front_image_iv, 
+        back_image_iv, 
+        encryption_key, 
+        test_result,
+        extracted_data,
+        extraction_confidence,
+        ocr_completed_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [
+        controlNumber, 
+        userId, 
+        frontImageS3Key, 
+        backImageS3Key, 
+        frontImageIV, 
+        backImageIV, 
+        encryptionKey, 
+        testResult,
+        JSON.stringify(extractedData),
+        extractionConfidence
+      ]
     );
     return result.insertId;
   },
