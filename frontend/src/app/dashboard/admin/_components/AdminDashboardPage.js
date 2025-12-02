@@ -4,7 +4,7 @@ import DashboardRouteRenderer from "../../_components/DashboardRouteRenderer";
 import AdminDashboard from "../../../../components/navigation/Dashboard/AdminDashboard";
 import AdminActivityLog from "../../../../components/navigation/Log/AdminActivityLog";
 import UserProfile from "../../../../components/navigation/Profile/UserProfile";
-import FormSubmission from "../../../../components/navigation/Form/FormSubmission";
+import AdminFormReview from "../../../../components/navigation/Form/AdminFormReview";
 import NewsUpdates from "@/components/navigation/Post/NewsUpdates";
 import Announcements from "@/components/navigation/Post/Announcements";
 import ManageVolunteer from "../../../../components/navigation/Volunteer/ManageVolunteer";
@@ -59,6 +59,10 @@ const adminMainRoutes = {
     component: AdminApplicationApproval,
     withNavigate: true,
   },
+  "hts-forms": {
+    label: "HTS Forms",
+    component: AdminFormReview,
+  },
   event: {
     label: "Event Details",
     component: EventDetailsContent,
@@ -90,12 +94,6 @@ function AdminApplicationApproval(props) {
 }
 
 const adminSubRoutes = {
-  "form-submission": {
-    key: "form-submission",
-    label: "Form Submission",
-    parent: "hts-form",
-    component: FormSubmission,
-  },
   "news-updates": {
     key: "news-updates",
     label: "News & Updates",

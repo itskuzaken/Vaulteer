@@ -21,17 +21,10 @@ const adminMenu = {
     icon: IoGridOutline,
     subSections: [],
   },
-  "hts-form": {
-    label: "HTS Form",
+  "hts-forms": {
+    label: "HTS Forms",
     icon: IoDocumentTextOutline,
-    defaultSubSection: "form-submission",
-    subSections: [
-      {
-        key: "form-submission",
-        label: "Form Submission",
-        icon: IoDocumentTextOutline,
-      },
-    ],
+    subSections: [],
   },
   "manage-post": {
     label: "Manage Posts",
@@ -83,17 +76,10 @@ const staffMenu = {
     icon: IoGridOutline,
     subSections: [],
   },
-  "hts-form": {
-    label: "HTS Form",
+  "hts-forms": {
+    label: "HTS Forms",
     icon: IoDocumentTextOutline,
-    defaultSubSection: "form-submission",
-    subSections: [
-      {
-        key: "form-submission",
-        label: "Form Submission",
-        icon: IoDocumentTextOutline,
-      },
-    ],
+    subSections: [],
   },
   "manage-post": {
     label: "Manage Posts",
@@ -145,14 +131,10 @@ const volunteerMenu = {
     icon: IoCalendarOutline,
     subSections: [],
   },
-  forms: {
-    label: "Forms",
+  "hts-forms": {
+    label: "HTS Forms",
     icon: IoDocumentTextOutline,
-    defaultSubSection: "submit-form",
-    subSections: [
-      { key: "submit-form", label: "Submit Form", icon: IoCreateOutline },
-      { key: "view-submitted", label: "View Submitted", icon: IoEyeOutline },
-    ],
+    subSections: [],
   },
   "my-activity": {
     label: "My Activity",

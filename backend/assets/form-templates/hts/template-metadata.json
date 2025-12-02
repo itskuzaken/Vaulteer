@@ -1,0 +1,63 @@
+{
+  "templateId": "doh-hts-2021",
+  "name": "DOH Personal Information Sheet (HTS Form 2021)",
+  "version": "2021",
+  "organization": "Department of Health (DOH) Philippines",
+  "pages": 2,
+  "fields": {
+    "testResult": {
+      "location": "front",
+      "section": "PREVIOUS HIV TEST",
+      "question": 19,
+      "type": "checkbox",
+      "options": ["Reactive", "Non-reactive", "Indeterminate"],
+      "priority": 1
+    },
+    "testDate": {
+      "location": "back",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 1,
+      "type": "date",
+      "format": "DD/MM/YYYY",
+      "priority": 2
+    },
+    "fullName": {
+      "location": "back",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 4,
+      "type": "text",
+      "components": ["firstName", "middleName", "lastName", "suffix"],
+      "priority": 2
+    },
+    "birthDate": {
+      "location": "back",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 6,
+      "type": "date",
+      "format": "DD/MM/YYYY",
+      "priority": 2
+    },
+    "philHealthNumber": {
+      "location": "back",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 2,
+      "type": "text",
+      "optional": true,
+      "priority": 3
+    },
+    "testingFacility": {
+      "location": "front",
+      "section": "HTS PROVIDER DETAILS",
+      "type": "text",
+      "expectedValue": "LoveYourself Inc. (Bagan!)",
+      "priority": 3
+    }
+  },
+  "extractionNotes": [
+    "Front page contains test result and testing facility details",
+    "Back page contains personal demographic information",
+    "Form uses checkboxes and handwritten/printed text",
+    "Multiple date fields use DD/MM/YYYY format",
+    "Test result may be on front page (question 19) or marked elsewhere"
+  ]
+}
