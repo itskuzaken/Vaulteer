@@ -55,7 +55,7 @@ export async function requestCameraPermission(constraints = {}) {
     // facingMode: "user" = front/selfie camera
     const defaultConstraints = {
       video: {
-        facingMode: { exact: "environment" }, // Force back camera on mobile
+        facingMode: "environment", // Prefer back camera on mobile (not exact to avoid constraint errors)
         width: { ideal: 1920 },
         height: { ideal: 1080 },
         ...constraints.video,
