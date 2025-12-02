@@ -83,39 +83,58 @@ export default function HTSFormManagement() {
       setCameraPermission("granted");
       
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        const video = videoRef.current;
+        video.srcObject = stream;
         streamRef.current = stream;
         setIsVideoReady(false);
         
-        // Set up metadata loaded handler
-        videoRef.current.onloadedmetadata = () => {
-          console.log(`📹 Video metadata loaded: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`);
-          
-          // Clear timeout
-          if (metadataTimeoutRef.current) {
-            clearTimeout(metadataTimeoutRef.current);
-            metadataTimeoutRef.current = null;
-          }
-          
-          // Play video after metadata is loaded
-          videoRef.current.play()
+        // Try to play immediately (important for mobile)
+        const attemptPlay = () => {
+          video.play()
             .then(() => {
               console.log("✅ Video playing successfully");
               setIsVideoReady(true);
+              if (metadataTimeoutRef.current) {
+                clearTimeout(metadataTimeoutRef.current);
+                metadataTimeoutRef.current = null;
+              }
             })
             .catch(err => {
-              console.error("Error playing video:", err);
-              alert("Failed to start video playback. Please try again.");
-              stopCamera();
+              console.warn("Video play attempt failed, will retry on metadata:", err);
             });
         };
         
-        // Set timeout for metadata loading (10 seconds)
-        metadataTimeoutRef.current = setTimeout(() => {
-          console.error("⏱️ Video metadata loading timeout");
-          alert("Camera is taking too long to initialize. Please try again.");
-          stopCamera();
-        }, 10000);
+        // Set up metadata loaded handler
+        video.onloadedmetadata = () => {
+          console.log(`📹 Video metadata loaded: ${video.videoWidth}x${video.videoHeight}`);
+          attemptPlay();
+        };
+        
+        // Also try to play immediately (sometimes metadata is already there)
+        attemptPlay();
+        
+        // Fallback: Check video readiness every 500ms
+        let checkCount = 0;
+        const checkInterval = setInterval(() => {
+          checkCount++;
+          if (video.videoWidth > 0 && video.videoHeight > 0) {
+            console.log(`✅ Video dimensions ready: ${video.videoWidth}x${video.videoHeight}`);
+            setIsVideoReady(true);
+            clearInterval(checkInterval);
+            if (metadataTimeoutRef.current) {
+              clearTimeout(metadataTimeoutRef.current);
+              metadataTimeoutRef.current = null;
+            }
+          } else if (checkCount >= 20) { // Stop after 10 seconds
+            console.error("⏱️ Video dimensions still 0 after 10 seconds");
+            clearInterval(checkInterval);
+            alert("Camera is taking too long to initialize. Please try again.");
+            stopCamera();
+          }
+        }, 500);
+        
+        // Store interval for cleanup
+        metadataTimeoutRef.current = checkInterval;
       }
       // Successful permission grant - reset the attempt flag and set state
       setHasAttemptedCameraRequest(false);
@@ -144,8 +163,13 @@ export default function HTSFormManagement() {
       streamRef.current = null;
     }
     if (metadataTimeoutRef.current) {
+      // Clear interval or timeout
+      clearInterval(metadataTimeoutRef.current);
       clearTimeout(metadataTimeoutRef.current);
       metadataTimeoutRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setIsCameraOpen(false);
     setIsVideoReady(false);
@@ -585,15 +609,24 @@ export default function HTSFormManagement() {
                   </p>
                 </div>
               </div>
-              <div className="relative w-full flex-1 flex items-center justify-center mb-4 overflow-hidden">
+              <div className="relative w-full flex-1 flex items-center justify-center mb-4 overflow-hidden bg-gray-900">
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
-                  className="w-full h-full object-cover rounded-lg bg-black"
+                  webkit-playsinline="true"
+                  className="w-full h-full object-cover rounded-lg"
                   style={{ aspectRatio: '3/4', maxHeight: 'calc(100vh - 180px)' }}
                 />
+                {!isVideoReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
+                    <div className="text-center text-white">
+                      <div className="animate-spin h-12 w-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-3" />
+                      <p className="text-sm">Initializing camera...</p>
+                    </div>
+                  </div>
+                )}
               </div>
               <canvas ref={canvasRef} style={{ display: "none" }} />
               <div className="flex gap-3 sm:gap-4 w-full flex-shrink-0">

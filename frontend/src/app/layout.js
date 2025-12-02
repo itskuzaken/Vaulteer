@@ -339,11 +339,6 @@ export default function RootLayout({ children }) {
           <main>{children}</main>
           <Footer />
         </NotificationProvider>
-        <Script
-          type="module"
-          src="https://cdn.jsdelivr.net/npm/ionicons@latest/dist/ionicons/ionicons.esm.js"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   );
