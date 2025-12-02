@@ -371,25 +371,40 @@ export default function HTSFormManagement() {
           {currentStep === "result" && "Select whether the test result is reactive or non-reactive"}
         </p>
 
-        {/* Camera View */}
+        {/* Camera Modal */}
         {isCameraOpen && (currentStep === "front" || currentStep === "back") && (
-          <div className="relative rounded-lg overflow-hidden bg-black">
-            <video ref={videoRef} autoPlay playsInline className="w-full h-auto" />
-            <canvas ref={canvasRef} className="hidden" />
-            <div className="absolute top-4 left-4 right-4">
-              <div className="bg-black/60 rounded-lg px-4 py-2 text-white text-sm text-center">
-                📸 Capturing {currentStep === "front" ? "Front" : "Back"} Side
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-6 flex flex-col items-center max-w-2xl w-full mx-4">
+              <div className="w-full mb-4">
+                <div className="bg-primary-red/10 border border-primary-red rounded-lg px-4 py-2 text-center">
+                  <p className="text-primary-red font-semibold">
+                    📸 Capturing {currentStep === "front" ? "Front" : "Back"} Side of HTS Form
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-              <div className="flex justify-center gap-4">
-                <Button onClick={stopCamera} variant="ghost" className="gap-2">
-                  <IoClose className="w-5 h-5" />
-                  Cancel
-                </Button>
-                <Button onClick={captureImage} variant="primary" className="gap-2">
-                  <IoCamera className="w-5 h-5" />
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                className="w-full max-w-xl h-auto rounded-lg mb-4 bg-black"
+              />
+              <canvas ref={canvasRef} style={{ display: "none" }} />
+              <div className="flex gap-4">
+                <Button 
+                  onClick={captureImage} 
+                  variant="primary" 
+                  className="gap-2 px-6 py-3 text-lg"
+                >
+                  <IoCamera className="w-6 h-6" />
                   Capture
+                </Button>
+                <Button 
+                  onClick={stopCamera} 
+                  variant="secondary" 
+                  className="gap-2 px-6 py-3 text-lg"
+                >
+                  <IoClose className="w-6 h-6" />
+                  Cancel
                 </Button>
               </div>
             </div>
