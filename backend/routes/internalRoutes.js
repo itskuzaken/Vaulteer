@@ -6,7 +6,7 @@
 
 const express = require("express");
 const router = express.Router();
-const pool = require("../db/pool");
+const { getPool } = require("../db/pool");
 
 /**
  * Health check for internal monitoring
@@ -15,6 +15,7 @@ const pool = require("../db/pool");
 router.get("/health", async (req, res) => {
   try {
     // Check database connectivity
+    const pool = getPool();
     const [rows] = await pool.query("SELECT 1 as healthy");
 
     res.json({
@@ -65,6 +66,7 @@ router.post("/refresh-cache", async (req, res) => {
  */
 router.get("/stats/detailed", async (req, res) => {
   try {
+    const pool = getPool();
     const [users] = await pool.query("SELECT COUNT(*) as total FROM users");
     const [events] = await pool.query("SELECT COUNT(*) as total FROM events");
     const [applicants] = await pool.query(
