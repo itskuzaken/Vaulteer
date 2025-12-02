@@ -93,7 +93,27 @@ const htsFormsRepository = {
        JOIN users u ON f.user_id = u.user_id
        ORDER BY f.created_at DESC`
     );
-    return rows;
+    
+    // Process each submission to handle encrypted/plaintext data
+    return rows.map(submission => {
+      // Handle both encrypted (new) and plaintext (legacy) extracted_data
+      if (submission.extracted_data_encrypted && submission.extracted_data_iv) {
+        // New format: encrypted data (will be decrypted in frontend)
+        submission.isExtractedDataEncrypted = true;
+      } else if (submission.extracted_data) {
+        // Legacy format: plaintext JSON (parse for backward compatibility)
+        try {
+          submission.extracted_data = JSON.parse(submission.extracted_data);
+          submission.isExtractedDataEncrypted = false;
+        } catch (error) {
+          console.error('Failed to parse extracted_data for form_id:', submission.form_id, error);
+          submission.extracted_data = null;
+          submission.isExtractedDataEncrypted = false;
+        }
+      }
+      
+      return submission;
+    });
   },
 
   async getSubmissionById(formId) {

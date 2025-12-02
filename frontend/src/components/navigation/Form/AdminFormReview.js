@@ -4,7 +4,7 @@ import { getAuth } from "firebase/auth";
 import Image from "next/image";
 import { IoSearchOutline, IoPersonOutline, IoCalendarOutline, IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
 import Button from "../../ui/Button";
-import { decryptFormImages } from "../../../utils/imageEncryption";
+import { decryptFormImages, decryptJSON, importKey } from "../../../utils/imageEncryption";
 import { API_BASE } from "../../../config/config";
 
 export default function AdminFormReview() {
@@ -73,6 +73,27 @@ export default function AdminFormReview() {
       console.error("Error fetching submissions:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Decrypt extracted data if encrypted
+  const decryptExtractedData = async (submission) => {
+    if (!submission.extracted_data_encrypted || !submission.extracted_data_iv || !submission.encryption_key) {
+      // Return plaintext data if available
+      return submission.extracted_data || null;
+    }
+
+    try {
+      const key = await importKey(submission.encryption_key);
+      const decryptedData = await decryptJSON(
+        submission.extracted_data_encrypted,
+        submission.extracted_data_iv,
+        key
+      );
+      return decryptedData;
+    } catch (error) {
+      console.error("Error decrypting extracted data:", error);
+      return null;
     }
   };
 
@@ -177,13 +198,15 @@ export default function AdminFormReview() {
   // Handle opening submission modal with decryption
   const handleViewSubmission = async (submission) => {
     const images = await decryptSubmissionImages(submission);
+    const decryptedExtractedData = await decryptExtractedData(submission);
+    
     if (images) {
       setSelectedSubmission({
         ...submission,
         decryptedFrontImage: images.frontImage,
         decryptedBackImage: images.backImage
       });
-      setExtractedData(submission.extracted_data);
+      setExtractedData(decryptedExtractedData);
     }
   };
 
@@ -278,24 +301,20 @@ export default function AdminFormReview() {
             onClick={() => handleViewSubmission(submission)}
           >
             <div className="grid grid-cols-2 gap-2 mb-4">
-              <div className="aspect-[3/4] bg-gray-100 dark:bg-gray-700 rounded-lg relative overflow-hidden">
-                <Image
-                  src={submission.front_image_url}
-                  alt={`${submission.control_number} - Front`}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
+              <div className="aspect-[3/4] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg relative overflow-hidden flex items-center justify-center">
+                <div className="text-center p-4">
+                  <div className="text-4xl mb-2">🔒</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Encrypted</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">Front Image</div>
+                </div>
                 <div className="absolute top-1 left-1 bg-black/60 text-white text-xs px-2 py-1 rounded">Front</div>
               </div>
-              <div className="aspect-[3/4] bg-gray-100 dark:bg-gray-700 rounded-lg relative overflow-hidden">
-                <Image
-                  src={submission.back_image_url}
-                  alt={`${submission.control_number} - Back`}
-                  fill
-                  className="object-cover"
-                  unoptimized
-                />
+              <div className="aspect-[3/4] bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 rounded-lg relative overflow-hidden flex items-center justify-center">
+                <div className="text-center p-4">
+                  <div className="text-4xl mb-2">🔒</div>
+                  <div className="text-xs text-gray-600 dark:text-gray-400">Encrypted</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500 mt-1">Back Image</div>
+                </div>
                 <div className="absolute top-1 left-1 bg-black/60 text-white text-xs px-2 py-1 rounded">Back</div>
               </div>
             </div>

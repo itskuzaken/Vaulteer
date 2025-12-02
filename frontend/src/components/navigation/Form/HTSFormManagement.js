@@ -29,6 +29,7 @@ export default function HTSFormManagement() {
   const [hasAttemptedCameraRequest, setHasAttemptedCameraRequest] = useState(false);
   const [isRequestingCameraPermission, setIsRequestingCameraPermission] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [focusPoint, setFocusPoint] = useState(null); // {x, y} for tap-to-focus indicator
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -218,6 +219,54 @@ export default function HTSFormManagement() {
     } else if (side === "back") {
       setBackImage(null);
       startCamera("back");
+    }
+  };
+
+  // Handle tap-to-focus on video element
+  const handleVideoTap = async (e) => {
+    if (!streamRef.current || !videoRef.current) return;
+
+    const videoTrack = streamRef.current.getVideoTracks()[0];
+    if (!videoTrack) return;
+
+    try {
+      const capabilities = videoTrack.getCapabilities();
+      
+      // Check if manual focus is supported
+      if (capabilities.focusMode && capabilities.focusMode.includes('manual')) {
+        const rect = videoRef.current.getBoundingClientRect();
+        const x = ((e.clientX - rect.left) / rect.width) * 100;
+        const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+        // Show focus indicator
+        setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        setTimeout(() => setFocusPoint(null), 1500);
+
+        // Apply focus at tap point
+        await videoTrack.applyConstraints({
+          advanced: [{
+            focusMode: 'manual',
+            focusDistance: capabilities.focusDistance ? 
+              capabilities.focusDistance.min + (capabilities.focusDistance.max - capabilities.focusDistance.min) * (y / 100) : 
+              undefined
+          }]
+        });
+        
+        console.log(`✅ Focus applied at point: ${x.toFixed(0)}%, ${y.toFixed(0)}%`);
+      } else if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+        // If manual not supported, show visual feedback and re-apply continuous focus
+        const rect = videoRef.current.getBoundingClientRect();
+        setFocusPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+        setTimeout(() => setFocusPoint(null), 800);
+        
+        await videoTrack.applyConstraints({
+          advanced: [{ focusMode: 'continuous' }]
+        });
+        
+        console.log('✅ Continuous autofocus refreshed');
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not apply focus:', error.message);
     }
   };
 
@@ -816,14 +865,39 @@ export default function HTSFormManagement() {
                   playsInline
                   muted
                   webkit-playsinline="true"
-                  className="w-full object-cover rounded-lg"
+                  className="w-full object-cover rounded-lg cursor-pointer"
                   style={{ aspectRatio: '3/4', maxHeight: '60vh' }}
+                  onClick={handleVideoTap}
+                  onTouchEnd={handleVideoTap}
                 />
                 {!isVideoReady && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="text-center text-white">
                       <div className="animate-spin h-12 w-12 border-4 border-white border-t-transparent rounded-full mx-auto mb-3" />
                       <p className="text-sm">Initializing camera...</p>
+                    </div>
+                  </div>
+                )}
+                {isVideoReady && (
+                  <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/60 text-white text-xs px-3 py-1.5 rounded-full pointer-events-none">
+                    👆 Tap to focus
+                  </div>
+                )}
+                {focusPoint && (
+                  <div 
+                    className="absolute pointer-events-none"
+                    style={{
+                      left: focusPoint.x,
+                      top: focusPoint.y,
+                      transform: 'translate(-50%, -50%)'
+                    }}
+                  >
+                    <div className="relative">
+                      <div className="w-16 h-16 border-2 border-yellow-400 rounded-full animate-ping opacity-75"></div>
+                      <div className="absolute inset-0 w-16 h-16 border-2 border-yellow-400 rounded-full"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-1 h-1 bg-yellow-400 rounded-full"></div>
+                      </div>
                     </div>
                   </div>
                 )}
