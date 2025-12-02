@@ -1,8 +1,9 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { IoCamera, IoClose, IoCheckmark, IoCloudUploadOutline, IoDocumentText, IoTime, IoCheckmarkCircle, IoAlertCircle, IoHourglassOutline, IoAddCircle, IoListOutline } from "react-icons/io5";
+import { IoCamera, IoClose, IoCheckmark, IoCloudUploadOutline, IoDocumentText, IoTime, IoCheckmarkCircle, IoAlertCircle, IoHourglassOutline, IoAddCircle, IoListOutline, IoEyeOutline } from "react-icons/io5";
 import { getAuth } from "firebase/auth";
 import Button from "../../ui/Button";
+import ImageLightbox from "../../ui/ImageLightbox";
 import { API_BASE } from "../../../config/config";
 import { encryptFormImages, encryptJSON, generateEncryptionKey, exportKey } from "../../../utils/imageEncryption";
 import {
@@ -42,6 +43,12 @@ export default function HTSFormManagement() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  
+  // Image lightbox state
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const [lightboxImages, setLightboxImages] = useState([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   // Submissions history state
   const [submissions, setSubmissions] = useState([]);
@@ -408,17 +415,81 @@ export default function HTSFormManagement() {
     alert('Changes saved successfully!');
   };
 
-  // Enter edit mode
+  // Enter edit mode with ALL 56 fields from DOH HTS Form 2021
   const enterEditMode = () => {
     setEditableData({
+      // Test metadata
       testResult: extractedData.testResult || '',
-      fullName: extractedData.fullName || '',
-      firstName: extractedData.firstName || '',
-      lastName: extractedData.lastName || '',
       testDate: formatDateForInput(extractedData.testDate),
-      birthDate: formatDateForInput(extractedData.birthDate),
+      
+      // Identity Fields (Q1-7)
       philHealthNumber: extractedData.philHealthNumber || '',
-      testingFacility: extractedData.testingFacility || ''
+      philSysNumber: extractedData.philSysNumber || '',
+      firstName: extractedData.firstName || '',
+      middleName: extractedData.middleName || '',
+      lastName: extractedData.lastName || '',
+      suffix: extractedData.suffix || '',
+      fullName: extractedData.fullName || '',
+      parentalCode: extractedData.parentalCode || '',
+      
+      // Demographic Data (Q8-12)
+      birthDate: formatDateForInput(extractedData.birthDate),
+      age: extractedData.age || '',
+      sex: extractedData.sex || '',
+      currentResidenceCity: extractedData.currentResidenceCity || '',
+      currentResidenceProvince: extractedData.currentResidenceProvince || '',
+      permanentResidenceCity: extractedData.permanentResidenceCity || '',
+      permanentResidenceProvince: extractedData.permanentResidenceProvince || '',
+      placeOfBirthCity: extractedData.placeOfBirthCity || '',
+      placeOfBirthProvince: extractedData.placeOfBirthProvince || '',
+      nationality: extractedData.nationality || '',
+      civilStatus: extractedData.civilStatus || '',
+      livingWithPartner: extractedData.livingWithPartner || '',
+      numberOfChildren: extractedData.numberOfChildren || '',
+      isPregnant: extractedData.isPregnant || '',
+      
+      // Education & Occupation (Q13-16)
+      educationalAttainment: extractedData.educationalAttainment || '',
+      currentlyInSchool: extractedData.currentlyInSchool || '',
+      currentlyWorking: extractedData.currentlyWorking || '',
+      workedOverseas: extractedData.workedOverseas || '',
+      overseasReturnYear: extractedData.overseasReturnYear || '',
+      overseasLocation: extractedData.overseasLocation || '',
+      overseasCountry: extractedData.overseasCountry || '',
+      
+      // Risk Assessment (Q17-18)
+      riskAssessment: extractedData.riskAssessment || '',
+      reasonsForTesting: extractedData.reasonsForTesting || '',
+      
+      // Previous HIV Test (Q19)
+      previouslyTested: extractedData.previouslyTested || '',
+      previousTestDate: formatDateForInput(extractedData.previousTestDate),
+      previousTestResult: extractedData.previousTestResult || '',
+      
+      // Medical History (Q20-21)
+      medicalHistory: extractedData.medicalHistory || '',
+      clinicalPicture: extractedData.clinicalPicture || '',
+      symptoms: extractedData.symptoms || '',
+      whoStaging: extractedData.whoStaging || '',
+      
+      // Testing Details (Q22-25)
+      clientType: extractedData.clientType || '',
+      modeOfReach: extractedData.modeOfReach || '',
+      testingAccepted: extractedData.testingAccepted || '',
+      refusalReason: extractedData.refusalReason || '',
+      otherServices: extractedData.otherServices || '',
+      testKitBrand: extractedData.testKitBrand || '',
+      testKitLotNumber: extractedData.testKitLotNumber || '',
+      testKitExpiration: formatDateForInput(extractedData.testKitExpiration),
+      
+      // HTS Provider (Q26-27)
+      testingFacility: extractedData.testingFacility || '',
+      counselorName: extractedData.counselorName || '',
+      counselorSignature: extractedData.counselorSignature || '',
+      
+      // Consent Fields
+      contactNumber: extractedData.contactNumber || '',
+      emailAddress: extractedData.emailAddress || ''
     });
     setFieldErrors({});
     setIsEditMode(true);
@@ -856,10 +927,31 @@ export default function HTSFormManagement() {
             {frontImage && (
               <div>
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Front Side (Captured)</h3>
-                <div className="relative rounded-lg overflow-hidden border border-green-500">
-                  <img src={frontImage} alt="Front of form" className="w-full h-auto object-cover" style={{ aspectRatio: '3/4' }} />
+                <div className="relative rounded-lg overflow-hidden border border-green-500 group">
+                  <img 
+                    src={frontImage} 
+                    alt="Front of form" 
+                    className="w-full h-auto object-cover select-none cursor-pointer transition-opacity hover:opacity-90" 
+                    style={{ aspectRatio: '3/4' }} 
+                    onContextMenu={(e) => e.preventDefault()} 
+                    draggable={false}
+                    onClick={() => {
+                      setLightboxImages([{url: frontImage, name: 'Front Side', preventDownload: true}]);
+                      setLightboxIndex(0);
+                      setLightboxImage({url: frontImage, name: 'Front Side'});
+                      setLightboxOpen(true);
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                      <IoEyeOutline className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
                   <div className="absolute top-2 right-2">
-                    <Button onClick={() => retakeImage("front")} variant="secondary" size="small">
+                    <Button onClick={(e) => {
+                      e.stopPropagation();
+                      retakeImage("front");
+                    }} variant="secondary" size="small">
                       Retake
                     </Button>
                   </div>
@@ -914,20 +1006,66 @@ export default function HTSFormManagement() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <div>
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Front Side</h3>
-                <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                  <img src={frontImage} alt="Front" className="w-full h-auto object-cover" style={{ aspectRatio: '3/4' }} />
-                  <Button onClick={() => retakeImage("front")} variant="secondary" size="small" className="absolute top-2 right-2">
-                    Retake
-                  </Button>
+                <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group">
+                  <img 
+                    src={frontImage} 
+                    alt="Front" 
+                    className="w-full h-auto object-cover select-none cursor-pointer transition-opacity hover:opacity-90" 
+                    style={{ aspectRatio: '3/4' }} 
+                    onContextMenu={(e) => e.preventDefault()} 
+                    draggable={false}
+                    onClick={() => {
+                      setLightboxImages([{url: frontImage, name: 'Front Side', preventDownload: true}, {url: backImage, name: 'Back Side', preventDownload: true}]);
+                      setLightboxIndex(0);
+                      setLightboxImage({url: frontImage, name: 'Front Side'});
+                      setLightboxOpen(true);
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                      <IoEyeOutline className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
+                  <div className="absolute top-2 right-2">
+                    <Button onClick={(e) => {
+                      e.stopPropagation();
+                      retakeImage("front");
+                    }} variant="secondary" size="small">
+                      Retake
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div>
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Back Side</h3>
-                <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-                  <img src={backImage} alt="Back" className="w-full h-auto object-cover" style={{ aspectRatio: '3/4' }} />
-                  <Button onClick={() => retakeImage("back")} variant="secondary" size="small" className="absolute top-2 right-2">
-                    Retake
-                  </Button>
+                <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group">
+                  <img 
+                    src={backImage} 
+                    alt="Back" 
+                    className="w-full h-auto object-cover select-none cursor-pointer transition-opacity hover:opacity-90" 
+                    style={{ aspectRatio: '3/4' }} 
+                    onContextMenu={(e) => e.preventDefault()} 
+                    draggable={false}
+                    onClick={() => {
+                      setLightboxImages([{url: frontImage, name: 'Front Side', preventDownload: true}, {url: backImage, name: 'Back Side', preventDownload: true}]);
+                      setLightboxIndex(1);
+                      setLightboxImage({url: backImage, name: 'Back Side'});
+                      setLightboxOpen(true);
+                    }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <div className="bg-white/20 backdrop-blur-sm rounded-full p-3">
+                      <IoEyeOutline className="w-8 h-8 text-white" />
+                    </div>
+                  </div>
+                  <div className="absolute top-2 right-2">
+                    <Button onClick={(e) => {
+                      e.stopPropagation();
+                      retakeImage("back");
+                    }} variant="secondary" size="small">
+                      Retake
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1324,179 +1462,402 @@ export default function HTSFormManagement() {
                 </div>
               )}
 
-              {/* Edit Mode: Editable Fields */}
+              {/* Edit Mode: All 56 Editable Fields */}
               {isEditMode && editableData && (
-                <div className="space-y-4">
-                  {/* Test Result */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Test Result
-                      {editableData.testResult !== extractedData.testResult && (
-                        <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">Edited</span>
-                      )}
-                    </label>
-                    <div className="flex gap-4">
-                      <label className="inline-flex items-center">
-                        <input
-                          type="radio"
-                          value="reactive"
-                          checked={editableData.testResult === 'reactive'}
-                          onChange={(e) => handleFieldChange('testResult', e.target.value)}
-                          className="mr-2 w-4 h-4 text-primary-red"
-                        />
-                        Reactive
-                      </label>
-                      <label className="inline-flex items-center">
-                        <input
-                          type="radio"
-                          value="non-reactive"
-                          checked={editableData.testResult === 'non-reactive'}
-                          onChange={(e) => handleFieldChange('testResult', e.target.value)}
-                          className="mr-2 w-4 h-4 text-primary-red"
-                        />
-                        Non-Reactive
-                      </label>
-                    </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Original OCR: {extractedData.testResult || 'Not extracted'}</p>
-                  </div>
-
-                  {/* Full Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Full Name
-                      {editableData.fullName !== extractedData.fullName && (
-                        <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">Edited</span>
-                      )}
-                    </label>
-                    <input
-                      type="text"
-                      value={editableData.fullName}
-                      onChange={(e) => handleFieldChange('fullName', e.target.value)}
-                      placeholder={extractedData.fullName || 'Enter full name'}
-                      className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
-                        fieldErrors.fullName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                    />
-                    {fieldErrors.fullName && (
-                      <p className="text-red-500 text-sm mt-1">{fieldErrors.fullName}</p>
-                    )}
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Original OCR: {extractedData.fullName || 'Not extracted'}</p>
-                  </div>
-
-                  {/* Name Parts */}
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-6 max-h-[60vh] overflow-y-auto">
+                  {/* TEST RESULT */}
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Test Result</h3>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        First Name
+                        Test Result *
                       </label>
-                      <input
-                        type="text"
-                        value={editableData.firstName}
-                        onChange={(e) => handleFieldChange('firstName', e.target.value)}
-                        placeholder={extractedData.firstName || 'First name'}
-                        className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
-                          fieldErrors.firstName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                        }`}
-                      />
-                      {fieldErrors.firstName && (
-                        <p className="text-red-500 text-sm mt-1">{fieldErrors.firstName}</p>
-                      )}
+                      <div className="flex gap-4">
+                        <label className="inline-flex items-center">
+                          <input type="radio" value="reactive" checked={editableData.testResult === 'reactive'}
+                            onChange={(e) => handleFieldChange('testResult', e.target.value)} className="mr-2" />
+                          Reactive
+                        </label>
+                        <label className="inline-flex items-center">
+                          <input type="radio" value="non-reactive" checked={editableData.testResult === 'non-reactive'}
+                            onChange={(e) => handleFieldChange('testResult', e.target.value)} className="mr-2" />
+                          Non-Reactive
+                        </label>
+                        <label className="inline-flex items-center">
+                          <input type="radio" value="indeterminate" checked={editableData.testResult === 'indeterminate'}
+                            onChange={(e) => handleFieldChange('testResult', e.target.value)} className="mr-2" />
+                          Indeterminate
+                        </label>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Last Name
-                      </label>
-                      <input
-                        type="text"
-                        value={editableData.lastName}
-                        onChange={(e) => handleFieldChange('lastName', e.target.value)}
-                        placeholder={extractedData.lastName || 'Last name'}
-                        className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
-                          fieldErrors.lastName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                        }`}
-                      />
-                      {fieldErrors.lastName && (
-                        <p className="text-red-500 text-sm mt-1">{fieldErrors.lastName}</p>
-                      )}
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Test Date *</label>
+                      <input type="date" value={editableData.testDate} onChange={(e) => handleFieldChange('testDate', e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
                     </div>
                   </div>
 
-                  {/* Dates */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Test Date
-                      </label>
-                      <input
-                        type="date"
-                        value={editableData.testDate}
-                        onChange={(e) => handleFieldChange('testDate', e.target.value)}
-                        className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
-                          fieldErrors.testDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                        }`}
-                      />
-                      {fieldErrors.testDate && (
-                        <p className="text-red-500 text-sm mt-1">{fieldErrors.testDate}</p>
-                      )}
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Original OCR: {typeof extractedData.testDate === 'string' ? extractedData.testDate : extractedData.testDate?.raw || 'Not extracted'}
-                      </p>
+                  {/* IDENTITY (Q1-7) */}
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Identity & Registration</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">PhilHealth Number</label>
+                        <input type="text" value={editableData.philHealthNumber} onChange={(e) => handleFieldChange('philHealthNumber', e.target.value)}
+                          placeholder="12 digits" maxLength="12" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">PhilSys Number</label>
+                        <input type="text" value={editableData.philSysNumber} onChange={(e) => handleFieldChange('philSysNumber', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Birth Date
-                      </label>
-                      <input
-                        type="date"
-                        value={editableData.birthDate}
-                        onChange={(e) => handleFieldChange('birthDate', e.target.value)}
-                        className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
-                          fieldErrors.birthDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                        }`}
-                      />
-                      {fieldErrors.birthDate && (
-                        <p className="text-red-500 text-sm mt-1">{fieldErrors.birthDate}</p>
-                      )}
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        Original OCR: {typeof extractedData.birthDate === 'string' ? extractedData.birthDate : extractedData.birthDate?.raw || 'Not extracted'}
-                      </p>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium mb-2">Full Name *</label>
+                      <input type="text" value={editableData.fullName} onChange={(e) => handleFieldChange('fullName', e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                    </div>
+                    <div className="grid grid-cols-4 gap-4 mt-4">
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium mb-2">First Name *</label>
+                        <input type="text" value={editableData.firstName} onChange={(e) => handleFieldChange('firstName', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Middle Name</label>
+                        <input type="text" value={editableData.middleName} onChange={(e) => handleFieldChange('middleName', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Last Name *</label>
+                        <input type="text" value={editableData.lastName} onChange={(e) => handleFieldChange('lastName', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Suffix</label>
+                        <input type="text" value={editableData.suffix} onChange={(e) => handleFieldChange('suffix', e.target.value)}
+                          placeholder="Jr., Sr., III, etc." className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Parental Code (Q5)</label>
+                        <input type="text" value={editableData.parentalCode} onChange={(e) => handleFieldChange('parentalCode', e.target.value)}
+                          placeholder="Mother+Father initials+Birth order" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
                     </div>
                   </div>
 
-                  {/* PhilHealth Number */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      PhilHealth Number
-                    </label>
-                    <input
-                      type="text"
-                      value={editableData.philHealthNumber}
-                      onChange={(e) => handleFieldChange('philHealthNumber', e.target.value)}
-                      placeholder="12-digit number"
-                      maxLength="12"
-                      className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
-                        fieldErrors.philHealthNumber ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
-                      }`}
-                    />
-                    {fieldErrors.philHealthNumber && (
-                      <p className="text-red-500 text-sm mt-1">{fieldErrors.philHealthNumber}</p>
-                    )}
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Original OCR: {extractedData.philHealthNumber || 'Not extracted'}</p>
+                  {/* DEMOGRAPHIC DATA (Q8-12) */}
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Demographic Data</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Birth Date *</label>
+                        <input type="date" value={editableData.birthDate} onChange={(e) => handleFieldChange('birthDate', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Age</label>
+                        <input type="number" value={editableData.age} onChange={(e) => handleFieldChange('age', e.target.value)}
+                          min="15" max="120" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Sex *</label>
+                        <select value={editableData.sex} onChange={(e) => handleFieldChange('sex', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold mb-2">Current Residence (Q8)</label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <input type="text" value={editableData.currentResidenceCity} onChange={(e) => handleFieldChange('currentResidenceCity', e.target.value)}
+                          placeholder="City/Municipality" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <input type="text" value={editableData.currentResidenceProvince} onChange={(e) => handleFieldChange('currentResidenceProvince', e.target.value)}
+                          placeholder="Province" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold mb-2">Permanent Residence</label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <input type="text" value={editableData.permanentResidenceCity} onChange={(e) => handleFieldChange('permanentResidenceCity', e.target.value)}
+                          placeholder="City/Municipality" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <input type="text" value={editableData.permanentResidenceProvince} onChange={(e) => handleFieldChange('permanentResidenceProvince', e.target.value)}
+                          placeholder="Province" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold mb-2">Place of Birth</label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <input type="text" value={editableData.placeOfBirthCity} onChange={(e) => handleFieldChange('placeOfBirthCity', e.target.value)}
+                          placeholder="City/Municipality" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <input type="text" value={editableData.placeOfBirthProvince} onChange={(e) => handleFieldChange('placeOfBirthProvince', e.target.value)}
+                          placeholder="Province" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Nationality (Q9)</label>
+                        <input type="text" value={editableData.nationality} onChange={(e) => handleFieldChange('nationality', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Civil Status (Q10)</label>
+                        <select value={editableData.civilStatus} onChange={(e) => handleFieldChange('civilStatus', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Single">Single</option>
+                          <option value="Married">Married</option>
+                          <option value="Widowed">Widowed</option>
+                          <option value="Separated">Separated</option>
+                          <option value="Living-in">Living-in</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Living with Partner? (Q11)</label>
+                        <select value={editableData.livingWithPartner} onChange={(e) => handleFieldChange('livingWithPartner', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Number of Children</label>
+                        <input type="number" value={editableData.numberOfChildren} onChange={(e) => handleFieldChange('numberOfChildren', e.target.value)}
+                          min="0" max="20" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Pregnant? (Q12)</label>
+                        <select value={editableData.isPregnant} onChange={(e) => handleFieldChange('isPregnant', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                          <option value="N/A">N/A</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
-                  {/* Testing Facility */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Testing Facility
-                    </label>
-                    <input
-                      type="text"
-                      value={editableData.testingFacility}
-                      onChange={(e) => handleFieldChange('testingFacility', e.target.value)}
-                      placeholder={extractedData.testingFacility || 'Enter testing facility'}
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
-                    />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Original OCR: {extractedData.testingFacility || 'Not extracted'}</p>
+                  {/* EDUCATION & OCCUPATION (Q13-16) */}
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Education & Occupation</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Educational Attainment (Q13)</label>
+                        <select value={editableData.educationalAttainment} onChange={(e) => handleFieldChange('educationalAttainment', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Elementary">Elementary</option>
+                          <option value="High School">High School</option>
+                          <option value="Vocational">Vocational</option>
+                          <option value="College">College</option>
+                          <option value="Post-Graduate">Post-Graduate</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Currently in School? (Q14)</label>
+                        <select value={editableData.currentlyInSchool} onChange={(e) => handleFieldChange('currentlyInSchool', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Currently Working? (Q15)</label>
+                        <select value={editableData.currentlyWorking} onChange={(e) => handleFieldChange('currentlyWorking', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold mb-2">Worked Overseas? (Q16)</label>
+                      <div className="grid grid-cols-4 gap-4">
+                        <select value={editableData.workedOverseas} onChange={(e) => handleFieldChange('workedOverseas', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                        <input type="text" value={editableData.overseasReturnYear} onChange={(e) => handleFieldChange('overseasReturnYear', e.target.value)}
+                          placeholder="Return Year" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <input type="text" value={editableData.overseasLocation} onChange={(e) => handleFieldChange('overseasLocation', e.target.value)}
+                          placeholder="Ship/Land" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <input type="text" value={editableData.overseasCountry} onChange={(e) => handleFieldChange('overseasCountry', e.target.value)}
+                          placeholder="Country" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RISK ASSESSMENT & TESTING (Q17-19) */}
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Risk Assessment & Testing History</h3>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Risk Assessment (Q17)</label>
+                      <textarea value={editableData.riskAssessment} onChange={(e) => handleFieldChange('riskAssessment', e.target.value)}
+                        rows="2" placeholder="Risk factors identified" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium mb-2">Reasons for Testing (Q18)</label>
+                      <textarea value={editableData.reasonsForTesting} onChange={(e) => handleFieldChange('reasonsForTesting', e.target.value)}
+                        rows="2" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold mb-2">Previous HIV Test (Q19)</label>
+                      <div className="grid grid-cols-3 gap-4">
+                        <select value={editableData.previouslyTested} onChange={(e) => handleFieldChange('previouslyTested', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Ever tested?</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                        <input type="date" value={editableData.previousTestDate} onChange={(e) => handleFieldChange('previousTestDate', e.target.value)}
+                          placeholder="Previous test date" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <select value={editableData.previousTestResult} onChange={(e) => handleFieldChange('previousTestResult', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Previous result</option>
+                          <option value="Reactive">Reactive</option>
+                          <option value="Non-Reactive">Non-Reactive</option>
+                          <option value="Indeterminate">Indeterminate</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* MEDICAL HISTORY (Q20-21) */}
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Medical History</h3>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Medical History (Q20)</label>
+                      <textarea value={editableData.medicalHistory} onChange={(e) => handleFieldChange('medicalHistory', e.target.value)}
+                        rows="2" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Clinical Picture (Q21)</label>
+                        <select value={editableData.clinicalPicture} onChange={(e) => handleFieldChange('clinicalPicture', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Asymptomatic">Asymptomatic</option>
+                          <option value="Symptomatic">Symptomatic</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Symptoms</label>
+                        <input type="text" value={editableData.symptoms} onChange={(e) => handleFieldChange('symptoms', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">WHO Staging</label>
+                        <select value={editableData.whoStaging} onChange={(e) => handleFieldChange('whoStaging', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Stage 1">Stage 1</option>
+                          <option value="Stage 2">Stage 2</option>
+                          <option value="Stage 3">Stage 3</option>
+                          <option value="Stage 4">Stage 4</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* TESTING DETAILS (Q22-25) */}
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Testing Details</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Client Type (Q22)</label>
+                        <input type="text" value={editableData.clientType} onChange={(e) => handleFieldChange('clientType', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Mode of Reach (Q23)</label>
+                        <input type="text" value={editableData.modeOfReach} onChange={(e) => handleFieldChange('modeOfReach', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Testing Accepted? (Q24) *</label>
+                        <select value={editableData.testingAccepted} onChange={(e) => handleFieldChange('testingAccepted', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Yes">Yes</option>
+                          <option value="No">No</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium mb-2">Refusal Reason</label>
+                        <input type="text" value={editableData.refusalReason} onChange={(e) => handleFieldChange('refusalReason', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium mb-2">Other Services Provided</label>
+                      <textarea value={editableData.otherServices} onChange={(e) => handleFieldChange('otherServices', e.target.value)}
+                        rows="2" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold mb-2">Test Kit Information (Q25)</label>
+                      <div className="grid grid-cols-3 gap-4">
+                        <input type="text" value={editableData.testKitBrand} onChange={(e) => handleFieldChange('testKitBrand', e.target.value)}
+                          placeholder="Kit Brand" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <input type="text" value={editableData.testKitLotNumber} onChange={(e) => handleFieldChange('testKitLotNumber', e.target.value)}
+                          placeholder="Lot Number" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <input type="date" value={editableData.testKitExpiration} onChange={(e) => handleFieldChange('testKitExpiration', e.target.value)}
+                          placeholder="Expiration" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* HTS PROVIDER (Q26-27) */}
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">HTS Provider Details</h3>
+                    <div>
+                      <label className="block text-sm font-medium mb-2">Testing Facility (Q26)</label>
+                      <input type="text" value={editableData.testingFacility} onChange={(e) => handleFieldChange('testingFacility', e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Counselor Name (Q27)</label>
+                        <input type="text" value={editableData.counselorName} onChange={(e) => handleFieldChange('counselorName', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Counselor Signature</label>
+                        <input type="text" value={editableData.counselorSignature} onChange={(e) => handleFieldChange('counselorSignature', e.target.value)}
+                          placeholder="Signature captured" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CONSENT & CONTACT */}
+                  <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                    <h3 className="font-semibold text-lg mb-4 text-gray-900 dark:text-white">Contact Information</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Contact Number</label>
+                        <input type="tel" value={editableData.contactNumber} onChange={(e) => handleFieldChange('contactNumber', e.target.value)}
+                          placeholder="09XXXXXXXXX" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Email Address</label>
+                        <input type="email" value={editableData.emailAddress} onChange={(e) => handleFieldChange('emailAddress', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1608,6 +1969,23 @@ export default function HTSFormManagement() {
           </div>
         </div>
       )}
+
+      {/* Image Lightbox for viewing captured forms */}
+      <ImageLightbox
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        imageUrl={lightboxImage?.url}
+        imageName={lightboxImage?.name}
+        images={lightboxImages}
+        currentIndex={lightboxIndex}
+        onNavigate={(direction) => {
+          const newIndex = direction === "next" ? lightboxIndex + 1 : lightboxIndex - 1;
+          if (newIndex >= 0 && newIndex < lightboxImages.length) {
+            setLightboxIndex(newIndex);
+            setLightboxImage(lightboxImages[newIndex]);
+          }
+        }}
+      />
     </>
   );
 }

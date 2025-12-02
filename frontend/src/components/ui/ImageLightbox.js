@@ -88,20 +88,23 @@ export default function ImageLightbox({
       role="dialog"
       aria-modal="true"
       aria-label="Image viewer"
+      onContextMenu={(e) => e.preventDefault()}
     >
       {/* Top action buttons */}
       <div className="absolute top-2 sm:top-4 right-2 sm:right-4 z-50 flex gap-1 sm:gap-2">
-        {/* Download button */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            handleDownload();
-          }}
-          className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-colors touch-manipulation"
-          aria-label="Download image"
-        >
-          <IoDownloadOutline className="w-6 h-6 sm:w-7 sm:h-7" />
-        </button>
+        {/* Download button - conditionally rendered */}
+        {!images.some(img => img.preventDownload) && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownload();
+            }}
+            className="p-2 sm:p-2.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 text-white transition-colors touch-manipulation"
+            aria-label="Download image"
+          >
+            <IoDownloadOutline className="w-6 h-6 sm:w-7 sm:h-7" />
+          </button>
+        )}
 
         {/* Close button */}
         <button
@@ -151,8 +154,10 @@ export default function ImageLightbox({
           alt={imageName || "Full size image"}
           width={1920}
           height={1080}
-          className="max-w-full max-h-[85vh] sm:max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+          className="max-w-full max-h-[85vh] sm:max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl select-none"
           unoptimized
+          onContextMenu={(e) => e.preventDefault()}
+          draggable={false}
         />
         
         {/* Image info and mobile navigation */}
