@@ -48,6 +48,9 @@ todo.txt
 vaulteer.sql
 vaulteer-structure.txt
 vaulteer_db.sql
+
+# Ignore markdown files in root directory only
+/*.md
 backend/schema.sql
 firebase-service-account.json
 backend/firebase-service-account.json
