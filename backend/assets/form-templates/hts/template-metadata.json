@@ -3,61 +3,569 @@
   "name": "DOH Personal Information Sheet (HTS Form 2021)",
   "version": "2021",
   "organization": "Department of Health (DOH) Philippines",
+  "formTitle": "PERSONAL INFORMATION SHEET",
+  "formSubtitle": "HIV TESTING",
   "pages": 2,
-  "fields": {
-    "testResult": {
-      "location": "front",
-      "section": "PREVIOUS HIV TEST",
-      "question": 19,
-      "type": "checkbox",
-      "options": ["Reactive", "Non-reactive", "Indeterminate"],
-      "priority": 1
+  "structure": {
+    "front": {
+      "sections": [
+        "INFORMED CONSENT",
+        "PERSONAL INFORMATION SHEET (HTS FORM)",
+        "DEMOGRAPHIC DATA",
+        "EDUCATION & OCCUPATION"
+      ]
     },
+    "back": {
+      "sections": [
+        "HISTORY OF EXPOSURE / RISK ASSESSMENT",
+        "REASONS FOR HIV TESTING",
+        "PREVIOUS HIV TEST",
+        "MEDICAL HISTORY & CLINICAL PICTURE",
+        "TESTING DETAILS",
+        "INVENTORY INFORMATION",
+        "HTS PROVIDER DETAILS"
+      ]
+    }
+  },
+  "fields": {
     "testDate": {
-      "location": "back",
+      "location": "front",
       "section": "DEMOGRAPHIC DATA",
       "question": 1,
+      "label": "Test Date",
       "type": "date",
-      "format": "DD/MM/YYYY",
-      "priority": 2
-    },
-    "fullName": {
-      "location": "back",
-      "section": "DEMOGRAPHIC DATA",
-      "question": 4,
-      "type": "text",
-      "components": ["firstName", "middleName", "lastName", "suffix"],
-      "priority": 2
-    },
-    "birthDate": {
-      "location": "back",
-      "section": "DEMOGRAPHIC DATA",
-      "question": 6,
-      "type": "date",
-      "format": "DD/MM/YYYY",
-      "priority": 2
+      "format": "MM/DD/YYYY",
+      "required": true,
+      "priority": 1,
+      "extractionHints": ["Month / Day / Year components at top of front page"]
     },
     "philHealthNumber": {
-      "location": "back",
+      "location": "front",
       "section": "DEMOGRAPHIC DATA",
       "question": 2,
+      "label": "PhilHealth Number",
       "type": "text",
-      "optional": true,
+      "required": false,
+      "priority": 3,
+      "extractionHints": ["Text field next to 'Not enrolled in PhilHealth' checkbox"]
+    },
+    "philSysNumber": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 3,
+      "label": "PhilSys Number",
+      "type": "text",
+      "required": false,
+      "priority": 3,
+      "extractionHints": ["Text field next to 'No PhilSys Number' checkbox"]
+    },
+    "firstName": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 4,
+      "label": "First Name",
+      "type": "text",
+      "required": true,
+      "priority": 1,
+      "extractionHints": ["First box under 'Name (Full name)'"]
+    },
+    "middleName": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 4,
+      "label": "Middle Name",
+      "type": "text",
+      "required": false,
+      "priority": 2,
+      "extractionHints": ["Second box under 'Name (Full name)'"]
+    },
+    "lastName": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 4,
+      "label": "Last Name",
+      "type": "text",
+      "required": true,
+      "priority": 1,
+      "extractionHints": ["Third box under 'Name (Full name)'"]
+    },
+    "suffix": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 4,
+      "label": "Suffix",
+      "type": "text",
+      "required": false,
+      "priority": 3,
+      "extractionHints": ["Small box after last name (Jr., Sr., III, etc.)"]
+    },
+    "parentalCode": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 5,
+      "label": "Parental Code",
+      "type": "text",
+      "required": false,
+      "priority": 3,
+      "extractionHints": ["Format: Mother's first 2 letters + Father's first 2 letters + Birth order"]
+    },
+    "birthDate": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 6,
+      "label": "Birth Date",
+      "type": "date",
+      "format": "MM/DD/YYYY",
+      "required": true,
+      "priority": 1,
+      "extractionHints": ["Month/Day/Year format"]
+    },
+    "age": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 6,
+      "label": "Age",
+      "type": "number",
+      "required": true,
+      "priority": 2,
+      "extractionHints": ["Computed from birth date or written next to it"]
+    },
+    "sex": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 7,
+      "label": "Sex (assigned at birth)",
+      "type": "checkbox",
+      "options": ["Male", "Female"],
+      "required": true,
+      "priority": 1,
+      "extractionHints": ["Checkboxes for Male and Female"]
+    },
+    "currentResidenceCity": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 8,
+      "label": "Current Residence - City/Municipality",
+      "type": "text",
+      "required": false,
       "priority": 3
     },
-    "testingFacility": {
+    "currentResidenceProvince": {
       "location": "front",
-      "section": "HTS PROVIDER DETAILS",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 8,
+      "label": "Current Residence - Province",
       "type": "text",
-      "expectedValue": "LoveYourself Inc. (Bagan!)",
+      "required": false,
+      "priority": 3
+    },
+    "permanentResidenceCity": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 8,
+      "label": "Permanent Residence - City/Municipality",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "permanentResidenceProvince": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 8,
+      "label": "Permanent Residence - Province",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "placeOfBirthCity": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 8,
+      "label": "Place of Birth - City/Municipality",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "placeOfBirthProvince": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 8,
+      "label": "Place of Birth - Province",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "nationality": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 9,
+      "label": "Nationality",
+      "type": "text",
+      "required": false,
+      "priority": 3,
+      "extractionHints": ["Filipino or Other (specify)"]
+    },
+    "civilStatus": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 10,
+      "label": "Civil Status",
+      "type": "checkbox",
+      "options": ["Single", "Married", "Separated", "Widowed", "Divorced"],
+      "required": false,
+      "priority": 2
+    },
+    "livingWithPartner": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 11,
+      "label": "Currently living with a partner",
+      "type": "checkbox",
+      "options": ["No", "Yes"],
+      "required": false,
+      "priority": 3
+    },
+    "numberOfChildren": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 11,
+      "label": "Number of Children",
+      "type": "number",
+      "required": false,
+      "priority": 3
+    },
+    "isPregnant": {
+      "location": "front",
+      "section": "DEMOGRAPHIC DATA",
+      "question": 12,
+      "label": "Currently pregnant (for female only)",
+      "type": "checkbox",
+      "options": ["No", "Yes"],
+      "required": false,
+      "priority": 3
+    },
+    "educationalAttainment": {
+      "location": "front",
+      "section": "EDUCATION & OCCUPATION",
+      "question": 13,
+      "label": "Highest Educational Attainment",
+      "type": "checkbox",
+      "options": ["No schooling", "Elementary", "High School", "Vocational", "College", "Post-graduate"],
+      "required": false,
+      "priority": 3
+    },
+    "currentlyInSchool": {
+      "location": "front",
+      "section": "EDUCATION & OCCUPATION",
+      "question": 14,
+      "label": "Currently in school",
+      "type": "checkbox",
+      "options": ["No", "Yes"],
+      "required": false,
+      "priority": 3
+    },
+    "currentlyWorking": {
+      "location": "front",
+      "section": "EDUCATION & OCCUPATION",
+      "question": 15,
+      "label": "Currently working",
+      "type": "checkbox",
+      "options": ["No", "Yes"],
+      "required": false,
+      "priority": 3
+    },
+    "workedOverseas": {
+      "location": "front",
+      "section": "EDUCATION & OCCUPATION",
+      "question": 16,
+      "label": "Worked overseas/abroad in past 5 years",
+      "type": "checkbox",
+      "options": ["No", "Yes"],
+      "required": false,
+      "priority": 3
+    },
+    "overseasReturnYear": {
+      "location": "front",
+      "section": "EDUCATION & OCCUPATION",
+      "question": 16,
+      "label": "Year of return from last contract",
+      "type": "text",
+      "required": false,
+      "priority": 4
+    },
+    "overseasLocation": {
+      "location": "front",
+      "section": "EDUCATION & OCCUPATION",
+      "question": 16,
+      "label": "Overseas location",
+      "type": "checkbox",
+      "options": ["On a ship", "Land"],
+      "required": false,
+      "priority": 4
+    },
+    "overseasCountry": {
+      "location": "front",
+      "section": "EDUCATION & OCCUPATION",
+      "question": 16,
+      "label": "Country worked in",
+      "type": "text",
+      "required": false,
+      "priority": 4
+    },
+    "riskAssessment": {
+      "location": "back",
+      "section": "HISTORY OF EXPOSURE / RISK ASSESSMENT",
+      "question": 17,
+      "label": "Risk Assessment",
+      "type": "checkboxMultiple",
+      "required": false,
+      "priority": 2,
+      "extractionHints": ["Multiple checkboxes for risk factors"]
+    },
+    "reasonsForTesting": {
+      "location": "back",
+      "section": "REASONS FOR HIV TESTING",
+      "question": 18,
+      "label": "Reasons for HIV Testing",
+      "type": "checkboxMultiple",
+      "required": false,
+      "priority": 2,
+      "extractionHints": ["Check all that apply"]
+    },
+    "previouslyTested": {
+      "location": "back",
+      "section": "PREVIOUS HIV TEST",
+      "question": 19,
+      "label": "Ever been tested for HIV before",
+      "type": "checkbox",
+      "options": ["No", "Yes"],
+      "required": false,
+      "priority": 2
+    },
+    "previousTestDate": {
+      "location": "back",
+      "section": "PREVIOUS HIV TEST",
+      "question": 19,
+      "label": "Date of previous test",
+      "type": "date",
+      "format": "MM/DD/YYYY",
+      "required": false,
+      "priority": 3
+    },
+    "previousTestResult": {
+      "location": "back",
+      "section": "PREVIOUS HIV TEST",
+      "question": 19,
+      "label": "Previous Test Result",
+      "type": "checkbox",
+      "options": ["Reactive", "Non-reactive", "Indeterminate", "Was not able to get result"],
+      "required": false,
+      "priority": 2
+    },
+    "medicalHistory": {
+      "location": "back",
+      "section": "MEDICAL HISTORY & CLINICAL PICTURE",
+      "question": 20,
+      "label": "Medical History",
+      "type": "checkboxMultiple",
+      "required": false,
+      "priority": 3,
+      "extractionHints": ["Check all that apply"]
+    },
+    "clinicalPicture": {
+      "location": "back",
+      "section": "MEDICAL HISTORY & CLINICAL PICTURE",
+      "question": 21,
+      "label": "Clinical Picture",
+      "type": "checkbox",
+      "options": ["Asymptomatic", "Symptomatic"],
+      "required": false,
+      "priority": 3
+    },
+    "symptoms": {
+      "location": "back",
+      "section": "MEDICAL HISTORY & CLINICAL PICTURE",
+      "question": 21,
+      "label": "Describe Signs/Symptoms",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "whoStaging": {
+      "location": "back",
+      "section": "MEDICAL HISTORY & CLINICAL PICTURE",
+      "question": 21,
+      "label": "WHO Staging",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "clientType": {
+      "location": "back",
+      "section": "TESTING DETAILS",
+      "question": 22,
+      "label": "Client Type",
+      "type": "checkbox",
+      "required": false,
+      "priority": 2
+    },
+    "modeOfReach": {
+      "location": "back",
+      "section": "TESTING DETAILS",
+      "question": 23,
+      "label": "Mode of Reach",
+      "type": "checkbox",
+      "required": false,
+      "priority": 3
+    },
+    "testingAccepted": {
+      "location": "back",
+      "section": "TESTING DETAILS",
+      "question": 24,
+      "label": "HIV Testing Status",
+      "type": "checkbox",
+      "options": ["Refused", "Accepted"],
+      "required": true,
+      "priority": 2
+    },
+    "refusalReason": {
+      "location": "back",
+      "section": "TESTING DETAILS",
+      "question": 24,
+      "label": "Reason for refusal",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "otherServices": {
+      "location": "back",
+      "section": "TESTING DETAILS",
+      "question": 25,
+      "label": "Other services provided to client",
+      "type": "checkboxMultiple",
+      "required": false,
+      "priority": 3
+    },
+    "testKitBrand": {
+      "location": "back",
+      "section": "INVENTORY INFORMATION",
+      "question": 25,
+      "label": "Brand of test kit used",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "testKitLotNumber": {
+      "location": "back",
+      "section": "INVENTORY INFORMATION",
+      "question": 25,
+      "label": "Lot Number",
+      "type": "text",
+      "required": false,
+      "priority": 4
+    },
+    "testKitExpiration": {
+      "location": "back",
+      "section": "INVENTORY INFORMATION",
+      "question": 25,
+      "label": "Expiration date",
+      "type": "date",
+      "format": "MM/DD/YYYY",
+      "required": false,
+      "priority": 4
+    },
+    "testingFacility": {
+      "location": "back",
+      "section": "HTS PROVIDER DETAILS",
+      "question": 26,
+      "label": "Name of Testing Facility/Organization",
+      "type": "text",
+      "required": true,
+      "priority": 2,
+      "expectedValues": ["LoveYourself Inc.", "LoveYourself Inc. (Bagani)"]
+    },
+    "counselorName": {
+      "location": "back",
+      "section": "HTS PROVIDER DETAILS",
+      "question": 27,
+      "label": "Name of Counselor/Health Worker",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "counselorSignature": {
+      "location": "back",
+      "section": "HTS PROVIDER DETAILS",
+      "question": 27,
+      "label": "Signature of Counselor",
+      "type": "signature",
+      "required": false,
+      "priority": 4
+    },
+    "contactNumber": {
+      "location": "front",
+      "section": "INFORMED CONSENT",
+      "question": null,
+      "label": "Contact Number (Consent)",
+      "type": "text",
+      "required": false,
+      "priority": 3
+    },
+    "emailAddress": {
+      "location": "front",
+      "section": "INFORMED CONSENT",
+      "question": null,
+      "label": "Email Address (Consent)",
+      "type": "text",
+      "required": false,
       "priority": 3
     }
   },
+  "fieldGroups": {
+    "essentialFields": ["testDate", "firstName", "lastName", "birthDate", "sex", "testingAccepted"],
+    "identityFields": ["firstName", "middleName", "lastName", "suffix", "birthDate", "age", "sex", "philHealthNumber", "philSysNumber", "parentalCode"],
+    "demographicFields": ["currentResidenceCity", "currentResidenceProvince", "nationality", "civilStatus", "livingWithPartner", "numberOfChildren", "isPregnant"],
+    "educationFields": ["educationalAttainment", "currentlyInSchool", "currentlyWorking", "workedOverseas"],
+    "riskAssessmentFields": ["riskAssessment", "reasonsForTesting"],
+    "medicalFields": ["previouslyTested", "previousTestDate", "previousTestResult", "medicalHistory", "clinicalPicture", "symptoms", "whoStaging"],
+    "testingFields": ["clientType", "modeOfReach", "testingAccepted", "refusalReason", "otherServices"],
+    "inventoryFields": ["testKitBrand", "testKitLotNumber", "testKitExpiration"],
+    "providerFields": ["testingFacility", "counselorName", "counselorSignature"],
+    "consentFields": ["contactNumber", "emailAddress"]
+  },
+  "extractionRules": {
+    "confidenceThreshold": 80,
+    "requiredFields": ["testDate", "firstName", "lastName", "birthDate", "sex", "testingAccepted"],
+    "dateFormats": ["MM/DD/YYYY", "DD/MM/YYYY", "MM-DD-YYYY", "DD-MM-YYYY"],
+    "nameNormalization": {
+      "toUpperCase": true,
+      "toTitleCase": false,
+      "trimWhitespace": true,
+      "removeExtraSpaces": true
+    },
+    "totalQuestions": 27,
+    "frontPageQuestions": "1-16",
+    "backPageQuestions": "17-27"
+  },
   "extractionNotes": [
-    "Front page contains test result and testing facility details",
-    "Back page contains personal demographic information",
-    "Form uses checkboxes and handwritten/printed text",
-    "Multiple date fields use DD/MM/YYYY format",
-    "Test result may be on front page (question 19) or marked elsewhere"
-  ]
+    "CRITICAL: Clients write in CAPITAL LETTERS - set nameNormalization.toUpperCase = true",
+    "Form has 27 numbered questions total: Q1-16 (front page), Q17-27 (back page)",
+    "Front page contains: Consent, Demographics (Q1-12), Education & Occupation (Q13-16)",
+    "Back page contains: Risk Assessment (Q17), Testing Reasons (Q18), Previous Test (Q19), Medical History (Q20-21), Testing Details (Q22-25), Inventory & Provider (Q25-27)",
+    "Question 19 asks 'Have you ever been tested before?' - previousTestResult is a sub-field",
+    "Question 8 has 3 sub-sections: Current Residence, Permanent Residence, Place of Birth (each with City and Province)",
+    "Question 16 has conditional fields: if worked overseas, ask return year, location (ship/land), and country",
+    "Multiple checkbox fields use 'Check all that apply' format (Q17, Q18, Q20, Q25)",
+    "Test kit information is part of Question 25 under INVENTORY INFORMATION section",
+    "Date format varies: Demographics use MM/DD/YYYY, birth dates may use different formats"
+  ],
+  "ocrOptimization": {
+    "textract": {
+      "featureTypes": ["FORMS", "TABLES", "SIGNATURES"],
+      "analysisPages": [1, 2],
+      "keyValueExtraction": true,
+      "checkboxDetection": true
+    }
+  },
+  "lastUpdated": "2025-12-03"
 }

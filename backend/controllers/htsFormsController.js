@@ -96,17 +96,33 @@ const htsFormsController = {
       return res.status(400).json({ error: 'Encrypted OCR data is required. Please analyze images before submission.' });
     }
 
+    // Validate data types for debugging
+    console.log('[Submit Form] Validating request data types...');
+    console.log('[Submit Form] - extractedDataEncrypted type:', typeof extractedDataEncrypted, 'length:', extractedDataEncrypted?.length);
+    console.log('[Submit Form] - extractedDataIV type:', typeof extractedDataIV, 'length:', extractedDataIV?.length);
+    console.log('[Submit Form] - encryptionKey type:', typeof encryptionKey, 'length:', encryptionKey?.length);
+    console.log('[Submit Form] - frontImageBase64 length:', frontImageBase64?.length);
+    console.log('[Submit Form] - backImageBase64 length:', backImageBase64?.length);
+
     // Generate control number
     const controlNumber = await htsFormsRepository.generateControlNumber();
     const formId = await htsFormsRepository.generateControlNumber(); // Temporary ID for S3 keys
 
     try {
-      // Convert base64 to buffer
-      const frontImageBuffer = Buffer.from(frontImageBase64, 'base64');
-      const backImageBuffer = Buffer.from(backImageBase64, 'base64');
+      // Convert base64 to buffer with error handling
+      let frontImageBuffer, backImageBuffer;
+      try {
+        frontImageBuffer = Buffer.from(frontImageBase64, 'base64');
+        backImageBuffer = Buffer.from(backImageBase64, 'base64');
+        console.log(`[Submit Form] Converted images to buffers: front=${frontImageBuffer.length} bytes, back=${backImageBuffer.length} bytes`);
+      } catch (bufferError) {
+        console.error('[Submit Form] Base64 conversion error:', bufferError);
+        throw new Error(`Invalid base64 image data: ${bufferError.message}`);
+      }
 
       // Upload encrypted images to S3
       const s3Service = require('../services/s3Service');
+      console.log('[Submit Form] Uploading images to S3...');
       const [frontImageS3Key, backImageS3Key] = await Promise.all([
         s3Service.uploadEncryptedImage(frontImageBuffer, formId, 'front'),
         s3Service.uploadEncryptedImage(backImageBuffer, formId, 'back')
@@ -114,7 +130,16 @@ const htsFormsController = {
 
       console.log(`[Submit Form] Uploaded images to S3: ${frontImageS3Key}, ${backImageS3Key}`);
 
+      // Validate extracted data encryption before storing
+      if (typeof extractedDataEncrypted !== 'string') {
+        throw new Error(`extractedDataEncrypted must be a string (base64), got: ${typeof extractedDataEncrypted}`);
+      }
+      if (typeof extractedDataIV !== 'string') {
+        throw new Error(`extractedDataIV must be a string (base64), got: ${typeof extractedDataIV}`);
+      }
+
       // Create submission with S3 keys and encrypted OCR data
+      console.log('[Submit Form] Saving to database...');
       const actualFormId = await htsFormsRepository.createSubmission({
         controlNumber,
         userId,
@@ -142,9 +167,11 @@ const htsFormsController = {
 
     } catch (error) {
       console.error('[Submit Form] Error:', error);
+      console.error('[Submit Form] Error stack:', error.stack);
       res.status(500).json({
         error: 'Failed to submit form',
-        details: error.message
+        details: error.message,
+        type: error.constructor.name
       });
     }
   }),

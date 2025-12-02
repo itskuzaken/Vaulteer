@@ -31,37 +31,6 @@ Integrate AWS Textract OCR with AWS S3 storage where **OCR processing happens BE
 ### HTS Form Structure (DOH "PERSONAL INFORMATION SHEET (HTS FORM 2021)")
 
 **Front Page - Page 1:**
-- Header: "HIV TESTING" with "HTS" label
-- Section: HISTORY OF RISK ASSESSMENT
-  - Checkboxes: Condom Use (Always/Sometimes/Never)
-  - Type of Sex: Oral/Anal Insertive/Anal Receptive/Vaginal
-  - Sexual activity history with dates
-  - Risk behavior questions (paid sex, drug use, needles, blood transfusion)
-- Section: REASONS FOR HIV TESTING
-  - Multiple checkboxes (employment, insurance, medical, etc.)
-- Section: PREVIOUS HIV TEST
-  - Previous test information with result (Reactive/Non-reactive/Indeterminate)
-  - City/Municipality field
-- Section: MEDICAL HISTORY & CLINICAL PICTURE
-  - Current TB patient, Hepatitis B, STIs, PEP, PrEP
-  - Clinical picture (Asymptomatic/Symptomatic)
-  - WHO Clinical Immunologic Staging
-- Section: TESTING DETAILS
-  - Client type (Inpatient/Walk-in/PDL/Mobile HTS)
-  - Mode of reach (Clinical/Online/Index/Social network)
-  - HIV testing modality (FBT/Non-lab FBT/Community-based/Self-testing)
-  - Linkage (Refer for DRRT/Refer for Confirmatory/Advise re-testing)
-- Section: INVENTORY INFORMATION
-  - Brand of test kit used, Batch number, Lot number, Expiration date
-- Section: HTS PROVIDER DETAILS
-  - Name of Testing Facility/Organization: **"LoveYourself Inc. (Bagani)"**
-  - Complete Mailing Address: **"NEDF Building 6th Lapu-Lapu St. cor. Brgy. 7, Bacolod City, Negros Occidental"**
-  - Contact Numbers: **"034 700 2034"**
-  - Email address: **"info@baganilph.org"**
-  - Primary HTS provider checkboxes (HIV Counselor/Medical Technologist/CBS Motivator/Others)
-  - Name & Signature of service provider
-
-**Back Page - Page 2:**
 - Header: "HIV TESTING" with checkbox options (PI/PF/SY/W/C)
 - Section: ABOUT THE TEST (informational text about HIV testing)
 - Section: INFORMED CONSENT
@@ -91,6 +60,37 @@ Integrate AWS Textract OCR with AWS S3 storage where **OCR processing happens BE
        - Work overseas/abroad: No/Yes with year of return
        - Where were you based / On what / Land
        - What country did you last work in?
+       
+**Back Page - Page 2:**
+- Header: "HIV TESTING" with "HTS" label
+- Section: HISTORY OF RISK ASSESSMENT
+  - Checkboxes: Condom Use (Always/Sometimes/Never)
+  - Type of Sex: Oral/Anal Insertive/Anal Receptive/Vaginal
+  - Sexual activity history with dates
+  - Risk behavior questions (paid sex, drug use, needles, blood transfusion)
+- Section: REASONS FOR HIV TESTING
+  - Multiple checkboxes (employment, insurance, medical, etc.)
+- Section: PREVIOUS HIV TEST
+  - Previous test information with result (Reactive/Non-reactive/Indeterminate)
+  - City/Municipality field
+- Section: MEDICAL HISTORY & CLINICAL PICTURE
+  - Current TB patient, Hepatitis B, STIs, PEP, PrEP
+  - Clinical picture (Asymptomatic/Symptomatic)
+  - WHO Clinical Immunologic Staging
+- Section: TESTING DETAILS
+  - Client type (Inpatient/Walk-in/PDL/Mobile HTS)
+  - Mode of reach (Clinical/Online/Index/Social network)
+  - HIV testing modality (FBT/Non-lab FBT/Community-based/Self-testing)
+  - Linkage (Refer for DRRT/Refer for Confirmatory/Advise re-testing)
+- Section: INVENTORY INFORMATION
+  - Brand of test kit used, Batch number, Lot number, Expiration date
+- Section: HTS PROVIDER DETAILS
+  - Name of Testing Facility/Organization: **"LoveYourself Inc. (Bagani)"**
+  - Complete Mailing Address: **"NEDF Building 6th Lapu-Lapu St. cor. Brgy. 7, Bacolod City, Negros Occidental"**
+  - Contact Numbers: **"034 700 2034"**
+  - Email address: **"info@baganilph.org"**
+  - Primary HTS provider checkboxes (HIV Counselor/Medical Technologist/CBS Motivator/Others)
+  - Name & Signature of service provider
 
 ### Critical Fields for OCR Extraction
 

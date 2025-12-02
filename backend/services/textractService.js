@@ -2,6 +2,19 @@ const { AnalyzeDocumentCommand } = require('@aws-sdk/client-textract');
 const { textractClient } = require('../config/aws');
 const { decryptFormImages } = require('../utils/imageDecryption');
 const { getPool } = require('../db/pool');
+const fs = require('fs');
+const path = require('path');
+
+// Load DOH HTS Form 2021 metadata for field extraction
+const metadataPath = path.join(__dirname, '../assets/form-templates/hts/template-metadata.json');
+let formMetadata = null;
+
+try {
+  formMetadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+  console.log('✅ Loaded HTS Form metadata:', formMetadata.name);
+} catch (error) {
+  console.warn('⚠️ Could not load form metadata:', error.message);
+}
 
 /**
  * Call AWS Textract AnalyzeDocument API
@@ -154,15 +167,10 @@ function extractTestDate(blocks) {
 }
 
 /**
- * Extract full name from DOH HTS Form 2021
+ * Extract full name components from DOH HTS Form 2021
  * Question 4: First Name / Middle Name / Last Name / Suffix
  */
 function extractFullName(blocks, kvPairs) {
-  // Look for "Name (Full name)" label in key-value pairs
-  const nameFields = kvPairs.filter(kv => 
-    /name|first\s+name|last\s+name|middle\s+name/i.test(kv.key)
-  );
-  
   const name = {
     firstName: null,
     middleName: null,
@@ -171,25 +179,52 @@ function extractFullName(blocks, kvPairs) {
     fullName: null
   };
   
+  // Look for name fields in key-value pairs
+  const nameFields = kvPairs.filter(kv => 
+    /name|first\s+name|last\s+name|middle\s+name|surname|given|suffix/i.test(kv.key)
+  );
+  
   nameFields.forEach(field => {
     const key = field.key.toLowerCase();
-    if (key.includes('first')) {
-      name.firstName = field.value;
+    const value = field.value?.trim();
+    
+    if (!value || value === 'N/A' || value === '-') return;
+    
+    if (key.includes('first') || key.includes('given')) {
+      name.firstName = normalizeNameField(value);
     } else if (key.includes('middle')) {
-      name.middleName = field.value;
-    } else if (key.includes('last')) {
-      name.lastName = field.value;
+      name.middleName = normalizeNameField(value);
+    } else if (key.includes('last') || key.includes('surname')) {
+      name.lastName = normalizeNameField(value);
+    } else if (key.includes('suffix')) {
+      name.suffix = value.toUpperCase();
     }
   });
   
-  // Construct full name if components found
+  // Construct full name from components
   if (name.firstName || name.lastName) {
-    name.fullName = [name.firstName, name.middleName, name.lastName]
-      .filter(Boolean)
-      .join(' ');
+    const parts = [name.firstName, name.middleName, name.lastName, name.suffix].filter(Boolean);
+    name.fullName = parts.join(' ');
   }
   
   return name;
+}
+
+/**
+ * Normalize name field (Title Case, trim spaces)
+ */
+function normalizeNameField(text) {
+  if (!text) return null;
+  
+  // Remove extra spaces
+  text = text.replace(/\s+/g, ' ').trim();
+  
+  // Convert to Title Case (capitalizes first letter of each word)
+  return text
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
 }
 
 /**
@@ -197,17 +232,281 @@ function extractFullName(blocks, kvPairs) {
  * Question 2: PhilHealth Number (12 digits)
  */
 function extractPhilHealthNumber(blocks, kvPairs) {
-  // Look for PhilHealth number pattern
+  // Look for PhilHealth number in key-value pairs
   const philHealthPair = kvPairs.find(kv => 
-    /philhealth/i.test(kv.key)
+    /philhealth|phil\s*health|phic/i.test(kv.key)
   );
   
   if (philHealthPair && philHealthPair.value) {
-    // Extract 12-digit number
-    const numberMatch = philHealthPair.value.match(/\d{12}/);
-    return numberMatch ? numberMatch[0] : null;
+    // Remove hyphens, dots, spaces
+    const normalized = philHealthPair.value.replace(/[-.\s]/g, '');
+    // Extract exactly 12 digits
+    const match = normalized.match(/\d{12}/);
+    return match ? match[0] : null;
   }
   
+  // Fallback: Search all text for 12-digit pattern
+  const lines = extractTextLines(blocks);
+  const allText = lines.map(l => l.text).join(' ');
+  const normalizedText = allText.replace(/[-.\s]/g, '');
+  const match = normalizedText.match(/\d{12}/);
+  
+  return match ? match[0] : null;
+}
+
+/**
+ * Extract sex/gender from DOH HTS Form 2021
+ * Question 8: Sex at Birth (Male/Female)
+ */
+function extractSex(blocks, kvPairs) {
+  // Look for sex/gender field
+  const sexPair = kvPairs.find(kv => 
+    /sex|gender|male|female/i.test(kv.key)
+  );
+  
+  if (sexPair && sexPair.value) {
+    const value = sexPair.value.toLowerCase();
+    if (/male/i.test(value) && !/female/i.test(value)) return 'male';
+    if (/female/i.test(value)) return 'female';
+  }
+  
+  // Fallback: Search all text
+  const lines = extractTextLines(blocks);
+  const allText = lines.map(l => l.text).join(' ');
+  
+  // Look for checkbox patterns
+  if (/☑\s*male|✓\s*male|✔\s*male|\[x\]\s*male/i.test(allText)) return 'male';
+  if (/☑\s*female|✓\s*female|✔\s*female|\[x\]\s*female/i.test(allText)) return 'female';
+  
+  return null;
+}
+
+/**
+ * Extract age from DOH HTS Form 2021
+ * Question 7: Age
+ */
+function extractAge(blocks, kvPairs) {
+  // Look for age field
+  const agePair = kvPairs.find(kv => 
+    /\bage\b/i.test(kv.key)
+  );
+  
+  if (agePair && agePair.value) {
+    const match = agePair.value.match(/\d{1,3}/);
+    if (match) {
+      const age = parseInt(match[0]);
+      // Validate reasonable age range
+      if (age >= 15 && age <= 120) return age;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract civil status from DOH HTS Form 2021
+ * Question 9: Civil Status
+ */
+function extractCivilStatus(blocks, kvPairs) {
+  // Look for civil status field
+  const statusPair = kvPairs.find(kv => 
+    /civil\s*status|marital\s*status/i.test(kv.key)
+  );
+  
+  if (statusPair && statusPair.value) {
+    const value = statusPair.value.toLowerCase();
+    if (/single/i.test(value)) return 'single';
+    if (/married/i.test(value)) return 'married';
+    if (/widow/i.test(value)) return 'widowed';
+    if (/separat/i.test(value)) return 'separated';
+    if (/living[-\s]in|live[-\s]in/i.test(value)) return 'living-in';
+  }
+  
+  // Fallback: Search all text for checkboxes
+  const lines = extractTextLines(blocks);
+  const allText = lines.map(l => l.text).join(' ');
+  
+  if (/☑\s*single|✓\s*single|✔\s*single/i.test(allText)) return 'single';
+  if (/☑\s*married|✓\s*married|✔\s*married/i.test(allText)) return 'married';
+  if (/☑\s*widow|✓\s*widow|✔\s*widow/i.test(allText)) return 'widowed';
+  if (/☑\s*separat|✓\s*separat|✔\s*separat/i.test(allText)) return 'separated';
+  if (/☑\s*living[-\s]in|✓\s*living[-\s]in/i.test(allText)) return 'living-in';
+  
+  return null;
+}
+
+/**
+ * Extract contact number from DOH HTS Form 2021
+ * Question 10: Contact Number
+ */
+function extractContactNumber(blocks, kvPairs) {
+  // Look for contact number field
+  const contactPair = kvPairs.find(kv => 
+    /contact|phone|mobile|cellphone|tel/i.test(kv.key)
+  );
+  
+  if (contactPair && contactPair.value) {
+    // Remove spaces, hyphens, parentheses
+    const normalized = contactPair.value.replace(/[\s\-()]/g, '');
+    // Match Philippine mobile format: 09XXXXXXXXX or +639XXXXXXXXX
+    const match = normalized.match(/(?:\+639|09)\d{9}/);
+    return match ? match[0] : null;
+  }
+  
+  // Fallback: Search all text
+  const lines = extractTextLines(blocks);
+  const allText = lines.map(l => l.text).join(' ').replace(/[\s\-()]/g, '');
+  const match = allText.match(/(?:\+639|09)\d{9}/);
+  
+  return match ? match[0] : null;
+}
+
+/**
+ * Extract complete address from DOH HTS Form 2021
+ * Question 11: Complete Address
+ */
+function extractAddress(blocks, kvPairs) {
+  // Look for address field
+  const addressPair = kvPairs.find(kv => 
+    /address|residence|location/i.test(kv.key)
+  );
+  
+  if (addressPair && addressPair.value) {
+    const value = addressPair.value.trim();
+    if (value && value !== 'N/A' && value !== '-') {
+      return value;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract HTS Code from DOH HTS Form 2021
+ * Question 3: HTS Code (unique identifier)
+ */
+function extractHTSCode(blocks, kvPairs) {
+  // Look for HTS code field
+  const htsPair = kvPairs.find(kv => 
+    /hts\s*code|client\s*code|code/i.test(kv.key)
+  );
+  
+  if (htsPair && htsPair.value) {
+    const value = htsPair.value.trim();
+    if (value && value !== 'N/A' && value !== '-') {
+      return value.toUpperCase();
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract test kit used from DOH HTS Form 2021
+ * HTS Provider Details section
+ */
+function extractTestKitUsed(blocks, kvPairs) {
+  // Look for test kit field
+  const kitPair = kvPairs.find(kv => 
+    /test\s*kit|kit\s*used|screening\s*test|rapid\s*test/i.test(kv.key)
+  );
+  
+  if (kitPair && kitPair.value) {
+    const value = kitPair.value.trim();
+    if (value && value !== 'N/A' && value !== '-') {
+      return value;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract counselor name from DOH HTS Form 2021
+ * HTS Provider Details section
+ */
+function extractCounselorName(blocks, kvPairs) {
+  // Look for counselor name field
+  const counselorPair = kvPairs.find(kv => 
+    /counselor|health\s*worker|provider|staff/i.test(kv.key)
+  );
+  
+  if (counselorPair && counselorPair.value) {
+    const value = counselorPair.value.trim();
+    if (value && value !== 'N/A' && value !== '-') {
+      return normalizeNameField(value);
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Generic field extractor - finds any field by regex pattern
+ */
+function extractGenericField(blocks, kvPairs, pattern) {
+  const pair = kvPairs.find(kv => pattern.test(kv.key));
+  if (pair && pair.value) {
+    const value = pair.value.trim();
+    if (value && value !== 'N/A' && value !== '-' && value !== '') {
+      return value;
+    }
+  }
+  return null;
+}
+
+/**
+ * Extract checkbox value (Yes/No or checked option)
+ */
+function extractCheckbox(blocks, kvPairs, pattern) {
+  const pair = kvPairs.find(kv => pattern.test(kv.key));
+  if (pair && pair.value) {
+    const value = pair.value.toLowerCase();
+    if (/yes|✓|✔|☑|\[x\]/i.test(value)) return 'Yes';
+    if (/no/i.test(value)) return 'No';
+    return pair.value.trim();
+  }
+  
+  // Check text for checkbox patterns
+  const lines = extractTextLines(blocks);
+  const allText = lines.map(l => l.text).join(' ');
+  if (pattern.test(allText)) {
+    if (/☑|✓|✔|\[x\]/i.test(allText)) return 'Yes';
+  }
+  
+  return null;
+}
+
+/**
+ * Extract multiple checkbox selections
+ */
+function extractCheckboxList(blocks, kvPairs, sectionPattern) {
+  const items = [];
+  const lines = extractTextLines(blocks);
+  const allText = lines.map(l => l.text).join('\n');
+  
+  // Find lines with checkboxes
+  lines.forEach(line => {
+    if (/☑|✓|✔|\[x\]/i.test(line.text)) {
+      const cleaned = line.text.replace(/☑|✓|✔|\[x\]|□/gi, '').trim();
+      if (cleaned && cleaned.length > 2) {
+        items.push(cleaned);
+      }
+    }
+  });
+  
+  return items.length > 0 ? items : null;
+}
+
+/**
+ * Extract number from field
+ */
+function extractNumber(blocks, kvPairs, pattern) {
+  const pair = kvPairs.find(kv => pattern.test(kv.key));
+  if (pair && pair.value) {
+    const match = pair.value.match(/\d+/);
+    if (match) return parseInt(match[0]);
+  }
   return null;
 }
 
@@ -266,7 +565,8 @@ function calculateAverageConfidence(blocks) {
 
 /**
  * Parse HTS form data from Textract results
- * Optimized for DOH HTS Form 2021 template
+ * Extracts ALL 56 fields from DOH HTS Form 2021 (Questions 1-27 + consent fields)
+ * Returns complete JSON matching template-metadata.json structure
  */
 function parseHTSFormData(frontResult, backResult) {
   const frontBlocks = frontResult.Blocks || [];
@@ -277,46 +577,132 @@ function parseHTSFormData(frontResult, backResult) {
   const frontKVPairs = extractKeyValuePairs(frontBlocks);
   const backKVPairs = extractKeyValuePairs(backBlocks);
   
-  // Extract all blocks for comprehensive search
-  const allBlocks = [...frontBlocks, ...backBlocks];
   const allKVPairs = [...frontKVPairs, ...backKVPairs];
   
-  // Extract name from back page (DEMOGRAPHIC DATA)
-  const nameData = extractFullName(backBlocks, backKVPairs);
+  console.log(`📊 Extracting ALL 56 fields from ${frontBlocks.length} front + ${backBlocks.length} back blocks`);
   
-  // Extract dates
-  const testDate = extractTestDate(backBlocks);
-  const birthDate = extractTestDate(backBlocks); // May need refinement to distinguish
+  // Extract name components (Question 4 - front page)
+  const nameData = extractFullName(frontBlocks, frontKVPairs);
   
+  // Extract dates from front page
+  const testDateObj = extractTestDate(frontBlocks);
+  const birthDateObj = extractTestDate(frontBlocks); // Both dates on front page
+  
+  // Calculate age
+  let calculatedAge = null;
+  if (birthDateObj && testDateObj) {
+    const birthYear = parseInt(birthDateObj.year);
+    const testYear = parseInt(testDateObj.year);
+    calculatedAge = testYear - birthYear;
+  }
+  
+  // Build complete extracted data with ALL 56 fields
   const extractedData = {
-    // Template information
-    templateId: 'doh-hts-2021',
-    templateName: 'DOH Personal Information Sheet (HTS Form 2021)',
+    // ========== TEMPLATE METADATA ==========
+    templateId: formMetadata?.templateId || 'doh-hts-2021',
+    templateName: formMetadata?.name || 'DOH Personal Information Sheet (HTS Form 2021)',
+    extractedAt: new Date().toISOString(),
     
-    // Priority 1: Essential fields
-    testResult: extractTestResult(frontBlocks) || extractTestResult(backBlocks),
+    // ========== FRONT PAGE: DEMOGRAPHIC DATA (Q1-12) ==========
+    testDate: testDateObj ? `${testDateObj.month}/${testDateObj.day}/${testDateObj.year}` : null,
+    philHealthNumber: extractPhilHealthNumber(frontBlocks, frontKVPairs),
+    philSysNumber: extractGenericField(frontBlocks, frontKVPairs, /philsys|phil\s*sys/i),
     
-    // Priority 2: Identity verification
-    testDate: testDate,
-    fullName: nameData.fullName,
     firstName: nameData.firstName,
     middleName: nameData.middleName,
     lastName: nameData.lastName,
-    birthDate: birthDate,
+    suffix: nameData.suffix,
+    fullName: nameData.fullName,
     
-    // Priority 3: Additional validation
-    philHealthNumber: extractPhilHealthNumber(backBlocks, backKVPairs),
-    testingFacility: extractTestingFacility(frontBlocks),
+    parentalCode: extractGenericField(frontBlocks, frontKVPairs, /parental\s*code|mother.*father.*birth/i),
+    
+    birthDate: birthDateObj ? `${birthDateObj.month}/${birthDateObj.day}/${birthDateObj.year}` : null,
+    age: extractAge(frontBlocks, frontKVPairs) || calculatedAge,
+    
+    sex: extractSex(frontBlocks, frontKVPairs),
+    
+    // Q8: Residence fields
+    currentResidenceCity: extractGenericField(frontBlocks, frontKVPairs, /current.*city|current.*municipality/i),
+    currentResidenceProvince: extractGenericField(frontBlocks, frontKVPairs, /current.*province/i),
+    permanentResidenceCity: extractGenericField(frontBlocks, frontKVPairs, /permanent.*city|permanent.*municipality/i),
+    permanentResidenceProvince: extractGenericField(frontBlocks, frontKVPairs, /permanent.*province/i),
+    placeOfBirthCity: extractGenericField(frontBlocks, frontKVPairs, /place.*birth.*city|birth.*municipality/i),
+    placeOfBirthProvince: extractGenericField(frontBlocks, frontKVPairs, /place.*birth.*province|birth.*province/i),
+    
+    nationality: extractGenericField(frontBlocks, frontKVPairs, /nationality/i) || 'Filipino',
+    civilStatus: extractCivilStatus(frontBlocks, frontKVPairs),
+    livingWithPartner: extractCheckbox(frontBlocks, frontKVPairs, /living.*partner|live.*partner/i),
+    numberOfChildren: extractNumber(frontBlocks, frontKVPairs, /number.*children|children/i),
+    isPregnant: extractCheckbox(frontBlocks, frontKVPairs, /pregnant/i),
+    
+    // ========== FRONT PAGE: EDUCATION & OCCUPATION (Q13-16) ==========
+    educationalAttainment: extractCheckbox(frontBlocks, frontKVPairs, /educational.*attainment|highest.*education/i),
+    currentlyInSchool: extractCheckbox(frontBlocks, frontKVPairs, /currently.*school|in\s*school/i),
+    currentlyWorking: extractCheckbox(frontBlocks, frontKVPairs, /currently.*working|working/i),
+    workedOverseas: extractCheckbox(frontBlocks, frontKVPairs, /worked.*overseas|overseas.*abroad/i),
+    overseasReturnYear: extractGenericField(frontBlocks, frontKVPairs, /return.*year|year.*return/i),
+    overseasLocation: extractCheckbox(frontBlocks, frontKVPairs, /ship|land/i),
+    overseasCountry: extractGenericField(frontBlocks, frontKVPairs, /country.*work|work.*country/i),
+    
+    // ========== BACK PAGE: RISK ASSESSMENT (Q17) ==========
+    riskAssessment: extractCheckboxList(backBlocks, backKVPairs, /risk|exposure|history/i),
+    
+    // ========== BACK PAGE: TESTING REASONS (Q18) ==========
+    reasonsForTesting: extractCheckboxList(backBlocks, backKVPairs, /reason.*test|why.*test/i),
+    
+    // ========== BACK PAGE: PREVIOUS HIV TEST (Q19) ==========
+    previouslyTested: extractCheckbox(backBlocks, backKVPairs, /tested.*before|ever.*tested/i),
+    previousTestDate: extractTestDate(backBlocks)?.raw || null,
+    previousTestResult: extractTestResult(backBlocks),
+    
+    // ========== BACK PAGE: MEDICAL HISTORY (Q20-21) ==========
+    medicalHistory: extractCheckboxList(backBlocks, backKVPairs, /medical.*history|health.*condition/i),
+    clinicalPicture: extractCheckbox(backBlocks, backKVPairs, /asymptomatic|symptomatic/i),
+    symptoms: extractGenericField(backBlocks, backKVPairs, /symptom|describe.*s\/sx/i),
+    whoStaging: extractGenericField(backBlocks, backKVPairs, /who.*staging/i),
+    
+    // ========== BACK PAGE: TESTING DETAILS (Q22-25) ==========
+    clientType: extractCheckbox(backBlocks, backKVPairs, /client.*type|type.*client/i),
+    modeOfReach: extractCheckbox(backBlocks, backKVPairs, /mode.*reach|how.*reach/i),
+    testingAccepted: extractCheckbox(backBlocks, backKVPairs, /accepted|refused/i) || 'Accepted',
+    refusalReason: extractGenericField(backBlocks, backKVPairs, /reason.*refusal|why.*refuse/i),
+    otherServices: extractCheckboxList(backBlocks, backKVPairs, /other.*service|additional.*service/i),
+    
+    // ========== BACK PAGE: INVENTORY (Q25) ==========
+    testKitBrand: extractTestKitUsed(backBlocks, backKVPairs),
+    testKitLotNumber: extractGenericField(backBlocks, backKVPairs, /lot.*number|batch.*number/i),
+    testKitExpiration: extractGenericField(backBlocks, backKVPairs, /expir.*date|expiry/i),
+    
+    // ========== BACK PAGE: HTS PROVIDER (Q26-27) ==========
+    testingFacility: extractTestingFacility(backBlocks),
+    counselorName: extractCounselorName(backBlocks, backKVPairs),
+    counselorSignature: null, // Signature requires special handling
+    
+    // ========== FRONT PAGE: INFORMED CONSENT ==========
+    contactNumber: extractContactNumber(frontBlocks, frontKVPairs),
+    emailAddress: extractGenericField(frontBlocks, frontKVPairs, /email/i),
+    
+    // ========== INTERNAL TRACKING ==========
     controlNumber: extractControlNumber(frontBlocks) || extractControlNumber(backBlocks),
-    
-    // Raw text for reference
-    frontText: frontLines.map(l => l.text).join('\n'),
-    backText: backLines.map(l => l.text).join('\n'),
-    
-    // Confidence scores
     frontConfidence: calculateAverageConfidence(frontBlocks),
-    backConfidence: calculateAverageConfidence(backBlocks)
+    backConfidence: calculateAverageConfidence(backBlocks),
+    
+    _rawData: {
+      frontText: frontLines.map(l => l.text).join('\n'),
+      backText: backLines.map(l => l.text).join('\n'),
+      keyValuePairs: { front: frontKVPairs.length, back: backKVPairs.length, total: allKVPairs.length }
+    }
   };
+  
+  // Log extraction summary
+  console.log('✅ Extraction complete:');
+  console.log(`   - Test Date: ${extractedData.testDate || 'NOT FOUND'}`);
+  console.log(`   - Name: ${extractedData.fullName || 'NOT FOUND'}`);
+  console.log(`   - Birth Date: ${extractedData.birthDate || 'NOT FOUND'}`);
+  console.log(`   - Sex: ${extractedData.sex || 'NOT FOUND'}`);
+  console.log(`   - Previous Test: ${extractedData.previouslyTested || 'NOT FOUND'}`);
+  console.log(`   - Result: ${extractedData.previousTestResult || 'NOT FOUND'}`);
+  console.log(`   - Facility: ${extractedData.testingFacility || 'NOT FOUND'}`);
   
   return extractedData;
 }
@@ -453,6 +839,15 @@ module.exports = {
   extractPhilHealthNumber,
   extractTestingFacility,
   extractControlNumber,
+  extractSex,
+  extractAge,
+  extractCivilStatus,
+  extractContactNumber,
+  extractAddress,
+  extractHTSCode,
+  extractTestKitUsed,
+  extractCounselorName,
+  normalizeNameField,
   calculateAverageConfidence,
   parseHTSFormData,
   processEncryptedHTSForm

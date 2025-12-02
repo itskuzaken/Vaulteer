@@ -15,38 +15,62 @@ const htsFormsRepository = {
       extractedDataIV,
       extractionConfidence
     } = data;
+    
+    // Validate required fields
+    console.log('[Repository] Creating submission with data:', {
+      controlNumber,
+      userId,
+      frontImageS3Key: frontImageS3Key?.substring(0, 50) + '...',
+      backImageS3Key: backImageS3Key?.substring(0, 50) + '...',
+      testResult,
+      extractedDataEncrypted_length: extractedDataEncrypted?.length,
+      extractedDataIV_length: extractedDataIV?.length,
+      extractionConfidence
+    });
+
     const pool = getPool();
-    const [result] = await pool.query(
-      `INSERT INTO hts_forms (
-        control_number, 
-        user_id, 
-        front_image_s3_key, 
-        back_image_s3_key, 
-        front_image_iv, 
-        back_image_iv, 
-        encryption_key, 
-        test_result,
-        extracted_data_encrypted,
-        extracted_data_iv,
-        extraction_confidence,
-        ocr_completed_at
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [
-        controlNumber, 
-        userId, 
-        frontImageS3Key, 
-        backImageS3Key, 
-        frontImageIV, 
-        backImageIV, 
-        encryptionKey, 
-        testResult,
-        extractedDataEncrypted,
-        extractedDataIV,
-        extractionConfidence
-      ]
-    );
-    return result.insertId;
+    
+    try {
+      const [result] = await pool.query(
+        `INSERT INTO hts_forms (
+          control_number, 
+          user_id, 
+          front_image_s3_key, 
+          back_image_s3_key, 
+          front_image_iv, 
+          back_image_iv, 
+          encryption_key, 
+          test_result,
+          extracted_data_encrypted,
+          extracted_data_iv,
+          extraction_confidence,
+          ocr_completed_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [
+          controlNumber, 
+          userId, 
+          frontImageS3Key, 
+          backImageS3Key, 
+          frontImageIV, 
+          backImageIV, 
+          encryptionKey, 
+          testResult,
+          extractedDataEncrypted,
+          extractedDataIV,
+          extractionConfidence
+        ]
+      );
+      
+      console.log('[Repository] Successfully inserted form with ID:', result.insertId);
+      return result.insertId;
+      
+    } catch (dbError) {
+      console.error('[Repository] Database insert error:', dbError);
+      console.error('[Repository] SQL Error code:', dbError.code);
+      console.error('[Repository] SQL Error message:', dbError.message);
+      throw dbError;
+    }
   },
 
   async getSubmissionsByUserId(userId) {

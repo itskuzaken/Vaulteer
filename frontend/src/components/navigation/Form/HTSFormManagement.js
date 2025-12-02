@@ -257,29 +257,48 @@ export default function HTSFormManagement() {
     try {
       // Encrypt images and extracted data with same key (different IVs)
       console.log("[Submit] Encrypting images and extracted OCR data for privacy...");
+      console.log("[Submit] Extracted data size:", JSON.stringify(extractedData).length, "bytes");
+      
       const encrypted = await encryptFormSubmission(frontImage, backImage, extractedData);
       
+      // Validate encryption output
+      console.log("[Submit] Encryption complete. Validating encrypted data types...");
+      console.log("[Submit] - frontImage type:", typeof encrypted.frontImage, "length:", encrypted.frontImage?.length);
+      console.log("[Submit] - backImage type:", typeof encrypted.backImage, "length:", encrypted.backImage?.length);
+      console.log("[Submit] - frontImageIV type:", typeof encrypted.frontImageIV, "length:", encrypted.frontImageIV?.length);
+      console.log("[Submit] - backImageIV type:", typeof encrypted.backImageIV, "length:", encrypted.backImageIV?.length);
+      console.log("[Submit] - extractedDataEncrypted type:", typeof encrypted.extractedDataEncrypted, "length:", encrypted.extractedDataEncrypted?.length);
+      console.log("[Submit] - extractedDataIV type:", typeof encrypted.extractedDataIV, "length:", encrypted.extractedDataIV?.length);
+      console.log("[Submit] - encryptionKey type:", typeof encrypted.encryptionKey, "length:", encrypted.encryptionKey?.length);
+      
       const idToken = await user.getIdToken();
+      const payload = {
+        frontImageBase64: encrypted.frontImage,
+        backImageBase64: encrypted.backImage,
+        frontImageIV: encrypted.frontImageIV,
+        backImageIV: encrypted.backImageIV,
+        extractedDataEncrypted: encrypted.extractedDataEncrypted,
+        extractedDataIV: encrypted.extractedDataIV,
+        encryptionKey: encrypted.encryptionKey,
+        testResult: testResult,
+        extractionConfidence: extractedData.confidence
+      };
+      
+      console.log("[Submit] Sending request to backend with payload size:", JSON.stringify(payload).length, "bytes");
+      
       const response = await fetch(`${API_BASE}/hts-forms/submit`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${idToken}`
         },
-        body: JSON.stringify({
-          frontImageBase64: encrypted.frontImage,
-          backImageBase64: encrypted.backImage,
-          frontImageIV: encrypted.frontImageIV,
-          backImageIV: encrypted.backImageIV,
-          extractedDataEncrypted: encrypted.extractedDataEncrypted,
-          extractedDataIV: encrypted.extractedDataIV,
-          encryptionKey: encrypted.encryptionKey,
-          testResult: testResult,
-          extractionConfidence: extractedData.confidence
-        })
+        body: JSON.stringify(payload)
       });
 
+      console.log("[Submit] Response status:", response.status, response.statusText);
+      
       const data = await response.json();
+      console.log("[Submit] Response data:", data);
 
       if (data.success) {
         setControlNumber(data.controlNumber);
@@ -291,11 +310,14 @@ export default function HTSFormManagement() {
         setShowOCRReview(false);
         setCurrentStep("front");
       } else {
-        alert(`Failed to submit form: ${data.error || 'Unknown error'}`);
+        const errorMsg = `Failed to submit form: ${data.error || 'Unknown error'}${data.details ? '\nDetails: ' + data.details : ''}`;
+        console.error("[Submit] Backend error:", errorMsg);
+        alert(errorMsg);
       }
     } catch (error) {
-      console.error("Error submitting form:", error);
-      alert("An error occurred. Please try again.");
+      console.error("[Submit] Error submitting form:", error);
+      console.error("[Submit] Error stack:", error.stack);
+      alert(`An error occurred: ${error.message}\n\nPlease check the console for details and try again.`);
     } finally {
       setIsSubmitting(false);
     }
