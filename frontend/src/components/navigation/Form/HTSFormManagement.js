@@ -27,6 +27,7 @@ export default function HTSFormManagement() {
   const [controlNumber, setControlNumber] = useState(null);
   const [cameraPermission, setCameraPermission] = useState("prompt"); // "granted", "denied", "prompt", "unsupported"
   const [hasAttemptedCameraRequest, setHasAttemptedCameraRequest] = useState(false);
+  const [isRequestingCameraPermission, setIsRequestingCameraPermission] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -51,6 +52,7 @@ export default function HTSFormManagement() {
 
   const startCamera = async (side) => {
     setHasAttemptedCameraRequest(true);
+    setIsRequestingCameraPermission(true);
     try {
       // Check if camera is supported
       if (!isCameraSupported()) {
@@ -80,6 +82,7 @@ export default function HTSFormManagement() {
       }
       // Successful permission grant - reset the attempt flag and set state
       setHasAttemptedCameraRequest(false);
+      setIsRequestingCameraPermission(false);
       setIsCameraOpen(true);
       setCurrentStep(side);
       setSubmitSuccess(false);
@@ -92,8 +95,9 @@ export default function HTSFormManagement() {
         setCameraPermission("denied");
       }
       
-      // Show user-friendly error message from cameraPermissionService
-      alert(error.message);
+      // Show user-friendly error message from cameraPermissionService via in-app banner
+      console.warn(error.message);
+      setIsRequestingCameraPermission(false);
     }
   };
 
@@ -354,6 +358,11 @@ export default function HTSFormManagement() {
               <li>Find <strong>&quot;Camera&quot;</strong> and change to <strong>&quot;Allow&quot;</strong></li>
               <li>Refresh the page or click the capture button again</li>
             </ol>
+            <div className="mt-3">
+              <Button onClick={() => startCamera(currentStep)} variant="secondary" size="small">
+                Try Again
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -365,10 +374,13 @@ export default function HTSFormManagement() {
             <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
               Camera Permission Required 📷
             </h4>
-            <p className="text-sm text-blue-800 dark:text-blue-200">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
               When you click <strong>&quot;Capture Front&quot;</strong>, your browser will show a popup asking for camera permission. 
               Click <strong>&quot;Allow&quot;</strong> to enable the camera (similar to enabling push notifications).
             </p>
+            {isRequestingCameraPermission && (
+              <p className="text-sm text-blue-700 dark:text-blue-200 mt-2 font-medium">Requesting camera access — a browser popup should appear. If not, check your browser settings or try again.</p>
+            )}
           </div>
         </div>
       )}
@@ -448,6 +460,7 @@ export default function HTSFormManagement() {
                   onClick={captureImage} 
                   variant="primary" 
                   className="gap-2 px-6 py-3 text-lg"
+                  disabled={isRequestingCameraPermission}
                 >
                   <IoCamera className="w-6 h-6" />
                   Capture
@@ -484,14 +497,24 @@ export default function HTSFormManagement() {
               onClick={() => startCamera("front")} 
               variant="primary" 
               className="gap-2 w-full py-4 text-lg font-semibold"
-              disabled={cameraPermission === "unsupported"}
+              disabled={cameraPermission === "unsupported" || isRequestingCameraPermission}
             >
-              {cameraPermission === "prompt" && (
+              {isRequestingCameraPermission && (
                 <>
-                  <IoCamera className="w-6 h-6" />
-                  Capture Front (Permission Required)
+                  <span className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2 inline-block" />
                 </>
               )}
+                {isRequestingCameraPermission ? (
+                  <>
+                    <span className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2 inline-block" />
+                    Requesting camera access...
+                  </>
+                ) : cameraPermission === "prompt" && (
+                  <>
+                    <IoCamera className="w-6 h-6" />
+                    Capture Front (Permission Required)
+                  </>
+                )}
               {cameraPermission === "denied" && hasAttemptedCameraRequest && (
                 <>
                   <IoAlertCircle className="w-6 h-6" />
@@ -550,12 +573,17 @@ export default function HTSFormManagement() {
                   className="gap-2 w-full py-4 text-lg font-semibold"
                   disabled={cameraPermission === "unsupported"}
                 >
-                  {cameraPermission === "denied" && hasAttemptedCameraRequest ? (
-                    <>
-                      <IoAlertCircle className="w-6 h-6" />
-                      Grant Camera Access
-                    </>
-                  ) : (
+                  {isRequestingCameraPermission ? (
+                        <>
+                          <span className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2 inline-block" />
+                          Requesting camera access...
+                        </>
+                  ) : cameraPermission === "denied" && hasAttemptedCameraRequest ? (
+                        <>
+                          <IoAlertCircle className="w-6 h-6" />
+                          Grant Camera Access
+                        </>
+                      ) : (
                     <>
                       <IoCamera className="w-6 h-6" />
                       Capture Back
