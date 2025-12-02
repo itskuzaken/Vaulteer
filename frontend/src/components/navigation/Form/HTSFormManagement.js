@@ -82,13 +82,30 @@ export default function HTSFormManagement() {
       console.log("✅ Camera access granted by user!");
       setCameraPermission("granted");
       
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.srcObject = stream;
-        streamRef.current = stream;
-        setIsVideoReady(false);
+      // Store stream immediately
+      streamRef.current = stream;
+      
+      // Open modal and set step FIRST, then assign stream after React renders
+      setHasAttemptedCameraRequest(false);
+      setIsRequestingCameraPermission(false);
+      setIsCameraOpen(true);
+      setCurrentStep(side);
+      setSubmitSuccess(false);
+      setIsVideoReady(false);
+      
+      // Wait for modal to render, then assign stream to video
+      console.log("⏳ Waiting for video element to mount...");
+      setTimeout(() => {
+        if (!videoRef.current) {
+          console.error("❌ Video element not found after modal opened!");
+          alert("Failed to initialize camera view. Please try again.");
+          stopCamera();
+          return;
+        }
         
-        console.log("📹 Stream assigned to video element");
+        const video = videoRef.current;
+        console.log("📹 Video element found, assigning stream...");
+        video.srcObject = stream;
         
         // Wait for video to be ready with polling (more reliable than events on mobile)
         let checkCount = 0;
@@ -117,13 +134,7 @@ export default function HTSFormManagement() {
         
         // Store interval for cleanup
         metadataTimeoutRef.current = checkInterval;
-      }
-      // Successful permission grant - reset the attempt flag and set state
-      setHasAttemptedCameraRequest(false);
-      setIsRequestingCameraPermission(false);
-      setIsCameraOpen(true);
-      setCurrentStep(side);
-      setSubmitSuccess(false);
+      }, 100); // Small delay to ensure React has rendered the modal
     } catch (error) {
       console.error("❌ Camera access error:", error);
       
