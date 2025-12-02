@@ -4,7 +4,7 @@ import DashboardRouteRenderer from "../../_components/DashboardRouteRenderer";
 import StaffDashboard from "../../../../components/navigation/Dashboard/StaffDashboard";
 import StaffActivityLog from "../../../../components/navigation/Log/StaffActivityLog";
 import UserProfile from "../../../../components/navigation/Profile/UserProfile";
-import FormSubmission from "../../../../components/navigation/Form/FormSubmission";
+import HTSFormManagement from "../../../../components/navigation/Form/HTSFormManagement";
 import NewsUpdates from "@/components/navigation/Post/NewsUpdates";
 import Announcements from "@/components/navigation/Post/Announcements";
 import ManageVolunteer from "../../../../components/navigation/Volunteer/ManageVolunteer";
@@ -53,6 +53,10 @@ const staffMainRoutes = {
     component: StaffApplicationApproval,
     withNavigate: true,
   },
+  "hts-forms": {
+    label: "HTS Forms",
+    component: HTSFormManagement,
+  },
   event: {
     label: "Event Details",
     component: EventDetailsContent,
@@ -80,12 +84,6 @@ function StaffApplicationApproval(props) {
 }
 
 const staffSubRoutes = {
-  "form-submission": {
-    key: "form-submission",
-    label: "Form Submission",
-    parent: "hts-form",
-    component: FormSubmission,
-  },
   "news-updates": {
     key: "news-updates",
     label: "News & Updates",

@@ -159,14 +159,14 @@ export default function VolunteerDashboard({
             description="Submit a new HTS form"
             icon={<IoDocumentTextOutline />}
             color="yellow"
-            onClick={() => handleQuickAction("forms", "submit-form")}
+            onClick={() => handleQuickAction("hts-forms")}
           />
           <QuickActionCard
             title="View Submissions"
             description="Check your submitted forms"
             icon={<IoEyeOutline />}
             color="blue"
-            onClick={() => handleQuickAction("forms", "view-submitted")}
+            onClick={() => handleQuickAction("hts-forms")}
           />
           <QuickActionCard
             title="My Events"

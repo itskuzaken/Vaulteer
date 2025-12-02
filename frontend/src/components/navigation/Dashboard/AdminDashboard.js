@@ -166,7 +166,7 @@ export default function AdminDashboard({ onNavigate }) {
               description="Check submitted forms"
               icon={<IoDocumentTextOutline />}
               color="yellow"
-              onClick={() => handleQuickAction("hts-form", "form-submission")}
+              onClick={() => handleQuickAction("hts-forms")}
             />
           </QuickActionsSection>
         </div>

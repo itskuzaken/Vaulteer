@@ -11,6 +11,7 @@ const {
   startDeadlineScheduler,
 } = require("./jobs/applicationDeadlineScheduler");
 const { startPostScheduler } = require("./jobs/postScheduler");
+const { textractQueue } = require("./jobs/textractQueue");
 const { apiLimiter } = require("./middleware/rateLimiter");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
@@ -28,6 +29,7 @@ const internalRoute = require("./routes/internalRoutes");
 const applicationSettingsRoute = require("./routes/applicationSettingsRoutes");
 const postsRoute = require("./routes/postsRoutes");
 const userSettingsRoute = require("./routes/userSettingsRoutes");
+const htsFormsRoute = require("./routes/htsFormsRoutes");
 
 // Middleware for internal-only routes
 const internalOnly = require("./middleware/internalOnly");
@@ -164,6 +166,7 @@ app.use("/api/events", eventsRoute);
 app.use("/api/gamification", gamificationRoute);
 app.use("/api/application", applicationSettingsRoute);
 app.use("/api/posts", postsRoute);
+app.use("/api/hts-forms", htsFormsRoute);
 
 app.get("/api", (req, res) => {
   res.json({
@@ -204,6 +207,7 @@ async function start() {
     scheduleInactiveUserJob();
     startDeadlineScheduler();
     startPostScheduler();
+    console.log('✓ Textract OCR queue initialized');
 
     app.listen(CONFIG.PORT, "0.0.0.0", () => {
       console.log("\n🚀 Vaulteer Server");
