@@ -52,18 +52,50 @@ export async function requestCameraPermission() {
   }
 
   try {
-    // Use rear-facing camera (environment) for document scanning
+    // Use rear-facing camera (environment) for document scanning with autofocus
     // This is the back camera on mobile devices
     const finalConstraints = { 
       video: { 
-        facingMode: { ideal: "environment" } // "user" = front camera, "environment" = back camera
+        facingMode: { ideal: "environment" }, // "user" = front camera, "environment" = back camera
+        focusMode: { ideal: "continuous" }, // Enable continuous autofocus
+        // Additional constraints for better document scanning
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        aspectRatio: { ideal: 3/4 } // Portrait orientation for forms
       } 
     };
 
     // This will trigger the browser's Allow/Block permission popup
-    console.log("📷 Requesting camera permission (rear-facing)...");
+    console.log("📷 Requesting camera permission (rear-facing with autofocus)...");
     const stream = await navigator.mediaDevices.getUserMedia(finalConstraints);
     console.log("✅ Camera permission granted!");
+    
+    // Try to enable autofocus on the video track
+    const videoTrack = stream.getVideoTracks()[0];
+    if (videoTrack) {
+      try {
+        const capabilities = videoTrack.getCapabilities();
+        console.log("📹 Camera capabilities:", capabilities);
+        
+        // Apply advanced settings if supported
+        const constraints = {};
+        if (capabilities.focusMode && capabilities.focusMode.includes('continuous')) {
+          constraints.focusMode = 'continuous';
+        }
+        if (capabilities.focusDistance) {
+          // Set focus distance to infinity (good for documents)
+          constraints.focusDistance = capabilities.focusDistance.max || 10;
+        }
+        
+        if (Object.keys(constraints).length > 0) {
+          await videoTrack.applyConstraints({ advanced: [constraints] });
+          console.log("✅ Applied autofocus constraints:", constraints);
+        }
+      } catch (constraintError) {
+        // Non-critical - camera will still work without advanced features
+        console.warn("⚠️ Could not apply advanced camera constraints:", constraintError.message);
+      }
+    }
     
     return stream;
   } catch (error) {
