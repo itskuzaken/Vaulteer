@@ -27,9 +27,11 @@ export default function HTSFormManagement() {
   const [cameraPermission, setCameraPermission] = useState("prompt"); // "granted", "denied", "prompt", "unsupported"
   const [hasAttemptedCameraRequest, setHasAttemptedCameraRequest] = useState(false);
   const [isRequestingCameraPermission, setIsRequestingCameraPermission] = useState(false);
+  const [isVideoReady, setIsVideoReady] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  const metadataTimeoutRef = useRef(null);
 
   // OCR-first workflow state
   const [extractedData, setExtractedData] = useState(null);
@@ -83,10 +85,37 @@ export default function HTSFormManagement() {
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
-        // Ensure video plays after stream is set
-        videoRef.current.play().catch(err => {
-          console.error("Error playing video:", err);
-        });
+        setIsVideoReady(false);
+        
+        // Set up metadata loaded handler
+        videoRef.current.onloadedmetadata = () => {
+          console.log(`📹 Video metadata loaded: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`);
+          
+          // Clear timeout
+          if (metadataTimeoutRef.current) {
+            clearTimeout(metadataTimeoutRef.current);
+            metadataTimeoutRef.current = null;
+          }
+          
+          // Play video after metadata is loaded
+          videoRef.current.play()
+            .then(() => {
+              console.log("✅ Video playing successfully");
+              setIsVideoReady(true);
+            })
+            .catch(err => {
+              console.error("Error playing video:", err);
+              alert("Failed to start video playback. Please try again.");
+              stopCamera();
+            });
+        };
+        
+        // Set timeout for metadata loading (10 seconds)
+        metadataTimeoutRef.current = setTimeout(() => {
+          console.error("⏱️ Video metadata loading timeout");
+          alert("Camera is taking too long to initialize. Please try again.");
+          stopCamera();
+        }, 10000);
       }
       // Successful permission grant - reset the attempt flag and set state
       setHasAttemptedCameraRequest(false);
@@ -114,12 +143,26 @@ export default function HTSFormManagement() {
       stopCameraStream(streamRef.current);
       streamRef.current = null;
     }
+    if (metadataTimeoutRef.current) {
+      clearTimeout(metadataTimeoutRef.current);
+      metadataTimeoutRef.current = null;
+    }
     setIsCameraOpen(false);
+    setIsVideoReady(false);
   };
 
   const captureImage = () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
+      
+      // Validate video dimensions before capture
+      if (video.videoWidth === 0 || video.videoHeight === 0) {
+        console.error("❌ Video dimensions are 0x0 - not ready for capture");
+        alert("Camera is still loading. Please wait a moment and try again.");
+        return;
+      }
+      
+      console.log(`📸 Capturing image: ${video.videoWidth}x${video.videoHeight}`);
       const canvas = canvasRef.current;
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -146,6 +189,25 @@ export default function HTSFormManagement() {
     } else if (side === "back") {
       setBackImage(null);
       startCamera("back");
+    }
+  };
+
+  // Helper function to convert base64 data URL to Blob with explicit MIME type
+  const dataURLtoBlob = (dataURL, mimeType = 'image/jpeg') => {
+    try {
+      const base64 = dataURL.split(',')[1];
+      const byteString = atob(base64);
+      const arrayBuffer = new ArrayBuffer(byteString.length);
+      const uint8Array = new Uint8Array(arrayBuffer);
+      
+      for (let i = 0; i < byteString.length; i++) {
+        uint8Array[i] = byteString.charCodeAt(i);
+      }
+      
+      return new Blob([uint8Array], { type: mimeType });
+    } catch (error) {
+      console.error("Error converting data URL to blob:", error);
+      throw new Error("Failed to convert image data");
     }
   };
 
@@ -233,9 +295,13 @@ export default function HTSFormManagement() {
         return;
       }
 
-      // Convert base64 to blob for multipart upload
-      const frontBlob = await fetch(frontImage).then(r => r.blob());
-      const backBlob = await fetch(backImage).then(r => r.blob());
+      // Convert base64 to blob with explicit MIME type for multipart upload
+      console.log("[OCR] Converting images to blobs with MIME type image/jpeg");
+      const frontBlob = dataURLtoBlob(frontImage, 'image/jpeg');
+      const backBlob = dataURLtoBlob(backImage, 'image/jpeg');
+
+      console.log(`[OCR] Front blob: ${frontBlob.size} bytes, type: ${frontBlob.type}`);
+      console.log(`[OCR] Back blob: ${backBlob.size} bytes, type: ${backBlob.type}`);
 
       const formData = new FormData();
       formData.append('frontImage', frontBlob, 'front.jpg');
@@ -535,11 +601,20 @@ export default function HTSFormManagement() {
                   onClick={captureImage} 
                   variant="primary" 
                   className="gap-2 px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg flex-1"
-                  disabled={isRequestingCameraPermission}
+                  disabled={isRequestingCameraPermission || !isVideoReady}
                 >
-                  <IoCamera className="w-5 h-5 sm:w-6 sm:h-6" />
-                  <span className="hidden xs:inline">Capture</span>
-                  <span className="xs:hidden">Take Photo</span>
+                  {!isVideoReady ? (
+                    <>
+                      <span className="animate-spin h-5 w-5 border-b-2 border-white rounded-full" />
+                      <span className="hidden sm:inline">Initializing...</span>
+                    </>
+                  ) : (
+                    <>
+                      <IoCamera className="w-5 h-5 sm:w-6 sm:h-6" />
+                      <span className="hidden xs:inline">Capture</span>
+                      <span className="xs:hidden">Take Photo</span>
+                    </>
+                  )}
                 </Button>
                 <Button 
                   onClick={stopCamera} 
