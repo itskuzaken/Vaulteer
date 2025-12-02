@@ -52,12 +52,16 @@ export async function requestCameraPermission() {
   }
 
   try {
-    // Use simple constraints by default (matches old implementation)
-    // This has the highest compatibility across browsers and devices
-    const finalConstraints = { video: true };
+    // Use rear-facing camera (environment) for document scanning
+    // This is the back camera on mobile devices
+    const finalConstraints = { 
+      video: { 
+        facingMode: { ideal: "environment" } // "user" = front camera, "environment" = back camera
+      } 
+    };
 
     // This will trigger the browser's Allow/Block permission popup
-    console.log("📷 Requesting camera permission...");
+    console.log("📷 Requesting camera permission (rear-facing)...");
     const stream = await navigator.mediaDevices.getUserMedia(finalConstraints);
     console.log("✅ Camera permission granted!");
     
