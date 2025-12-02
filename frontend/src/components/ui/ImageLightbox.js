@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Image from "next/image";
 import { IoCloseOutline, IoChevronBackOutline, IoChevronForwardOutline, IoDownloadOutline } from "react-icons/io5";
 
 /**
@@ -145,10 +146,13 @@ export default function ImageLightbox({
         className="relative w-full max-w-7xl max-h-[85vh] sm:max-h-[90vh] flex items-center justify-center"
         onClick={(e) => e.stopPropagation()}
       >
-        <img
+        <Image
           src={imageUrl}
           alt={imageName || "Full size image"}
+          width={1920}
+          height={1080}
           className="max-w-full max-h-[85vh] sm:max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+          unoptimized
         />
         
         {/* Image info and mobile navigation */}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { getAuth } from "firebase/auth";
 import Appearance from "./Appearance";
 import PushNotificationsToggle from "./PushNotificationsToggle";
 import EmailNotificationsToggle from "./EmailNotificationsToggle";
@@ -9,9 +11,23 @@ import {
   IoMailOutline,
   IoColorPaletteOutline,
   IoGlobeOutline,
+  IoCheckmarkCircleOutline,
 } from "react-icons/io5";
 
 export default function UserSettings() {
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Listen to auth state changes
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setCurrentUser(user);
+      setIsInitializing(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 pb-6">
       <div className="max-w-4xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 md:py-8">
@@ -23,7 +39,20 @@ export default function UserSettings() {
           <p className="mt-1 sm:mt-2 text-sm sm:text-base text-gray-600 dark:text-gray-400">
             Manage your account preferences and notification settings
           </p>
+          {currentUser && (
+            <div className="mt-3 flex items-center gap-2 text-xs sm:text-sm text-green-600 dark:text-green-400">
+              <IoCheckmarkCircleOutline className="w-4 h-4" />
+              <span>Settings are automatically synced to your account</span>
+            </div>
+          )}
         </div>
+
+        {/* Show loading state while checking auth */}
+        {isInitializing ? (
+          <div className="flex items-center justify-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+          </div>
+        ) : null}
 
         {/* Settings Sections */}
         <div className="space-y-4 sm:space-y-6">

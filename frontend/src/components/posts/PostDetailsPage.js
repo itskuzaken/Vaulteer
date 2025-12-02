@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { 
   IoCalendarOutline, 
   IoPersonOutline, 
@@ -383,11 +384,14 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
                             className="relative group cursor-pointer rounded-lg overflow-hidden border-2 border-gray-200 dark:border-gray-700 hover:border-red-500 dark:hover:border-red-500 transition-all"
                             onClick={() => handleViewImage(attachment)}
                           >
-                            <div className="aspect-square">
-                              <img
+                            <div className="aspect-square relative">
+                              <Image
                                 src={normalizeAttachmentUrl(attachment.url)}
                                 alt={attachment.filename || attachment.name}
-                                className="w-full h-full object-cover"
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
+                                unoptimized
                               />
                             </div>
                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">

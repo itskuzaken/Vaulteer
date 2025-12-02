@@ -1,7 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
+import { getAuth } from "firebase/auth";
 import { useTheme } from "@/hooks/useTheme";
-// SettingSection removed - content is embedded directly in UserSettings
+import {
+  getUserSettings,
+  updateUserSettings,
+} from "../../../services/userSettingsService";
 import {
   IoSunnyOutline,
   IoMoonOutline,
@@ -9,7 +14,67 @@ import {
 } from "react-icons/io5";
 
 export default function Appearance() {
-  const { theme, setTheme, themes } = useTheme();
+  const { theme, setTheme: setLocalTheme, themes } = useTheme();
+  const [currentUser, setCurrentUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [hasLoadedFromDb, setHasLoadedFromDb] = useState(false);
+
+  // Listen to auth state changes
+  useEffect(() => {
+    const auth = getAuth();
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      setCurrentUser(user);
+      if (!user) {
+        setHasLoadedFromDb(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Load theme from database on mount
+  useEffect(() => {
+    const loadThemeFromDatabase = async () => {
+      if (currentUser?.uid && !hasLoadedFromDb) {
+        try {
+          setIsLoading(true);
+          const settings = await getUserSettings(currentUser.uid);
+          if (settings.theme) {
+            setLocalTheme(settings.theme);
+          }
+          setHasLoadedFromDb(true);
+        } catch (err) {
+          console.error("Error loading theme from database:", err);
+          setHasLoadedFromDb(true);
+        } finally {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadThemeFromDatabase();
+  }, [currentUser?.uid, hasLoadedFromDb, setLocalTheme]);
+
+  const handleThemeChange = async (newTheme) => {
+    // Update local theme immediately for responsive UI
+    setLocalTheme(newTheme);
+
+    // Sync with database if user is logged in
+    if (currentUser?.uid) {
+      try {
+        setIsSyncing(true);
+        const currentSettings = await getUserSettings(currentUser.uid);
+        await updateUserSettings(currentUser.uid, {
+          ...currentSettings,
+          theme: newTheme,
+        });
+      } catch (err) {
+        console.error("Error syncing theme to database:", err);
+      } finally {
+        setIsSyncing(false);
+      }
+    }
+  };
 
   const themeOptions = [
     {
@@ -47,7 +112,8 @@ export default function Appearance() {
               <button
                 key={option.value}
                 type="button"
-                onClick={() => setTheme(option.value)}
+                onClick={() => handleThemeChange(option.value)}
+                disabled={isLoading || isSyncing}
                 className={`
                   flex flex-col items-center justify-center gap-2 p-4 rounded-lg border-2 transition-all
                   ${
@@ -55,6 +121,7 @@ export default function Appearance() {
                       ? "border-[var(--primary-red)] bg-red-50 dark:bg-red-900/20"
                       : "border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600"
                   }
+                  ${(isLoading || isSyncing) ? "opacity-50 cursor-not-allowed" : ""}
                   focus:outline-none focus:ring-2 focus:ring-[var(--primary-red)] focus:ring-offset-2 dark:focus:ring-offset-gray-900
                 `}
               >

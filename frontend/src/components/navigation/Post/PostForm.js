@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { convert } from 'html-to-text';
 import {
   IoArrowBackOutline,
@@ -374,11 +375,14 @@ export default function PostForm({
                           >
                             {/* Image preview or file icon */}
                             {isImage ? (
-                              <div className="relative flex-shrink-0">
-                                <img
+                              <div className="relative flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20">
+                                <Image
                                   src={normalizeAttachmentUrl(attachment.url)}
                                   alt={attachment.originalname || attachment.filename}
-                                  className="w-16 h-16 sm:w-20 sm:h-20 object-cover rounded-lg border-2 border-gray-300 dark:border-gray-600"
+                                  width={80}
+                                  height={80}
+                                  className="w-full h-full object-cover rounded-lg border-2 border-gray-300 dark:border-gray-600"
+                                  unoptimized
                                 />
                                 <button
                                   type="button"
