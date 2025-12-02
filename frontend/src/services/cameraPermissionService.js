@@ -41,30 +41,25 @@ export async function getCameraPermission() {
 /**
  * Request camera permission from user
  * This triggers the browser's native Allow/Block popup
- * @param {Object} constraints - Camera constraints (optional)
+ * Uses simple constraints by default for maximum compatibility (like old implementation)
+ * @param {Object} constraints - Camera constraints (optional, defaults to { video: true })
  * @returns {Promise<MediaStream>} Camera stream if granted
  */
-export async function requestCameraPermission(constraints = {}) {
+export async function requestCameraPermission(constraints = null) {
   if (!isCameraSupported()) {
-    throw new Error("Camera is not supported in this browser. Please use a modern browser with HTTPS.");
+    const error = new Error("Camera is not supported in this browser. Please use a modern browser with HTTPS.");
+    error.userAction = "unsupported";
+    throw error;
   }
 
   try {
-    // Default constraints with fallback
-    // facingMode: "environment" = back camera (default for mobile)
-    // facingMode: "user" = front/selfie camera
-    const defaultConstraints = {
-      video: {
-        facingMode: "environment", // Prefer back camera on mobile (not exact to avoid constraint errors)
-        width: { ideal: 1920 },
-        height: { ideal: 1080 },
-        ...constraints.video,
-      },
-    };
+    // Use simple constraints by default (matches old implementation)
+    // This has the highest compatibility across browsers and devices
+    const finalConstraints = constraints || { video: true };
 
     // This will trigger the browser's Allow/Block permission popup
     console.log("📷 Requesting camera permission...");
-    const stream = await navigator.mediaDevices.getUserMedia(defaultConstraints);
+    const stream = await navigator.mediaDevices.getUserMedia(finalConstraints);
     console.log("✅ Camera permission granted!");
     
     return stream;
@@ -130,9 +125,9 @@ function handleCameraError(error) {
     case "ConstraintNotSatisfiedError":
       enhancedError.message = 
         "📷 Camera Settings Not Supported\n\n" +
-        "Your camera doesn't support the requested settings.\n" +
-        "Trying with default settings...";
-      enhancedError.userAction = "retry_basic";
+        "Your camera doesn't support the requested settings.\n\n" +
+        "Please try again or use a different camera.";
+      enhancedError.userAction = "constraint_error";
       break;
 
     case "SecurityError":
@@ -168,26 +163,17 @@ function handleCameraError(error) {
 }
 
 /**
- * Request camera permission with fallback to basic constraints
- * Useful when high-resolution capture fails
+ * Request camera permission with fallback (now simplified)
+ * Since we use basic constraints by default, this primarily handles errors gracefully
  * @returns {Promise<MediaStream>} Camera stream
  */
 export async function requestCameraPermissionWithFallback() {
   try {
-    // Try with high-quality settings first
+    // Request with basic constraints (matches old implementation)
     return await requestCameraPermission();
   } catch (error) {
-    // If overconstrained, try with basic settings
-    if (error.userAction === "retry_basic") {
-      console.log("Retrying camera access with basic settings...");
-      try {
-        const basicStream = await navigator.mediaDevices.getUserMedia({ video: true });
-        console.log("✅ Camera access granted with basic settings");
-        return basicStream;
-      } catch (basicError) {
-        throw handleCameraError(basicError);
-      }
-    }
+    // For any error, just throw the handled error
+    // No complex fallback needed since we start with simplest constraints
     throw error;
   }
 }
