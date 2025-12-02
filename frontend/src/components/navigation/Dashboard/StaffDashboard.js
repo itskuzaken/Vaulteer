@@ -14,6 +14,8 @@ import { getAuth } from "firebase/auth";
 import { API_BASE } from "../../../config/config";
 import DashboardEventsSidebar from "../../dashboard/DashboardEventsSidebar";
 import LeaderboardCard from "../../gamification/LeaderboardCard";
+import NewsUpdatesCarousel from "../../dashboard/NewsUpdatesCarousel";
+import AnnouncementsSidebarPanel from "../../dashboard/AnnouncementsSidebarPanel";
 
 export default function StaffDashboard({ onNavigate }) {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -123,6 +125,9 @@ export default function StaffDashboard({ onNavigate }) {
             gridCols={3}
           />
 
+          {/* News & Updates Carousel */}
+          <NewsUpdatesCarousel />
+
           <QuickActionsSection
             title="Quick actions"
             subtitle="Priority shortcuts"
@@ -154,6 +159,7 @@ export default function StaffDashboard({ onNavigate }) {
 
         <div className="space-y-6">
           <DashboardEventsSidebar />
+          <AnnouncementsSidebarPanel />
           <LeaderboardCard limit={6} />
         </div>
       </div>
