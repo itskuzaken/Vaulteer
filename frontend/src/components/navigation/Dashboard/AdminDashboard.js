@@ -16,6 +16,8 @@ import { getAuth } from "firebase/auth";
 import { API_BASE } from "../../../config/config";
 import DashboardEventsSidebar from "../../dashboard/DashboardEventsSidebar";
 import LeaderboardCard from "../../gamification/LeaderboardCard";
+import NewsUpdatesCarousel from "../../dashboard/NewsUpdatesCarousel";
+import AnnouncementsSidebarPanel from "../../dashboard/AnnouncementsSidebarPanel";
 
 export default function AdminDashboard({ onNavigate }) {
   const [showWelcome, setShowWelcome] = useState(true);
@@ -142,6 +144,9 @@ export default function AdminDashboard({ onNavigate }) {
             onStatsUpdate={handleStatsUpdate}
           />
 
+          {/* News & Updates Carousel */}
+          <NewsUpdatesCarousel />
+
           <QuickActionsSection
             title="Quick actions"
             subtitle="Keep work moving"
@@ -173,6 +178,7 @@ export default function AdminDashboard({ onNavigate }) {
 
         <div className="space-y-6">
           <DashboardEventsSidebar />
+          <AnnouncementsSidebarPanel />
           <LeaderboardCard limit={6} />
         </div>
       </div>
