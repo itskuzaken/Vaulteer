@@ -41,8 +41,14 @@ export async function encryptImage(base64Image, key) {
   // Generate random IV (Initialization Vector)
   const iv = crypto.getRandomValues(new Uint8Array(12));
   
+  // Strip data URL prefix if present (e.g., "data:image/jpeg;base64,")
+  let base64String = base64Image;
+  if (base64Image.includes(',')) {
+    base64String = base64Image.split(',')[1];
+  }
+  
   // Convert base64 to ArrayBuffer
-  const imageData = base64ToArrayBuffer(base64Image);
+  const imageData = base64ToArrayBuffer(base64String);
   
   // Encrypt the data
   const encryptedData = await crypto.subtle.encrypt(
