@@ -9,7 +9,8 @@
       "@/services": ["services/index.js"],
       "@services/*": ["services/*"],
       "@dashboards/*": ["dashboards/*"],
-      "@modals/*": ["modals/*"]
+      "@modals/*": ["modals/*"],
+      "@/providers/*": ["providers/*"]
     }
   }
 }
