@@ -313,10 +313,6 @@ function parseHTSFormData(frontResult, backResult) {
     frontText: frontLines.map(l => l.text).join('\n'),
     backText: backLines.map(l => l.text).join('\n'),
     
-    // Key-value pairs for debugging
-    frontKeyValuePairs: frontKVPairs,
-    backKeyValuePairs: backKVPairs,
-    
     // Confidence scores
     frontConfidence: calculateAverageConfidence(frontBlocks),
     backConfidence: calculateAverageConfidence(backBlocks)

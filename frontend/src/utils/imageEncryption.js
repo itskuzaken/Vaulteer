@@ -122,6 +122,32 @@ export async function encryptFormImages(frontImage, backImage) {
   };
 }
 
+// Encrypt form submission data (images + extracted data with same key)
+export async function encryptFormSubmission(frontImage, backImage, extractedData) {
+  // Generate a unique encryption key for this submission
+  const key = await generateEncryptionKey();
+  
+  // Encrypt both images
+  const encryptedFront = await encryptImage(frontImage, key);
+  const encryptedBack = await encryptImage(backImage, key);
+  
+  // Encrypt extracted data JSON
+  const encryptedData = await encryptJSON(extractedData, key);
+  
+  // Export the key for storage
+  const exportedKey = await exportKey(key);
+  
+  return {
+    frontImage: encryptedFront.encryptedData,
+    frontImageIV: encryptedFront.iv,
+    backImage: encryptedBack.encryptedData,
+    backImageIV: encryptedBack.iv,
+    extractedDataEncrypted: encryptedData.encryptedData,
+    extractedDataIV: encryptedData.iv,
+    encryptionKey: exportedKey
+  };
+}
+
 // Decrypt form submission images
 export async function decryptFormImages(encryptedFront, frontIV, encryptedBack, backIV, encryptionKey) {
   // Import the encryption key
@@ -135,4 +161,52 @@ export async function decryptFormImages(encryptedFront, frontIV, encryptedBack, 
     frontImage,
     backImage
   };
+}
+
+// Encrypt JSON data (for extracted_data)
+export async function encryptJSON(jsonData, key) {
+  // Generate random IV
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  
+  // Convert JSON to string then to ArrayBuffer
+  const jsonString = JSON.stringify(jsonData);
+  const encoder = new TextEncoder();
+  const dataBuffer = encoder.encode(jsonString);
+  
+  // Encrypt the data
+  const encryptedData = await crypto.subtle.encrypt(
+    {
+      name: "AES-GCM",
+      iv: iv
+    },
+    key,
+    dataBuffer
+  );
+  
+  return {
+    encryptedData: arrayBufferToBase64(encryptedData),
+    iv: arrayBufferToBase64(iv)
+  };
+}
+
+// Decrypt JSON data
+export async function decryptJSON(encryptedBase64, ivBase64, key) {
+  // Convert base64 back to ArrayBuffer
+  const encryptedData = base64ToArrayBuffer(encryptedBase64);
+  const iv = base64ToArrayBuffer(ivBase64);
+  
+  // Decrypt the data
+  const decryptedData = await crypto.subtle.decrypt(
+    {
+      name: "AES-GCM",
+      iv: iv
+    },
+    key,
+    encryptedData
+  );
+  
+  // Convert back to JSON
+  const decoder = new TextDecoder();
+  const jsonString = decoder.decode(decryptedData);
+  return JSON.parse(jsonString);
 }

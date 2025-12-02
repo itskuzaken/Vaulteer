@@ -4,7 +4,7 @@ import { IoCamera, IoClose, IoCheckmark, IoCloudUploadOutline, IoDocumentText, I
 import { getAuth } from "firebase/auth";
 import Button from "../../ui/Button";
 import { API_BASE } from "../../../config/config";
-import { encryptFormImages } from "../../../utils/imageEncryption";
+import { encryptFormImages, encryptJSON, generateEncryptionKey, exportKey } from "../../../utils/imageEncryption";
 import {
   isCameraSupported,
   getCameraPermission,
@@ -37,6 +37,11 @@ export default function HTSFormManagement() {
   const [extractedData, setExtractedData] = useState(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showOCRReview, setShowOCRReview] = useState(false);
+  
+  // OCR editing state
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editableData, setEditableData] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
 
   // Submissions history state
   const [submissions, setSubmissions] = useState([]);
@@ -250,9 +255,9 @@ export default function HTSFormManagement() {
     setIsSubmitting(true);
 
     try {
-      // Encrypt images AFTER user confirms OCR results
-      console.log("[Submit] Encrypting images after OCR confirmation...");
-      const encryptedData = await encryptFormImages(frontImage, backImage);
+      // Encrypt images and extracted data with same key (different IVs)
+      console.log("[Submit] Encrypting images and extracted OCR data for privacy...");
+      const encrypted = await encryptFormSubmission(frontImage, backImage, extractedData);
       
       const idToken = await user.getIdToken();
       const response = await fetch(`${API_BASE}/hts-forms/submit`, {
@@ -262,13 +267,14 @@ export default function HTSFormManagement() {
           Authorization: `Bearer ${idToken}`
         },
         body: JSON.stringify({
-          frontImageBase64: encryptedData.frontImage,
-          backImageBase64: encryptedData.backImage,
-          frontImageIV: encryptedData.frontImageIV,
-          backImageIV: encryptedData.backImageIV,
-          encryptionKey: encryptedData.encryptionKey,
+          frontImageBase64: encrypted.frontImage,
+          backImageBase64: encrypted.backImage,
+          frontImageIV: encrypted.frontImageIV,
+          backImageIV: encrypted.backImageIV,
+          extractedDataEncrypted: encrypted.extractedDataEncrypted,
+          extractedDataIV: encrypted.extractedDataIV,
+          encryptionKey: encrypted.encryptionKey,
           testResult: testResult,
-          extractedData: extractedData,
           extractionConfidence: extractedData.confidence
         })
       });
@@ -293,6 +299,114 @@ export default function HTSFormManagement() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Helper function to format date object to YYYY-MM-DD for input
+  const formatDateForInput = (dateObj) => {
+    if (!dateObj) return '';
+    if (typeof dateObj === 'string') return dateObj;
+    if (dateObj.raw) {
+      // Parse DD/MM/YYYY to YYYY-MM-DD
+      const parts = dateObj.raw.split('/');
+      if (parts.length === 3) {
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+    }
+    return '';
+  };
+
+  // Validate edited fields
+  const validateEditedFields = () => {
+    const errors = {};
+    
+    // PhilHealth number validation (12 digits)
+    if (editableData.philHealthNumber && !/^\d{12}$/.test(editableData.philHealthNumber.replace(/-/g, ''))) {
+      errors.philHealthNumber = 'Must be 12 digits';
+    }
+    
+    // Name validation (letters, spaces, hyphens, dots only)
+    const namePattern = /^[a-zA-Z\s\-\.]+$/;
+    if (editableData.fullName && !namePattern.test(editableData.fullName)) {
+      errors.fullName = 'Only letters, spaces, hyphens, and dots allowed';
+    }
+    if (editableData.firstName && !namePattern.test(editableData.firstName)) {
+      errors.firstName = 'Only letters, spaces, hyphens, and dots allowed';
+    }
+    if (editableData.lastName && !namePattern.test(editableData.lastName)) {
+      errors.lastName = 'Only letters, spaces, hyphens, and dots allowed';
+    }
+    
+    // Date validation
+    if (editableData.testDate && new Date(editableData.testDate) > new Date()) {
+      errors.testDate = 'Test date cannot be in the future';
+    }
+    if (editableData.birthDate) {
+      const birthDate = new Date(editableData.birthDate);
+      if (birthDate > new Date()) {
+        errors.birthDate = 'Birth date cannot be in the future';
+      }
+      if (birthDate < new Date('1920-01-01')) {
+        errors.birthDate = 'Invalid birth date';
+      }
+    }
+    
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // Handle field changes in edit mode
+  const handleFieldChange = (fieldName, value) => {
+    setEditableData(prev => ({ ...prev, [fieldName]: value }));
+    
+    // Clear error for this field when user starts typing
+    if (fieldErrors[fieldName]) {
+      setFieldErrors(prev => ({ ...prev, [fieldName]: null }));
+    }
+  };
+
+  // Save edited data
+  const saveEditedData = () => {
+    if (!validateEditedFields()) {
+      alert('Please fix validation errors before saving.');
+      return;
+    }
+    
+    // Merge edited fields back into extractedData
+    setExtractedData(prev => ({
+      ...prev,
+      ...editableData,
+      // Mark as edited for tracking
+      wasEdited: true,
+      editedFields: Object.keys(editableData).filter(
+        key => editableData[key] !== prev[key]
+      )
+    }));
+    
+    setIsEditMode(false);
+    alert('Changes saved successfully!');
+  };
+
+  // Enter edit mode
+  const enterEditMode = () => {
+    setEditableData({
+      testResult: extractedData.testResult || '',
+      fullName: extractedData.fullName || '',
+      firstName: extractedData.firstName || '',
+      lastName: extractedData.lastName || '',
+      testDate: formatDateForInput(extractedData.testDate),
+      birthDate: formatDateForInput(extractedData.birthDate),
+      philHealthNumber: extractedData.philHealthNumber || '',
+      testingFacility: extractedData.testingFacility || ''
+    });
+    setFieldErrors({});
+    setIsEditMode(true);
+  };
+
+  // Cancel edit mode
+  const cancelEditMode = () => {
+    setIsEditMode(false);
+    setEditableData(null);
+    setFieldErrors({});
   };
 
   const handleAnalyzeImages = async () => {
@@ -338,7 +452,7 @@ export default function HTSFormManagement() {
       if (data.success) {
         setExtractedData(data.data);
         setShowOCRReview(true);
-        console.log("[OCR Analysis] Extraction completed:", data.data);
+        console.log("[OCR Analysis] Extraction completed with confidence:", data.data?.confidence);
       } else {
         alert(`Failed to analyze images: ${data.error || 'Unknown error'}`);
       }
@@ -594,7 +708,7 @@ export default function HTSFormManagement() {
         {/* Camera Modal */}
         {isCameraOpen && (currentStep === "front" || currentStep === "back") && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-95 p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-4 sm:p-6 flex flex-col items-center w-full max-w-xl h-full max-h-screen overflow-hidden">
+            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-4 sm:p-6 flex flex-col items-center w-full max-w-md mx-auto">
               <div className="w-full mb-3 sm:mb-4 flex-shrink-0">
                 <div className="bg-primary-red/10 border border-primary-red rounded-lg px-3 py-2 text-center">
                   <p className="text-primary-red font-semibold text-sm sm:text-base">
@@ -602,15 +716,15 @@ export default function HTSFormManagement() {
                   </p>
                 </div>
               </div>
-              <div className="relative w-full flex-1 flex items-center justify-center mb-4 overflow-hidden bg-gray-900">
+              <div className="relative w-full mb-4 overflow-hidden bg-gray-900 rounded-lg">
                 <video
                   ref={videoRef}
                   autoPlay
                   playsInline
                   muted
                   webkit-playsinline="true"
-                  className="w-full h-full object-cover rounded-lg"
-                  style={{ aspectRatio: '3/4', maxHeight: 'calc(100vh - 180px)' }}
+                  className="w-full object-cover rounded-lg"
+                  style={{ aspectRatio: '3/4', maxHeight: '60vh' }}
                 />
                 {!isVideoReady && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
@@ -1089,10 +1203,14 @@ export default function HTSFormManagement() {
             <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <IoDocumentText className="w-6 h-6 text-primary-red" />
-                Extracted OCR Data
+                {isEditMode ? 'Edit OCR Data' : 'Extracted OCR Data'}
               </h2>
               <button
-                onClick={() => setShowOCRReview(false)}
+                onClick={() => {
+                  setShowOCRReview(false);
+                  setIsEditMode(false);
+                  setEditableData(null);
+                }}
                 className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
               >
                 <IoClose className="w-6 h-6 text-gray-600 dark:text-gray-400" />
@@ -1107,7 +1225,7 @@ export default function HTSFormManagement() {
                     Overall Confidence
                   </span>
                   <span className="text-lg font-bold text-blue-600">
-                    {extractedData.confidence}%
+                    {extractedData?.confidence?.toFixed(2) ?? 0}%
                   </span>
                 </div>
                 <div className="mt-2 w-full bg-blue-200 dark:bg-blue-900 rounded-full h-2">
@@ -1118,98 +1236,352 @@ export default function HTSFormManagement() {
                 </div>
               </div>
 
-              {/* Extracted Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {extractedData.testResult && (
-                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Result</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {extractedData.testResult}
-                    </p>
+              {/* View Mode: Read-only Fields */}
+              {!isEditMode && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {extractedData.testResult && (
+                    <div className={`rounded-lg p-4 ${
+                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
+                    }`}>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Result</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {extractedData.testResult}
+                      </p>
+                    </div>
+                  )}
+                  {extractedData.fullName && (
+                    <div className={`rounded-lg p-4 ${
+                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
+                    }`}>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Full Name</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {extractedData.fullName}
+                      </p>
+                    </div>
+                  )}
+                  {extractedData.testDate && (
+                    <div className={`rounded-lg p-4 ${
+                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
+                    }`}>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Date</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {typeof extractedData.testDate === 'string' ? extractedData.testDate : extractedData.testDate?.raw}
+                      </p>
+                    </div>
+                  )}
+                  {extractedData.birthDate && (
+                    <div className={`rounded-lg p-4 ${
+                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
+                    }`}>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Birth Date</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {typeof extractedData.birthDate === 'string' ? extractedData.birthDate : extractedData.birthDate?.raw}
+                      </p>
+                    </div>
+                  )}
+                  {extractedData.philHealthNumber && (
+                    <div className={`rounded-lg p-4 ${
+                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
+                    }`}>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">PhilHealth Number</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {extractedData.philHealthNumber}
+                      </p>
+                    </div>
+                  )}
+                  {extractedData.testingFacility && (
+                    <div className={`rounded-lg p-4 ${
+                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
+                    }`}>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Testing Facility</p>
+                      <p className="font-semibold text-gray-900 dark:text-white">
+                        {extractedData.testingFacility}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Edit Mode: Editable Fields */}
+              {isEditMode && editableData && (
+                <div className="space-y-4">
+                  {/* Test Result */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Test Result
+                      {editableData.testResult !== extractedData.testResult && (
+                        <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">Edited</span>
+                      )}
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          value="reactive"
+                          checked={editableData.testResult === 'reactive'}
+                          onChange={(e) => handleFieldChange('testResult', e.target.value)}
+                          className="mr-2 w-4 h-4 text-primary-red"
+                        />
+                        Reactive
+                      </label>
+                      <label className="inline-flex items-center">
+                        <input
+                          type="radio"
+                          value="non-reactive"
+                          checked={editableData.testResult === 'non-reactive'}
+                          onChange={(e) => handleFieldChange('testResult', e.target.value)}
+                          className="mr-2 w-4 h-4 text-primary-red"
+                        />
+                        Non-Reactive
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Original OCR: {extractedData.testResult || 'Not extracted'}</p>
                   </div>
-                )}
-                {extractedData.fullName && (
-                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Full Name</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {extractedData.fullName}
-                    </p>
+
+                  {/* Full Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Full Name
+                      {editableData.fullName !== extractedData.fullName && (
+                        <span className="ml-2 text-xs px-2 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded">Edited</span>
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      value={editableData.fullName}
+                      onChange={(e) => handleFieldChange('fullName', e.target.value)}
+                      placeholder={extractedData.fullName || 'Enter full name'}
+                      className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
+                        fieldErrors.fullName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                    />
+                    {fieldErrors.fullName && (
+                      <p className="text-red-500 text-sm mt-1">{fieldErrors.fullName}</p>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Original OCR: {extractedData.fullName || 'Not extracted'}</p>
                   </div>
-                )}
-                {extractedData.testDate && (
-                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Date</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {extractedData.testDate}
-                    </p>
+
+                  {/* Name Parts */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        First Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editableData.firstName}
+                        onChange={(e) => handleFieldChange('firstName', e.target.value)}
+                        placeholder={extractedData.firstName || 'First name'}
+                        className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
+                          fieldErrors.firstName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                      {fieldErrors.firstName && (
+                        <p className="text-red-500 text-sm mt-1">{fieldErrors.firstName}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Last Name
+                      </label>
+                      <input
+                        type="text"
+                        value={editableData.lastName}
+                        onChange={(e) => handleFieldChange('lastName', e.target.value)}
+                        placeholder={extractedData.lastName || 'Last name'}
+                        className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
+                          fieldErrors.lastName ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                      {fieldErrors.lastName && (
+                        <p className="text-red-500 text-sm mt-1">{fieldErrors.lastName}</p>
+                      )}
+                    </div>
                   </div>
-                )}
-                {extractedData.birthDate && (
-                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Birth Date</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {extractedData.birthDate}
-                    </p>
+
+                  {/* Dates */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Test Date
+                      </label>
+                      <input
+                        type="date"
+                        value={editableData.testDate}
+                        onChange={(e) => handleFieldChange('testDate', e.target.value)}
+                        className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
+                          fieldErrors.testDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                      {fieldErrors.testDate && (
+                        <p className="text-red-500 text-sm mt-1">{fieldErrors.testDate}</p>
+                      )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Original OCR: {typeof extractedData.testDate === 'string' ? extractedData.testDate : extractedData.testDate?.raw || 'Not extracted'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Birth Date
+                      </label>
+                      <input
+                        type="date"
+                        value={editableData.birthDate}
+                        onChange={(e) => handleFieldChange('birthDate', e.target.value)}
+                        className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
+                          fieldErrors.birthDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                        }`}
+                      />
+                      {fieldErrors.birthDate && (
+                        <p className="text-red-500 text-sm mt-1">{fieldErrors.birthDate}</p>
+                      )}
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Original OCR: {typeof extractedData.birthDate === 'string' ? extractedData.birthDate : extractedData.birthDate?.raw || 'Not extracted'}
+                      </p>
+                    </div>
                   </div>
-                )}
-                {extractedData.philHealthNumber && (
-                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">PhilHealth Number</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {extractedData.philHealthNumber}
-                    </p>
+
+                  {/* PhilHealth Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      PhilHealth Number
+                    </label>
+                    <input
+                      type="text"
+                      value={editableData.philHealthNumber}
+                      onChange={(e) => handleFieldChange('philHealthNumber', e.target.value)}
+                      placeholder="12-digit number"
+                      maxLength="12"
+                      className={`w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white ${
+                        fieldErrors.philHealthNumber ? 'border-red-500' : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                    />
+                    {fieldErrors.philHealthNumber && (
+                      <p className="text-red-500 text-sm mt-1">{fieldErrors.philHealthNumber}</p>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Original OCR: {extractedData.philHealthNumber || 'Not extracted'}</p>
                   </div>
-                )}
-                {extractedData.testingFacility && (
-                  <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Testing Facility</p>
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {extractedData.testingFacility}
-                    </p>
+
+                  {/* Testing Facility */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                      Testing Facility
+                    </label>
+                    <input
+                      type="text"
+                      value={editableData.testingFacility}
+                      onChange={(e) => handleFieldChange('testingFacility', e.target.value)}
+                      placeholder={extractedData.testingFacility || 'Enter testing facility'}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white"
+                    />
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Original OCR: {extractedData.testingFacility || 'Not extracted'}</p>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Confidence Warning */}
               {extractedData.confidence < 80 && (
-                <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
+                <div className="bg-red-50 dark:bg-red-900/20 border-2 border-red-500 dark:border-red-700 rounded-lg p-4">
                   <div className="flex items-start gap-2">
-                    <IoAlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                    <IoAlertCircle className="w-6 h-6 text-red-600 mt-0.5 flex-shrink-0" />
                     <div>
-                      <h4 className="font-semibold text-yellow-900 dark:text-yellow-100">
-                        Low Confidence Score
+                      <h4 className="font-semibold text-red-900 dark:text-red-100 text-lg mb-2">
+                        Low Confidence Score - Retake Required
                       </h4>
-                      <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                        The OCR extraction has low confidence. Please verify the data carefully or consider retaking the images.
+                      <p className="text-sm text-red-800 dark:text-red-200 mb-2">
+                        The OCR extraction confidence is <strong>{extractedData.confidence?.toFixed(2)}%</strong>, which is below the minimum threshold of 80%.
                       </p>
+                      <p className="text-sm text-red-800 dark:text-red-200 font-medium">
+                        ⚠️ You must retake the images to proceed. Please ensure:
+                      </p>
+                      <ul className="text-sm text-red-800 dark:text-red-200 mt-2 ml-4 list-disc space-y-1">
+                        <li>Good lighting conditions</li>
+                        <li>Form is flat and fully visible</li>
+                        <li>Text is clear and readable</li>
+                        <li>No shadows or glare</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4">
-                <Button
-                  onClick={() => setShowOCRReview(false)}
-                  variant="primary"
-                  className="flex-1"
-                >
-                  <IoCheckmark className="w-5 h-5" />
-                  Looks Good
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowOCRReview(false);
-                    setExtractedData(null);
-                    setCurrentStep("front");
-                  }}
-                  variant="secondary"
-                  className="flex-1"
-                >
-                  <IoCamera className="w-5 h-5" />
-                  Retake Images
-                </Button>
-              </div>
+              {!isEditMode ? (
+                <div className="flex gap-3 pt-4">
+                  {/* Show different buttons based on confidence */}
+                  {extractedData.confidence < 80 ? (
+                    // Low confidence: Only allow retake
+                    <Button
+                      onClick={() => {
+                        setShowOCRReview(false);
+                        setExtractedData(null);
+                        setIsEditMode(false);
+                        setCurrentStep("front");
+                      }}
+                      variant="primary"
+                      className="w-full gap-2"
+                    >
+                      <IoCamera className="w-5 h-5" />
+                      Retake Images (Required)
+                    </Button>
+                  ) : (
+                    // Good confidence (≥80%): Allow edit and proceed
+                    <>
+                      <Button
+                        onClick={enterEditMode}
+                        variant="secondary"
+                        className="flex-1"
+                      >
+                        <IoDocumentText className="w-5 h-5" />
+                        Edit
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowOCRReview(false);
+                          setIsEditMode(false);
+                        }}
+                        variant="primary"
+                        className="flex-1"
+                      >
+                        <IoCheckmark className="w-5 h-5" />
+                        Looks Good
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowOCRReview(false);
+                          setExtractedData(null);
+                          setIsEditMode(false);
+                          setCurrentStep("front");
+                        }}
+                        variant="secondary"
+                        className="flex-1"
+                      >
+                        <IoCamera className="w-5 h-5" />
+                        Retake
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    onClick={cancelEditMode}
+                    variant="secondary"
+                    className="flex-1"
+                  >
+                    <IoClose className="w-5 h-5" />
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={saveEditedData}
+                    variant="primary"
+                    className="flex-1"
+                  >
+                    <IoCheckmark className="w-5 h-5" />
+                    Save Changes
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -11,7 +11,8 @@ const htsFormsRepository = {
       backImageIV, 
       encryptionKey, 
       testResult,
-      extractedData,
+      extractedDataEncrypted,
+      extractedDataIV,
       extractionConfidence
     } = data;
     const pool = getPool();
@@ -25,11 +26,12 @@ const htsFormsRepository = {
         back_image_iv, 
         encryption_key, 
         test_result,
-        extracted_data,
+        extracted_data_encrypted,
+        extracted_data_iv,
         extraction_confidence,
         ocr_completed_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
       [
         controlNumber, 
         userId, 
@@ -39,7 +41,8 @@ const htsFormsRepository = {
         backImageIV, 
         encryptionKey, 
         testResult,
-        JSON.stringify(extractedData),
+        extractedDataEncrypted,
+        extractedDataIV,
         extractionConfidence
       ]
     );
@@ -90,13 +93,19 @@ const htsFormsRepository = {
     
     const submission = rows[0];
     
-    // Parse extracted_data JSON
-    if (submission.extracted_data) {
+    // Handle both encrypted (new) and plaintext (legacy) extracted_data
+    if (submission.extracted_data_encrypted && submission.extracted_data_iv) {
+      // New format: encrypted data (will be decrypted in frontend)
+      submission.isExtractedDataEncrypted = true;
+    } else if (submission.extracted_data) {
+      // Legacy format: plaintext JSON (parse for backward compatibility)
       try {
         submission.extracted_data = JSON.parse(submission.extracted_data);
+        submission.isExtractedDataEncrypted = false;
       } catch (error) {
         console.error('Failed to parse extracted_data:', error);
         submission.extracted_data = null;
+        submission.isExtractedDataEncrypted = false;
       }
     }
     

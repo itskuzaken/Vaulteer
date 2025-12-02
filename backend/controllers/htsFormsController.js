@@ -70,7 +70,8 @@ const htsFormsController = {
       backImageIV,
       encryptionKey,
       testResult,
-      extractedData,
+      extractedDataEncrypted,
+      extractedDataIV,
       extractionConfidence
     } = req.body;
 
@@ -90,9 +91,9 @@ const htsFormsController = {
       return res.status(400).json({ error: 'Encryption data is required' });
     }
 
-    // Require pre-extracted OCR data (OCR-first workflow)
-    if (!extractedData || extractionConfidence === undefined) {
-      return res.status(400).json({ error: 'OCR data is required. Please analyze images before submission.' });
+    // Require encrypted OCR data (OCR-first workflow with encryption)
+    if (!extractedDataEncrypted || !extractedDataIV || extractionConfidence === undefined) {
+      return res.status(400).json({ error: 'Encrypted OCR data is required. Please analyze images before submission.' });
     }
 
     // Generate control number
@@ -113,7 +114,7 @@ const htsFormsController = {
 
       console.log(`[Submit Form] Uploaded images to S3: ${frontImageS3Key}, ${backImageS3Key}`);
 
-      // Create submission with S3 keys and pre-extracted OCR data
+      // Create submission with S3 keys and encrypted OCR data
       const actualFormId = await htsFormsRepository.createSubmission({
         controlNumber,
         userId,
@@ -123,17 +124,18 @@ const htsFormsController = {
         backImageIV,
         encryptionKey,
         testResult,
-        extractedData,
+        extractedDataEncrypted,
+        extractedDataIV,
         extractionConfidence
       });
 
-      console.log(`[Submit Form] Form ${actualFormId} created with pre-extracted OCR data (confidence: ${extractionConfidence}%)`);
+      console.log(`[Submit Form] Form ${actualFormId} created with encrypted OCR data (confidence: ${extractionConfidence}%)`);
 
       res.status(201).json({
         success: true,
         formId: actualFormId,
         controlNumber,
-        message: 'Form submitted successfully',
+        message: 'Form submitted successfully with encrypted data',
         ocrCompleted: true,
         confidence: extractionConfidence
       });
