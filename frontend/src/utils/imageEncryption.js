@@ -163,9 +163,10 @@ export async function decryptFormImages(encryptedFront, frontIV, encryptedBack, 
   const frontImage = await decryptImage(encryptedFront, frontIV, key);
   const backImage = await decryptImage(encryptedBack, backIV, key);
   
+  // Return as data URLs for browser display
   return {
-    frontImage,
-    backImage
+    frontImage: `data:image/jpeg;base64,${frontImage}`,
+    backImage: `data:image/jpeg;base64,${backImage}`
   };
 }
 
