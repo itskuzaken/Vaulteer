@@ -82,17 +82,12 @@ function handleCameraError(error) {
     case "NotAllowedError":
     case "PermissionDeniedError":
       enhancedError.message = 
-        "📷 Camera Permission Denied\n\n" +
-        "You clicked 'Block' on the camera permission popup.\n\n" +
-        "To enable camera access:\n" +
+        "📷 Camera Permission Denied or Blocked\n\n" +
+        "The browser rejected camera access. If you didn't see a permission popup, try clicking the 'Capture' button to request access again.\n\n" +
+        "If you previously denied the permission, re-enable it in your browser settings:\n" +
         "1. Click the 🔒 lock icon (or camera icon) in the address bar\n" +
         "2. Find 'Camera' and select 'Allow'\n" +
-        "3. Refresh the page and try again\n\n" +
-        "Or go to your browser settings:\n" +
-        "Chrome: Settings → Privacy and security → Site Settings → Camera\n" +
-        "Firefox: Settings → Privacy & Security → Permissions → Camera\n" +
-        "Safari: Safari → Settings → Websites → Camera\n" +
-        "→ Add this site to 'Allowed' list";
+        "3. Refresh the page and request camera access again";
       enhancedError.userAction = "permission_denied";
       break;
 

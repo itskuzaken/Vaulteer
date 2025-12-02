@@ -26,6 +26,7 @@ export default function HTSFormManagement() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [controlNumber, setControlNumber] = useState(null);
   const [cameraPermission, setCameraPermission] = useState("prompt"); // "granted", "denied", "prompt", "unsupported"
+  const [hasAttemptedCameraRequest, setHasAttemptedCameraRequest] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -49,6 +50,7 @@ export default function HTSFormManagement() {
   }, []);
 
   const startCamera = async (side) => {
+    setHasAttemptedCameraRequest(true);
     try {
       // Check if camera is supported
       if (!isCameraSupported()) {
@@ -76,6 +78,8 @@ export default function HTSFormManagement() {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
       }
+      // Successful permission grant - reset the attempt flag and set state
+      setHasAttemptedCameraRequest(false);
       setIsCameraOpen(true);
       setCurrentStep(side);
       setSubmitSuccess(false);
@@ -335,7 +339,7 @@ export default function HTSFormManagement() {
         </div>
       )}
       
-      {cameraPermission === "denied" && (
+      {cameraPermission === "denied" && hasAttemptedCameraRequest && (
         <div className="bg-red-50 dark:bg-red-900/20 border-l-4 border-red-500 rounded-lg p-4 flex items-start gap-3">
           <IoAlertCircle className="w-6 h-6 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
           <div>
@@ -354,7 +358,7 @@ export default function HTSFormManagement() {
         </div>
       )}
 
-      {cameraPermission === "prompt" && (
+      {(cameraPermission === "prompt" || (cameraPermission === "denied" && !hasAttemptedCameraRequest)) && (
         <div className="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded-lg p-4 flex items-start gap-3">
           <IoCamera className="w-6 h-6 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
           <div>
@@ -488,7 +492,7 @@ export default function HTSFormManagement() {
                   Capture Front (Permission Required)
                 </>
               )}
-              {cameraPermission === "denied" && (
+              {cameraPermission === "denied" && hasAttemptedCameraRequest && (
                 <>
                   <IoAlertCircle className="w-6 h-6" />
                   Grant Camera Access
@@ -546,7 +550,7 @@ export default function HTSFormManagement() {
                   className="gap-2 w-full py-4 text-lg font-semibold"
                   disabled={cameraPermission === "unsupported"}
                 >
-                  {cameraPermission === "denied" ? (
+                  {cameraPermission === "denied" && hasAttemptedCameraRequest ? (
                     <>
                       <IoAlertCircle className="w-6 h-6" />
                       Grant Camera Access
