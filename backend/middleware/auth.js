@@ -131,11 +131,27 @@ async function authenticate(req, res, next) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
-function requireRole(...roles) {
+function requireRole(allowedRoles) {
   return (req, res, next) => {
     // assumes role resolved earlier and attached to req.currentUserRole
-    if (!roles.includes(req.currentUserRole))
-      return res.status(403).json({ error: "Forbidden" });
+    const userRole = req.currentUserRole;
+    console.log(`[RequireRole] Checking access: userRole="${userRole}", allowedRoles=${JSON.stringify(allowedRoles)}, path=${req.path}`);
+    
+    if (!userRole) {
+      console.warn(`[RequireRole] No role found for user. Path: ${req.path}`);
+      return res.status(403).json({ error: "Forbidden - No role assigned" });
+    }
+    
+    if (!allowedRoles.includes(userRole)) {
+      console.warn(`[RequireRole] Access denied: userRole="${userRole}" not in ${JSON.stringify(allowedRoles)}. Path: ${req.path}`);
+      return res.status(403).json({ 
+        error: "Forbidden",
+        message: `This action requires one of the following roles: ${allowedRoles.join(', ')}`,
+        userRole: userRole
+      });
+    }
+    
+    console.log(`[RequireRole] Access granted for role="${userRole}". Path: ${req.path}`);
     next();
   };
 }

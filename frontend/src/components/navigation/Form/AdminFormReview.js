@@ -67,7 +67,11 @@ export default function AdminFormReview() {
       const data = await response.json();
 
       if (data.success) {
+        console.log('[AdminFormReview] Received submissions:', data.submissions.length);
+        console.log('[AdminFormReview] First submission:', data.submissions[0]);
         setSubmissions(data.submissions);
+      } else {
+        console.error('[AdminFormReview] Failed to fetch submissions:', data);
       }
     } catch (err) {
       console.error("Error fetching submissions:", err);

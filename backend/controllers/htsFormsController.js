@@ -190,7 +190,21 @@ const htsFormsController = {
 
   getAllSubmissions: asyncHandler(async (req, res) => {
     // Verify admin role (should be done in middleware)
+    console.log('[getAllSubmissions] Fetching all submissions for admin...');
     const submissions = await htsFormsRepository.getAllSubmissions();
+    console.log(`[getAllSubmissions] Found ${submissions.length} submissions`);
+    
+    // Log first submission for debugging
+    if (submissions.length > 0) {
+      console.log('[getAllSubmissions] Sample submission:', {
+        form_id: submissions[0].form_id,
+        control_number: submissions[0].control_number,
+        user_id: submissions[0].user_id,
+        username: submissions[0].username,
+        status: submissions[0].status,
+        has_s3_keys: !!(submissions[0].front_image_s3_key && submissions[0].back_image_s3_key)
+      });
+    }
 
     res.json({
       success: true,
