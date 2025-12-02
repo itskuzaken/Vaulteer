@@ -1,7 +1,7 @@
-# AWS Textract OCR Integration Plan
+# AWS Textract OCR Integration + S3 Storage with Encryption Plan (OCR-First Workflow)
 
 ## Overview
-Integrate AWS Textract OCR to automatically extract text from encrypted HTS (HIV Testing Services) form images, verify test results, and display extracted data in the admin interface.
+Integrate AWS Textract OCR with AWS S3 storage where **OCR processing happens BEFORE encryption**. User captures images → frontend sends to backend for OCR → Textract extracts text → results shown to user for review → user confirms → frontend encrypts images → submits encrypted images + OCR data to backend → stores in S3 with SSE-S3. This workflow improves UX (immediate OCR feedback) and reduces backend processing (no decryption needed for OCR).
 
 ## Current State
 - ✅ Client-side AES-GCM 256-bit encryption implemented
@@ -9,16 +9,22 @@ Integrate AWS Textract OCR to automatically extract text from encrypted HTS (HIV
 - ✅ Camera capture with retake functionality working
 - ✅ Database schema refactored (pending migration execution)
 - ✅ HTS form template acquired (DOH "PERSONAL INFORMATION SHEET (HTS FORM 2021)")
+- ✅ Camera permission UX improved with request spinner and Try Again button
 - ⏳ Database migration not yet executed on AWS RDS
 - ⏳ No OCR processing implemented
+- ⏳ No S3 storage configured
 
 ## Goals
-1. Automatically extract text from front and back HTS form images using AWS Textract
-2. Parse extracted text to identify key fields (control number, test date, patient name, test result, etc.)
-3. Verify user-provided test result matches extracted test result
-4. Store extracted data with confidence scores
-5. Display OCR analysis in admin UI with mismatch warnings
-6. Process OCR asynchronously (non-blocking) using background jobs
+1. **OCR-First Workflow**: Process OCR on raw images BEFORE encryption for better UX
+2. Extract text from captured images using AWS Textract immediately after capture
+3. Parse extracted text to identify key fields (test date, patient name, test result, etc.)
+4. Display OCR results to user for review and confirmation before submission
+5. Verify user-provided test result matches extracted test result
+6. Encrypt images only after user confirms OCR results
+7. Store encrypted images in AWS S3 with SSE-S3 (server-side encryption only, no client encryption needed for OCR)
+8. Store S3 URLs + pre-extracted OCR data in MySQL (no backend decryption needed)
+9. Display OCR analysis in admin UI with mismatch warnings
+10. Reduce storage costs: S3 ($0.023/GB/month) vs MySQL ($0.10/GB/month) = 4.3x cheaper
 
 ## Form Template Analysis
 
@@ -48,7 +54,7 @@ Integrate AWS Textract OCR to automatically extract text from encrypted HTS (HIV
 - Section: INVENTORY INFORMATION
   - Brand of test kit used, Batch number, Lot number, Expiration date
 - Section: HTS PROVIDER DETAILS
-  - Name of Testing Facility/Organization: **"LoveYourself Inc. (Bagan!)"**
+  - Name of Testing Facility/Organization: **"LoveYourself Inc. (Bagani)"**
   - Complete Mailing Address: **"NEDF Building 6th Lapu-Lapu St. cor. Brgy. 7, Bacolod City, Negros Occidental"**
   - Contact Numbers: **"034 700 2034"**
   - Email address: **"info@baganilph.org"**
@@ -197,34 +203,71 @@ Create `backend/assets/form-templates/hts/template-metadata.json`:
 }
 ```
 
-### Step 1: AWS Textract Setup
+### Step 1: AWS Setup (Textract + S3)
 
 **1.1 Install Dependencies**
 ```bash
 cd backend
-npm install @aws-sdk/client-textract bull
+npm install @aws-sdk/client-textract @aws-sdk/client-s3 @aws-sdk/s3-request-presigner bull
 ```
 
 **1.2 Create AWS IAM User**
 - Go to AWS IAM Console
-- Create new user: `vaulteer-textract-service`
+- Create new user: `vaulteer-textract-s3-service`
 - Attach policy with permissions:
   - `textract:DetectDocumentText`
   - `textract:AnalyzeDocument`
+  - `s3:PutObject` (for uploads)
+  - `s3:GetObject` (for downloads)
+  - `s3:DeleteObject` (for cleanup)
+- Resource ARN: `arn:aws:s3:::vaulteer-hts-forms/hts-forms/*`
 - Save Access Key ID and Secret Access Key
 
-**1.3 Configure Environment Variables**
+**1.3 Configure S3 Bucket**
+Create S3 bucket in AWS Console or CLI:
+```bash
+aws s3 mb s3://vaulteer-hts-forms --region ap-southeast-2
+
+# Enable SSE-S3 encryption
+aws s3api put-bucket-encryption \
+  --bucket vaulteer-hts-forms \
+  --server-side-encryption-configuration '{
+    "Rules": [{
+      "ApplyServerSideEncryptionByDefault": {
+        "SSEAlgorithm": "AES256"
+      }
+    }]
+  }'
+
+# Block public access
+aws s3api put-public-access-block \
+  --bucket vaulteer-hts-forms \
+  --public-access-block-configuration \
+    "BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"
+
+# Enable versioning
+aws s3api put-bucket-versioning \
+  --bucket vaulteer-hts-forms \
+  --versioning-configuration Status=Enabled
+```
+
+**1.4 Configure Environment Variables**
 Add to `backend/.env`:
 ```env
 AWS_ACCESS_KEY_ID=your_access_key_id
 AWS_SECRET_ACCESS_KEY=your_secret_access_key
 AWS_REGION=ap-southeast-1
+S3_BUCKET_REGION=ap-southeast-2
+S3_HTS_FORMS_BUCKET=vaulteer-hts-forms
 ```
 
-**1.4 Create AWS Configuration**
+**Note:** Textract in ap-southeast-1 (Singapore), S3 in ap-southeast-2 (Sydney, same as RDS) for data residency.
+
+**1.5 Create AWS Configuration**
 Create `backend/config/aws.js`:
 ```javascript
 const { TextractClient } = require('@aws-sdk/client-textract');
+const { S3Client } = require('@aws-sdk/client-s3');
 
 const textractClient = new TextractClient({
   region: process.env.AWS_REGION,
@@ -234,12 +277,151 @@ const textractClient = new TextractClient({
   }
 });
 
-module.exports = { textractClient };
+const s3Client = new S3Client({
+  region: process.env.S3_BUCKET_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
+});
+
+module.exports = { textractClient, s3Client };
 ```
 
-### Step 2: TextractService Layer
+### Step 2: OCR Service Layer (Processes Raw Images Before Encryption)
 
-**2.1 Create Server-Side Decryption Utility**
+**2.1 Create OCR Analysis Endpoint**
+Create `backend/routes/htsFormsRoutes.js` endpoint for pre-submission OCR:
+```javascript
+// POST /api/hts-forms/analyze-ocr (processes raw images before encryption)
+router.post('/analyze-ocr', auth, upload.fields([
+  { name: 'frontImage', maxCount: 1 },
+  { name: 'backImage', maxCount: 1 }
+]), asyncHandler(async (req, res) => {
+  const frontImageBuffer = req.files.frontImage[0].buffer;
+  const backImageBuffer = req.files.backImage[0].buffer;
+  
+  console.log('📋 Analyzing images with Textract (pre-encryption)...');
+  
+  // Send raw images to Textract
+  const extractedData = await textractService.analyzeHTSForm(
+    frontImageBuffer, 
+    backImageBuffer
+  );
+  
+  res.json({
+    success: true,
+    extractedData,
+    confidence: extractedData.confidence,
+    message: 'OCR analysis complete. Please review before submitting.'
+  });
+}));
+```
+
+**2.2 Create S3 Service**
+Create `backend/services/s3Service.js`:
+```javascript
+const { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { s3Client } = require('../config/aws');
+const crypto = require('crypto');
+
+const BUCKET_NAME = process.env.S3_HTS_FORMS_BUCKET;
+
+/**
+ * Upload encrypted image to S3 with SSE-S3
+ * @param {Buffer} imageBuffer - Client-encrypted image buffer
+ * @param {string} formId - Form ID for organizing uploads
+ * @param {string} imageSide - 'front' or 'back'
+ * @returns {Promise<string>} - S3 object key
+ */
+async function uploadEncryptedImage(imageBuffer, formId, imageSide) {
+  const timestamp = Date.now();
+  const randomSuffix = crypto.randomBytes(4).toString('hex');
+  const key = `hts-forms/${formId}/${imageSide}-${timestamp}-${randomSuffix}.enc`;
+
+  const command = new PutObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: key,
+    Body: imageBuffer,
+    ContentType: 'application/octet-stream',
+    ServerSideEncryption: 'AES256', // SSE-S3 (server-side encryption)
+    Metadata: {
+      'form-id': formId,
+      'image-side': imageSide,
+      'encrypted': 'true'
+    }
+  });
+
+  await s3Client.send(command);
+  console.log(`✅ Uploaded encrypted ${imageSide} image to S3: ${key}`);
+
+  return key;
+}
+
+/**
+ * Get pre-signed download URL (1 hour expiry)
+ * @param {string} s3Key - S3 object key
+ * @returns {Promise<string>} - Pre-signed URL
+ */
+async function getPresignedDownloadUrl(s3Key) {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: s3Key
+  });
+
+  const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+  return url;
+}
+
+/**
+ * Download encrypted image from S3
+ * @param {string} s3Key - S3 object key
+ * @returns {Promise<Buffer>} - Image buffer
+ */
+async function downloadImage(s3Key) {
+  const command = new GetObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: s3Key
+  });
+
+  const response = await s3Client.send(command);
+  const stream = response.Body;
+  
+  // Convert stream to buffer
+  const chunks = [];
+  for await (const chunk of stream) {
+    chunks.push(chunk);
+  }
+  
+  return Buffer.concat(chunks);
+}
+
+/**
+ * Delete image from S3
+ * @param {string} s3Key - S3 object key
+ */
+async function deleteImage(s3Key) {
+  const command = new DeleteObjectCommand({
+    Bucket: BUCKET_NAME,
+    Key: s3Key
+  });
+
+  await s3Client.send(command);
+  console.log(`🗑️ Deleted image from S3: ${s3Key}`);
+}
+
+module.exports = {
+  uploadEncryptedImage,
+  getPresignedDownloadUrl,
+  downloadImage,
+  deleteImage
+};
+```
+
+### Step 3: TextractService Layer (No Decryption Needed)
+
+**3.1 Create Server-Side Decryption Utility** (Only for Admin Image Viewing)
 Create `backend/utils/imageDecryption.js`:
 ```javascript
 const crypto = require('crypto');
@@ -314,16 +496,14 @@ module.exports = {
 };
 ```
 
-**2.2 Create Textract Service**
+**3.2 Create Textract Service (Processes Raw Images Before Encryption)**
 Create `backend/services/textractService.js`:
 ```javascript
 const { AnalyzeDocumentCommand } = require('@aws-sdk/client-textract');
 const { textractClient } = require('../config/aws');
-const { decryptFormImages } = require('../utils/imageDecryption');
-const { getPool } = require('../db/pool');
 
 /**
- * Call AWS Textract AnalyzeDocument API
+ * Call AWS Textract AnalyzeDocument API (on raw images, no decryption needed)
  */
 async function analyzeDocument(imageBuffer, featureTypes = ['FORMS']) {
   const command = new AnalyzeDocumentCommand({
@@ -335,6 +515,39 @@ async function analyzeDocument(imageBuffer, featureTypes = ['FORMS']) {
   
   const response = await textractClient.send(command);
   return response;
+}
+
+/**
+ * Analyze HTS form images and return extracted data
+ * Called by /api/hts-forms/analyze-ocr endpoint BEFORE encryption
+ */
+async function analyzeHTSForm(frontImageBuffer, backImageBuffer) {
+  console.log('📤 Sending raw images to AWS Textract...');
+  
+  // Send to Textract (parallel processing)
+  const [frontResult, backResult] = await Promise.all([
+    analyzeDocument(frontImageBuffer, ['FORMS']),
+    analyzeDocument(backImageBuffer, ['FORMS'])
+  ]);
+  
+  console.log('✅ Textract completed. Parsing results...');
+  
+  // Parse extracted data
+  const extractedData = parseHTSFormData(frontResult, backResult);
+  
+  // Calculate confidence
+  const frontConfidence = calculateAverageConfidence(frontResult.Blocks || []);
+  const backConfidence = calculateAverageConfidence(backResult.Blocks || []);
+  const avgConfidence = (frontConfidence + backConfidence) / 2;
+  
+  console.log(`✅ Extraction complete. Confidence: ${avgConfidence.toFixed(2)}%`);
+  
+  return {
+    ...extractedData,
+    confidence: avgConfidence,
+    frontConfidence,
+    backConfidence
+  };
 }
 
 /**
@@ -644,89 +857,9 @@ function parseHTSFormData(frontResult, backResult) {
   return extractedData;
 }
 
-/**
- * Process encrypted HTS form with Textract OCR
- */
-async function processEncryptedHTSForm(formId) {
-  const pool = await getPool();
-  
-  try {
-    // Fetch form data from database
-    const [rows] = await pool.query(
-      `SELECT * FROM hts_forms WHERE form_id = ?`,
-      [formId]
-    );
-    
-    if (rows.length === 0) {
-      throw new Error(`Form not found: ${formId}`);
-    }
-    
-    const formData = rows[0];
-    
-    // Update status to processing
-    await pool.query(
-      `UPDATE hts_forms SET ocr_status = 'processing' WHERE form_id = ?`,
-      [formId]
-    );
-    
-    // Decrypt images
-    console.log(`Decrypting images for form ${formId}...`);
-    const { frontImage, backImage } = await decryptFormImages(formData);
-    
-    // Convert base64 to buffer
-    const frontBuffer = Buffer.from(frontImage.split(',')[1] || frontImage, 'base64');
-    const backBuffer = Buffer.from(backImage.split(',')[1] || backImage, 'base64');
-    
-    // Analyze both images with Textract
-    console.log(`Analyzing front image with Textract...`);
-    const frontResult = await analyzeDocument(frontBuffer);
-    
-    console.log(`Analyzing back image with Textract...`);
-    const backResult = await analyzeDocument(backBuffer);
-    
-    // Parse extracted data
-    const extractedData = parseHTSFormData(frontResult, backResult);
-    
-    // Calculate overall confidence
-    const overallConfidence = (
-      (extractedData.frontConfidence + extractedData.backConfidence) / 2
-    ).toFixed(2);
-    
-    // Update database with extracted data
-    await pool.query(
-      `UPDATE hts_forms 
-       SET extracted_data = ?, 
-           extraction_confidence = ?, 
-           extracted_at = NOW(),
-           ocr_status = 'completed'
-       WHERE form_id = ?`,
-      [JSON.stringify(extractedData), overallConfidence, formId]
-    );
-    
-    console.log(`OCR completed for form ${formId} with confidence ${overallConfidence}%`);
-    
-    return {
-      success: true,
-      formId,
-      extractedData,
-      confidence: overallConfidence
-    };
-    
-  } catch (error) {
-    console.error(`OCR failed for form ${formId}:`, error);
-    
-    // Update status to failed
-    await pool.query(
-      `UPDATE hts_forms SET ocr_status = 'failed' WHERE form_id = ?`,
-      [formId]
-    );
-    
-    throw error;
-  }
-}
-
 module.exports = {
   analyzeDocument,
+  analyzeHTSForm,
   extractTextLines,
   extractKeyValuePairs,
   extractTestResult,
@@ -735,157 +868,167 @@ module.exports = {
   extractPhilHealthNumber,
   extractTestingFacility,
   extractControlNumber,
-  parseHTSFormData,
-  processEncryptedHTSForm
+  calculateAverageConfidence,
+  parseHTSFormData
 };
 ```
 
-### Step 3: Database Schema Updates
+### Step 4: Database Schema Updates
 
-**3.1 Create Migration for Textract Fields**
-Create `backend/migrations/20251202_add_textract_fields.sql`:
+**4.1 Update HTS Forms Table Schema for S3 + Pre-Extracted OCR Data**
+Create `backend/migrations/20251203_update_hts_forms_s3_ocr.sql`:
 ```sql
--- Add columns for OCR/Textract data
+-- Replace base64 TEXT columns with S3 keys
 ALTER TABLE hts_forms 
-ADD COLUMN extracted_data JSON NULL COMMENT 'Parsed data from AWS Textract OCR';
+DROP COLUMN front_image_url,
+DROP COLUMN back_image_url;
 
 ALTER TABLE hts_forms 
-ADD COLUMN extraction_confidence DECIMAL(5,2) NULL COMMENT 'Average confidence score (0-100)';
+ADD COLUMN front_image_s3_key VARCHAR(500) NOT NULL COMMENT 'S3 object key for encrypted front image',
+ADD COLUMN back_image_s3_key VARCHAR(500) NOT NULL COMMENT 'S3 object key for encrypted back image';
 
+-- Add columns for pre-extracted OCR/Textract data (already processed before submission)
 ALTER TABLE hts_forms 
-ADD COLUMN extracted_at TIMESTAMP NULL COMMENT 'When OCR extraction completed';
+ADD COLUMN extracted_data JSON NOT NULL COMMENT 'Pre-extracted data from AWS Textract OCR (sent from frontend)',
+ADD COLUMN extraction_confidence DECIMAL(5,2) NOT NULL COMMENT 'Average confidence score (0-100)',
+ADD COLUMN ocr_completed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'When OCR was completed (before submission)';
 
-ALTER TABLE hts_forms 
-ADD COLUMN ocr_status ENUM('pending', 'processing', 'completed', 'failed') 
-DEFAULT 'pending' COMMENT 'Status of OCR processing';
-
--- Add index for filtering by OCR status
-CREATE INDEX idx_ocr_status ON hts_forms(ocr_status);
+-- Add indexes
+CREATE INDEX idx_extraction_confidence ON hts_forms(extraction_confidence);
+CREATE INDEX idx_front_image_s3_key ON hts_forms(front_image_s3_key);
+CREATE INDEX idx_back_image_s3_key ON hts_forms(back_image_s3_key);
 ```
 
-**3.2 Execute Migrations**
+**Note:** No `ocr_status` enum needed since OCR is completed before submission. Frontend sends already-extracted data.
+
+**4.2 Execute Migrations**
 ```bash
-# First, execute the main hts_forms table migration
-mysql -h your-rds-endpoint -u admin -p vaulteer_db < backend/migrations/20251202_create_hts_forms.sql
-
-# Then, add Textract fields
-mysql -h your-rds-endpoint -u admin -p vaulteer_db < backend/migrations/20251202_add_textract_fields.sql
+# Execute the updated hts_forms schema migration
+mysql -h your-rds-endpoint -u admin -p vaulteer_db < backend/migrations/20251203_update_hts_forms_s3_ocr.sql
 ```
 
-### Step 4: Background Job Queue
+### Step 5: Controller Updates (No Background Queue Needed)
 
-**4.1 Create Textract Queue**
-Create `backend/jobs/textractQueue.js`:
-```javascript
-const Bull = require('bull');
-const { processEncryptedHTSForm } = require('../services/textractService');
-
-// Create queue
-const textractQueue = new Bull('textract-ocr', {
-  redis: {
-    host: process.env.REDIS_HOST || 'localhost',
-    port: process.env.REDIS_PORT || 6379
-  }
-});
-
-// Process jobs
-textractQueue.process(async (job) => {
-  const { formId } = job.data;
-  
-  console.log(`Processing OCR for form ${formId}...`);
-  
-  try {
-    const result = await processEncryptedHTSForm(formId);
-    return result;
-  } catch (error) {
-    console.error(`OCR job failed for form ${formId}:`, error);
-    throw error;
-  }
-});
-
-// Event listeners
-textractQueue.on('completed', (job, result) => {
-  console.log(`OCR completed for form ${result.formId} with confidence ${result.confidence}%`);
-});
-
-textractQueue.on('failed', (job, err) => {
-  console.error(`OCR job ${job.id} failed:`, err.message);
-});
-
-/**
- * Add OCR job to queue
- */
-async function enqueueOCRJob(formId) {
-  const job = await textractQueue.add(
-    { formId },
-    {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 2000
-      },
-      removeOnComplete: true,
-      removeOnFail: false
-    }
-  );
-  
-  return job;
-}
-
-module.exports = {
-  textractQueue,
-  enqueueOCRJob
-};
-```
-
-**4.2 Initialize Queue in Server**
-Update `backend/server.js`:
-```javascript
-// Add at top
-const { textractQueue } = require('./jobs/textractQueue');
-
-// Add before server.listen()
-console.log('Textract OCR queue initialized');
-```
-
-**4.3 Update Controller to Enqueue Job**
+**5.1 Update HTS Forms Controller to Accept Pre-Extracted OCR Data**
 Update `backend/controllers/htsFormsController.js`:
 ```javascript
-// Add at top
-const { enqueueOCRJob } = require('../jobs/textractQueue');
+const s3Service = require('../services/s3Service');
+const htsFormsRepository = require('../repositories/htsFormsRepository');
 
-// In submitForm function, after successful creation:
-const result = await htsFormsRepository.createSubmission({
-  controlNumber,
-  userId: req.currentUserId,
-  frontImageUrl: frontImage,
-  backImageUrl: backImage,
-  frontImageIV,
-  backImageIV,
-  encryptionKey,
-  testResult
-});
-
-// Enqueue OCR job (non-blocking)
-try {
-  await enqueueOCRJob(result.formId);
-  console.log(`OCR job queued for form ${result.formId}`);
-} catch (error) {
-  console.error('Failed to enqueue OCR job:', error);
-  // Don't fail the submission if OCR queue fails
+// POST /api/hts-forms/submit (receives encrypted images + already-extracted OCR data)
+async function submitForm(req, res) {
+  const { 
+    frontImageBase64, 
+    backImageBase64, 
+    frontImageIV, 
+    backImageIV, 
+    encryptionKey, 
+    testResult,
+    extractedData, // OCR data from frontend (already processed)
+    extractionConfidence 
+  } = req.body;
+  
+  // Validate OCR data is present
+  if (!extractedData || !extractionConfidence) {
+    return res.status(400).json({ 
+      error: 'Missing OCR data. Please analyze images first.' 
+    });
+  }
+  
+  // Generate control number and form ID
+  const controlNumber = generateControlNumber();
+  const formId = generateFormId();
+  
+  try {
+    console.log(`📤 Uploading encrypted images to S3 for form ${formId}...`);
+    
+    // Convert base64 to Buffer
+    const frontBuffer = Buffer.from(frontImageBase64, 'base64');
+    const backBuffer = Buffer.from(backImageBase64, 'base64');
+    
+    // Upload encrypted images to S3 (parallel)
+    const [frontS3Key, backS3Key] = await Promise.all([
+      s3Service.uploadEncryptedImage(frontBuffer, formId, 'front'),
+      s3Service.uploadEncryptedImage(backBuffer, formId, 'back')
+    ]);
+    
+    console.log(`✅ Images uploaded to S3: ${frontS3Key}, ${backS3Key}`);
+    
+    // Store in database with S3 keys + pre-extracted OCR data
+    const result = await htsFormsRepository.createSubmission({
+      formId,
+      controlNumber,
+      userId: req.currentUserId,
+      frontImageS3Key: frontS3Key,
+      backImageS3Key: backS3Key,
+      frontImageIV,
+      backImageIV,
+      encryptionKey,
+      testResult,
+      extractedData, // Already processed OCR data from frontend
+      extractionConfidence
+    });
+    
+    console.log(`✅ Form ${formId} submitted with control number: ${controlNumber}`);
+    
+    res.status(201).json({
+      success: true,
+      message: 'HTS form submitted successfully',
+      controlNumber,
+      formId: result.formId
+    });
+    
+  } catch (error) {
+    console.error('Submission failed:', error);
+    res.status(500).json({ error: 'Failed to submit form' });
+  }
 }
-
-res.status(201).json({
-  message: 'HTS form submitted successfully',
-  controlNumber,
-  formId: result.formId,
-  ocrQueued: true
-});
 ```
 
-### Step 5: Update Repository
+### Step 6: Update Repository
 
-**5.1 Add Method to Fetch Form with Extracted Data**
+**6.1 Update Repository for S3 Keys + Pre-Extracted OCR Data**
+Update `backend/repositories/htsFormsRepository.js`:
+```javascript
+async createSubmission(data) {
+  const pool = await getPool();
+  
+  const [result] = await pool.query(
+    `INSERT INTO hts_forms (
+      form_id,
+      control_number,
+      user_id,
+      front_image_s3_key,
+      back_image_s3_key,
+      front_image_iv,
+      back_image_iv,
+      encryption_key,
+      test_result,
+      extracted_data,
+      extraction_confidence,
+      ocr_completed_at,
+      created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+    [
+      data.formId,
+      data.controlNumber,
+      data.userId,
+      data.frontImageS3Key,
+      data.backImageS3Key,
+      data.frontImageIV,
+      data.backImageIV,
+      data.encryptionKey,
+      data.testResult,
+      JSON.stringify(data.extractedData), // Pre-extracted OCR data
+      data.extractionConfidence
+    ]
+  );
+  
+  return { formId: data.formId, insertId: result.insertId };
+}
+```
+
+**6.2 Add Method to Fetch Form with Extracted Data**
 Update `backend/repositories/htsFormsRepository.js`:
 ```javascript
 async getSubmissionById(formId) {
@@ -924,9 +1067,159 @@ async getSubmissionById(formId) {
 }
 ```
 
-### Step 6: Admin UI Updates
+### Step 7: Frontend Updates (OCR-First Workflow)
 
-**6.1 Update AdminFormReview Component**
+**7.1 Update HTSFormManagement for OCR Before Encryption**
+Update `frontend/src/components/navigation/Form/HTSFormManagement.js`:
+```javascript
+// Add state
+const [capturedImages, setCapturedImages] = useState({ front: null, back: null });
+const [extractedData, setExtractedData] = useState(null);
+const [isAnalyzing, setIsAnalyzing] = useState(false);
+const [showOCRReview, setShowOCRReview] = useState(false);
+
+// NEW: Analyze captured images with OCR BEFORE encryption
+const handleAnalyzeImages = async () => {
+  if (!capturedImages.front || !capturedImages.back) {
+    alert('Please capture both front and back images');
+    return;
+  }
+  
+  setIsAnalyzing(true);
+  
+  try {
+    const token = await getAccessToken();
+    
+    // Create FormData with raw images (NOT encrypted yet)
+    const formData = new FormData();
+    formData.append('frontImage', capturedImages.front);
+    formData.append('backImage', capturedImages.back);
+    
+    console.log('📤 Sending images for OCR analysis...');
+    
+    const response = await fetch('/api/hts-forms/analyze-ocr', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('✅ OCR analysis complete:', result.extractedData);
+      setExtractedData(result.extractedData);
+      setShowOCRReview(true); // Show review modal
+    } else {
+      alert('OCR analysis failed. Please try again.');
+    }
+  } catch (error) {
+    console.error('❌ OCR analysis error:', error);
+    alert('Failed to analyze images. Please check your connection.');
+  } finally {
+    setIsAnalyzing(false);
+  }
+};
+
+// Update handleSubmit to encrypt AFTER user confirms OCR
+const handleSubmit = async () => {
+  if (!extractedData) {
+    alert('Please analyze images first');
+    return;
+  }
+  
+  console.log('🔐 Encrypting images before submission...');
+  
+  // NOW encrypt the images (after OCR confirmation)
+  const { encryptedFront, encryptedBack, frontIV, backIV, key } = 
+    await encryptFormImages(capturedImages.front, capturedImages.back);
+  
+  const token = await getAccessToken();
+  
+  const payload = {
+    frontImageBase64: encryptedFront,
+    backImageBase64: encryptedBack,
+    frontImageIV: frontIV,
+    backImageIV: backIV,
+    encryptionKey: key,
+    testResult: selectedTestResult,
+    extractedData, // Send pre-extracted OCR data
+    extractionConfidence: extractedData.confidence
+  };
+  
+  const response = await fetch('/api/hts-forms/submit', {
+    method: 'POST',
+    headers: { 
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify(payload)
+  });
+  
+  const result = await response.json();
+  
+  if (result.success) {
+    alert(`✅ Form submitted! Control Number: ${result.controlNumber}`);
+    // Reset form
+    setCapturedImages({ front: null, back: null });
+    setExtractedData(null);
+    setShowOCRReview(false);
+  }
+};
+
+// OCR review modal
+{showOCRReview && (
+  <div className="ocr-review-modal">
+    <h3>📄 OCR Extraction Results</h3>
+    <p>Please review the extracted information before submitting:</p>
+    <div className="extracted-fields">
+      <div className="field">
+        <strong>Test Result:</strong> 
+        <span className={extractedData.testResult === selectedTestResult ? 'match' : 'mismatch'}>
+          {extractedData.testResult}
+        </span>
+        {extractedData.testResult !== selectedTestResult && (
+          <span className="warning">⚠️ Mismatch with your input!</span>
+        )}
+      </div>
+      <div className="field">
+        <strong>Full Name:</strong> {extractedData.fullName}
+      </div>
+      <div className="field">
+        <strong>Test Date:</strong> {extractedData.testDate}
+      </div>
+      <div className="field">
+        <strong>Testing Facility:</strong> {extractedData.testingFacility}
+      </div>
+      <div className="field">
+        <strong>Confidence Score:</strong> {extractedData.confidence.toFixed(2)}%
+      </div>
+    </div>
+    <div className="actions">
+      <button onClick={() => handleSubmit()} className="btn-primary">
+        ✅ Looks Good - Submit Form
+      </button>
+      <button onClick={() => setShowOCRReview(false)} className="btn-secondary">
+        ❌ Re-capture Images
+      </button>
+    </div>
+  </div>
+)}
+
+// Add "Analyze Images" button before submit
+<button 
+  onClick={handleAnalyzeImages} 
+  disabled={!capturedImages.front || !capturedImages.back || isAnalyzing}
+  className="btn-analyze"
+>
+  {isAnalyzing ? '🔍 Analyzing...' : '📋 Analyze Images with OCR'}
+</button>
+```
+
+**Note:** Workflow is now: Capture → Analyze (OCR) → Review → Confirm → Encrypt → Submit
+
+### Step 8: Admin UI Updates
+
+**8.1 Update AdminFormReview Component for S3 Images**
 Update `frontend/src/components/navigation/Form/AdminFormReview.js`:
 
 Add state for extracted data:
@@ -1113,33 +1406,43 @@ Add OCR status badge to submission cards:
 )}
 ```
 
-### Step 7: Environment Setup
+### Step 9: Environment Setup
 
-**7.1 Install Redis** (required for Bull queue)
+**9.1 Install Multer** (required for file upload in OCR endpoint)
 ```bash
-# For local development (Windows)
-# Download Redis from: https://github.com/microsoftarchive/redis/releases
-# Or use Docker:
-docker run -d -p 6379:6379 redis:alpine
-
-# For production (AWS ElastiCache)
-# Create Redis cluster in AWS Console
+cd backend
+npm install multer
 ```
 
-**7.2 Update .env**
-Add Redis configuration:
+**9.2 Update .env**
+Verify AWS and S3 configs added in Step 1 (no Redis needed):
 ```env
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# For production
-# REDIS_HOST=your-elasticache-endpoint.amazonaws.com
-# REDIS_PORT=6379
+AWS_ACCESS_KEY_ID=your_access_key_id
+AWS_SECRET_ACCESS_KEY=your_secret_access_key
+AWS_REGION=ap-southeast-1
+S3_BUCKET_REGION=ap-southeast-2
+S3_HTS_FORMS_BUCKET=vaulteer-hts-forms
 ```
 
-### Step 8: Testing
+### Step 10: Testing
 
-**8.1 Test Camera Capture**
+**10.1 Test OCR Analysis Endpoint (Before Encryption)**
+1. Capture test HTS form images (front + back)
+2. Click "Analyze Images with OCR" button
+3. Verify /api/hts-forms/analyze-ocr endpoint called with FormData
+4. Verify raw images sent to Textract (no encryption needed)
+5. Check extracted_data returned with confidence score
+6. Verify OCR review modal displays extracted fields
+7. Test mismatch warning when user input ≠ extracted test result
+
+**10.2 Test S3 Upload**
+1. Submit test form with sample HTS images
+2. Verify images uploaded to S3 bucket `vaulteer-hts-forms/hts-forms/{formId}/`
+3. Check SSE-S3 encryption enabled on uploaded objects
+4. Verify S3 keys stored in database (front_image_s3_key, back_image_s3_key)
+5. Test S3 download via pre-signed URLs (1-hour expiry)
+
+**10.3 Test Camera Capture**
 1. Deploy frontend to HTTPS environment
 2. Test on mobile and desktop browsers
 3. Verify camera access permission flow
@@ -1147,33 +1450,35 @@ REDIS_PORT=6379
 5. Verify image quality is sufficient for OCR
 6. Test with actual DOH HTS Form 2021 (both blank and filled)
 
-**8.2 Test Encryption/Decryption**
-1. Submit test form with sample HTS images
-2. Verify images are encrypted in database (check hts_forms table)
-3. Verify admin can decrypt and view images
-4. Check encryption_key, front_image_iv, back_image_iv are stored
+**10.4 Test Encryption After OCR Confirmation**
+1. Click "Looks Good - Submit Form" after reviewing OCR results
+2. Verify client-side encryption happens AFTER user confirmation (check browser console)
+3. Verify encrypted blobs uploaded to S3 with SSE-S3
+4. Verify pre-extracted OCR data sent in submission payload
+5. Check database contains S3 keys + extracted_data JSON
+6. Verify admin can decrypt and view images (via S3 pre-signed URLs)
 
-**8.3 Test OCR Processing**
-1. Submit form with clear DOH HTS Form 2021 images (filled sample)
-2. Check OCR job is queued (Bull dashboard or logs)
-3. Verify Textract API is called successfully
-4. Check extracted_data is populated in database
-5. Verify admin UI shows extracted data with confidence scores
-6. Validate extraction of priority fields:
+**10.5 Test Complete Workflow**
+1. Capture DOH HTS Form 2021 images (filled sample)
+2. Click "Analyze Images with OCR" → verify Textract processing (~10-15 seconds)
+3. Review extracted fields in modal:
    - ✅ Test Result (Reactive/Non-reactive)
    - ✅ Test Date (DD/MM/YYYY format)
    - ✅ Full Name (First/Middle/Last)
    - ✅ Birth Date
    - ✅ PhilHealth Number (if available)
-   - ✅ Testing Facility (LoveYourself Inc.)
+   - ✅ Testing Facility (LoveYourself Inc. Bagani)
+4. Verify confidence score displayed (target: >90%)
+5. Click "Looks Good - Submit Form" → verify encryption + S3 upload
+6. Verify admin UI displays extracted data immediately (no polling needed)
 
-**8.4 Test Mismatch Detection**
+**10.6 Test Mismatch Detection**
 1. Submit form with "non-reactive" selected
 2. Use image that clearly shows "REACTIVE" result
 3. Verify mismatch warning appears in admin UI
 4. Confirm admin can review and correct if needed
 
-**8.5 Test Error Handling**
+**10.7 Test Error Handling**
 1. Submit form with poor quality images (blurry, dark)
 2. Verify OCR fails gracefully with retry attempts
 3. Check ocr_status is set to 'failed' after retries exhausted
@@ -1182,16 +1487,39 @@ REDIS_PORT=6379
 ## Further Considerations
 
 ### 1. Cost Optimization
+
+**S3 Storage Pricing:**
+- S3 Standard: $0.023/GB/month (first 50TB)
+- MySQL RDS: ~$0.10/GB/month (gp2 storage)
+- **Savings:** 4.3x cheaper ($0.077/GB/month saved)
+- Per 1000 forms (~2GB encrypted images): Save $0.15/month
+
 **AWS Textract Pricing:**
 - AnalyzeDocument with FORMS: $0.065 per page
 - Each HTS form submission = 2 images = ~$0.13 per submission
+- 1000 forms/month = $130/month OCR cost
 
-**Options:**
-- **Option A**: Process all submissions automatically (current plan)
-- **Option B**: Process only on-demand when admin clicks "Extract Text" button
-- **Option C**: Batch process during off-peak hours to reduce costs
+**Total Cost Analysis (1000 forms/month):**
+- Old approach (MySQL base64): $0.20 storage + $130 OCR = $130.20/month
+- New approach (S3 SSE-S3): $0.046 storage + $130 OCR = $130.05/month
+- **Monthly savings:** $0.15 (storage only, OCR same)
 
-**Recommendation:** Start with Option A (auto-process all), monitor costs, switch to Option B if needed.
+**OCR Processing Strategy:**
+- **Current Plan**: OCR-first workflow (process before encryption)
+  - User pays OCR cost upfront ($0.13 per submission)
+  - Immediate feedback (10-15 seconds)
+  - No background processing needed
+  - Better UX: user reviews extracted data before submitting
+- **Alternative**: Post-submission OCR (background processing)
+  - Faster submission (~2 seconds)
+  - Requires Bull/Redis infrastructure
+  - No immediate feedback to user
+
+**Recommendation:** 
+1. Use **OCR-first workflow** for better UX and data quality
+2. Use S3 for storage (4.3x cheaper than MySQL)
+3. Monitor OCR costs: $130/month for 1000 forms
+4. Consider caching Textract results to avoid re-processing on retakes
 
 ### 2. Confidence Threshold
 **Low Confidence Handling:**
@@ -1245,32 +1573,47 @@ function detectFormTemplate(frontBlocks) {
 
 ## Next Steps
 
-1. **Store form template reference** (save uploaded images to `backend/assets/form-templates/hts/`)
-2. **Execute database migrations** (create hts_forms table, add Textract fields)
-3. **Set up AWS IAM user** with Textract permissions
-4. **Install dependencies** (AWS SDK, Bull queue, Redis)
-5. **Implement server-side decryption** utility
-6. **Implement TextractService** with OCR processing logic (optimized for DOH HTS Form 2021)
-7. **Set up Bull queue** for background job processing
-8. **Update controller** to enqueue OCR jobs after submission
-9. **Update admin UI** to display extracted data with DOH form-specific fields
-10. **Test with filled DOH HTS Form 2021 samples** to validate extraction accuracy
-11. **Deploy to staging** and test over HTTPS with mobile devices
-12. **Conduct field testing** with actual LoveYourself Inc. forms
+1. **Install dependencies** (`@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `@aws-sdk/client-textract`, `multer`)
+2. **Create S3 bucket** `vaulteer-hts-forms` in ap-southeast-2 with SSE-S3, versioning, block public access
+3. **Set up AWS IAM user** with S3 + Textract permissions
+4. **Configure environment variables** (AWS credentials, S3 bucket name)
+5. **Create OCR analysis endpoint** (`POST /api/hts-forms/analyze-ocr`) with multer for file uploads
+6. **Create TextractService** with `analyzeHTSForm()` function (processes raw images)
+7. **Create S3 service** (`backend/services/s3Service.js`) with upload/download/delete functions
+8. **Update AWS config** (`backend/config/aws.js`) to include S3Client
+9. **Implement server-side decryption** utility (for admin image viewing only)
+10. **Execute database migration** to add S3 key columns and pre-extracted OCR fields
+11. **Update controller** to accept pre-extracted OCR data and upload encrypted images to S3
+12. **Update repository** to store S3 keys + extracted_data JSON
+13. **Update frontend** to add "Analyze Images with OCR" button (before encryption)
+14. **Add OCR review modal** in frontend to display extracted fields and mismatch warnings
+15. **Update handleSubmit** to encrypt images AFTER user confirms OCR results
+16. **Update admin UI** to fetch images from S3 via pre-signed URLs and display OCR data
+17. **Test complete workflow** over HTTPS with filled DOH HTS Form 2021 samples
+18. **Deploy to staging** and conduct field testing with LoveYourself Inc. forms
 
 ## Success Criteria
 
-- ✅ Camera capture works on HTTPS with mobile and desktop
-- ✅ Images are encrypted before submission
-- ✅ OCR processes automatically after submission (non-blocking)
-- ✅ Admin can view decrypted images and extracted OCR data
-- ✅ DOH HTS Form 2021 template recognized and processed correctly
-- ✅ Essential fields extracted accurately (test result, name, dates, PhilHealth number)
-- ✅ Testing facility verified (LoveYourself Inc. Bagan!)
-- ✅ Mismatch warnings appear when user input ≠ OCR result
-- ✅ Confidence scores displayed for each field
-- ✅ OCR completes within 30 seconds
-- ✅ System handles OCR failures gracefully with retry logic
-- ✅ Cost per submission stays under $0.20
-- ✅ Extraction accuracy >90% for handwritten/printed forms
-- ✅ Template metadata stored for future reference and template expansion
+- ✅ **OCR-First Workflow**: OCR processes raw images BEFORE encryption for better UX
+- ✅ **Immediate Feedback**: User sees OCR results within 10-15 seconds after capture
+- ✅ **User Review**: Modal displays extracted fields for confirmation before submission
+- ✅ **S3 Storage**: Encrypted images stored in S3 with SSE-S3 after OCR confirmation
+- ✅ **Database Optimization**: MySQL stores S3 URLs + pre-extracted OCR data (not base64 blobs)
+- ✅ **Cost Reduction**: S3 storage 4.3x cheaper than MySQL ($0.023/GB vs $0.10/GB)
+- ✅ **Camera Capture**: Works on HTTPS with mobile and desktop
+- ✅ **Client Encryption**: Images encrypted AFTER user confirms OCR results
+- ✅ **S3 Upload**: Parallel upload of encrypted front/back images with unique keys
+- ✅ **No Background Jobs**: No Bull/Redis needed (OCR completes before submission)
+- ✅ **Textract Integration**: DOH HTS Form 2021 template recognized and processed
+- ✅ **Field Extraction**: Test result, full name, dates, PhilHealth number extracted accurately (>90%)
+- ✅ **Facility Verification**: Testing facility identified (LoveYourself Inc. Bagani)
+- ✅ **Mismatch Detection**: Real-time warnings when user input ≠ OCR result
+- ✅ **Confidence Scores**: Displayed in review modal for transparency
+- ✅ **Admin UI**: Images fetched from S3 via pre-signed URLs, pre-extracted data displayed immediately
+- ✅ **Performance**: OCR completes within 15 seconds, submission within 3 seconds
+- ✅ **Error Handling**: Graceful OCR failures with "Re-capture" option
+- ✅ **Cost Target**: Total cost per submission ~$0.13 ($0.046 S3 + $0.13 OCR, no Redis/Bull)
+- ✅ **Security**: Encryption maintained (client AES-GCM + S3 SSE-S3), OCR on raw images before encryption
+- ✅ **Data Quality**: User validates OCR accuracy before submitting
+- ✅ **Scalability**: S3 supports unlimited storage growth
+- ✅ **Template Metadata**: Stored for future template expansion

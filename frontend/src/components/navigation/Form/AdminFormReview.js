@@ -83,34 +83,84 @@ export default function AdminFormReview() {
       return decryptedImages[submission.form_id];
     }
 
-    // If no encryption key, return original images (backwards compatibility)
-    if (!submission.encryption_key) {
-      return {
-        frontImage: submission.front_image_url,
-        backImage: submission.back_image_url
-      };
-    }
-
     try {
-      // Decrypt the images
-      const decrypted = await decryptFormImages(
-        submission.front_image_url,
-        submission.front_image_iv,
-        submission.back_image_url,
-        submission.back_image_iv,
-        submission.encryption_key
-      );
+      // Check if using S3 storage (OCR-first workflow)
+      if (submission.front_image_s3_key && submission.back_image_s3_key) {
+        // Fetch pre-signed URLs from backend for S3 images
+        const auth = getAuth();
+        const user = auth.currentUser;
+        if (!user) throw new Error("User not authenticated");
 
-      // Cache the decrypted images
-      setDecryptedImages(prev => ({
-        ...prev,
-        [submission.form_id]: decrypted
-      }));
+        const idToken = await user.getIdToken();
+        
+        // Fetch images from S3 and decrypt client-side
+        const [frontResponse, backResponse] = await Promise.all([
+          fetch(`${API_BASE}/hts-forms/${submission.form_id}/image/front`, {
+            headers: { Authorization: `Bearer ${idToken}` }
+          }),
+          fetch(`${API_BASE}/hts-forms/${submission.form_id}/image/back`, {
+            headers: { Authorization: `Bearer ${idToken}` }
+          })
+        ]);
 
-      return decrypted;
+        if (!frontResponse.ok || !backResponse.ok) {
+          throw new Error("Failed to fetch images from S3");
+        }
+
+        const frontData = await frontResponse.json();
+        const backData = await backResponse.json();
+
+        // Decrypt the encrypted images downloaded from S3
+        const decrypted = await decryptFormImages(
+          frontData.encryptedImage,
+          submission.front_image_iv,
+          backData.encryptedImage,
+          submission.back_image_iv,
+          submission.encryption_key
+        );
+
+        // Cache the decrypted images
+        setDecryptedImages(prev => ({
+          ...prev,
+          [submission.form_id]: decrypted
+        }));
+
+        return decrypted;
+      }
+
+      // Legacy: base64 storage (old workflow)
+      if (submission.front_image_url && submission.back_image_url) {
+        if (!submission.encryption_key) {
+          // Backwards compatibility: unencrypted images
+          return {
+            frontImage: submission.front_image_url,
+            backImage: submission.back_image_url
+          };
+        }
+
+        // Decrypt base64 images
+        const decrypted = await decryptFormImages(
+          submission.front_image_url,
+          submission.front_image_iv,
+          submission.back_image_url,
+          submission.back_image_iv,
+          submission.encryption_key
+        );
+
+        // Cache the decrypted images
+        setDecryptedImages(prev => ({
+          ...prev,
+          [submission.form_id]: decrypted
+        }));
+
+        return decrypted;
+      }
+
+      throw new Error("No images found for this submission");
+
     } catch (error) {
-      console.error("Error decrypting images:", error);
-      alert("Failed to decrypt images. The data may be corrupted.");
+      console.error("Error loading/decrypting images:", error);
+      alert(`Failed to load images: ${error.message}`);
       return null;
     }
   };
