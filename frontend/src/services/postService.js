@@ -249,3 +249,15 @@ export async function uploadAttachment(file) {
   const data = await response.json();
   return data.data;
 }
+
+// Export as a service object for convenience
+export const postService = {
+  getPosts,
+  getPost,
+  createPost,
+  updatePost,
+  deletePost,
+  publishPost,
+  archivePost,
+  uploadAttachment,
+};
