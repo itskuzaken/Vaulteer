@@ -88,47 +88,29 @@ export default function HTSFormManagement() {
         streamRef.current = stream;
         setIsVideoReady(false);
         
-        // Try to play immediately (important for mobile)
-        const attemptPlay = () => {
-          video.play()
-            .then(() => {
-              console.log("✅ Video playing successfully");
-              setIsVideoReady(true);
-              if (metadataTimeoutRef.current) {
-                clearTimeout(metadataTimeoutRef.current);
-                metadataTimeoutRef.current = null;
-              }
-            })
-            .catch(err => {
-              console.warn("Video play attempt failed, will retry on metadata:", err);
-            });
-        };
+        console.log("📹 Stream assigned to video element");
         
-        // Set up metadata loaded handler
-        video.onloadedmetadata = () => {
-          console.log(`📹 Video metadata loaded: ${video.videoWidth}x${video.videoHeight}`);
-          attemptPlay();
-        };
-        
-        // Also try to play immediately (sometimes metadata is already there)
-        attemptPlay();
-        
-        // Fallback: Check video readiness every 500ms
+        // Wait for video to be ready with polling (more reliable than events on mobile)
         let checkCount = 0;
         const checkInterval = setInterval(() => {
           checkCount++;
-          if (video.videoWidth > 0 && video.videoHeight > 0) {
-            console.log(`✅ Video dimensions ready: ${video.videoWidth}x${video.videoHeight}`);
+          console.log(`[Check ${checkCount}] Video dimensions: ${video.videoWidth}x${video.videoHeight}, readyState: ${video.readyState}`);
+          
+          // Check if video has valid dimensions and is ready
+          if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) {
+            console.log(`✅ Video ready: ${video.videoWidth}x${video.videoHeight}`);
             setIsVideoReady(true);
             clearInterval(checkInterval);
-            if (metadataTimeoutRef.current) {
-              clearTimeout(metadataTimeoutRef.current);
-              metadataTimeoutRef.current = null;
+            
+            // Ensure video is playing
+            if (video.paused) {
+              video.play().catch(err => console.warn("Play error:", err));
             }
-          } else if (checkCount >= 20) { // Stop after 10 seconds
-            console.error("⏱️ Video dimensions still 0 after 10 seconds");
+          } else if (checkCount >= 30) { // 15 seconds timeout
+            console.error("⏱️ Video initialization timeout");
+            console.error(`Final state: width=${video.videoWidth}, height=${video.videoHeight}, readyState=${video.readyState}`);
             clearInterval(checkInterval);
-            alert("Camera is taking too long to initialize. Please try again.");
+            alert("Camera failed to initialize. Please try again or use a different browser.");
             stopCamera();
           }
         }, 500);
