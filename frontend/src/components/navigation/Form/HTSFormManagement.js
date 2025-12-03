@@ -261,35 +261,6 @@ export default function HTSFormManagement() {
     };
   }, [autoCapture, isVideoReady, isCameraOpen, triggerAutoCaptureCountdown]);
 
-  const triggerAutoCaptureCountdown = useCallback(() => {
-    // Prevent multiple countdowns
-    if (autoCaptureCountdownRef.current || formDetection.countdown) {
-      return;
-    }
-
-    let countdown = 3;
-    setFormDetection(prev => ({ ...prev, countdown }));
-
-    const countdownInterval = setInterval(() => {
-      countdown--;
-      
-      if (countdown === 0) {
-        clearInterval(countdownInterval);
-        autoCaptureCountdownRef.current = null;
-        
-        // Trigger capture
-        console.log('📸 Auto-capturing image...');
-        captureImage();
-        
-        setFormDetection(prev => ({ ...prev, countdown: null }));
-      } else {
-        setFormDetection(prev => ({ ...prev, countdown }));
-      }
-    }, 1000);
-
-    autoCaptureCountdownRef.current = countdownInterval;
-  }, [formDetection.countdown, captureImage]);
-
   const startCamera = async (side) => {
     // Check if image already exists for this side
     const existingImage = side === "front" ? frontImage : backImage;
@@ -586,6 +557,35 @@ export default function HTSFormManagement() {
       );
     }
   }, [stopCamera, showAlert, getErrorMessage]);
+
+  const triggerAutoCaptureCountdown = useCallback(() => {
+    // Prevent multiple countdowns
+    if (autoCaptureCountdownRef.current || formDetection.countdown) {
+      return;
+    }
+
+    let countdown = 3;
+    setFormDetection(prev => ({ ...prev, countdown }));
+
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      
+      if (countdown === 0) {
+        clearInterval(countdownInterval);
+        autoCaptureCountdownRef.current = null;
+        
+        // Trigger capture
+        console.log('📸 Auto-capturing image...');
+        captureImage();
+        
+        setFormDetection(prev => ({ ...prev, countdown: null }));
+      } else {
+        setFormDetection(prev => ({ ...prev, countdown }));
+      }
+    }, 1000);
+
+    autoCaptureCountdownRef.current = countdownInterval;
+  }, [formDetection.countdown, captureImage]);
 
   const retakeImage = async (side) => {
     try {
