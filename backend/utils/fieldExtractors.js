@@ -48,22 +48,49 @@ function extractPhilHealthNumber(text) {
 
 /**
  * Extract and validate PhilSys number
- * Format: 16 digits
+ * Format: 16 digits (exactly, no more, no less)
  * @param {string} text - Raw text
  * @returns {Object} { value, confidence, valid }
  */
 function extractPhilSysNumber(text) {
   if (!text) return { value: null, confidence: 0, valid: false };
 
-  const cleaned = text.replace(/\s+/g, '').replace(/[-–—]/g, '');
-  const match = cleaned.match(/(\d{16})/);
-
-  if (match) {
+  // Remove common OCR artifacts and separators
+  const cleaned = text.replace(/\s+/g, '')
+                      .replace(/[-–—]/g, '')
+                      .replace(/[O]/g, '0')  // Common OCR mistake: O -> 0
+                      .replace(/[I|l]/g, '1') // Common OCR mistakes: I/l -> 1
+                      .replace(/[^\d]/g, '');  // Keep only digits
+  
+  // Must be exactly 16 digits (PhilHealth is 12, so this helps differentiate)
+  if (cleaned.length === 16 && /^\d{16}$/.test(cleaned)) {
     return {
-      value: match[1],
+      value: cleaned,
       confidence: 0.95,
       valid: true,
       raw: text
+    };
+  }
+  
+  // Partial match with lower confidence
+  const partialMatch = cleaned.match(/(\d{16})/);
+  if (partialMatch) {
+    return {
+      value: partialMatch[1],
+      confidence: 0.85,
+      valid: true,
+      raw: text
+    };
+  }
+
+  // If it's close to 16 digits, return with low confidence
+  if (cleaned.length >= 14 && cleaned.length <= 18 && /^\d+$/.test(cleaned)) {
+    return {
+      value: cleaned,
+      confidence: 0.4,
+      valid: false,
+      raw: text,
+      reason: `Expected 16 digits, got ${cleaned.length}`
     };
   }
 

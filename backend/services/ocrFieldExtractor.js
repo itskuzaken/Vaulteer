@@ -194,47 +194,48 @@ class OCRFieldExtractor {
    * @returns {Promise<Object>} Extracted field data
    */
   async extractField(imageBuffer, textractResult, fieldName, fieldConfig, imageDimensions, queryResults = null, extractionMode = 'hybrid') {
-    // Multi-strategy extraction with priority: Queries → Coordinate → FORMS
-    const strategies = [];
+    // Multi-strategy extraction: Try all strategies and pick the best result
+    const results = [];
 
-    // Build strategy list based on extraction mode
-    if (extractionMode === 'queries' || extractionMode === 'hybrid') {
-      strategies.push({ type: 'query', priority: 1, minConfidence: 0.75 });
-    }
-
-    if (extractionMode === 'coordinate' || extractionMode === 'hybrid') {
-      strategies.push({ type: 'coordinate', priority: 2, minConfidence: 0.70 });
-    }
-
-    // Try each strategy in priority order
-    for (const strategy of strategies) {
-      let result = null;
-
+    // Strategy 1: Query-based extraction (if available)
+    if ((extractionMode === 'queries' || extractionMode === 'hybrid') && queryResults && fieldConfig.query) {
       try {
-        if (strategy.type === 'query' && queryResults && fieldConfig.query) {
-          // Try query-based extraction first
-          result = this.extractFromQuery(queryResults, fieldName, fieldConfig);
-          
-          if (result && result.confidence >= strategy.minConfidence) {
-            result.extractionMethod = 'query';
-            result.extractionPriority = strategy.priority;
-            return result;
-          }
-        }
-
-        if (strategy.type === 'coordinate') {
-          // Fallback to coordinate-based extraction
-          result = await this.extractByCoordinate(imageBuffer, textractResult, fieldName, fieldConfig, imageDimensions);
-          
-          if (result && result.confidence >= strategy.minConfidence) {
-            result.extractionMethod = result.extractionMethod || 'coordinate';
-            result.extractionPriority = strategy.priority;
-            return result;
-          }
+        const queryResult = this.extractFromQuery(queryResults, fieldName, fieldConfig);
+        if (queryResult && queryResult.confidence >= 0.70) {
+          queryResult.extractionMethod = 'query';
+          queryResult.priority = 1;
+          results.push(queryResult);
         }
       } catch (error) {
-        console.warn(`[OCRFieldExtractor] ${strategy.type} extraction failed for ${fieldName}:`, error.message);
+        console.warn(`[OCRFieldExtractor] Query extraction failed for ${fieldName}:`, error.message);
       }
+    }
+
+    // Strategy 2: Coordinate-based extraction (if available)
+    if ((extractionMode === 'coordinate' || extractionMode === 'hybrid') && fieldConfig.region) {
+      try {
+        const coordResult = await this.extractByCoordinate(imageBuffer, textractResult, fieldName, fieldConfig, imageDimensions);
+        if (coordResult && coordResult.confidence >= 0.50) {
+          coordResult.extractionMethod = coordResult.extractionMethod || 'coordinate';
+          coordResult.priority = 2;
+          results.push(coordResult);
+        }
+      } catch (error) {
+        console.warn(`[OCRFieldExtractor] Coordinate extraction failed for ${fieldName}:`, error.message);
+      }
+    }
+
+    // Pick the best result (highest confidence)
+    if (results.length > 0) {
+      results.sort((a, b) => b.confidence - a.confidence);
+      const bestResult = results[0];
+      
+      // Log which method won
+      if (results.length > 1) {
+        console.log(`[Strategy] ${fieldName}: ${bestResult.extractionMethod} (${(bestResult.confidence * 100).toFixed(1)}%) beat ${results[1].extractionMethod} (${(results[1].confidence * 100).toFixed(1)}%)`);
+      }
+      
+      return bestResult;
     }
 
     // If all strategies fail, return low-confidence result requiring review
@@ -349,14 +350,15 @@ class OCRFieldExtractor {
     const region = fieldConfig.region;
     
     // Validate region exists
-    if (!region || !region.x || !region.y || !region.width || !region.height) {
-      console.warn(`[TextField] Field ${fieldConfig.label} missing region coordinates`);
+    if (!region || region.x === undefined || region.y === undefined || !region.width || !region.height) {
+      console.warn(`[TextField] Field ${fieldConfig.label} missing valid region coordinates:`, JSON.stringify(region));
       return {
         value: null,
         confidence: 0,
         requiresReview: true,
-        extractionMethod: 'failed',
-        error: 'Missing region coordinates'
+        extractionMethod: 'coordinate-no-region',
+        error: 'Missing or invalid region coordinates',
+        label: fieldConfig.label
       };
     }
     
@@ -396,13 +398,18 @@ class OCRFieldExtractor {
     });
 
     if (blocksInRegion.length === 0) {
-      console.log(`[TextField] No blocks found for ${fieldConfig.label}`);
+      console.log(`[TextField] No blocks found for ${fieldConfig.label} in region (${region.x.toFixed(3)}, ${region.y.toFixed(3)})`);
       return {
         value: null,
-        confidence: 0,
+        confidence: 0.20,
         requiresReview: true,
-        extractionMethod: 'form-field',
-        label: fieldConfig.label
+        extractionMethod: 'coordinate-no-blocks',
+        label: fieldConfig.label,
+        debugInfo: {
+          region: region,
+          totalLineBlocks: lineBlocks.length,
+          tolerance: tolerance
+        }
       };
     }
 

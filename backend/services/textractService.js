@@ -323,7 +323,7 @@ function generateHTSFormQueries(page = 'front') {
       // Critical identification fields (highest priority)
       { text: 'What is the HIV test date at the top of the form?', alias: 'test_date' },
       { text: 'What is the 12-digit PhilHealth Number in format XX-XXXXXXXXX-X?', alias: 'phil_health_number' },
-      { text: 'What is the 16-digit PhilSys Number?', alias: 'phil_sys_number' },
+      { text: 'What is the 16-digit PhilSys Number in the ID section, written as exactly 16 consecutive digits without dashes or spaces?', alias: 'phil_sys_number' },
       { text: "What is the patient's first name only, without the label?", alias: 'first_name' },
       { text: "What is the patient's middle name only, not including the words 'Middle Name'?", alias: 'middle_name' },
       { text: "What is the patient's last name only, without any suffix?", alias: 'last_name' },

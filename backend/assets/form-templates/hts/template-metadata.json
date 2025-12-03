@@ -123,7 +123,7 @@
             "y": 0.195,
             "text": "PhilSys Number:"
           },
-          "query": "What is the 16-digit PhilSys Number?",
+          "query": "What is the 16-digit PhilSys Number in the ID section, written as exactly 16 consecutive digits without dashes or spaces?",
           "relatedCheckbox": {
             "label": "No PhilSys Number",
             "x": 0.52,
