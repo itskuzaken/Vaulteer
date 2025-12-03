@@ -60,8 +60,8 @@ const ocrConfig = {
 
   // AWS Textract configuration
   textract: {
-    // Maximum queries per document (AWS limit: 100)
-    maxQueriesPerPage: parseInt(process.env.TEXTRACT_MAX_QUERIES || '50', 10),
+    // Maximum queries per document (AWS limit: 15 for most accounts, 30 for some)
+    maxQueriesPerPage: parseInt(process.env.TEXTRACT_MAX_QUERIES || '15', 10),
     
     // Feature types for standard extraction
     featureTypes: (process.env.TEXTRACT_FEATURE_TYPES || 'FORMS,TABLES').split(','),
