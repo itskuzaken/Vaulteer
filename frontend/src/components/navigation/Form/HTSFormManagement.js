@@ -122,6 +122,20 @@ export default function HTSFormManagement() {
     });
   };
 
+  // Helper function to extract meaningful error messages
+  const getErrorMessage = (error) => {
+    if (error instanceof Error) {
+      return error.message;
+    } else if (error instanceof Event) {
+      return 'An unexpected error occurred. Please try again.';
+    } else if (typeof error === 'string') {
+      return error;
+    } else if (error?.message) {
+      return error.message;
+    }
+    return 'Unknown error occurred';
+  };
+
   // Check camera permission on mount
   useEffect(() => {
     const checkPermission = async () => {
@@ -405,7 +419,19 @@ export default function HTSFormManagement() {
       
     } catch (error) {
       console.error('❌ Capture error:', error);
-      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      
+      // Extract meaningful error message from different error types
+      let errorMessage = 'Unknown error occurred';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (error instanceof Event) {
+        errorMessage = 'Image processing failed. Please ensure good lighting and try again.';
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
       showAlert(
         "Capture Failed",
         `Failed to capture image: ${errorMessage}\n\nPlease try again.`,
@@ -427,7 +453,7 @@ export default function HTSFormManagement() {
       }
     } catch (error) {
       console.error('❌ Finalize capture error:', error);
-      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      const errorMessage = getErrorMessage(error);
       showAlert(
         "Save Failed",
         `Failed to save image: ${errorMessage}\n\nPlease try again.`,
@@ -458,7 +484,7 @@ export default function HTSFormManagement() {
       
     } catch (error) {
       console.error('❌ Retake error:', error);
-      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      const errorMessage = getErrorMessage(error);
       showAlert(
         "Retake Failed",
         `Failed to retake image: ${errorMessage}\n\nPlease try again.`,
@@ -586,7 +612,7 @@ export default function HTSFormManagement() {
     } catch (error) {
       console.error("[Submit] Error submitting form:", error);
       console.error("[Submit] Error stack:", error.stack);
-      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      const errorMessage = getErrorMessage(error);
       showAlert(
         "Submission Error",
         `An error occurred: ${errorMessage}\n\nPlease check the console for details and try again.`,
@@ -865,7 +891,7 @@ export default function HTSFormManagement() {
       }
     } catch (error) {
       console.error("Error analyzing images:", error);
-      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      const errorMessage = getErrorMessage(error);
       showAlert(
         "Analysis Error",
         `Failed to analyze images: ${errorMessage}\n\nPlease ensure images are clear and try again.`,
