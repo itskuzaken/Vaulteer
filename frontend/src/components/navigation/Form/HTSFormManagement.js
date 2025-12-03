@@ -19,7 +19,6 @@ import {
   isCameraPermissionDenied,
 } from "../../../services/cameraPermissionService";
 import { validateImageQuality, validateQuality, captureMultipleFrames } from "../../../utils/imageQualityValidator";
-import { preprocessImage, dataURLtoBlob as preprocessDataURLtoBlob } from "../../../utils/imagePreprocessor";
 
 export default function HTSFormManagement() {
   const [activeTab, setActiveTab] = useState("submit"); // 'submit' or 'history'
@@ -405,12 +404,8 @@ export default function HTSFormManagement() {
       
       console.log(`[Multi-Frame] Best frame selected with score: ${bestFrame.score.toFixed(2)}`);
       
-      // Preprocess image for better OCR
-      console.log('[Preprocessing] Enhancing image...');
-      // Convert canvas to data URL before preprocessing
-      const frameDataURL = bestFrame.canvas.toDataURL("image/jpeg", 0.95);
-      const processedResult = await preprocessImage(frameDataURL);
-      const imageData = processedResult.processedImage;
+      // Convert canvas to data URL
+      const imageData = bestFrame.canvas.toDataURL("image/jpeg", 0.95);
       
       // Final quality check with feedback
       const finalQuality = await validateImageQuality(imageData);
@@ -830,37 +825,10 @@ export default function HTSFormManagement() {
         return;
       }
 
-      // Preprocess images before sending to OCR
-      console.log('[OCR] Preprocessing images for optimal OCR accuracy...');
-      
-      const [processedFront, processedBack] = await Promise.all([
-        preprocessImage(frontImage, {
-          targetResolution: { width: 1600, height: 2133 },
-          enableDeskew: true,
-          enableDenoising: true,
-          enableContrast: true,
-          enableBinarization: false,
-          quality: 0.95
-        }),
-        preprocessImage(backImage, {
-          targetResolution: { width: 1600, height: 2133 },
-          enableDeskew: true,
-          enableDenoising: true,
-          enableContrast: true,
-          enableBinarization: false,
-          quality: 0.95
-        })
-      ]);
-      
-      console.log('[OCR] Preprocessing complete:', {
-        front: processedFront.metadata,
-        back: processedBack.metadata
-      });
-
-      // Convert preprocessed images to blob
-      console.log("[OCR] Converting preprocessed images to blobs");
-      const frontBlob = preprocessDataURLtoBlob(processedFront.processedImage);
-      const backBlob = preprocessDataURLtoBlob(processedBack.processedImage);
+      // Convert images to blob
+      console.log("[OCR] Converting images to blobs");
+      const frontBlob = dataURLtoBlob(frontImage);
+      const backBlob = dataURLtoBlob(backImage);
 
       console.log(`[OCR] Front blob: ${frontBlob.size} bytes, type: ${frontBlob.type}`);
       console.log(`[OCR] Back blob: ${backBlob.size} bytes, type: ${backBlob.type}`);
