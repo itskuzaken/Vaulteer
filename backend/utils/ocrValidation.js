@@ -96,7 +96,7 @@ function levenshteinDistance(str1, str2) {
  * Find closest match from a list using fuzzy matching
  */
 function findClosestMatch(value, validOptions, threshold = 0.3) {
-  if (!value || !validOptions.length) return null;
+  if (!value || typeof value !== 'string' || !validOptions.length) return null;
   
   let bestMatch = null;
   let bestScore = Infinity;
