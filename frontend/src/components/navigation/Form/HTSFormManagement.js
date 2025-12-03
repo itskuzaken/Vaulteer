@@ -941,16 +941,45 @@ export default function HTSFormManagement() {
       overseasLocation: getFieldValue('overseasLocation'),
       overseasCountry: getFieldValue('overseasCountry'),
       
-      // Risk Assessment (Q17-18)
-      riskAssessment: getFieldValue('riskAssessment'),
-      riskAssessmentSexMale: getFieldValue('riskAssessmentSexMale'),
-      riskAssessmentSexFemale: getFieldValue('riskAssessmentSexFemale'),
-      riskAssessmentPaidForSex: getFieldValue('riskAssessmentPaidForSex'),
-      riskAssessmentReceivedPayment: getFieldValue('riskAssessmentReceivedPayment'),
-      riskAssessmentSexUnderInfluence: getFieldValue('riskAssessmentSexUnderInfluence'),
-      riskAssessmentSharedNeedles: getFieldValue('riskAssessmentSharedNeedles'),
-      riskAssessmentBloodTransfusion: getFieldValue('riskAssessmentBloodTransfusion'),
-      riskAssessmentOccupationalExposure: getFieldValue('riskAssessmentOccupationalExposure'),
+      // Mother HIV & Risk Assessment (Q17-18)
+      motherHIV: getFieldValue('motherHIV'),
+      
+      // Risk Assessment - Sex with Male (Yes/No + Total + 2 dates)
+      riskSexMaleStatus: getFieldValue('riskSexMaleStatus'),
+      riskSexMaleTotal: getFieldValue('riskSexMaleTotal'),
+      riskSexMaleDate1: getFieldValue('riskSexMaleDate1'),
+      riskSexMaleDate2: getFieldValue('riskSexMaleDate2'),
+      
+      // Risk Assessment - Sex with Female (Yes/No + Total + 2 dates)
+      riskSexFemaleStatus: getFieldValue('riskSexFemaleStatus'),
+      riskSexFemaleTotal: getFieldValue('riskSexFemaleTotal'),
+      riskSexFemaleDate1: getFieldValue('riskSexFemaleDate1'),
+      riskSexFemaleDate2: getFieldValue('riskSexFemaleDate2'),
+      
+      // Risk Assessment - Paid for Sex (Yes/No + date)
+      riskPaidForSexStatus: getFieldValue('riskPaidForSexStatus'),
+      riskPaidForSexDate: getFieldValue('riskPaidForSexDate'),
+      
+      // Risk Assessment - Received Payment (Yes/No + date)
+      riskReceivedPaymentStatus: getFieldValue('riskReceivedPaymentStatus'),
+      riskReceivedPaymentDate: getFieldValue('riskReceivedPaymentDate'),
+      
+      // Risk Assessment - Sex Under Drugs (Yes/No + date)
+      riskSexUnderDrugsStatus: getFieldValue('riskSexUnderDrugsStatus'),
+      riskSexUnderDrugsDate: getFieldValue('riskSexUnderDrugsDate'),
+      
+      // Risk Assessment - Shared Needles (Yes/No + date)
+      riskSharedNeedlesStatus: getFieldValue('riskSharedNeedlesStatus'),
+      riskSharedNeedlesDate: getFieldValue('riskSharedNeedlesDate'),
+      
+      // Risk Assessment - Blood Transfusion (Yes/No + date)
+      riskBloodTransfusionStatus: getFieldValue('riskBloodTransfusionStatus'),
+      riskBloodTransfusionDate: getFieldValue('riskBloodTransfusionDate'),
+      
+      // Risk Assessment - Occupational Exposure (Yes/No + date)
+      riskOccupationalExposureStatus: getFieldValue('riskOccupationalExposureStatus'),
+      riskOccupationalExposureDate: getFieldValue('riskOccupationalExposureDate'),
+      
       reasonsForTesting: getFieldValue('reasonsForTesting'),
       
       // Previous HIV Test (Q19)
@@ -2284,56 +2313,146 @@ export default function HTSFormManagement() {
                   <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
                     <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Risk Assessment & Testing History</h3>
                     
-                    {/* Overall Risk Assessment */}
-                    <div>
-                      <label className="block text-sm font-medium mb-2">Risk Assessment (Q17) - Complete</label>
-                      <textarea value={editableData.riskAssessment} onChange={(e) => handleFieldChange('riskAssessment', e.target.value)}
-                        rows="2" placeholder="Overall risk factors" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                    {/* Mother with HIV */}
+                    <div className="mb-4">
+                      <label className="block text-sm font-medium mb-2">Mother with HIV</label>
+                      <select value={editableData.motherHIV} onChange={(e) => handleFieldChange('motherHIV', e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                        <option value="">Select</option>
+                        <option value="No">No</option>
+                        <option value="Yes">Yes</option>
+                      </select>
                     </div>
 
-                    {/* Individual Risk Categories */}
-                    <div className="mt-4 space-y-2">
-                      <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Individual Risk Categories:</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Sex with a MALE</label>
-                          <input type="text" value={editableData.riskAssessmentSexMale} onChange={(e) => handleFieldChange('riskAssessmentSexMale', e.target.value)}
-                            placeholder="Yes/No + details" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                    {/* Individual Risk Categories with Date Fields */}
+                    <div className="mt-4 space-y-4">
+                      <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">History of Exposure / Risk Assessment:</label>
+                      
+                      {/* Sex with a MALE - Yes/No + Total + 2 dates */}
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-900">
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Sex with a MALE</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                          <select value={editableData.riskSexMaleStatus} onChange={(e) => handleFieldChange('riskSexMaleStatus', e.target.value)}
+                            className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white">
+                            <option value="">Select</option>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                          <input type="number" value={editableData.riskSexMaleTotal} onChange={(e) => handleFieldChange('riskSexMaleTotal', e.target.value)}
+                            placeholder="Total No." min="0" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                          <input type="text" value={editableData.riskSexMaleDate1} onChange={(e) => handleFieldChange('riskSexMaleDate1', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                          <input type="text" value={editableData.riskSexMaleDate2} onChange={(e) => handleFieldChange('riskSexMaleDate2', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Sex with a FEMALE</label>
-                          <input type="text" value={editableData.riskAssessmentSexFemale} onChange={(e) => handleFieldChange('riskAssessmentSexFemale', e.target.value)}
-                            placeholder="Yes/No + details" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+
+                      {/* Sex with a FEMALE - Yes/No + Total + 2 dates */}
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-900">
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Sex with a FEMALE</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                          <select value={editableData.riskSexFemaleStatus} onChange={(e) => handleFieldChange('riskSexFemaleStatus', e.target.value)}
+                            className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white">
+                            <option value="">Select</option>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                          <input type="number" value={editableData.riskSexFemaleTotal} onChange={(e) => handleFieldChange('riskSexFemaleTotal', e.target.value)}
+                            placeholder="Total No." min="0" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                          <input type="text" value={editableData.riskSexFemaleDate1} onChange={(e) => handleFieldChange('riskSexFemaleDate1', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                          <input type="text" value={editableData.riskSexFemaleDate2} onChange={(e) => handleFieldChange('riskSexFemaleDate2', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Paid for sex (cash or kind)</label>
-                          <input type="text" value={editableData.riskAssessmentPaidForSex} onChange={(e) => handleFieldChange('riskAssessmentPaidForSex', e.target.value)}
-                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+
+                      {/* Paid for sex - Yes/No + 1 date */}
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-900">
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Paid for sex (cash or kind)</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <select value={editableData.riskPaidForSexStatus} onChange={(e) => handleFieldChange('riskPaidForSexStatus', e.target.value)}
+                            className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white">
+                            <option value="">Select</option>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                          <input type="text" value={editableData.riskPaidForSexDate} onChange={(e) => handleFieldChange('riskPaidForSexDate', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Received payment for sex</label>
-                          <input type="text" value={editableData.riskAssessmentReceivedPayment} onChange={(e) => handleFieldChange('riskAssessmentReceivedPayment', e.target.value)}
-                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+
+                      {/* Received payment for sex - Yes/No + 1 date */}
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-900">
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Received payment for sex</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <select value={editableData.riskReceivedPaymentStatus} onChange={(e) => handleFieldChange('riskReceivedPaymentStatus', e.target.value)}
+                            className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white">
+                            <option value="">Select</option>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                          <input type="text" value={editableData.riskReceivedPaymentDate} onChange={(e) => handleFieldChange('riskReceivedPaymentDate', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Sex under influence of drugs</label>
-                          <input type="text" value={editableData.riskAssessmentSexUnderInfluence} onChange={(e) => handleFieldChange('riskAssessmentSexUnderInfluence', e.target.value)}
-                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+
+                      {/* Sex under influence of drugs - Yes/No + 1 date */}
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-900">
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Sex under influence of drugs</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <select value={editableData.riskSexUnderDrugsStatus} onChange={(e) => handleFieldChange('riskSexUnderDrugsStatus', e.target.value)}
+                            className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white">
+                            <option value="">Select</option>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                          <input type="text" value={editableData.riskSexUnderDrugsDate} onChange={(e) => handleFieldChange('riskSexUnderDrugsDate', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Shared needles (drug injection)</label>
-                          <input type="text" value={editableData.riskAssessmentSharedNeedles} onChange={(e) => handleFieldChange('riskAssessmentSharedNeedles', e.target.value)}
-                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+
+                      {/* Shared needles - Yes/No + 1 date */}
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-900">
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Shared needles (drug injection)</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <select value={editableData.riskSharedNeedlesStatus} onChange={(e) => handleFieldChange('riskSharedNeedlesStatus', e.target.value)}
+                            className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white">
+                            <option value="">Select</option>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                          <input type="text" value={editableData.riskSharedNeedlesDate} onChange={(e) => handleFieldChange('riskSharedNeedlesDate', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Received blood transfusion</label>
-                          <input type="text" value={editableData.riskAssessmentBloodTransfusion} onChange={(e) => handleFieldChange('riskAssessmentBloodTransfusion', e.target.value)}
-                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+
+                      {/* Blood transfusion - Yes/No + 1 date */}
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-900">
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Received blood transfusion</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <select value={editableData.riskBloodTransfusionStatus} onChange={(e) => handleFieldChange('riskBloodTransfusionStatus', e.target.value)}
+                            className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white">
+                            <option value="">Select</option>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                          <input type="text" value={editableData.riskBloodTransfusionDate} onChange={(e) => handleFieldChange('riskBloodTransfusionDate', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
                         </div>
-                        <div>
-                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Occupational exposure (needlestick)</label>
-                          <input type="text" value={editableData.riskAssessmentOccupationalExposure} onChange={(e) => handleFieldChange('riskAssessmentOccupationalExposure', e.target.value)}
-                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+
+                      {/* Occupational exposure - Yes/No + 1 date */}
+                      <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-3 bg-white dark:bg-gray-900">
+                        <label className="block text-sm font-medium mb-2 text-gray-700 dark:text-gray-300">Occupational exposure (needlestick/sharps)</label>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <select value={editableData.riskOccupationalExposureStatus} onChange={(e) => handleFieldChange('riskOccupationalExposureStatus', e.target.value)}
+                            className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white">
+                            <option value="">Select</option>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                          <input type="text" value={editableData.riskOccupationalExposureDate} onChange={(e) => handleFieldChange('riskOccupationalExposureDate', e.target.value)}
+                            placeholder="MM/YYYY" className="px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
                         </div>
                       </div>
                     </div>

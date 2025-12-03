@@ -365,23 +365,34 @@ function generateHTSFormQueries(page = 'front') {
     ],
     back: [
       // BATCH 1 - Medical history and risk assessment (15 queries)
-      { text: 'Has the patient had unprotected sex in the past 12 months?', alias: 'risk_unprotected_sex' },
-      { text: 'When was the last time the patient had unprotected sex?', alias: 'risk_unprotected_sex_date' },
-      { text: 'Has the patient had multiple sexual partners in the past 12 months?', alias: 'risk_multiple_partners' },
-      { text: 'When did the patient last have multiple sexual partners?', alias: 'risk_multiple_partners_date' },
-      { text: 'Has the patient had sex with someone who injects drugs?', alias: 'risk_sex_with_pwid' },
-      { text: 'Has the patient received payment for sex?', alias: 'risk_payment_for_sex' },
-      { text: 'Has the patient had sex under the influence of drugs?', alias: 'risk_sex_under_drugs' },
-      { text: 'Has the patient shared needles for drug injection?', alias: 'risk_shared_needles' },
-      { text: 'Has the patient received a blood transfusion?', alias: 'risk_blood_transfusion' },
-      { text: 'Has the patient had occupational exposure to needlestick or sharps?', alias: 'risk_occupational_exposure' },
+      { text: 'Is the mother of the patient known to have HIV?', alias: 'mother_hiv' },
+      { text: 'Has the patient had sex with a male partner? Answer Yes or No', alias: 'risk_sex_male_status' },
+      { text: 'If yes to sex with male, what is the total number?', alias: 'risk_sex_male_total' },
+      { text: 'If yes to sex with male, what is the first date in MM/YYYY format?', alias: 'risk_sex_male_date1' },
+      { text: 'If yes to sex with male, what is the second date in MM/YYYY format?', alias: 'risk_sex_male_date2' },
+      { text: 'Has the patient had sex with a female partner? Answer Yes or No', alias: 'risk_sex_female_status' },
+      { text: 'If yes to sex with female, what is the total number?', alias: 'risk_sex_female_total' },
+      { text: 'If yes to sex with female, what is the first date in MM/YYYY format?', alias: 'risk_sex_female_date1' },
+      { text: 'If yes to sex with female, what is the second date in MM/YYYY format?', alias: 'risk_sex_female_date2' },
+      { text: 'Has the patient paid for sex in cash or kind? Answer Yes or No', alias: 'risk_paid_for_sex_status' },
+      { text: 'If yes to paid for sex, what is the date in MM/YYYY format?', alias: 'risk_paid_for_sex_date' },
+      { text: 'Has the patient received payment for sex? Answer Yes or No', alias: 'risk_received_payment_status' },
+      { text: 'If yes to received payment, what is the date in MM/YYYY format?', alias: 'risk_received_payment_date' },
+      { text: 'Has the patient had sex under the influence of drugs? Answer Yes or No', alias: 'risk_sex_under_drugs_status' },
+      { text: 'If yes to sex under drugs, what is the date in MM/YYYY format?', alias: 'risk_sex_under_drugs_date' },
+      { text: 'Has the patient shared needles for drug injection? Answer Yes or No', alias: 'risk_shared_needles_status' },
+      { text: 'If yes to shared needles, what is the date in MM/YYYY format?', alias: 'risk_shared_needles_date' },
+      
+      // BATCH 2 - Remaining risk fields and clinical information (15 queries)
+      { text: 'Has the patient received blood transfusion? Answer Yes or No', alias: 'risk_blood_transfusion_status' },
+      { text: 'If yes to blood transfusion, what is the date in MM/YYYY format?', alias: 'risk_blood_transfusion_date' },
+      { text: 'Has the patient had occupational exposure to needlestick or sharps? Answer Yes or No', alias: 'risk_occupational_exposure_status' },
+      { text: 'If yes to occupational exposure, what is the date in MM/YYYY format?', alias: 'risk_occupational_exposure_date' },
       { text: 'What are the reasons the patient is seeking HIV testing?', alias: 'reasons_for_testing' },
       { text: 'Is the patient a current TB patient?', alias: 'medical_tb' },
       { text: 'Has the patient been diagnosed with other STIs?', alias: 'medical_sti' },
       { text: 'Has the patient taken PEP (Post-Exposure Prophylaxis)?', alias: 'medical_pep' },
       { text: 'Is the patient currently taking PrEP (Pre-Exposure Prophylaxis)?', alias: 'medical_prep' },
-      
-      // BATCH 2 - Clinical and testing information (15 queries)
       { text: 'Does the patient have hepatitis B?', alias: 'medical_hepatitis_b' },
       { text: 'Does the patient have hepatitis C?', alias: 'medical_hepatitis_c' },
       { text: 'What is the clinical picture - Asymptomatic or Symptomatic?', alias: 'clinical_picture' },
@@ -408,7 +419,7 @@ function generateHTSFormQueries(page = 'front') {
       { text: 'What is the email address of the testing facility?', alias: 'facility_email' },
       { text: 'What is the name of the HTS service provider or counselor?', alias: 'counselor_name' },
       { text: 'What is the role of the counselor - HIV Counselor, Medical Technologist, CBS Motivator, or Others?', alias: 'counselor_role' }
-      // Total: 39 queries across 3 batches (15 + 15 + 9)
+      // Total: 56 queries across 4 batches (15 + 15 + 15 + 11)
     ]
   };
 
