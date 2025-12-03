@@ -143,16 +143,28 @@ const AdminFieldDisplay = ({ field, value, label }) => {
     if (Array.isArray(fieldValue)) {
       return (
         <div className="flex flex-wrap gap-2">
-          {fieldValue.map((item, index) => (
-            <span key={index} className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
-              {item}
-            </span>
-          ))}
+          {fieldValue.map((item, index) => {
+            // Handle objects like {label, options}
+            const displayValue = typeof item === 'object' && item !== null 
+              ? (item.label || item.value || JSON.stringify(item))
+              : item;
+            return (
+              <span key={index} className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
+                {displayValue}
+              </span>
+            );
+          })}
         </div>
       );
     }
     
-    return <span className="text-gray-900 font-semibold">{fieldValue}</span>;
+    // Handle object values like {label, options}
+    let displayValue = fieldValue;
+    if (typeof fieldValue === 'object' && fieldValue !== null) {
+      displayValue = fieldValue.label || fieldValue.value || JSON.stringify(fieldValue);
+    }
+    
+    return <span className="text-gray-900 font-semibold">{displayValue}</span>;
   };
   
   return (
