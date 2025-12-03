@@ -49,6 +49,20 @@ class OCRFieldExtractor {
     try {
       console.log('[OCRFieldExtractor] Starting field extraction...');
 
+      // Validate template metadata
+      if (!this.templateMetadata) {
+        throw new Error('Template metadata not loaded');
+      }
+      if (!this.templateMetadata.ocrMapping) {
+        throw new Error('Template metadata missing ocrMapping');
+      }
+      if (!this.templateMetadata.ocrMapping.front || !this.templateMetadata.ocrMapping.front.fields) {
+        throw new Error('Template metadata missing ocrMapping.front.fields');
+      }
+      if (!this.templateMetadata.ocrMapping.back || !this.templateMetadata.ocrMapping.back.fields) {
+        throw new Error('Template metadata missing ocrMapping.back.fields');
+      }
+
       // Get image dimensions
       const [frontMeta, backMeta] = await Promise.all([
         sharp(frontImageBuffer).metadata(),
