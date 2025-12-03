@@ -896,38 +896,43 @@ export default function HTSFormManagement() {
     return extractedData[fieldName] || '';
   };
 
-  // Enter edit mode with ALL 56 fields from DOH HTS Form 2021
+  // Enter edit mode with ALL 101 fields from DOH HTS Form 2021 Template
   const enterEditMode = () => {
     setEditableData({
       // Test metadata
       testResult: getFieldValue('testResult'),
       testDate: formatDateForInput(getFieldValue('testDate')),
       
-      // Identity Fields (Q1-7)
+      // === FRONT PAGE ===
+      
+      // Personal Information & Identification
       philHealthNumber: getFieldValue('philHealthNumber'),
       philSysNumber: getFieldValue('philSysNumber'),
       firstName: getFieldValue('firstName'),
       middleName: getFieldValue('middleName'),
       lastName: getFieldValue('lastName'),
       suffix: getFieldValue('suffix'),
-      fullName: getFieldValue('fullName'),
       parentalCode: getFieldValue('parentalCode'),
       parentalCodeMother: getFieldValue('parentalCodeMother'),
       parentalCodeFather: getFieldValue('parentalCodeFather'),
       birthOrder: getFieldValue('birthOrder'),
       
-      // Demographic Data (Q8-12)
+      // Demographic Data
       birthDate: formatDateForInput(getFieldValue('birthDate')),
       age: getFieldValue('age'),
       ageMonths: getFieldValue('ageMonths'),
       sex: getFieldValue('sex'),
       genderIdentity: getFieldValue('genderIdentity'),
+      
+      // Residence Information
       currentResidenceCity: getFieldValue('currentResidenceCity'),
       currentResidenceProvince: getFieldValue('currentResidenceProvince'),
       permanentResidenceCity: getFieldValue('permanentResidenceCity'),
       permanentResidenceProvince: getFieldValue('permanentResidenceProvince'),
       placeOfBirthCity: getFieldValue('placeOfBirthCity'),
       placeOfBirthProvince: getFieldValue('placeOfBirthProvince'),
+      
+      // Personal Status
       nationality: getFieldValue('nationality'),
       nationalityOther: getFieldValue('nationalityOther'),
       civilStatus: getFieldValue('civilStatus'),
@@ -935,7 +940,7 @@ export default function HTSFormManagement() {
       numberOfChildren: getFieldValue('numberOfChildren'),
       isPregnant: getFieldValue('isPregnant'),
       
-      // Education & Occupation (Q13-16)
+      // Education & Occupation
       educationalAttainment: getFieldValue('educationalAttainment'),
       currentlyInSchool: getFieldValue('currentlyInSchool'),
       occupation: getFieldValue('occupation'),
@@ -945,80 +950,112 @@ export default function HTSFormManagement() {
       overseasLocation: getFieldValue('overseasLocation'),
       overseasCountry: getFieldValue('overseasCountry'),
       
-      // Mother HIV & Risk Assessment (Q17-18)
+      // Contact Information
+      contactNumber: getFieldValue('contactNumber'),
+      emailAddress: getFieldValue('emailAddress'),
+      
+      // === BACK PAGE ===
+      
+      // Mother HIV Status
       motherHIV: getFieldValue('motherHIV'),
       
-      // Risk Assessment - Sex with Male (Yes/No + Total + 2 dates)
+      // Risk Assessment - Sex with Male
       riskSexMaleStatus: getFieldValue('riskSexMaleStatus'),
       riskSexMaleTotal: getFieldValue('riskSexMaleTotal'),
       riskSexMaleDate1: getFieldValue('riskSexMaleDate1'),
       riskSexMaleDate2: getFieldValue('riskSexMaleDate2'),
       
-      // Risk Assessment - Sex with Female (Yes/No + Total + 2 dates)
+      // Risk Assessment - Sex with Female
       riskSexFemaleStatus: getFieldValue('riskSexFemaleStatus'),
       riskSexFemaleTotal: getFieldValue('riskSexFemaleTotal'),
       riskSexFemaleDate1: getFieldValue('riskSexFemaleDate1'),
       riskSexFemaleDate2: getFieldValue('riskSexFemaleDate2'),
       
-      // Risk Assessment - Paid for Sex (Yes/No + date)
+      // Risk Assessment - Paid for Sex
       riskPaidForSexStatus: getFieldValue('riskPaidForSexStatus'),
       riskPaidForSexDate: getFieldValue('riskPaidForSexDate'),
       
-      // Risk Assessment - Received Payment (Yes/No + date)
+      // Risk Assessment - Received Payment
       riskReceivedPaymentStatus: getFieldValue('riskReceivedPaymentStatus'),
       riskReceivedPaymentDate: getFieldValue('riskReceivedPaymentDate'),
       
-      // Risk Assessment - Sex Under Drugs (Yes/No + date)
+      // Risk Assessment - Sex Under Drugs
       riskSexUnderDrugsStatus: getFieldValue('riskSexUnderDrugsStatus'),
       riskSexUnderDrugsDate: getFieldValue('riskSexUnderDrugsDate'),
       
-      // Risk Assessment - Shared Needles (Yes/No + date)
+      // Risk Assessment - Shared Needles
       riskSharedNeedlesStatus: getFieldValue('riskSharedNeedlesStatus'),
       riskSharedNeedlesDate: getFieldValue('riskSharedNeedlesDate'),
       
-      // Risk Assessment - Blood Transfusion (Yes/No + date)
+      // Risk Assessment - Blood Transfusion
       riskBloodTransfusionStatus: getFieldValue('riskBloodTransfusionStatus'),
       riskBloodTransfusionDate: getFieldValue('riskBloodTransfusionDate'),
       
-      // Risk Assessment - Occupational Exposure (Yes/No + date)
+      // Risk Assessment - Occupational Exposure
       riskOccupationalExposureStatus: getFieldValue('riskOccupationalExposureStatus'),
       riskOccupationalExposureDate: getFieldValue('riskOccupationalExposureDate'),
       
-      reasonsForTesting: getFieldValue('reasonsForTesting'),
+      // Risk Assessment Summary
+      riskAssessment: getFieldValue('riskAssessment'),
       
-      // Previous HIV Test (Q19)
+      // Reasons for Testing
+      reasonsForTesting: getFieldValue('reasonsForTesting'),
+      testingRefusedReason: getFieldValue('testingRefusedReason'),
+      
+      // Previous HIV Test
       previouslyTested: getFieldValue('previouslyTested'),
       previousTestDate: formatDateForInput(getFieldValue('previousTestDate')),
       previousTestProvider: getFieldValue('previousTestProvider'),
       previousTestCity: getFieldValue('previousTestCity'),
       previousTestResult: getFieldValue('previousTestResult'),
       
-      // Medical History (Q20-21)
+      // Medical History
       medicalHistory: getFieldValue('medicalHistory'),
+      medicalTB: getFieldValue('medicalTB'),
+      medicalSTI: getFieldValue('medicalSTI'),
+      medicalPEP: getFieldValue('medicalPEP'),
+      medicalPrEP: getFieldValue('medicalPrEP'),
+      medicalHepatitisB: getFieldValue('medicalHepatitisB'),
+      medicalHepatitisC: getFieldValue('medicalHepatitisC'),
+      
+      // Clinical Picture
       clinicalPicture: getFieldValue('clinicalPicture'),
       symptoms: getFieldValue('symptoms'),
       whoStaging: getFieldValue('whoStaging'),
       
-      // Testing Details (Q22-25)
+      // Testing Details
       clientType: getFieldValue('clientType'),
       modeOfReach: getFieldValue('modeOfReach'),
       testingAccepted: getFieldValue('testingAccepted'),
-      refusalReason: getFieldValue('refusalReason'),
+      testingModality: getFieldValue('testingModality'),
+      linkageToCare: getFieldValue('linkageToCare'),
       otherServices: getFieldValue('otherServices'),
+      
+      // Test Kit Information
       testKitBrand: getFieldValue('testKitBrand'),
       testKitLotNumber: getFieldValue('testKitLotNumber'),
       testKitExpiration: formatDateForInput(getFieldValue('testKitExpiration')),
       
-      // HTS Provider (Q26-27)
+      // Facility Information
       testingFacility: getFieldValue('testingFacility'),
       facilityAddress: getFieldValue('facilityAddress'),
+      facilityCode: getFieldValue('facilityCode'),
+      facilityRegion: getFieldValue('facilityRegion'),
+      facilityProvince: getFieldValue('facilityProvince'),
+      facilityCity: getFieldValue('facilityCity'),
+      facilityContactNumber: getFieldValue('facilityContactNumber'),
+      facilityEmail: getFieldValue('facilityEmail'),
+      
+      // Counselor Information
       counselorName: getFieldValue('counselorName'),
       counselorRole: getFieldValue('counselorRole'),
+      counselorLicense: getFieldValue('counselorLicense'),
+      counselorDesignation: getFieldValue('counselorDesignation'),
+      counselorContact: getFieldValue('counselorContact'),
       counselorSignature: getFieldValue('counselorSignature'),
       
-      // Consent Fields
-      contactNumber: getFieldValue('contactNumber'),
-      emailAddress: getFieldValue('emailAddress')
+      // Form Completion
+      formCompletionDate: formatDateForInput(getFieldValue('formCompletionDate'))
     });
     setFieldErrors({});
     setIsEditMode(true);

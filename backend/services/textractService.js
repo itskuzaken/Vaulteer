@@ -480,7 +480,7 @@ function generateHTSFormQueries(page = 'front') {
 
       // INFORMED CONSENT - Contact information
       { text: "What are the contact numbers for the patient?", alias: 'contact_number' },
-      { text: "What is the email address of the patient?", alias: 'email_address' }      
+      { text: "What is the email address of the patient?", alias: 'email_address' },
       
       // INFORMED CONSENT - Test identification
       { text: 'What is the HIV test date at the top of the form?', alias: 'test_date' },

@@ -6,127 +6,243 @@ import React from 'react';
  * Shows confidence scores, detection methods, and field-by-field details
  */
 
-// Field labels mapping from template metadata
+// Field labels mapping from template metadata (101 fields total)
 const TEMPLATE_FIELD_LABELS = {
-  // Front page fields
+  // Test Metadata
+  testResult: 'Test Result',
   testDate: 'Test Date',
+  
+  // === FRONT PAGE ===
+  
+  // Personal Information & Identification
   philHealthNumber: 'PhilHealth Number',
   philSysNumber: 'PhilSys Number',
   firstName: 'First Name',
   middleName: 'Middle Name',
   lastName: 'Last Name',
   suffix: 'Suffix',
-  birthDate: 'Birth Date',
-  age: 'Age',
-  sex: 'Sex',
-  civilStatus: 'Civil Status',
-  contactNumber: 'Contact Number',
-  email: 'Email',
-  region: 'Region',
-  province: 'Province',
-  cityMunicipality: 'City/Municipality',
-  barangay: 'Barangay',
-  houseNumberStreet: 'House Number/Street',
-  landmark: 'Landmark',
-  educationalAttainment: 'Educational Attainment',
-  occupation: 'Occupation',
-  monthlyIncome: 'Monthly Income',
-  pwdId: 'PWD ID',
-  indigenousPerson: 'Indigenous Person',
+  parentalCode: 'Parental Code',
+  parentalCodeMother: "Mother's Code",
+  parentalCodeFather: "Father's Code",
+  birthOrder: 'Birth Order',
   
-  // Back page fields
+  // Demographic Data
+  birthDate: 'Birth Date',
+  age: 'Age (Years)',
+  ageMonths: 'Age (Months)',
+  sex: 'Sex',
+  genderIdentity: 'Gender Identity',
+  
+  // Residence Information
+  currentResidenceCity: 'Current Residence - City',
+  currentResidenceProvince: 'Current Residence - Province',
+  permanentResidenceCity: 'Permanent Residence - City',
+  permanentResidenceProvince: 'Permanent Residence - Province',
+  placeOfBirthCity: 'Place of Birth - City',
+  placeOfBirthProvince: 'Place of Birth - Province',
+  
+  // Personal Status
+  nationality: 'Nationality',
+  nationalityOther: 'Nationality (Other)',
+  civilStatus: 'Civil Status',
+  livingWithPartner: 'Living with Partner',
+  numberOfChildren: 'Number of Children',
+  isPregnant: 'Is Pregnant',
+  
+  // Education & Occupation
+  educationalAttainment: 'Educational Attainment',
+  currentlyInSchool: 'Currently in School',
+  occupation: 'Occupation',
+  currentlyWorking: 'Currently Working',
+  workedOverseas: 'Worked Overseas',
+  overseasReturnYear: 'Overseas Return Year',
+  overseasLocation: 'Overseas Location',
+  overseasCountry: 'Overseas Country',
+  
+  // Contact Information
+  contactNumber: 'Contact Number',
+  emailAddress: 'Email Address',
+  
+  // === BACK PAGE ===
+  
+  // Mother HIV Status
   motherHIV: 'Mother with HIV',
+  
+  // Risk Assessment - Sex with Male
   riskSexMaleStatus: 'Sex with Male - Status',
-  riskSexMaleTotal: 'Sex with Male - Total No.',
-  riskSexMaleDate1: 'Sex with Male - Date 1 (MM/YYYY)',
-  riskSexMaleDate2: 'Sex with Male - Date 2 (MM/YYYY)',
+  riskSexMaleTotal: 'Sex with Male - Total',
+  riskSexMaleDate1: 'Sex with Male - Date 1',
+  riskSexMaleDate2: 'Sex with Male - Date 2',
+  
+  // Risk Assessment - Sex with Female
   riskSexFemaleStatus: 'Sex with Female - Status',
-  riskSexFemaleTotal: 'Sex with Female - Total No.',
-  riskSexFemaleDate1: 'Sex with Female - Date 1 (MM/YYYY)',
-  riskSexFemaleDate2: 'Sex with Female - Date 2 (MM/YYYY)',
+  riskSexFemaleTotal: 'Sex with Female - Total',
+  riskSexFemaleDate1: 'Sex with Female - Date 1',
+  riskSexFemaleDate2: 'Sex with Female - Date 2',
+  
+  // Risk Assessment - Paid for Sex
   riskPaidForSexStatus: 'Paid for Sex - Status',
-  riskPaidForSexDate: 'Paid for Sex - Date (MM/YYYY)',
-  riskReceivedPaymentStatus: 'Received Payment for Sex - Status',
-  riskReceivedPaymentDate: 'Received Payment - Date (MM/YYYY)',
-  riskSexUnderDrugsStatus: 'Sex Under Influence of Drugs - Status',
-  riskSexUnderDrugsDate: 'Sex Under Drugs - Date (MM/YYYY)',
+  riskPaidForSexDate: 'Paid for Sex - Date',
+  
+  // Risk Assessment - Received Payment
+  riskReceivedPaymentStatus: 'Received Payment - Status',
+  riskReceivedPaymentDate: 'Received Payment - Date',
+  
+  // Risk Assessment - Sex Under Drugs
+  riskSexUnderDrugsStatus: 'Sex Under Drugs - Status',
+  riskSexUnderDrugsDate: 'Sex Under Drugs - Date',
+  
+  // Risk Assessment - Shared Needles
   riskSharedNeedlesStatus: 'Shared Needles - Status',
-  riskSharedNeedlesDate: 'Shared Needles - Date (MM/YYYY)',
+  riskSharedNeedlesDate: 'Shared Needles - Date',
+  
+  // Risk Assessment - Blood Transfusion
   riskBloodTransfusionStatus: 'Blood Transfusion - Status',
-  riskBloodTransfusionDate: 'Blood Transfusion - Date (MM/YYYY)',
+  riskBloodTransfusionDate: 'Blood Transfusion - Date',
+  
+  // Risk Assessment - Occupational Exposure
   riskOccupationalExposureStatus: 'Occupational Exposure - Status',
-  riskOccupationalExposureDate: 'Occupational Exposure - Date (MM/YYYY)',
+  riskOccupationalExposureDate: 'Occupational Exposure - Date',
+  
+  // Risk Assessment Summary
+  riskAssessment: 'Risk Assessment Summary',
+  
+  // Reasons for Testing
   reasonsForTesting: 'Reasons for Testing',
+  testingRefusedReason: 'Testing Refusal Reason',
+  
+  // Previous HIV Test
   previouslyTested: 'Previously Tested',
   previousTestDate: 'Previous Test Date',
-  previousTestProvider: 'HTS Provider (Facility/Organization)',
-  previousTestCity: 'City/Municipality',
+  previousTestProvider: 'Previous Test Provider',
+  previousTestCity: 'Previous Test City',
   previousTestResult: 'Previous Test Result',
+  
+  // Medical History
   medicalHistory: 'Medical History',
+  medicalTB: 'Tuberculosis (TB)',
+  medicalSTI: 'STI',
+  medicalPEP: 'PEP',
+  medicalPrEP: 'PrEP',
+  medicalHepatitisB: 'Hepatitis B',
+  medicalHepatitisC: 'Hepatitis C',
+  
+  // Clinical Picture
   clinicalPicture: 'Clinical Picture',
   symptoms: 'Symptoms',
   whoStaging: 'WHO Staging',
+  
+  // Testing Details
   clientType: 'Client Type',
-  venue: 'Venue',
   modeOfReach: 'Mode of Reach',
   testingAccepted: 'Testing Accepted',
-  kitName: 'Test Kit Name',
-  kitLotNumber: 'Kit Lot Number',
+  testingModality: 'Testing Modality',
+  linkageToCare: 'Linkage to Care',
+  otherServices: 'Other Services',
+  
+  // Test Kit Information
+  testKitBrand: 'Test Kit Brand',
+  testKitLotNumber: 'Test Kit Lot Number',
+  testKitExpiration: 'Test Kit Expiration',
+  
+  // Facility Information
   testingFacility: 'Testing Facility',
   facilityAddress: 'Facility Address',
-  emailAddress: 'Email Address',
-  serviceProvider: 'Service Provider',
-  otherServices: 'Other Services Provided'
+  facilityCode: 'Facility Code',
+  facilityRegion: 'Facility Region',
+  facilityProvince: 'Facility Province',
+  facilityCity: 'Facility City',
+  facilityContactNumber: 'Facility Contact Number',
+  facilityEmail: 'Facility Email',
+  
+  // Counselor Information
+  counselorName: 'Counselor Name',
+  counselorRole: 'Counselor Role',
+  counselorLicense: 'Counselor License',
+  counselorDesignation: 'Counselor Designation',
+  counselorContact: 'Counselor Contact',
+  counselorSignature: 'Counselor Signature',
+  
+  // Form Completion
+  formCompletionDate: 'Form Completion Date'
 };
 
-// Group fields by section
+// Group fields by section (101 fields organized by category)
 const FRONT_PAGE_SECTIONS = {
-  'Personal Information': [
-    'testDate', 'philHealthNumber', 'philSysNumber', 
-    'firstName', 'middleName', 'lastName', 'suffix'
+  'Personal Information & Identification': [
+    'philHealthNumber', 'philSysNumber', 'firstName', 'middleName', 'lastName', 'suffix',
+    'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder'
   ],
   'Demographic Data': [
-    'birthDate', 'age', 'sex', 'civilStatus'
+    'birthDate', 'age', 'ageMonths', 'sex', 'genderIdentity'
   ],
-  'Contact Information': [
-    'contactNumber', 'email', 'region', 'province', 
-    'cityMunicipality', 'barangay', 'houseNumberStreet', 'landmark'
+  'Residence Information': [
+    'currentResidenceCity', 'currentResidenceProvince',
+    'permanentResidenceCity', 'permanentResidenceProvince',
+    'placeOfBirthCity', 'placeOfBirthProvince'
+  ],
+  'Personal Status': [
+    'nationality', 'nationalityOther', 'civilStatus', 'livingWithPartner',
+    'numberOfChildren', 'isPregnant'
   ],
   'Education & Occupation': [
-    'educationalAttainment', 'occupation', 'monthlyIncome', 
-    'pwdId', 'indigenousPerson'
+    'educationalAttainment', 'currentlyInSchool', 'occupation', 'currentlyWorking',
+    'workedOverseas', 'overseasReturnYear', 'overseasLocation', 'overseasCountry'
+  ],
+  'Contact Information': [
+    'contactNumber', 'emailAddress'
   ]
 };
 
 const BACK_PAGE_SECTIONS = {
-  'Risk Assessment & Exposure History': [
-    'motherHIV',
+  'Mother HIV Status': [
+    'motherHIV'
+  ],
+  'Risk Assessment - Sexual Exposure': [
     'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1', 'riskSexMaleDate2',
     'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1', 'riskSexFemaleDate2',
     'riskPaidForSexStatus', 'riskPaidForSexDate',
     'riskReceivedPaymentStatus', 'riskReceivedPaymentDate',
-    'riskSexUnderDrugsStatus', 'riskSexUnderDrugsDate',
+    'riskSexUnderDrugsStatus', 'riskSexUnderDrugsDate'
+  ],
+  'Risk Assessment - Other Exposures': [
     'riskSharedNeedlesStatus', 'riskSharedNeedlesDate',
     'riskBloodTransfusionStatus', 'riskBloodTransfusionDate',
-    'riskOccupationalExposureStatus', 'riskOccupationalExposureDate'
+    'riskOccupationalExposureStatus', 'riskOccupationalExposureDate',
+    'riskAssessment'
   ],
-  'Testing Information': [
-    'reasonsForTesting', 'previouslyTested', 'previousTestDate', 'previousTestProvider', 'previousTestCity', 'previousTestResult'
+  'Reasons for Testing': [
+    'reasonsForTesting', 'testingRefusedReason'
+  ],
+  'Previous HIV Test': [
+    'previouslyTested', 'previousTestDate', 'previousTestProvider',
+    'previousTestCity', 'previousTestResult'
   ],
   'Medical History': [
-    'medicalHistory', 'clinicalPicture', 'symptoms', 'whoStaging'
+    'medicalHistory', 'medicalTB', 'medicalSTI', 'medicalPEP',
+    'medicalPrEP', 'medicalHepatitisB', 'medicalHepatitisC'
   ],
-  'Client Details': [
-    'clientType', 'venue', 'modeOfReach', 'testingAccepted'
+  'Clinical Picture': [
+    'clinicalPicture', 'symptoms', 'whoStaging'
+  ],
+  'Testing Details': [
+    'clientType', 'modeOfReach', 'testingAccepted', 'testingModality',
+    'linkageToCare', 'otherServices'
   ],
   'Test Kit Information': [
-    'kitName', 'kitLotNumber'
+    'testKitBrand', 'testKitLotNumber', 'testKitExpiration'
   ],
-  'Facility & Provider': [
-    'testingFacility', 'facilityAddress', 'contactNumber', 'emailAddress', 'serviceProvider'
+  'Facility Information': [
+    'testingFacility', 'facilityAddress', 'facilityCode',
+    'facilityRegion', 'facilityProvince', 'facilityCity',
+    'facilityContactNumber', 'facilityEmail'
   ],
-  'Additional Services': [
-    'otherServices'
+  'Counselor Information': [
+    'counselorName', 'counselorRole', 'counselorLicense',
+    'counselorDesignation', 'counselorContact', 'counselorSignature'
+  ],
+  'Form Completion': [
+    'formCompletionDate'
   ]
 };
 
