@@ -105,7 +105,18 @@ const BACK_PAGE_SECTIONS = {
  * Editable Field Component
  */
 const EditableOCRField = ({ field, value, label, onEdit, isEditing, onSave, onCancel, validationWarning }) => {
-  const [editValue, setEditValue] = useState(value?.value || value || '');
+  // Extract the actual value, handling objects like {label, options}
+  const extractValue = (val) => {
+    if (!val) return '';
+    if (typeof val === 'string') return val;
+    if (typeof val === 'object') {
+      if (val.value !== undefined) return val.value;
+      if (val.label !== undefined) return val.label;
+    }
+    return val;
+  };
+  
+  const [editValue, setEditValue] = useState(extractValue(value?.value || value));
   
   const confidence = value?.confidence || 0;
   const fieldValue = value?.value !== undefined ? value.value : value;
@@ -142,7 +153,7 @@ const EditableOCRField = ({ field, value, label, onEdit, isEditing, onSave, onCa
         <div className="flex flex-wrap gap-2 mb-2">
           {fieldValue.map((item, index) => (
             <span key={index} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm">
-              {item}
+              {typeof item === 'object' ? item.label || JSON.stringify(item) : item}
             </span>
           ))}
         </div>
@@ -161,9 +172,15 @@ const EditableOCRField = ({ field, value, label, onEdit, isEditing, onSave, onCa
       );
     }
     
+    // Handle object values (like {label, options})
+    let displayValue = fieldValue;
+    if (typeof fieldValue === 'object' && fieldValue !== null) {
+      displayValue = fieldValue.label || fieldValue.value || JSON.stringify(fieldValue);
+    }
+    
     return (
       <div className="text-base font-semibold text-gray-900 mb-2">
-        {fieldValue || <span className="text-gray-400 italic">Not detected</span>}
+        {displayValue || <span className="text-gray-400 italic">Not detected</span>}
       </div>
     );
   };
