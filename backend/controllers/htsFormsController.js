@@ -62,18 +62,26 @@ const htsFormsController = {
 
       console.log(`[OCR Analysis] Processed sizes: front=${processedFront.length} bytes, back=${processedBack.length} bytes`);
 
-      // Send processed images to Textract
+      // Send processed images to Textract with Enhanced OCR (coordinate-based extraction)
       const extractedData = await textractService.analyzeHTSForm(
         processedFront,
-        processedBack
+        processedBack,
+        { useEnhanced: true } // Enable coordinate-based field extraction
       );
 
-      console.log(`[OCR Analysis] Extraction completed with ${extractedData.confidence}% confidence`);
+      console.log(`[OCR Analysis] Extraction completed with ${extractedData.confidence.toFixed(1)}% confidence`);
+      console.log(`[OCR Analysis] Method: ${extractedData.extractionMethod}, Template: ${extractedData.templateId || 'N/A'}`);
+      
+      // Log stats if available
+      if (extractedData.stats) {
+        console.log(`[OCR Analysis] Stats: ${extractedData.stats.highConfidence} high, ${extractedData.stats.mediumConfidence} medium, ${extractedData.stats.lowConfidence} low confidence fields`);
+      }
 
       res.json({
         success: true,
         data: extractedData,
-        message: 'OCR analysis completed successfully'
+        message: 'Enhanced OCR analysis completed successfully',
+        extractionMethod: extractedData.extractionMethod || 'coordinate-based'
       });
 
     } catch (error) {

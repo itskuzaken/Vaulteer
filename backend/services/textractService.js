@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const templateMatcher = require('./templateMatcher');
 const { validateAndCorrectFields, applyValidationCorrections, getValidationSummary } = require('../utils/ocrValidation');
+const ocrFieldExtractor = require('./ocrFieldExtractor');
 
 // Load DOH HTS Form 2021 metadata for field extraction
 const metadataPath = path.join(__dirname, '../assets/form-templates/hts/template-metadata.json');
@@ -834,12 +835,67 @@ function parseHTSFormData(frontResult, backResult) {
 }
 
 /**
- * Analyze HTS form images and return extracted data
- * Called by /api/hts-forms/analyze-ocr endpoint BEFORE encryption
- * This is the OCR-first workflow function
+ * Analyze HTS form images using coordinate-based field extraction
+ * NEW: Enhanced OCR mapping with per-field extraction
+ * @param {Buffer} frontImageBuffer - Front page image
+ * @param {Buffer} backImageBuffer - Back page image
+ * @param {Object} options - Extraction options
+ * @returns {Promise<Object>} Extracted data with field-level confidence
  */
-async function analyzeHTSForm(frontImageBuffer, backImageBuffer) {
-  console.log('📤 Sending raw images to AWS Textract...');
+async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options = {}) {
+  console.log('📤 [Enhanced OCR] Starting coordinate-based field extraction...');
+  
+  try {
+    // Use new OCR Field Extractor for coordinate-based extraction
+    const extractionResult = await ocrFieldExtractor.extractAllFields(
+      frontImageBuffer,
+      backImageBuffer
+    );
+
+    console.log(`✅ [Enhanced OCR] Extracted ${Object.keys(extractionResult.fields).length} fields`);
+    console.log(`   - High confidence: ${extractionResult.stats.highConfidence}`);
+    console.log(`   - Medium confidence: ${extractionResult.stats.mediumConfidence}`);
+    console.log(`   - Low confidence: ${extractionResult.stats.lowConfidence}`);
+    console.log(`   - Requires review: ${extractionResult.stats.requiresReview}`);
+
+    // Apply validation
+    console.log('🔍 Applying validation rules...');
+    const validations = validateAndCorrectFields(extractionResult.fields);
+    const correctedData = applyValidationCorrections(extractionResult.fields, validations);
+    const validationSummary = getValidationSummary(validations);
+
+    console.log(`✅ Validation complete: ${validationSummary.corrected} auto-corrections`);
+
+    return {
+      fields: correctedData,
+      confidence: extractionResult.overallConfidence,
+      stats: extractionResult.stats,
+      validationSummary,
+      validations,
+      extractionMethod: 'coordinate-based',
+      templateId: 'doh-hts-2021-v2'
+    };
+  } catch (error) {
+    console.error('❌ [Enhanced OCR] Extraction failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * Analyze HTS form images and return extracted data (LEGACY)
+ * Called by /api/hts-forms/analyze-ocr endpoint BEFORE encryption
+ * @deprecated Use analyzeHTSFormEnhanced for better accuracy
+ */
+async function analyzeHTSForm(frontImageBuffer, backImageBuffer, options = {}) {
+  // Check if enhanced extraction is enabled (default: true)
+  const useEnhanced = options.useEnhanced !== false;
+  
+  if (useEnhanced) {
+    console.log('🚀 Using enhanced coordinate-based extraction');
+    return await analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options);
+  }
+
+  console.log('📤 [Legacy] Sending raw images to AWS Textract...');
   
   try {
     // Send to Textract (parallel processing)
@@ -878,7 +934,8 @@ async function analyzeHTSForm(frontImageBuffer, backImageBuffer) {
       frontConfidence,
       backConfidence,
       validationSummary,
-      validations
+      validations,
+      extractionMethod: 'full-page'
     };
   } catch (error) {
     console.error('❌ OCR analysis failed:', error);
@@ -971,6 +1028,7 @@ async function processEncryptedHTSForm(formId) {
 module.exports = {
   analyzeDocument,
   analyzeHTSForm,
+  analyzeHTSFormEnhanced,
   extractTextLines,
   extractKeyValuePairs,
   extractTestResult,
