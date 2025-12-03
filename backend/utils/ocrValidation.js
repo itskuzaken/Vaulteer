@@ -403,6 +403,16 @@ function validateFieldConfidence(field, fieldConfig = {}) {
 }
 
 /**
+ * Helper function to safely extract field value
+ * Handles both legacy (direct value) and new (object with value property) formats
+ */
+function getFieldValue(field) {
+  if (field === null || field === undefined) return null;
+  if (typeof field === 'object' && 'value' in field) return field.value;
+  return field;
+}
+
+/**
  * Cross-field validation rules
  * Validates relationships between fields
  */
@@ -411,65 +421,85 @@ function validateCrossFields(extractedData) {
   
   // Rule 1: Test date must be after birth date
   if (extractedData.testDate && extractedData.birthDate) {
-    const testDate = new Date(extractedData.testDate.value || extractedData.testDate);
-    const birthDate = new Date(extractedData.birthDate.value || extractedData.birthDate);
+    const testDateValue = getFieldValue(extractedData.testDate);
+    const birthDateValue = getFieldValue(extractedData.birthDate);
     
-    if (testDate < birthDate) {
-      errors.push({
-        rule: 'testDateAfterBirthDate',
-        severity: 'critical',
-        fields: ['testDate', 'birthDate'],
-        message: 'Test date must be after birth date'
-      });
+    if (testDateValue && birthDateValue) {
+      const testDate = new Date(testDateValue);
+      const birthDate = new Date(birthDateValue);
+      
+      if (testDate < birthDate) {
+        errors.push({
+          rule: 'testDateAfterBirthDate',
+          severity: 'critical',
+          fields: ['testDate', 'birthDate'],
+          message: 'Test date must be after birth date'
+        });
+      }
     }
   }
   
   // Rule 2: Age should match birth date (with tolerance)
   if (extractedData.age && extractedData.birthDate && extractedData.testDate) {
-    const birthDate = new Date(extractedData.birthDate.value || extractedData.birthDate);
-    const testDate = new Date(extractedData.testDate.value || extractedData.testDate);
-    const calculatedAge = testDate.getFullYear() - birthDate.getFullYear();
-    const extractedAge = parseInt(extractedData.age.value || extractedData.age);
+    const birthDateValue = getFieldValue(extractedData.birthDate);
+    const testDateValue = getFieldValue(extractedData.testDate);
+    const ageValue = getFieldValue(extractedData.age);
     
-    if (Math.abs(calculatedAge - extractedAge) > 1) {
-      errors.push({
-        rule: 'ageMatchesBirthDate',
-        severity: 'major',
-        fields: ['age', 'birthDate', 'testDate'],
-        message: `Age mismatch: extracted ${extractedAge}, calculated ${calculatedAge}`,
-        suggestedValue: calculatedAge
-      });
+    if (birthDateValue && testDateValue && ageValue) {
+      const birthDate = new Date(birthDateValue);
+      const testDate = new Date(testDateValue);
+      const calculatedAge = testDate.getFullYear() - birthDate.getFullYear();
+      const extractedAge = parseInt(ageValue);
+      
+      if (Math.abs(calculatedAge - extractedAge) > 1) {
+        errors.push({
+          rule: 'ageMatchesBirthDate',
+          severity: 'major',
+          fields: ['age', 'birthDate', 'testDate'],
+          message: `Age mismatch: extracted ${extractedAge}, calculated ${calculatedAge}`,
+          suggestedValue: calculatedAge
+        });
+      }
     }
   }
   
   // Rule 3: Previous test date must be before current test date
   if (extractedData.previousTestDate && extractedData.testDate) {
-    const previousDate = new Date(extractedData.previousTestDate.value || extractedData.previousTestDate);
-    const testDate = new Date(extractedData.testDate.value || extractedData.testDate);
+    const previousDateValue = getFieldValue(extractedData.previousTestDate);
+    const testDateValue = getFieldValue(extractedData.testDate);
     
-    if (previousDate >= testDate) {
-      errors.push({
-        rule: 'previousTestDateBeforeTestDate',
-        severity: 'major',
-        fields: ['previousTestDate', 'testDate'],
-        message: 'Previous test date must be before current test date'
-      });
+    if (previousDateValue && testDateValue) {
+      const previousDate = new Date(previousDateValue);
+      const testDate = new Date(testDateValue);
+      
+      if (previousDate >= testDate) {
+        errors.push({
+          rule: 'previousTestDateBeforeTestDate',
+          severity: 'major',
+          fields: ['previousTestDate', 'testDate'],
+          message: 'Previous test date must be before current test date'
+        });
+      }
     }
   }
   
   // Rule 4: If pregnant = Yes, sex must be Female
   if (extractedData.isPregnant && extractedData.sex) {
-    const pregnant = extractedData.isPregnant.value || extractedData.isPregnant;
-    const sex = (extractedData.sex.value || extractedData.sex || '').toLowerCase();
+    const pregnantValue = getFieldValue(extractedData.isPregnant);
+    const sexValue = getFieldValue(extractedData.sex);
     
-    if (pregnant === 'Yes' || pregnant === true) {
-      if (sex !== 'female' && sex !== 'f') {
-        errors.push({
-          rule: 'pregnantRequiresFemale',
-          severity: 'critical',
-          fields: ['isPregnant', 'sex'],
-          message: 'Pregnant status requires female sex'
-        });
+    if (pregnantValue && sexValue) {
+      const sex = (sexValue || '').toString().toLowerCase();
+      
+      if (pregnantValue === 'Yes' || pregnantValue === true) {
+        if (sex !== 'female' && sex !== 'f') {
+          errors.push({
+            rule: 'pregnantRequiresFemale',
+            severity: 'critical',
+            fields: ['isPregnant', 'sex'],
+            message: 'Pregnant status requires female sex'
+          });
+        }
       }
     }
   }
@@ -481,8 +511,7 @@ function validateCrossFields(extractedData) {
   ];
   
   for (const fieldName of requiredFields) {
-    const fieldData = extractedData[fieldName];
-    const value = fieldData?.value !== undefined ? fieldData.value : fieldData;
+    const value = getFieldValue(extractedData[fieldName]);
     
     if (!value || value === null || value === '') {
       errors.push({
