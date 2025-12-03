@@ -135,7 +135,7 @@ export default function HTSFormManagement() {
   };
 
   // Helper function to extract meaningful error messages
-  const getErrorMessage = (error) => {
+  const getErrorMessage = useCallback((error) => {
     if (error instanceof Error) {
       return error.message;
     } else if (error instanceof Event) {
@@ -146,7 +146,7 @@ export default function HTSFormManagement() {
       return error.message;
     }
     return 'Unknown error occurred';
-  };
+  }, []);
 
   // Check camera permission on mount
   useEffect(() => {
@@ -415,7 +415,7 @@ export default function HTSFormManagement() {
     }
   };
 
-  const stopCamera = async () => {
+  const stopCamera = useCallback(async () => {
     try {
       // Stop all tracks
       if (streamRef.current) {
@@ -443,7 +443,7 @@ export default function HTSFormManagement() {
     } catch (error) {
       console.error('❌ Error stopping camera:', error);
     }
-  };
+  }, []);
 
   const captureImage = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
@@ -563,9 +563,9 @@ export default function HTSFormManagement() {
         "error"
       );
     }
-  }, [isVideoReady, currentStep, showAlert, showConfirm, closeConfirm]);
+  }, [isVideoReady, currentStep, showAlert, showConfirm, closeConfirm, finalizeCaptureImage]);
 
-  const finalizeCaptureImage = async (step, imageData) => {
+  const finalizeCaptureImage = useCallback(async (step, imageData) => {
     try {
       if (step === "front") {
         setFrontImage(imageData);
@@ -585,7 +585,7 @@ export default function HTSFormManagement() {
         "error"
       );
     }
-  };
+  }, [stopCamera, showAlert, getErrorMessage]);
 
   const retakeImage = async (side) => {
     try {
