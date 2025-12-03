@@ -38,6 +38,7 @@ export default function HTSFormManagement() {
   const [isVideoReady, setIsVideoReady] = useState(false);
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const [isFlashlightSupported, setIsFlashlightSupported] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const metadataTimeoutRef = useRef(null);
@@ -432,6 +433,7 @@ export default function HTSFormManagement() {
 
   const finalizeCaptureImage = useCallback(
     async (step, imageData) => {
+      setIsCapturing(false);
       try {
         if (step === "front") {
           setFrontImage(imageData);
@@ -465,6 +467,7 @@ export default function HTSFormManagement() {
       return;
     }
     
+    setIsCapturing(true);
     const video = videoRef.current;
     
     // Validate video dimensions before capture
@@ -491,6 +494,7 @@ export default function HTSFormManagement() {
       const preCheck = await validateQuality(testCanvas);
       
       if (!preCheck.isValid) {
+        setIsCapturing(false);
         showAlert(
           "Image Quality Insufficient",
           `${preCheck.message}\n\nPlease adjust and try again.`,
@@ -506,6 +510,7 @@ export default function HTSFormManagement() {
       const bestFrame = await captureMultipleFrames(video, 3, 300);
       
       if (!bestFrame) {
+        setIsCapturing(false);
         showAlert(
           "Capture Failed",
           "Failed to capture acceptable quality image. Please ensure good lighting and hold camera steady.",
@@ -550,6 +555,7 @@ export default function HTSFormManagement() {
           "Continue Anyway",
           "Retake"
         );
+        setIsCapturing(false);
         return; // Stop execution here - user will decide via modal
       }
       
@@ -560,6 +566,7 @@ export default function HTSFormManagement() {
       
     } catch (error) {
       console.error('❌ Capture error:', error);
+      setIsCapturing(false);
       
       // Extract meaningful error message from different error types
       let errorMessage = 'Unknown error occurred';
@@ -1406,6 +1413,16 @@ export default function HTSFormManagement() {
                     </div>
                   </div>
                 )}
+                {/* Capturing indicator */}
+                {isCapturing && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 z-10">
+                    <div className="text-center text-white">
+                      <div className="animate-spin h-16 w-16 border-4 border-white border-t-transparent rounded-full mx-auto mb-4" />
+                      <p className="text-base font-semibold">Processing image...</p>
+                      <p className="text-xs mt-2 opacity-80">Analyzing quality & preprocessing</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-3 w-full flex-shrink-0">
@@ -1428,12 +1445,17 @@ export default function HTSFormManagement() {
                     onClick={captureImage} 
                     variant="primary" 
                     className="gap-2 px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg flex-1"
-                    disabled={isRequestingCameraPermission || !isVideoReady}
+                    disabled={isRequestingCameraPermission || !isVideoReady || isCapturing}
                   >
                     {!isVideoReady ? (
                       <>
                         <span className="animate-spin h-5 w-5 border-b-2 border-white rounded-full" />
                         <span className="hidden sm:inline">Initializing...</span>
+                      </>
+                    ) : isCapturing ? (
+                      <>
+                        <span className="animate-spin h-5 w-5 border-b-2 border-white rounded-full" />
+                        <span className="hidden sm:inline">Processing...</span>
                       </>
                     ) : (
                       <>
@@ -1478,38 +1500,30 @@ export default function HTSFormManagement() {
               className="gap-2 w-full py-4 text-lg font-semibold"
               disabled={cameraPermission === "unsupported" || isRequestingCameraPermission}
             >
-              {isRequestingCameraPermission && (
+              {isRequestingCameraPermission ? (
                 <>
                   <span className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2 inline-block" />
+                  Requesting camera access...
                 </>
-              )}
-                {isRequestingCameraPermission ? (
-                  <>
-                    <span className="animate-spin h-4 w-4 border-b-2 border-white rounded-full mr-2 inline-block" />
-                    Requesting camera access...
-                  </>
-                ) : cameraPermission === "prompt" && (
-                  <>
-                    <IoCamera className="w-6 h-6" />
-                    Capture Front (Permission Required)
-                  </>
-                )}
-              {cameraPermission === "denied" && hasAttemptedCameraRequest && (
+              ) : cameraPermission === "unsupported" ? (
+                <>
+                  <IoClose className="w-6 h-6" />
+                  Camera Not Available
+                </>
+              ) : cameraPermission === "denied" && hasAttemptedCameraRequest ? (
                 <>
                   <IoAlertCircle className="w-6 h-6" />
                   Grant Camera Access
                 </>
-              )}
-              {cameraPermission === "granted" && (
+              ) : cameraPermission === "granted" ? (
                 <>
                   <IoCamera className="w-6 h-6" />
                   Capture Front
                 </>
-              )}
-              {cameraPermission === "unsupported" && (
+              ) : (
                 <>
-                  <IoClose className="w-6 h-6" />
-                  Camera Not Available
+                  <IoCamera className="w-6 h-6" />
+                  Capture Front (Permission Required)
                 </>
               )}
             </Button>

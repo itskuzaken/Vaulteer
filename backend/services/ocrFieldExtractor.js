@@ -3,6 +3,7 @@ const { AnalyzeDocumentCommand } = require('@aws-sdk/client-textract');
 const { textractClient } = require('../config/aws');
 const CheckboxDetector = require('../utils/checkboxDetector');
 const templateManager = require('./templateManager');
+const { QUERY_ALIAS_MAP } = require('./textractService');
 const fs = require('fs');
 const path = require('path');
 
@@ -260,31 +261,43 @@ class OCRFieldExtractor {
       return null;
     }
 
-    // Try multiple alias formats to match query results
-    const aliases = [
+    // Strategy 1: Use explicit QUERY_ALIAS_MAP for snake_case -> camelCase conversion
+    const explicitAliases = Object.keys(QUERY_ALIAS_MAP).filter(alias => QUERY_ALIAS_MAP[alias] === fieldName);
+    
+    // Strategy 2: Generate possible snake_case aliases from camelCase fieldName (fallback)
+    const generatedAliases = [
       fieldName.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, ''), // firstName -> first_name
       fieldName.toLowerCase().replace(/([a-z])([A-Z])/g, '$1_$2'), // firstName -> first_name
       fieldName.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase(), // testDate -> test_date
       fieldName // Try exact match
     ];
     
+    // Combine strategies: prioritize explicit map
+    const aliases = [...new Set([...explicitAliases, ...generatedAliases])];
+    
     let queryResult = null;
     let matchedAlias = null;
+    let matchStrategy = null;
     
     for (const alias of aliases) {
       if (queryResults[alias] && queryResults[alias].text) {
         queryResult = queryResults[alias];
         matchedAlias = alias;
+        matchStrategy = explicitAliases.includes(alias) ? 'explicit-map' : 'fallback-regex';
         break;
       }
     }
     
     if (!queryResult || !queryResult.text) {
-      console.log(`[Query] No result for ${fieldName} (tried: ${aliases.join(', ')}) in ${Object.keys(queryResults).length} results`);
+      // Debug: Show available aliases if field not found
+      const availableAliases = Object.keys(queryResults).slice(0, 10).join(', ');
+      console.log(`[Query] ❌ No result for ${fieldName} (tried: ${aliases.slice(0, 3).join(', ')}...) | Available: ${availableAliases}...`);
       return null;
     }
 
-    console.log(`[Query] [OK] Matched ${fieldName} -> ${matchedAlias}: "${queryResult.text.substring(0, 50)}" (${queryResult.confidence}%)`);
+    // Success log with strategy indicator
+    const previewText = queryResult.text.length > 50 ? queryResult.text.substring(0, 50) + '...' : queryResult.text;
+    console.log(`[Query] ✅ Matched ${fieldName} -> ${matchedAlias} (${matchStrategy}): "${previewText}" (${queryResult.confidence.toFixed(1)}%)`);
 
     return {
       value: queryResult.text,
@@ -292,7 +305,9 @@ class OCRFieldExtractor {
       requiresReview: queryResult.confidence < 75,
       boundingBox: queryResult.boundingBox,
       queryText: queryResult.queryText,
-      label: fieldConfig.label
+      label: fieldConfig.label,
+      matchedAlias,
+      matchStrategy
     };
   }
 

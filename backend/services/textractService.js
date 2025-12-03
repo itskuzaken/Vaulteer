@@ -311,6 +311,159 @@ async function processBatchQueries(imageBuffer, batches) {
 }
 
 /**
+ * Query alias to field name mapping
+ * Maps snake_case query aliases to camelCase metadata field names
+ * Total: 97 fields (37 front + 60 back)
+ */
+const QUERY_ALIAS_MAP = {
+  // FRONT PAGE - INFORMED CONSENT & CONTACT (2 fields)
+  'contact_number': 'contactNumber',
+  'email_address': 'emailAddress',
+  
+  // FRONT PAGE - TEST IDENTIFICATION (3 fields)
+  'test_date': 'testDate',
+  'phil_health_number': 'philHealthNumber',
+  'phil_sys_number': 'philSysNumber',
+  
+  // FRONT PAGE - PATIENT NAME (4 fields)
+  'first_name': 'firstName',
+  'middle_name': 'middleName',
+  'last_name': 'lastName',
+  'suffix': 'suffix',
+  
+  // FRONT PAGE - PARENTAL CODES (3 fields)
+  'parental_code_mother': 'parentalCodeMother',
+  'parental_code_father': 'parentalCodeFather',
+  'birth_order': 'birthOrder',
+  
+  // FRONT PAGE - DEMOGRAPHIC DATA (5 fields)
+  'birth_date': 'birthDate',
+  'age': 'age',
+  'age_months': 'ageMonths',
+  'sex': 'sex',
+  'gender_identity': 'genderIdentity',
+  
+  // FRONT PAGE - RESIDENCE (6 fields)
+  'current_residence_city': 'currentResidenceCity',
+  'current_residence_province': 'currentResidenceProvince',
+  'permanent_residence_city': 'permanentResidenceCity',
+  'permanent_residence_province': 'permanentResidenceProvince',
+  'place_of_birth_city': 'placeOfBirthCity',
+  'place_of_birth_province': 'placeOfBirthProvince',
+  
+  // FRONT PAGE - PERSONAL STATUS (6 fields)
+  'nationality': 'nationality',
+  'nationality_other': 'nationalityOther',
+  'civil_status': 'civilStatus',
+  'living_with_partner': 'livingWithPartner',
+  'number_of_children': 'numberOfChildren',
+  'is_pregnant': 'isPregnant',
+  
+  // FRONT PAGE - EDUCATION & OCCUPATION (8 fields)
+  'educational_attainment': 'educationalAttainment',
+  'currently_in_school': 'currentlyInSchool',
+  'currently_working': 'currentlyWorking',
+  'occupation': 'occupation',
+  'worked_overseas': 'workedOverseas',
+  'overseas_return_year': 'overseasReturnYear',
+  'overseas_location': 'overseasLocation',
+  'overseas_country': 'overseasCountry',
+  
+  // BACK PAGE - MOTHER HIV STATUS (1 field)
+  'mother_hiv': 'motherHIV',
+  
+  // BACK PAGE - RISK ASSESSMENT: SEX WITH MALE (4 fields)
+  'risk_sex_male_status': 'riskSexMaleStatus',
+  'risk_sex_male_total': 'riskSexMaleTotal',
+  'risk_sex_male_date1': 'riskSexMaleDate1',
+  'risk_sex_male_date2': 'riskSexMaleDate2',
+  
+  // BACK PAGE - RISK ASSESSMENT: SEX WITH FEMALE (4 fields)
+  'risk_sex_female_status': 'riskSexFemaleStatus',
+  'risk_sex_female_total': 'riskSexFemaleTotal',
+  'risk_sex_female_date1': 'riskSexFemaleDate1',
+  'risk_sex_female_date2': 'riskSexFemaleDate2',
+  
+  // BACK PAGE - RISK ASSESSMENT: PAID FOR SEX (2 fields)
+  'risk_paid_for_sex_status': 'riskPaidForSexStatus',
+  'risk_paid_for_sex_date': 'riskPaidForSexDate',
+  
+  // BACK PAGE - RISK ASSESSMENT: RECEIVED PAYMENT (2 fields)
+  'risk_received_payment_status': 'riskReceivedPaymentStatus',
+  'risk_received_payment_date': 'riskReceivedPaymentDate',
+  
+  // BACK PAGE - RISK ASSESSMENT: SEX UNDER DRUGS (2 fields)
+  'risk_sex_under_drugs_status': 'riskSexUnderDrugsStatus',
+  'risk_sex_under_drugs_date': 'riskSexUnderDrugsDate',
+  
+  // BACK PAGE - RISK ASSESSMENT: SHARED NEEDLES (2 fields)
+  'risk_shared_needles_status': 'riskSharedNeedlesStatus',
+  'risk_shared_needles_date': 'riskSharedNeedlesDate',
+  
+  // BACK PAGE - RISK ASSESSMENT: BLOOD TRANSFUSION (2 fields)
+  'risk_blood_transfusion_status': 'riskBloodTransfusionStatus',
+  'risk_blood_transfusion_date': 'riskBloodTransfusionDate',
+  
+  // BACK PAGE - RISK ASSESSMENT: OCCUPATIONAL EXPOSURE (2 fields)
+  'risk_occupational_exposure_status': 'riskOccupationalExposureStatus',
+  'risk_occupational_exposure_date': 'riskOccupationalExposureDate',
+  
+  // BACK PAGE - REASONS FOR TESTING (1 field)
+  'reasons_for_testing': 'reasonsForTesting',
+  
+  // BACK PAGE - PREVIOUS HIV TEST (5 fields)
+  'previously_tested': 'previouslyTested',
+  'previous_test_date': 'previousTestDate',
+  'previous_test_provider': 'previousTestProvider',
+  'previous_test_city': 'previousTestCity',
+  'previous_test_result': 'previousTestResult',
+  
+  // BACK PAGE - MEDICAL HISTORY (6 fields)
+  'medical_tb': 'medicalTB',
+  'medical_sti': 'medicalSTI',
+  'medical_pep': 'medicalPEP',
+  'medical_prep': 'medicalPrEP',
+  'medical_hepatitis_b': 'medicalHepatitisB',
+  'medical_hepatitis_c': 'medicalHepatitisC',
+  
+  // BACK PAGE - CLINICAL PICTURE (3 fields)
+  'clinical_picture': 'clinicalPicture',
+  'symptoms': 'symptoms',
+  'who_staging': 'whoStaging',
+  
+  // BACK PAGE - TESTING DETAILS (7 fields)
+  'client_type': 'clientType',
+  'mode_of_reach': 'modeOfReach',
+  'testing_accepted': 'testingAccepted',
+  'testing_refused_reason': 'testingRefusedReason',
+  'testing_modality': 'testingModality',
+  'linkage_to_care': 'linkageToCare',
+  'other_services': 'otherServices',
+  
+  // BACK PAGE - INVENTORY INFORMATION (3 fields)
+  'test_kit_brand': 'testKitBrand',
+  'test_kit_lot_number': 'testKitLotNumber',
+  'test_kit_expiration': 'testKitExpiration',
+  
+  // BACK PAGE - HTS PROVIDER DETAILS (15 fields)
+  'testing_facility': 'testingFacility',
+  'facility_address': 'facilityAddress',
+  'facility_contact_number': 'facilityContactNumber',
+  'facility_email': 'facilityEmail',
+  'counselor_role': 'counselorRole',
+  'counselor_name': 'counselorName',
+  'facility_code': 'facilityCode',
+  'facility_region': 'facilityRegion',
+  'facility_province': 'facilityProvince',
+  'facility_city': 'facilityCity',
+  'counselor_signature': 'counselorSignature',
+  'form_completion_date': 'formCompletionDate',
+  'counselor_license': 'counselorLicense',
+  'counselor_designation': 'counselorDesignation',
+  'counselor_contact': 'counselorContact'
+};
+
+/**
  * Generate HTS Form queries for Textract Queries API
  * Organized by HTS Form structure and category
  * @param {string} page - 'front' or 'back'
@@ -324,6 +477,10 @@ function generateHTSFormQueries(page = 'front') {
       // ============================================================
       // BATCH 1: INFORMED CONSENT & DEMOGRAPHIC DATA (15 queries)
       // ============================================================
+
+      // INFORMED CONSENT - Contact information
+      { text: "What are the contact numbers for the patient?", alias: 'contact_number' },
+      { text: "What is the email address of the patient?", alias: 'email_address' }      
       
       // INFORMED CONSENT - Test identification
       { text: 'What is the HIV test date at the top of the form?', alias: 'test_date' },
@@ -385,10 +542,6 @@ function generateHTSFormQueries(page = 'front') {
       { text: "If the patient worked overseas, what year did they return from their last contract?", alias: 'overseas_return_year' },
       { text: "Where was the patient based while working overseas - on a ship or on land?", alias: 'overseas_location' },
       { text: "What country did the patient last work in while overseas?", alias: 'overseas_country' },
-      
-      // INFORMED CONSENT - Contact information
-      { text: "What are the contact numbers for the patient?", alias: 'contact_number' },
-      { text: "What is the email address of the patient?", alias: 'email_address' }
       // Total: 37 queries across 3 batches (15 + 15 + 7)
     ],
     back: [
@@ -1512,5 +1665,6 @@ module.exports = {
   normalizeNameField,
   calculateAverageConfidence,
   parseHTSFormData,
-  processEncryptedHTSForm
+  processEncryptedHTSForm,
+  QUERY_ALIAS_MAP
 };
