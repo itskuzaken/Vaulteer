@@ -57,7 +57,8 @@
           "required": true,
           "priority": 1,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.02, "y": 0.13, "text": "Test Date:" }
+          "nearbyLabel": { "x": 0.02, "y": 0.13, "text": "Test Date:" },
+          "query": "What is the HIV test date at the top of the form?"
         },
         "philHealthNumber": {
           "region": {
@@ -73,6 +74,7 @@
           "priority": 3,
           "extractionMethod": "form-field",
           "nearbyLabel": { "x": 0.02, "y": 0.165, "text": "PhilHealth Number:" },
+          "query": "What is the PhilHealth Identification Number?",
           "relatedCheckbox": {
             "label": "Not enrolled in PhilHealth",
             "x": 0.52,
@@ -114,7 +116,8 @@
           "required": true,
           "priority": 1,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.05, "y": 0.225, "text": "First Name" }
+          "nearbyLabel": { "x": 0.05, "y": 0.225, "text": "First Name" },
+          "query": "What is the patient's first name?"
         },
         "middleName": {
           "region": {
@@ -142,7 +145,8 @@
           "required": true,
           "priority": 1,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.59, "y": 0.225, "text": "Last Name" }
+          "nearbyLabel": { "x": 0.59, "y": 0.225, "text": "Last Name" },
+          "query": "What is the patient's last name?"
         },
         "suffix": {
           "region": {
@@ -165,12 +169,43 @@
             "width": 0.15,
             "height": 0.025
           },
-          "label": "Parental Code",
+          "label": "Parental Code - Mother's First Name (First 2 letters)",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.02, "y": 0.275, "text": "First 2 letters of mother's FIRST name" }
+          "nearbyLabel": { "x": 0.02, "y": 0.275, "text": "First 2 letters of mother's FIRST name" },
+          "query": "What are the first 2 letters of mother's first name?"
+        },
+        "parentalCodeFather": {
+          "region": {
+            "x": 0.48,
+            "y": 0.275,
+            "width": 0.15,
+            "height": 0.025
+          },
+          "label": "Parental Code - Father's First Name (First 2 letters)",
+          "type": "text",
+          "required": false,
+          "priority": 3,
+          "extractionMethod": "form-field",
+          "nearbyLabel": { "x": 0.45, "y": 0.275, "text": "First 2 letters of father's FIRST name" },
+          "query": "What are the first 2 letters of father's first name?"
+        },
+        "birthOrder": {
+          "region": {
+            "x": 0.7,
+            "y": 0.275,
+            "width": 0.08,
+            "height": 0.025
+          },
+          "label": "Birth Order",
+          "type": "number",
+          "required": false,
+          "priority": 3,
+          "extractionMethod": "form-field",
+          "nearbyLabel": { "x": 0.65, "y": 0.275, "text": "Birth order" },
+          "query": "What is the birth order among mother's children?"
         },
         "birthDate": {
           "region": {
@@ -190,7 +225,8 @@
           "required": true,
           "priority": 1,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.02, "y": 0.305, "text": "Birth date:" }
+          "nearbyLabel": { "x": 0.02, "y": 0.305, "text": "Birth date:" },
+          "query": "What is the patient's date of birth?"
         },
         "age": {
           "region": {
@@ -209,7 +245,28 @@
             "min": 0,
             "max": 120,
             "computed": "birthDate"
-          }
+          },
+          "query": "What is the patient's age in years?"
+        },
+        "ageMonths": {
+          "region": {
+            "x": 0.48,
+            "y": 0.305,
+            "width": 0.06,
+            "height": 0.025
+          },
+          "label": "Age in Months (for less than 1 year old)",
+          "type": "number",
+          "required": false,
+          "priority": 3,
+          "extractionMethod": "form-field",
+          "nearbyLabel": { "x": 0.42, "y": 0.305, "text": "Age in months:" },
+          "validation": {
+            "min": 0,
+            "max": 11
+          },
+          "conditionalOn": { "field": "age", "value": 0 },
+          "query": "What is the patient's age in months?"
         },
         "sex": {
           "region": {
@@ -234,7 +291,8 @@
           ],
           "required": true,
           "priority": 1,
-          "extractionMethod": "checkbox-detection"
+          "extractionMethod": "checkbox-detection",
+          "query": "What is the patient's sex assigned at birth - Male or Female?"
         },
         "currentResidenceCity": {
           "region": {
@@ -342,7 +400,23 @@
           ],
           "required": false,
           "priority": 3,
-          "extractionMethod": "checkbox-with-text"
+          "extractionMethod": "checkbox-with-text",
+          "query": "What is the patient's nationality?"
+        },
+        "nationalityOther": {
+          "region": {
+            "x": 0.45,
+            "y": 0.455,
+            "width": 0.3,
+            "height": 0.025
+          },
+          "label": "Nationality - Other (specify)",
+          "type": "text",
+          "required": false,
+          "priority": 3,
+          "extractionMethod": "form-field",
+          "conditionalOn": { "field": "nationality", "value": "Other" },
+          "query": "What is the patient's nationality if not Filipino?"
         },
         "civilStatus": {
           "region": {
