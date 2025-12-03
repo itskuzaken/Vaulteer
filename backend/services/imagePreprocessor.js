@@ -24,10 +24,10 @@ class ImagePreprocessor {
       maxRotationAngle: 5,
       
       // Quality thresholds
-      minBrightness: 40,
-      maxBrightness: 240,
-      minContrast: 30,
-      blurThreshold: 100
+      minBrightness: 30,
+      maxBrightness: 250,
+      minContrast: 10, // Relaxed from 30 to handle low-variance images
+      blurThreshold: 50 // Higher score = sharper image
     };
   }
 
@@ -94,14 +94,19 @@ class ImagePreprocessor {
         appliedProcessing.push('median-filter');
       }
 
-      // Step 7: Sharpen if blurry
-      if (qualityMetrics.blur < this.config.blurThreshold || mode === 'accurate') {
+      // Step 7: Sharpen only if blurry (low blur score) or in accurate mode
+      // Note: Higher blur score = sharper image, lower score = blurry
+      if (qualityMetrics.blur < this.config.blurThreshold) {
         image = image.sharpen({
           sigma: this.config.sharpenSigma,
           flat: this.config.sharpenFlat,
           jagged: this.config.sharpenJagged
         });
         appliedProcessing.push('sharpen');
+      } else if (mode === 'accurate') {
+        // Light sharpening for accurate mode even if not blurry
+        image = image.sharpen({ sigma: 1.0 });
+        appliedProcessing.push('sharpen:light');
       }
 
       // Step 8: Ensure minimum DPI (300 for OCR)
@@ -151,8 +156,12 @@ class ImagePreprocessor {
     const brightness = stats.channels.reduce((sum, ch) => sum + ch.mean, 0) / stats.channels.length;
     
     // Calculate contrast (average of channel standard deviations)
-    // Handle edge cases: variance must be positive, default to 0 if invalid
+    // Handle edge cases: variance must be positive, use stdev if available
     const contrast = stats.channels.reduce((sum, ch) => {
+      // Try stdev first, fallback to sqrt of variance if variance > 0
+      if (ch.stdev !== undefined && ch.stdev > 0) {
+        return sum + ch.stdev;
+      }
       const variance = ch.variance || 0;
       // Ensure variance is positive before taking sqrt
       return sum + (variance > 0 ? Math.sqrt(variance) : 0);
@@ -228,10 +237,11 @@ class ImagePreprocessor {
     const checks = {
       brightness: metrics.brightness >= this.config.minBrightness && metrics.brightness <= this.config.maxBrightness,
       contrast: metrics.contrast >= this.config.minContrast,
-      blur: metrics.blur >= this.config.blurThreshold * 0.5 // Allow lower threshold for rejection
+      blur: metrics.blur >= this.config.blurThreshold // Higher blur score = sharper, so >= is correct
     };
 
-    const passed = Object.values(checks).every(check => check);
+    const passed = checks.brightness && checks.contrast; // Only require brightness and contrast
+    // Note: Blur check removed from rejection criteria - we can enhance blurry images
     
     if (!passed) {
       console.warn(`[ImagePreprocessor] Quality check failed:`, checks);
@@ -268,7 +278,9 @@ class ImagePreprocessor {
       suggestions.push('Low contrast - ensure good lighting and avoid shadows');
     }
     if (metrics.blur < this.config.blurThreshold) {
-      suggestions.push('Image blurry - hold camera steady and ensure proper focus');
+      suggestions.push('Image may be blurry - hold camera steady and ensure proper focus');
+    } else if (metrics.blur > 10000) {
+      suggestions.push('Image appears very sharp - quality is good');
     }
 
     return suggestions;

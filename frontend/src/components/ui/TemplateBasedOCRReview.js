@@ -8,8 +8,11 @@ import React, { useState } from 'react';
 
 // Field labels mapping from template metadata
 const TEMPLATE_FIELD_LABELS = {
+  // Current test result
+  testResult: 'Current Test Result',
+  testDate: 'Current Test Date',
+  
   // Front page fields - Personal Information
-  testDate: 'Test Date',
   philHealthNumber: 'PhilHealth Number',
   philSysNumber: 'PhilSys Number',
   firstName: 'First Name',
@@ -57,6 +60,9 @@ const TEMPLATE_FIELD_LABELS = {
   occupation: 'Occupation',
   currentlyWorking: 'Currently working',
   workedOverseas: 'Worked overseas/abroad in past 5 years',
+  overseasReturnYear: 'Overseas Return Year',
+  overseasLocation: 'Overseas Location (Ship/Land)',
+  overseasCountry: 'Overseas Country',
   monthlyIncome: 'Monthly Income',
   pwdId: 'PWD ID',
   indigenousPerson: 'Indigenous Person',
@@ -90,6 +96,7 @@ const TEMPLATE_FIELD_LABELS = {
   venue: 'Venue',
   modeOfReach: 'Mode of Reach',
   testingAccepted: 'HIV Testing Status',
+  refusalReason: 'Refusal Reason',
   
   // Back page - Test Kit Information
   kitName: 'Test Kit Brand',
@@ -112,41 +119,38 @@ const TEMPLATE_FIELD_LABELS = {
 
 // Group fields by section for better organization
 const FRONT_PAGE_SECTIONS = {
-  'Personal Information': [
-    'testDate', 'philHealthNumber', 'philSysNumber', 
-    'firstName', 'middleName', 'lastName', 'suffix'
+  'Current Test Result': [
+    'testResult', 'testDate'
   ],
-  'Parental & Birth Information': [
-    'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
-    'birthDate', 'age', 'ageMonths'
+  'Identity & Registration': [
+    'philHealthNumber', 'philSysNumber', 
+    'firstName', 'middleName', 'lastName', 'suffix',
+    'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder'
   ],
   'Demographic Data': [
-    'sex', 'civilStatus', 'livingWithPartner', 'numberOfChildren', 'isPregnant'
-  ],
-  'Residence Information': [
+    'birthDate', 'age', 'ageMonths',
+    'sex', 
     'currentResidenceCity', 'currentResidenceProvince',
     'permanentResidenceCity', 'permanentResidenceProvince',
-    'placeOfBirthCity', 'placeOfBirthProvince'
+    'placeOfBirthCity', 'placeOfBirthProvince',
+    'nationality', 'nationalityOther',
+    'civilStatus', 'livingWithPartner', 'numberOfChildren', 'isPregnant'
+  ],
+  'Education & Employment': [
+    'educationalAttainment', 'currentlyInSchool', 
+    'occupation', 'currentlyWorking', 
+    'workedOverseas', 'overseasReturnYear', 'overseasLocation', 'overseasCountry',
+    'monthlyIncome', 'pwdId', 'indigenousPerson'
   ],
   'Contact Information': [
     'contactNumber', 'email', 'region', 'province', 
     'cityMunicipality', 'barangay', 'houseNumberStreet', 'landmark'
-  ],
-  'Nationality': [
-    'nationality', 'nationalityOther'
-  ],
-  'Education & Employment': [
-    'educationalAttainment', 'currentlyInSchool', 
-    'occupation', 'currentlyWorking', 'workedOverseas',
-    'monthlyIncome', 'pwdId', 'indigenousPerson'
   ]
 };
 
 const BACK_PAGE_SECTIONS = {
-  'Maternal HIV Status': [
-    'motherHIV'
-  ],
-  'Risk Assessment & Exposure History': [
+  'Risk Assessment & Testing History': [
+    'motherHIV',
     'riskAssessment',
     'riskAssessmentSexMale',
     'riskAssessmentSexFemale',
@@ -155,26 +159,39 @@ const BACK_PAGE_SECTIONS = {
     'riskAssessmentSexUnderInfluence',
     'riskAssessmentSharedNeedles',
     'riskAssessmentBloodTransfusion',
-    'riskAssessmentOccupationalExposure'
+    'riskAssessmentOccupationalExposure',
+    'reasonsForTesting',
+    'previouslyTested', 
+    'previousTestDate', 
+    'previousTestProvider', 
+    'previousTestCity', 
+    'previousTestResult'
   ],
-  'Previous HIV Test (Q19)': [
-    'reasonsForTesting', 'previouslyTested', 'previousTestDate', 'previousTestProvider', 'previousTestCity', 'previousTestResult'
+  'Medical History': [
+    'medicalHistory', 
+    'clinicalPicture', 
+    'symptoms', 
+    'whoStaging'
   ],
-  'Medical History & Clinical Picture': [
-    'medicalHistory', 'clinicalPicture', 'symptoms', 'whoStaging'
+  'Testing Details': [
+    'clientType', 
+    'modeOfReach', 
+    'testingAccepted',
+    'refusalReason',
+    'otherServices',
+    'testKitBrand', 
+    'kitName', 
+    'testKitLotNumber', 
+    'kitLotNumber', 
+    'testKitExpiration'
   ],
-  'Client Details': [
-    'clientType', 'venue', 'modeOfReach', 'testingAccepted'
-  ],
-  'Test Kit Information': [
-    'testKitBrand', 'kitName', 'testKitLotNumber', 'kitLotNumber', 'testKitExpiration'
-  ],
-  'Testing Facility & Provider': [
-    'testingFacility', 'facilityAddress', 'contactNumber', 'emailAddress', 
-    'counselorName', 'serviceProvider', 'counselorRole', 'counselorSignature'
-  ],
-  'Additional Services': [
-    'otherServices'
+  'HTS Provider Details': [
+    'testingFacility', 
+    'facilityAddress', 
+    'counselorName', 
+    'serviceProvider', 
+    'counselorRole', 
+    'counselorSignature'
   ]
 };
 

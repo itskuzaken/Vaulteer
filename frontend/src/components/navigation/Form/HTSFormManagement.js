@@ -7,7 +7,6 @@ import ImageLightbox from "../../ui/ImageLightbox";
 import CameraQualityIndicator from "../../ui/CameraQualityIndicator";
 import OCRFieldWarnings from "../../ui/OCRFieldWarnings";
 import EnhancedOCRReview from "../../ui/EnhancedOCRReview";
-import TemplateBasedOCRReview from "../../ui/TemplateBasedOCRReview";
 import AlertModal from "../../ui/AlertModal";
 import ConfirmModal from "../../ui/ConfirmModal";
 import NextImage from 'next/image';
@@ -1985,23 +1984,6 @@ export default function HTSFormManagement() {
               </button>
             </div>
 
-            <div className="p-3 sm:p-6">
-              <TemplateBasedOCRReview
-                extractedData={extractedData}
-                onUpdate={(updatedData) => {
-                  console.log('Updated data:', updatedData);
-                  setExtractedData(updatedData);
-                }}
-                onAccept={(finalData) => {
-                  console.log('Accepted data:', finalData);
-                  setExtractedData(finalData || extractedData);
-                  setShowOCRReview(false);
-                  setCurrentStep('result');
-                }}
-                onReanalyze={handleAnalyzeImages}
-              />
-            </div>
-
             <div className="p-3 sm:p-6 space-y-4">
               {/* Confidence Score */}
               <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
@@ -2029,10 +2011,10 @@ export default function HTSFormManagement() {
                 <div className="space-y-4 sm:space-y-6 max-h-[65vh] overflow-y-auto px-1">
                   {/* TEST RESULT */}
                   <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-                    <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Test Result</h3>
+                    <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Current Test Result</h3>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Test Result *
+                        Current Test Result *
                       </label>
                       <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                         <label className="inline-flex items-center">
