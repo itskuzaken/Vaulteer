@@ -406,9 +406,11 @@ export function getValidationSummary(validations) {
   };
 }
 
-export default {
+const ocrValidation = {
   validateAndCorrectFields,
   getValidationSummary,
   PHILIPPINES_MUNICIPALITIES,
   TESTING_FACILITIES
 };
+
+export default ocrValidation;
