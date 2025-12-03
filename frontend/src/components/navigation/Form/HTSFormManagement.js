@@ -862,99 +862,112 @@ export default function HTSFormManagement() {
     );
   };
 
+  // Helper function to extract field values from nested structure
+  const getFieldValue = (fieldName) => {
+    if (!extractedData) return '';
+    
+    // Check if extractedData has 'fields' property (new backend format)
+    if (extractedData.fields && extractedData.fields[fieldName]) {
+      return extractedData.fields[fieldName].value || '';
+    }
+    
+    // Fallback to direct property access (old format or already transformed)
+    return extractedData[fieldName] || '';
+  };
+
   // Enter edit mode with ALL 56 fields from DOH HTS Form 2021
   const enterEditMode = () => {
     setEditableData({
       // Test metadata
-      testResult: extractedData.testResult || '',
-      testDate: formatDateForInput(extractedData.testDate),
+      testResult: getFieldValue('testResult'),
+      testDate: formatDateForInput(getFieldValue('testDate')),
       
       // Identity Fields (Q1-7)
-      philHealthNumber: extractedData.philHealthNumber || '',
-      philSysNumber: extractedData.philSysNumber || '',
-      firstName: extractedData.firstName || '',
-      middleName: extractedData.middleName || '',
-      lastName: extractedData.lastName || '',
-      suffix: extractedData.suffix || '',
-      fullName: extractedData.fullName || '',
-      parentalCode: extractedData.parentalCode || '',
-      parentalCodeMother: extractedData.parentalCodeMother || '',
-      parentalCodeFather: extractedData.parentalCodeFather || '',
-      birthOrder: extractedData.birthOrder || '',
+      philHealthNumber: getFieldValue('philHealthNumber'),
+      philSysNumber: getFieldValue('philSysNumber'),
+      firstName: getFieldValue('firstName'),
+      middleName: getFieldValue('middleName'),
+      lastName: getFieldValue('lastName'),
+      suffix: getFieldValue('suffix'),
+      fullName: getFieldValue('fullName'),
+      parentalCode: getFieldValue('parentalCode'),
+      parentalCodeMother: getFieldValue('parentalCodeMother'),
+      parentalCodeFather: getFieldValue('parentalCodeFather'),
+      birthOrder: getFieldValue('birthOrder'),
       
       // Demographic Data (Q8-12)
-      birthDate: formatDateForInput(extractedData.birthDate),
-      age: extractedData.age || '',
-      ageMonths: extractedData.ageMonths || '',
-      sex: extractedData.sex || '',
-      currentResidenceCity: extractedData.currentResidenceCity || '',
-      currentResidenceProvince: extractedData.currentResidenceProvince || '',
-      permanentResidenceCity: extractedData.permanentResidenceCity || '',
-      permanentResidenceProvince: extractedData.permanentResidenceProvince || '',
-      placeOfBirthCity: extractedData.placeOfBirthCity || '',
-      placeOfBirthProvince: extractedData.placeOfBirthProvince || '',
-      nationality: extractedData.nationality || '',
-      nationalityOther: extractedData.nationalityOther || '',
-      civilStatus: extractedData.civilStatus || '',
-      livingWithPartner: extractedData.livingWithPartner || '',
-      numberOfChildren: extractedData.numberOfChildren || '',
-      isPregnant: extractedData.isPregnant || '',
+      birthDate: formatDateForInput(getFieldValue('birthDate')),
+      age: getFieldValue('age'),
+      ageMonths: getFieldValue('ageMonths'),
+      sex: getFieldValue('sex'),
+      currentResidenceCity: getFieldValue('currentResidenceCity'),
+      currentResidenceProvince: getFieldValue('currentResidenceProvince'),
+      permanentResidenceCity: getFieldValue('permanentResidenceCity'),
+      permanentResidenceProvince: getFieldValue('permanentResidenceProvince'),
+      placeOfBirthCity: getFieldValue('placeOfBirthCity'),
+      placeOfBirthProvince: getFieldValue('placeOfBirthProvince'),
+      nationality: getFieldValue('nationality'),
+      nationalityOther: getFieldValue('nationalityOther'),
+      civilStatus: getFieldValue('civilStatus'),
+      livingWithPartner: getFieldValue('livingWithPartner'),
+      numberOfChildren: getFieldValue('numberOfChildren'),
+      isPregnant: getFieldValue('isPregnant'),
       
       // Education & Occupation (Q13-16)
-      educationalAttainment: extractedData.educationalAttainment || '',
-      currentlyInSchool: extractedData.currentlyInSchool || '',
-      occupation: extractedData.occupation || '',
-      currentlyWorking: extractedData.currentlyWorking || '',
-      workedOverseas: extractedData.workedOverseas || '',
-      overseasReturnYear: extractedData.overseasReturnYear || '',
-      overseasLocation: extractedData.overseasLocation || '',
-      overseasCountry: extractedData.overseasCountry || '',
+      educationalAttainment: getFieldValue('educationalAttainment'),
+      currentlyInSchool: getFieldValue('currentlyInSchool'),
+      occupation: getFieldValue('occupation'),
+      currentlyWorking: getFieldValue('currentlyWorking'),
+      workedOverseas: getFieldValue('workedOverseas'),
+      overseasReturnYear: getFieldValue('overseasReturnYear'),
+      overseasLocation: getFieldValue('overseasLocation'),
+      overseasCountry: getFieldValue('overseasCountry'),
       
       // Risk Assessment (Q17-18)
-      riskAssessment: extractedData.riskAssessment || '',
-      riskAssessmentSexMale: extractedData.riskAssessmentSexMale || '',
-      riskAssessmentSexFemale: extractedData.riskAssessmentSexFemale || '',
-      riskAssessmentPaidForSex: extractedData.riskAssessmentPaidForSex || '',
-      riskAssessmentReceivedPayment: extractedData.riskAssessmentReceivedPayment || '',
-      riskAssessmentSexUnderInfluence: extractedData.riskAssessmentSexUnderInfluence || '',
-      riskAssessmentSharedNeedles: extractedData.riskAssessmentSharedNeedles || '',
-      riskAssessmentBloodTransfusion: extractedData.riskAssessmentBloodTransfusion || '',
-      riskAssessmentOccupationalExposure: extractedData.riskAssessmentOccupationalExposure || '',
-      reasonsForTesting: extractedData.reasonsForTesting || '',
+      riskAssessment: getFieldValue('riskAssessment'),
+      riskAssessmentSexMale: getFieldValue('riskAssessmentSexMale'),
+      riskAssessmentSexFemale: getFieldValue('riskAssessmentSexFemale'),
+      riskAssessmentPaidForSex: getFieldValue('riskAssessmentPaidForSex'),
+      riskAssessmentReceivedPayment: getFieldValue('riskAssessmentReceivedPayment'),
+      riskAssessmentSexUnderInfluence: getFieldValue('riskAssessmentSexUnderInfluence'),
+      riskAssessmentSharedNeedles: getFieldValue('riskAssessmentSharedNeedles'),
+      riskAssessmentBloodTransfusion: getFieldValue('riskAssessmentBloodTransfusion'),
+      riskAssessmentOccupationalExposure: getFieldValue('riskAssessmentOccupationalExposure'),
+      reasonsForTesting: getFieldValue('reasonsForTesting'),
       
       // Previous HIV Test (Q19)
-      previouslyTested: extractedData.previouslyTested || '',
-      previousTestDate: formatDateForInput(extractedData.previousTestDate),
-      previousTestProvider: extractedData.previousTestProvider || '',
-      previousTestCity: extractedData.previousTestCity || '',
-      previousTestResult: extractedData.previousTestResult || '',
+      previouslyTested: getFieldValue('previouslyTested'),
+      previousTestDate: formatDateForInput(getFieldValue('previousTestDate')),
+      previousTestProvider: getFieldValue('previousTestProvider'),
+      previousTestCity: getFieldValue('previousTestCity'),
+      previousTestResult: getFieldValue('previousTestResult'),
       
       // Medical History (Q20-21)
-      medicalHistory: extractedData.medicalHistory || '',
-      clinicalPicture: extractedData.clinicalPicture || '',
-      symptoms: extractedData.symptoms || '',
-      whoStaging: extractedData.whoStaging || '',
+      medicalHistory: getFieldValue('medicalHistory'),
+      clinicalPicture: getFieldValue('clinicalPicture'),
+      symptoms: getFieldValue('symptoms'),
+      whoStaging: getFieldValue('whoStaging'),
       
       // Testing Details (Q22-25)
-      clientType: extractedData.clientType || '',
-      modeOfReach: extractedData.modeOfReach || '',
-      testingAccepted: extractedData.testingAccepted || '',
-      refusalReason: extractedData.refusalReason || '',
-      otherServices: extractedData.otherServices || '',
-      testKitBrand: extractedData.testKitBrand || '',
-      testKitLotNumber: extractedData.testKitLotNumber || '',
-      testKitExpiration: formatDateForInput(extractedData.testKitExpiration),
+      clientType: getFieldValue('clientType'),
+      modeOfReach: getFieldValue('modeOfReach'),
+      testingAccepted: getFieldValue('testingAccepted'),
+      refusalReason: getFieldValue('refusalReason'),
+      otherServices: getFieldValue('otherServices'),
+      testKitBrand: getFieldValue('testKitBrand'),
+      testKitLotNumber: getFieldValue('testKitLotNumber'),
+      testKitExpiration: formatDateForInput(getFieldValue('testKitExpiration')),
       
       // HTS Provider (Q26-27)
-      testingFacility: extractedData.testingFacility || '',
-      facilityAddress: extractedData.facilityAddress || '',
-      counselorName: extractedData.counselorName || '',
-      counselorRole: extractedData.counselorRole || '',
-      counselorSignature: extractedData.counselorSignature || '',
+      testingFacility: getFieldValue('testingFacility'),
+      facilityAddress: getFieldValue('facilityAddress'),
+      counselorName: getFieldValue('counselorName'),
+      counselorRole: getFieldValue('counselorRole'),
+      counselorSignature: getFieldValue('counselorSignature'),
       
       // Consent Fields
-      contactNumber: extractedData.contactNumber || '',
-      emailAddress: extractedData.emailAddress || ''
+      contactNumber: getFieldValue('contactNumber'),
+      emailAddress: getFieldValue('emailAddress')
     });
     setFieldErrors({});
     setIsEditMode(true);
@@ -1708,8 +1721,8 @@ export default function HTSFormManagement() {
                   </div>
 
                   {/* Mismatch warning */}
-                  {testResult && extractedData.testResult && 
-                   testResult !== extractedData.testResult.toLowerCase().replace(/[-\s]/g, '-') && (
+                  {testResult && getFieldValue('testResult') && 
+                   testResult !== getFieldValue('testResult').toLowerCase().replace(/[-\s]/g, '-') && (
                     <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                       <div className="flex items-start gap-2">
                         <IoAlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
@@ -1718,7 +1731,7 @@ export default function HTSFormManagement() {
                             Mismatch Detected
                           </h4>
                           <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                            Your selection ({testResult}) doesn&apos;t match the extracted result ({extractedData.testResult}). 
+                            Your selection ({testResult}) doesn&apos;t match the extracted result ({getFieldValue('testResult')}). 
                             Please verify the form carefully.
                           </p>
                         </div>
@@ -1967,63 +1980,63 @@ export default function HTSFormManagement() {
               {/* View Mode: Read-only Fields */}
               {!isEditMode && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  {extractedData.testResult && (
+                  {getFieldValue('testResult') && (
                     <div className={`rounded-lg p-4 ${
                       extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
                     }`}>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Result</p>
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        {extractedData.testResult}
+                        {getFieldValue('testResult')}
                       </p>
                     </div>
                   )}
-                  {extractedData.fullName && (
+                  {getFieldValue('fullName') && (
                     <div className={`rounded-lg p-4 ${
                       extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
                     }`}>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Full Name</p>
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        {extractedData.fullName}
+                        {getFieldValue('fullName')}
                       </p>
                     </div>
                   )}
-                  {extractedData.testDate && (
+                  {getFieldValue('testDate') && (
                     <div className={`rounded-lg p-4 ${
                       extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
                     }`}>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Date</p>
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        {typeof extractedData.testDate === 'string' ? extractedData.testDate : extractedData.testDate?.raw}
+                        {getFieldValue('testDate')}
                       </p>
                     </div>
                   )}
-                  {extractedData.birthDate && (
+                  {getFieldValue('birthDate') && (
                     <div className={`rounded-lg p-4 ${
                       extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
                     }`}>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Birth Date</p>
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        {typeof extractedData.birthDate === 'string' ? extractedData.birthDate : extractedData.birthDate?.raw}
+                        {getFieldValue('birthDate')}
                       </p>
                     </div>
                   )}
-                  {extractedData.philHealthNumber && (
+                  {getFieldValue('philHealthNumber') && (
                     <div className={`rounded-lg p-4 ${
                       extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
                     }`}>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">PhilHealth Number</p>
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        {extractedData.philHealthNumber}
+                        {getFieldValue('philHealthNumber')}
                       </p>
                     </div>
                   )}
-                  {extractedData.testingFacility && (
+                  {getFieldValue('testingFacility') && (
                     <div className={`rounded-lg p-4 ${
                       extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
                     }`}>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Testing Facility</p>
                       <p className="font-semibold text-gray-900 dark:text-white">
-                        {extractedData.testingFacility}
+                        {getFieldValue('testingFacility')}
                       </p>
                     </div>
                   )}

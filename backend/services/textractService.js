@@ -317,58 +317,98 @@ async function processBatchQueries(imageBuffer, batches) {
  */
 function generateHTSFormQueries(page = 'front') {
   // AWS Textract Queries API limit: 15 queries per document
-  // Prioritize the most critical fields that benefit most from NLP extraction
+  // Comprehensive field coverage across multiple batches
   const queries = {
     front: [
-      // Critical identification fields (highest priority)
+      // BATCH 1 - Core identification fields (15 queries)
       { text: 'What is the HIV test date at the top of the form?', alias: 'test_date' },
       { text: 'What is the 12-digit PhilHealth Number in format XX-XXXXXXXXX-X?', alias: 'phil_health_number' },
       { text: 'What is the 16-digit PhilSys Number in the ID section, written as exactly 16 consecutive digits without dashes or spaces?', alias: 'phil_sys_number' },
-      { text: "What is the patient's first name only, without the label?", alias: 'first_name' },
+      { text: "What is the patient's first name?", alias: 'first_name' },
       { text: "What is the patient's middle name only, not including the words 'Middle Name'?", alias: 'middle_name' },
-      { text: "What is the patient's last name only, without any suffix?", alias: 'last_name' },
+      { text: "What is the patient's last name?", alias: 'last_name' },
       { text: "What is the patient's name suffix such as Jr, Sr, III, or IV?", alias: 'suffix' },
-      { text: "What is the patient's date of birth in MM/DD/YYYY format?", alias: 'birth_date' },
-      { text: "What is the patient's age in years as a number?", alias: 'age' },
-      { text: "What is the age in months for infants less than 1 year old?", alias: 'age_months' },
-      { text: 'What is the patient\'s sex - Male or Female?', alias: 'sex' },
-      { text: "What is the patient's civil status - Single, Married, Separated, Widowed, or Divorced?", alias: 'civil_status' },
-      
-      // Complex fields that benefit from NLP
       { text: "What are the first 2 letters of mother's first name?", alias: 'parental_code_mother' },
       { text: "What are the first 2 letters of father's first name?", alias: 'parental_code_father' },
-      { text: "What is the birth order number among mother's children?", alias: 'birth_order' },
-      { text: "What is the patient's nationality?", alias: 'nationality' }
-      // Note: Other fields will use coordinate-based extraction as fallback
+      { text: "What is the birth order among mother's children?", alias: 'birth_order' },
+      { text: "What is the patient's date of birth?", alias: 'birth_date' },
+      { text: "What is the patient's age in years?", alias: 'age' },
+      { text: "What is the patient's age in months?", alias: 'age_months' },
+      { text: "What is the patient's sex assigned at birth - Male or Female?", alias: 'sex' },
+      { text: "What is the patient's civil status - Single, Married, Separated, Widowed, or Divorced?", alias: 'civil_status' },
+      
+      // BATCH 2 - Address and residency information (15 queries)
+      { text: "What is the city or municipality of the patient's current residence?", alias: 'current_residence_city' },
+      { text: "What is the province of the patient's current residence?", alias: 'current_residence_province' },
+      { text: "What is the city or municipality of the patient's permanent residence?", alias: 'permanent_residence_city' },
+      { text: "What is the province of the patient's permanent residence?", alias: 'permanent_residence_province' },
+      { text: "What is the city or municipality where the patient was born?", alias: 'place_of_birth_city' },
+      { text: "What is the province where the patient was born?", alias: 'place_of_birth_province' },
+      { text: "What is the patient's nationality?", alias: 'nationality' },
+      { text: "If the patient's nationality is not Filipino, what is it?", alias: 'nationality_other' },
+      { text: "Is the patient currently living with a partner?", alias: 'living_with_partner' },
+      { text: "How many children does the patient have?", alias: 'number_of_children' },
+      { text: "Is the patient currently pregnant? (for female only)", alias: 'is_pregnant' },
+      { text: "What is the patient's highest educational attainment?", alias: 'educational_attainment' },
+      { text: "Is the patient currently in school?", alias: 'currently_in_school' },
+      { text: "Is the patient currently working?", alias: 'currently_working' },
+      { text: "What is the patient's current or previous occupation?", alias: 'occupation' },
+      
+      // BATCH 3 - Work history and overseas information (6 queries for front page)
+      { text: "Has the patient worked overseas or abroad in the past 5 years?", alias: 'worked_overseas' },
+      { text: "If the patient worked overseas, what year did they return from their last contract?", alias: 'overseas_return_year' },
+      { text: "Where was the patient based while working overseas - on a ship or on land?", alias: 'overseas_location' },
+      { text: "What country did the patient last work in while overseas?", alias: 'overseas_country' },
+      { text: "What are the contact numbers for the patient?", alias: 'contact_number' },
+      { text: "What is the email address of the patient?", alias: 'email_address' }
+      // Total: 36 queries across 3 batches (15 + 15 + 6)
     ],
     back: [
-      // Critical test information
-      { text: 'What is the brand of test kit used?', alias: 'test_kit_brand' },
+      // BATCH 1 - Medical history and risk assessment (15 queries)
+      { text: 'Has the patient had unprotected sex in the past 12 months?', alias: 'risk_unprotected_sex' },
+      { text: 'When was the last time the patient had unprotected sex?', alias: 'risk_unprotected_sex_date' },
+      { text: 'Has the patient had multiple sexual partners in the past 12 months?', alias: 'risk_multiple_partners' },
+      { text: 'When did the patient last have multiple sexual partners?', alias: 'risk_multiple_partners_date' },
+      { text: 'Has the patient had sex with someone who injects drugs?', alias: 'risk_sex_with_pwid' },
+      { text: 'Has the patient received payment for sex?', alias: 'risk_payment_for_sex' },
+      { text: 'Has the patient had sex under the influence of drugs?', alias: 'risk_sex_under_drugs' },
+      { text: 'Has the patient shared needles for drug injection?', alias: 'risk_shared_needles' },
+      { text: 'Has the patient received a blood transfusion?', alias: 'risk_blood_transfusion' },
+      { text: 'Has the patient had occupational exposure to needlestick or sharps?', alias: 'risk_occupational_exposure' },
+      { text: 'What are the reasons the patient is seeking HIV testing?', alias: 'reasons_for_testing' },
+      { text: 'Is the patient a current TB patient?', alias: 'medical_tb' },
+      { text: 'Has the patient been diagnosed with other STIs?', alias: 'medical_sti' },
+      { text: 'Has the patient taken PEP (Post-Exposure Prophylaxis)?', alias: 'medical_pep' },
+      { text: 'Is the patient currently taking PrEP (Pre-Exposure Prophylaxis)?', alias: 'medical_prep' },
+      
+      // BATCH 2 - Clinical and testing information (15 queries)
+      { text: 'Does the patient have hepatitis B?', alias: 'medical_hepatitis_b' },
+      { text: 'Does the patient have hepatitis C?', alias: 'medical_hepatitis_c' },
+      { text: 'What is the clinical picture - Asymptomatic or Symptomatic?', alias: 'clinical_picture' },
+      { text: 'Describe the signs or symptoms the patient is experiencing?', alias: 'symptoms' },
+      { text: 'What is the WHO staging of the patient?', alias: 'who_staging' },
+      { text: 'What is the client type - Inpatient, Walk-in/outpatient, PDL, or Mobile HTS?', alias: 'client_type' },
+      { text: 'What is the mode of reach - Clinical, Online, Index testing, Network testing, or Outreach?', alias: 'mode_of_reach' },
+      { text: 'Did the patient refuse or accept HIV testing?', alias: 'testing_accepted' },
+      { text: 'If testing was refused, what was the reason?', alias: 'testing_refused_reason' },
+      { text: 'What HIV testing modality was used - Facility-based, Non-laboratory, Community-based, or Self-testing?', alias: 'testing_modality' },
+      { text: 'Has the patient been tested for HIV before?', alias: 'previously_tested' },
+      { text: 'What was the previous HIV test result - Reactive, Non-reactive, Indeterminate, or Unable to get result?', alias: 'previous_test_result' },
+      { text: 'When was the previous HIV test date?', alias: 'previous_test_date' },
+      { text: 'Which HTS provider or facility conducted the previous test?', alias: 'previous_test_provider' },
+      { text: 'In what city or municipality was the previous test conducted?', alias: 'previous_test_city' },
+      
+      // BATCH 3 - Test kit and facility information (9 queries)
+      { text: 'What is the brand of test kit used for this HIV test?', alias: 'test_kit_brand' },
       { text: 'What is the test kit lot number?', alias: 'test_kit_lot_number' },
       { text: 'What is the test kit expiration date?', alias: 'test_kit_expiration' },
-      
-      // Medical assessment fields
-      { text: 'What is the clinical picture - Asymptomatic or Symptomatic?', alias: 'clinical_picture' },
-      { text: 'What is the WHO staging?', alias: 'who_staging' },
-      { text: 'What is the client type?', alias: 'client_type' },
-      { text: 'What is the mode of reach?', alias: 'mode_of_reach' },
-      
-      // Testing history
-      { text: 'Has the patient been tested for HIV before?', alias: 'previously_tested' },
-      { text: 'What was the previous HIV test result?', alias: 'previous_test_result' },
-      { text: 'When was the previous HIV test date?', alias: 'previous_test_date' },
-      { text: 'Where was the previous HIV test conducted - what facility or provider?', alias: 'previous_test_provider' },
-      { text: 'In what city or municipality was the previous HIV test conducted?', alias: 'previous_test_city' },
-      
-      // Facility information
-      { text: 'What is the name of the testing facility at the bottom?', alias: 'testing_facility' },
-      { text: 'What is the facility complete mailing address?', alias: 'facility_address' },
-      { text: 'What is the name of the HTS service provider at the bottom?', alias: 'counselor_name' },
-      { text: 'What is the role of the service provider?', alias: 'counselor_role' },
-      
-      // Other critical fields
-      { text: 'Was HIV testing accepted or declined?', alias: 'testing_accepted' }
-      // Note: Remaining fields will use coordinate-based extraction
+      { text: 'What is the name of the testing facility or organization?', alias: 'testing_facility' },
+      { text: 'What is the complete mailing address of the testing facility?', alias: 'facility_address' },
+      { text: 'What are the contact numbers for the testing facility?', alias: 'facility_contact_number' },
+      { text: 'What is the email address of the testing facility?', alias: 'facility_email' },
+      { text: 'What is the name of the HTS service provider or counselor?', alias: 'counselor_name' },
+      { text: 'What is the role of the counselor - HIV Counselor, Medical Technologist, CBS Motivator, or Others?', alias: 'counselor_role' }
+      // Total: 39 queries across 3 batches (15 + 15 + 9)
     ]
   };
 
