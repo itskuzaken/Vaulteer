@@ -16,7 +16,7 @@ import {
   stopCameraStream,
   isCameraPermissionDenied,
 } from "../../../services/cameraPermissionService";
-import { validateImageQuality } from "../../../utils/imageQualityValidator";
+import { validateImageQuality, validateQuality, captureMultipleFrames } from "../../../utils/imageQualityValidator";
 import { preprocessImage, dataURLtoBlob as preprocessDataURLtoBlob } from "../../../utils/imagePreprocessor";
 
 export default function HTSFormManagement() {
@@ -72,8 +72,37 @@ export default function HTSFormManagement() {
     };
     checkPermission();
   }, []);
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup on unmount
+      if (metadataTimeoutRef.current) {
+        clearInterval(metadataTimeoutRef.current);
+        clearTimeout(metadataTimeoutRef.current);
+        metadataTimeoutRef.current = null;
+      }
+      
+      // Stop camera on unmount
+      if (streamRef.current) {
+        stopCameraStream(streamRef.current);
+        streamRef.current = null;
+      }
+    };
+  }, []);
 
   const startCamera = async (side) => {
+    // Check if image already exists for this side
+    const existingImage = side === "front" ? frontImage : backImage;
+    if (existingImage) {
+      const confirmed = confirm(
+        `An image already exists for the ${side} side. Replace it?`
+      );
+      if (!confirmed) {
+        return;
+      }
+    }
+    
     setHasAttemptedCameraRequest(true);
     setIsRequestingCameraPermission(true);
     try {
@@ -167,89 +196,146 @@ export default function HTSFormManagement() {
     }
   };
 
-  const stopCamera = () => {
-    if (streamRef.current) {
-      stopCameraStream(streamRef.current);
-      streamRef.current = null;
-    }
-    if (metadataTimeoutRef.current) {
+  const stopCamera = async () => {
+    try {
+      // Stop all tracks
+      if (streamRef.current) {
+        stopCameraStream(streamRef.current);
+        streamRef.current = null;
+        console.log('🛑 Camera stream stopped');
+      }
+      
       // Clear interval or timeout
-      clearInterval(metadataTimeoutRef.current);
-      clearTimeout(metadataTimeoutRef.current);
-      metadataTimeoutRef.current = null;
+      if (metadataTimeoutRef.current) {
+        clearInterval(metadataTimeoutRef.current);
+        clearTimeout(metadataTimeoutRef.current);
+        metadataTimeoutRef.current = null;
+      }
+      
+      // Clean up video element
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+        videoRef.current.load(); // Reset video element
+      }
+      
+      setIsCameraOpen(false);
+      setIsVideoReady(false);
+      console.log('✅ Camera stopped successfully');
+    } catch (error) {
+      console.error('❌ Error stopping camera:', error);
     }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    setIsCameraOpen(false);
-    setIsVideoReady(false);
   };
 
   const captureImage = async () => {
-    if (videoRef.current && canvasRef.current) {
-      const video = videoRef.current;
+    if (!videoRef.current || !canvasRef.current || !isVideoReady) {
+      alert("Camera not ready. Please wait...");
+      return;
+    }
+    
+    const video = videoRef.current;
+    
+    // Validate video dimensions before capture
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      console.error("❌ Video dimensions are 0x0 - not ready for capture");
+      alert("Camera is still loading. Please wait a moment and try again.");
+      return;
+    }
+    
+    try {
+      console.log(`📸 Starting capture: ${video.videoWidth}x${video.videoHeight}`);
       
-      // Validate video dimensions before capture
-      if (video.videoWidth === 0 || video.videoHeight === 0) {
-        console.error("❌ Video dimensions are 0x0 - not ready for capture");
-        alert("Camera is still loading. Please wait a moment and try again.");
+      // PRE-CAPTURE VALIDATION: Check current frame quality
+      const testCanvas = document.createElement('canvas');
+      testCanvas.width = video.videoWidth;
+      testCanvas.height = video.videoHeight;
+      const testCtx = testCanvas.getContext('2d');
+      testCtx.drawImage(video, 0, 0);
+      
+      const preCheck = await validateQuality(testCanvas);
+      
+      if (!preCheck.isValid) {
+        alert(`⚠️ Image quality insufficient: ${preCheck.message}\n\nPlease adjust and try again.`);
         return;
       }
       
-      console.log(`📸 Capturing image: ${video.videoWidth}x${video.videoHeight}`);
-      const canvas = canvasRef.current;
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext("2d");
-      ctx.drawImage(video, 0, 0);
-      const imageData = canvas.toDataURL("image/jpeg");
+      console.log('[Quality Check] Pre-capture validation passed');
       
-      // Validate image quality before saving
-      try {
-        console.log('[Quality Check] Validating image quality...');
-        const quality = await validateImageQuality(imageData);
-        console.log(`[Quality Check] Score: ${quality.score}/100`);
-        
-        if (quality.score < 70) {
-          const shouldRetry = confirm(
-            `⚠️ Image Quality: ${quality.score}/100\n\n` +
-            `${quality.feedback}\n\n` +
-            `Recommendation: Retake image for better OCR accuracy.\n\n` +
-            `Continue anyway?`
-          );
-          
-          if (!shouldRetry) {
-            console.log('[Quality Check] User chose to retake image');
-            return; // Let user retake
-          }
-          console.log('[Quality Check] User chose to continue with low quality image');
-        } else {
-          console.log('[Quality Check] ✅ Image quality is good');
-        }
-      } catch (error) {
-        console.error('[Quality Check] Error validating image:', error);
-        // Continue with capture even if validation fails
+      // Use multi-frame capture for best quality
+      console.log('[Multi-Frame] Capturing 3 frames...');
+      const bestFrame = await captureMultipleFrames(video, 3, 300);
+      
+      if (!bestFrame) {
+        alert('Failed to capture acceptable quality image. Please ensure good lighting and hold camera steady.');
+        return;
       }
       
+      console.log(`[Multi-Frame] Best frame selected with score: ${bestFrame.score.toFixed(2)}`);
+      
+      // Preprocess image for better OCR
+      console.log('[Preprocessing] Enhancing image...');
+      const processedCanvas = await preprocessImage(bestFrame.canvas);
+      const imageData = processedCanvas.toDataURL("image/jpeg", 0.95);
+      
+      // Final quality check with feedback
+      const finalQuality = await validateImageQuality(imageData);
+      console.log(`[Quality Check] Final score: ${finalQuality.score}/100`);
+      
+      if (finalQuality.score < 70) {
+        const shouldRetry = confirm(
+          `⚠️ Image Quality: ${finalQuality.score}/100\n\n` +
+          `${finalQuality.feedback}\n\n` +
+          `Recommendation: Retake image for better OCR accuracy.\n\n` +
+          `Continue anyway?`
+        );
+        
+        if (!shouldRetry) {
+          console.log('[Quality Check] User chose to retake image');
+          return;
+        }
+      }
+      
+      console.log('[Quality Check] ✅ Image quality is acceptable');
+      
+      // Save image and proceed
       if (currentStep === "front") {
         setFrontImage(imageData);
-        stopCamera();
+        await stopCamera();
         setCurrentStep("back");
       } else if (currentStep === "back") {
         setBackImage(imageData);
-        stopCamera();
+        await stopCamera();
         setCurrentStep("result");
       }
+      
+    } catch (error) {
+      console.error('❌ Capture error:', error);
+      alert(`Failed to capture image: ${error.message}`);
     }
   };
 
-  const retakeImage = (side) => {
-    if (side === "front") {
-      setFrontImage(null);
-      startCamera("front");
-    } else if (side === "back") {
-      setBackImage(null);
-      startCamera("back");
+  const retakeImage = async (side) => {
+    try {
+      console.log(`🔄 Retaking ${side} image...`);
+      
+      // CRITICAL: Stop camera first
+      await stopCamera();
+      
+      // Wait for state to settle
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Reset image state
+      if (side === "front") {
+        setFrontImage(null);
+      } else if (side === "back") {
+        setBackImage(null);
+      }
+      
+      // Start camera for retake
+      await startCamera(side);
+      
+    } catch (error) {
+      console.error('❌ Retake error:', error);
+      alert(`Failed to retake image: ${error.message}`);
     }
   };
 
