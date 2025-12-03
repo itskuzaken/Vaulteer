@@ -7,6 +7,7 @@ import ImageLightbox from "../../ui/ImageLightbox";
 import CameraQualityIndicator from "../../ui/CameraQualityIndicator";
 import OCRFieldWarnings from "../../ui/OCRFieldWarnings";
 import EnhancedOCRReview from "../../ui/EnhancedOCRReview";
+import TemplateBasedOCRReview from "../../ui/TemplateBasedOCRReview";
 import AlertModal from "../../ui/AlertModal";
 import ConfirmModal from "../../ui/ConfirmModal";
 import NextImage from 'next/image';
@@ -43,6 +44,7 @@ export default function HTSFormManagement() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const metadataTimeoutRef = useRef(null);
+  const isMountedRef = useRef(true); // Track component mount status
 
   // OCR-first workflow state
   const [extractedData, setExtractedData] = useState(null);
@@ -154,8 +156,13 @@ export default function HTSFormManagement() {
   
   // Cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true;
+    
     return () => {
-      // Cleanup on unmount
+      // Mark component as unmounted
+      isMountedRef.current = false;
+      
+      // Cleanup intervals/timeouts
       if (metadataTimeoutRef.current) {
         clearInterval(metadataTimeoutRef.current);
         clearTimeout(metadataTimeoutRef.current);
@@ -232,15 +239,30 @@ export default function HTSFormManagement() {
       
       // Wait for modal to render, then assign stream to video
       console.log("⏳ Waiting for video element to mount...");
-      setTimeout(() => {
+      
+      // Use exponential backoff for video element detection
+      let videoCheckAttempt = 0;
+      const maxVideoCheckAttempts = 10;
+      
+      const checkVideoElement = () => {
+        videoCheckAttempt++;
+        
         if (!videoRef.current) {
-          console.error("❌ Video element not found after modal opened!");
-          showAlert(
-            "Camera Initialization Failed",
-            "Failed to initialize camera view. Please try again.",
-            "error"
-          );
-          stopCamera();
+          if (videoCheckAttempt >= maxVideoCheckAttempts) {
+            console.error("❌ Video element not found after multiple attempts!");
+            showAlert(
+              "Camera Initialization Failed",
+              "Failed to initialize camera view. Please try again.",
+              "error"
+            );
+            stopCamera();
+            return;
+          }
+          
+          // Exponential backoff: 50ms, 100ms, 200ms, 400ms...
+          const delay = Math.min(50 * Math.pow(2, videoCheckAttempt - 1), 1000);
+          console.log(`[Attempt ${videoCheckAttempt}] Video element not found, retrying in ${delay}ms...`);
+          setTimeout(checkVideoElement, delay);
           return;
         }
         
@@ -248,50 +270,81 @@ export default function HTSFormManagement() {
         console.log("📹 Video element found, assigning stream...");
         video.srcObject = stream;
         
-        // Wait for video to be ready with polling (more reliable than events on mobile)
-        let checkCount = 0;
-        const checkInterval = setInterval(() => {
-          checkCount++;
-          console.log(`[Check ${checkCount}] Video dimensions: ${video.videoWidth}x${video.videoHeight}, readyState: ${video.readyState}`);
+        // Use loadedmetadata event with timeout fallback
+        let metadataHandled = false;
+        
+        const handleMetadata = () => {
+          if (metadataHandled) return;
+          metadataHandled = true;
           
-          // Check if video has valid dimensions and is ready
-          if (video.videoWidth > 0 && video.videoHeight > 0 && video.readyState >= 2) {
-            console.log(`✅ Video ready: ${video.videoWidth}x${video.videoHeight}`);
-            setIsVideoReady(true);
-            clearInterval(checkInterval);
-            
-            // Check if flashlight/torch is supported
-            const track = stream.getVideoTracks()[0];
-            if (track) {
-              const capabilities = track.getCapabilities();
-              if (capabilities.torch) {
-                setIsFlashlightSupported(true);
-                console.log('💡 Flashlight supported on this device');
+          console.log(`✅ Video ready: ${video.videoWidth}x${video.videoHeight}`);
+          setIsVideoReady(true);
+          
+          if (metadataTimeoutRef.current) {
+            clearTimeout(metadataTimeoutRef.current);
+            metadataTimeoutRef.current = null;
+          }
+          
+          // Check if flashlight/torch is supported
+          const track = stream.getVideoTracks()[0];
+          if (track) {
+            const capabilities = track.getCapabilities();
+            if (capabilities.torch) {
+              setIsFlashlightSupported(true);
+              console.log('💡 Flashlight supported on this device');
+            }
+          }
+          
+          // Ensure video is playing
+          if (video.paused) {
+            video.play().catch(err => console.warn("Play error:", err));
+          }
+        };
+        
+        // Listen for loadedmetadata event
+        video.addEventListener('loadedmetadata', handleMetadata, { once: true });
+        
+        // Fallback: Check if metadata already loaded
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+          handleMetadata();
+        } else {
+          // Set timeout as fallback (10 seconds)
+          metadataTimeoutRef.current = setTimeout(() => {
+            if (!metadataHandled) {
+              // Check one more time before giving up
+              if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+                handleMetadata();
+              } else {
+                console.error("⏱️ Video initialization timeout");
+                console.error(`Final state: width=${video.videoWidth}, height=${video.videoHeight}, readyState=${video.readyState}`);
+                showAlert(
+                  "Camera Initialization Timeout",
+                  "Camera failed to initialize. Please try again or use a different browser.",
+                  "error"
+                );
+                stopCamera();
               }
             }
-            
-            // Ensure video is playing
-            if (video.paused) {
-              video.play().catch(err => console.warn("Play error:", err));
-            }
-          } else if (checkCount >= 30) { // 15 seconds timeout
-            console.error("⏱️ Video initialization timeout");
-            console.error(`Final state: width=${video.videoWidth}, height=${video.videoHeight}, readyState=${video.readyState}`);
-            clearInterval(checkInterval);
-            showAlert(
-              "Camera Initialization Timeout",
-              "Camera failed to initialize. Please try again or use a different browser.",
-              "error"
-            );
-            stopCamera();
-          }
-        }, 500);
-        
-        // Store interval for cleanup
-        metadataTimeoutRef.current = checkInterval;
-      }, 100); // Small delay to ensure React has rendered the modal
+          }, 10000);
+        }
+      };
+      
+      // Start checking for video element with initial delay
+      setTimeout(checkVideoElement, 50);
     } catch (error) {
       console.error("❌ Camera access error:", error);
+      
+      // CRITICAL: Clean up camera stream to prevent memory leak
+      if (streamRef.current) {
+        stopCameraStream(streamRef.current);
+        streamRef.current = null;
+      }
+      
+      // Clear any pending intervals
+      if (metadataTimeoutRef.current) {
+        clearInterval(metadataTimeoutRef.current);
+        metadataTimeoutRef.current = null;
+      }
       
       // Update permission state based on error type
       if (error.userAction === "permission_denied") {
@@ -380,15 +433,14 @@ export default function HTSFormManagement() {
     }
   }, [isFlashlightOn, showAlert]);
 
-  const finalizeCaptureImage = async (step, imageData) => {
     try {
       if (step === "front") {
         setFrontImage(imageData);
-        await stopCamera();
+        if (stopCamera) stopCamera();
         setCurrentStep("back");
       } else if (step === "back") {
         setBackImage(imageData);
-        await stopCamera();
+        if (stopCamera) stopCamera();
         setCurrentStep("result");
       }
     } catch (error) {
@@ -400,7 +452,30 @@ export default function HTSFormManagement() {
         "error"
       );
     }
-  };
+  const finalizeCaptureImage = useCallback(
+    async (step, imageData) => {
+      try {
+        if (step === "front") {
+          setFrontImage(imageData);
+          if (stopCamera) stopCamera();
+          setCurrentStep("back");
+        } else if (step === "back") {
+          setBackImage(imageData);
+          if (stopCamera) stopCamera();
+          setCurrentStep("result");
+        }
+      } catch (error) {
+        console.error('\u274c Finalize capture error:', error);
+        const errorMessage = getErrorMessage(error);
+        showAlert(
+          "Save Failed",
+          `Failed to save image: ${errorMessage}\n\nPlease try again.`,
+          "error"
+        );
+      }
+    },
+    [setFrontImage, setBackImage, stopCamera, setCurrentStep, showAlert, getErrorMessage]
+  );
 
   const captureImage = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
@@ -527,7 +602,7 @@ export default function HTSFormManagement() {
         "error"
       );
     }
-  }, [isVideoReady, currentStep, showAlert, showConfirm, closeConfirm]);
+  }, [isVideoReady, currentStep, showAlert, showConfirm, closeConfirm, finalizeCaptureImage]);
 
   const retakeImage = async (side) => {
     try {
@@ -614,20 +689,16 @@ export default function HTSFormManagement() {
 
     try {
       // Encrypt images and extracted data with same key (different IVs)
-      console.log("[Submit] Encrypting images and extracted OCR data for privacy...");
-      console.log("[Submit] Extracted data size:", JSON.stringify(extractedData).length, "bytes");
+      // SECURITY: Do not log encryption keys, IVs, or encrypted data
       
       const encrypted = await encryptFormSubmission(frontImage, backImage, extractedData);
       
-      // Validate encryption output
-      console.log("[Submit] Encryption complete. Validating encrypted data types...");
-      console.log("[Submit] - frontImage type:", typeof encrypted.frontImage, "length:", encrypted.frontImage?.length);
-      console.log("[Submit] - backImage type:", typeof encrypted.backImage, "length:", encrypted.backImage?.length);
-      console.log("[Submit] - frontImageIV type:", typeof encrypted.frontImageIV, "length:", encrypted.frontImageIV?.length);
-      console.log("[Submit] - backImageIV type:", typeof encrypted.backImageIV, "length:", encrypted.backImageIV?.length);
-      console.log("[Submit] - extractedDataEncrypted type:", typeof encrypted.extractedDataEncrypted, "length:", encrypted.extractedDataEncrypted?.length);
-      console.log("[Submit] - extractedDataIV type:", typeof encrypted.extractedDataIV, "length:", encrypted.extractedDataIV?.length);
-      console.log("[Submit] - encryptionKey type:", typeof encrypted.encryptionKey, "length:", encrypted.encryptionKey?.length);
+      // Validate encryption output types (without exposing values)
+      if (!encrypted.frontImage || !encrypted.backImage || !encrypted.encryptionKey ||
+          !encrypted.frontImageIV || !encrypted.backImageIV || 
+          !encrypted.extractedDataEncrypted || !encrypted.extractedDataIV) {
+        throw new Error('Encryption failed: Missing required encrypted fields');
+      }
       
       const idToken = await user.getIdToken();
       const payload = {
@@ -642,51 +713,78 @@ export default function HTSFormManagement() {
         extractionConfidence: extractedData.confidence
       };
       
-      console.log("[Submit] Sending request to backend with payload size:", JSON.stringify(payload).length, "bytes");
+      // Retry logic with exponential backoff
+      let lastError;
+      const maxRetries = 3;
       
-      const response = await fetch(`${API_BASE}/hts-forms/submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${idToken}`
-        },
-        body: JSON.stringify(payload)
-      });
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          const response = await fetch(`${API_BASE}/hts-forms/submit`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${idToken}`
+            },
+            body: JSON.stringify(payload)
+          });
 
-      console.log("[Submit] Response status:", response.status, response.statusText);
-      
-      const data = await response.json();
-      console.log("[Submit] Response data:", data);
+          const data = await response.json();
 
-      if (data.success) {
-        setControlNumber(data.controlNumber);
-        setSubmitSuccess(true);
-        setFrontImage(null);
-        setBackImage(null);
-        setTestResult(null);
-        setExtractedData(null);
-        setShowOCRReview(false);
-        setCurrentStep("front");
-      } else {
-        const errorMsg = `Failed to submit form: ${data.error || 'Unknown error'}${data.details ? '\nDetails: ' + data.details : ''}`;
-        console.error("[Submit] Backend error:", errorMsg);
-        showAlert(
-          "Submission Failed",
-          errorMsg,
-          "error"
-        );
+          if (!isMountedRef.current) return; // Check if component is still mounted
+
+          if (data.success) {
+            setControlNumber(data.controlNumber);
+            setSubmitSuccess(true);
+            setFrontImage(null);
+            setBackImage(null);
+            setTestResult(null);
+            setExtractedData(null);
+            setShowOCRReview(false);
+            setCurrentStep("front");
+            return; // Success - exit retry loop
+          } else {
+            const errorMsg = `Failed to submit form: ${data.error || 'Unknown error'}${data.details ? '\nDetails: ' + data.details : ''}`;
+            showAlert(
+              "Submission Failed",
+              errorMsg,
+              "error"
+            );
+            return; // Server responded with error - don't retry
+          }
+        } catch (error) {
+          lastError = error;
+          
+          if (!isMountedRef.current) return; // Check before showing error
+          
+          // If this was the last attempt, show error
+          if (attempt === maxRetries) {
+            const errorMessage = getErrorMessage(error);
+            showAlert(
+              "Submission Error",
+              `Failed after ${maxRetries} attempts: ${errorMessage}\n\nPlease check your connection and try again.`,
+              "error"
+            );
+          } else {
+            // Wait before retrying (exponential backoff: 1s, 2s, 4s)
+            const delay = Math.pow(2, attempt - 1) * 1000;
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
+        }
       }
     } catch (error) {
-      console.error("[Submit] Error submitting form:", error);
-      console.error("[Submit] Error stack:", error.stack);
+      if (!isMountedRef.current) return; // Check before showing error
+      
+      // Catch errors from encryption or token retrieval
       const errorMessage = getErrorMessage(error);
       showAlert(
         "Submission Error",
-        `An error occurred: ${errorMessage}\n\nPlease check the console for details and try again.`,
+        `An error occurred: ${errorMessage}\n\nPlease try again.`,
         "error"
       );
     } finally {
-      setIsSubmitting(false);
+      if (isMountedRef.current) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -946,10 +1044,15 @@ export default function HTSFormManagement() {
       const data = await response.json();
 
       if (data.success) {
+        // Check if component is still mounted before updating state
+        if (!isMountedRef.current) return;
+        
         setExtractedData(data.data);
         setShowOCRReview(true);
         console.log("[OCR Analysis] Extraction completed with confidence:", data.data?.confidence);
       } else {
+        if (!isMountedRef.current) return;
+        
         showAlert(
           "Analysis Failed",
           `Failed to analyze images: ${data.error || 'Unknown error'}`,
@@ -958,6 +1061,9 @@ export default function HTSFormManagement() {
       }
     } catch (error) {
       console.error("Error analyzing images:", error);
+      
+      if (!isMountedRef.current) return;
+      
       const errorMessage = getErrorMessage(error);
       showAlert(
         "Analysis Error",
@@ -965,7 +1071,9 @@ export default function HTSFormManagement() {
         "error"
       );
     } finally {
-      setIsAnalyzing(false);
+      if (isMountedRef.current) {
+        setIsAnalyzing(false);
+      }
     }
   };
 
@@ -1819,13 +1927,15 @@ export default function HTSFormManagement() {
             </div>
 
             <div className="p-3 sm:p-6">
-              <EnhancedOCRReview
+              <TemplateBasedOCRReview
                 extractedData={extractedData}
-                onEdit={(field, value) => {
-                  console.log('Edit field:', field, value);
-                  // TODO: Implement field editing
+                onUpdate={(updatedData) => {
+                  console.log('Updated data:', updatedData);
+                  setExtractedData(updatedData);
                 }}
-                onAccept={() => {
+                onAccept={(finalData) => {
+                  console.log('Accepted data:', finalData);
+                  setExtractedData(finalData || extractedData);
                   setShowOCRReview(false);
                   setCurrentStep('result');
                 }}

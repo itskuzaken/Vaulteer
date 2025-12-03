@@ -7,6 +7,7 @@ const path = require('path');
 const templateMatcher = require('./templateMatcher');
 const { validateAndCorrectFields, applyValidationCorrections, getValidationSummary } = require('../utils/ocrValidation');
 const ocrFieldExtractor = require('./ocrFieldExtractor');
+const OCRRegionCalibrator = require('../utils/calibrateOCRRegions');
 
 // Load DOH HTS Form 2021 metadata for field extraction
 const metadataPath = path.join(__dirname, '../assets/form-templates/hts/template-metadata.json');
@@ -1018,6 +1019,24 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
       };
 
       console.log(`✅ Query extraction complete: Front=${Object.keys(queryResults.front).length}, Back=${Object.keys(queryResults.back).length}`);
+      
+      // Generate calibration report if in development/debug mode
+      if (process.env.OCR_DEBUG === 'true' || process.env.NODE_ENV === 'development') {
+        try {
+          const calibrator = new OCRRegionCalibrator();
+          const textractResults = { front: frontTextractResult, back: backTextractResult };
+          const calibrationAnalysis = calibrator.analyzeFieldPositions(queryResults, textractResults);
+          
+          const reportPath = path.join(__dirname, '../logs', `ocr-calibration-${Date.now()}.md`);
+          calibrator.saveReport(calibrationAnalysis, reportPath);
+          
+          console.log(`📊 [Calibration] Report generated: ${reportPath}`);
+          console.log(`📊 [Calibration] Front mismatches: ${calibrationAnalysis.front.coordinateMismatch.length}`);
+          console.log(`📊 [Calibration] Back mismatches: ${calibrationAnalysis.back.coordinateMismatch.length}`);
+        } catch (calibError) {
+          console.warn('⚠️ [Calibration] Failed to generate report:', calibError.message);
+        }
+      }
     }
 
     // Step 2: Use OCR Field Extractor with hybrid strategy

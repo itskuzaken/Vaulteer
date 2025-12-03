@@ -166,11 +166,16 @@ const htsFormsRepository = {
     );
   },
 
-  async updateExtractedData(formId, extractedData) {
+  async updateExtractedData(formId, extractedDataEncrypted, extractedDataIV, extractionConfidence) {
     const pool = getPool();
     await pool.query(
-      `UPDATE hts_forms SET extracted_data = ? WHERE form_id = ?`,
-      [JSON.stringify(extractedData), formId]
+      `UPDATE hts_forms 
+       SET extracted_data_encrypted = ?, 
+           extracted_data_iv = ?, 
+           extraction_confidence = ?,
+           ocr_completed_at = NOW()
+       WHERE form_id = ?`,
+      [extractedDataEncrypted, extractedDataIV, extractionConfidence, formId]
     );
   },
 

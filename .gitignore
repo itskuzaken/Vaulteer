@@ -65,3 +65,6 @@ AWS_DEPLOYMENT_INSTRUCTIONS.md
 # Security setup scripts (keep)
 !setup-security.sh
 !setup-security.bat
+
+# Ignore log files
+/backend/logs/*.json

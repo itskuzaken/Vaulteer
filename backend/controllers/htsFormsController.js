@@ -39,7 +39,7 @@ const htsFormsController = {
     console.log(`[OCR Analysis] Original sizes: front=${frontImage.size} bytes, back=${backImage.size} bytes`);
 
     try {
-      // Validate images
+      // Validate images with enhanced quality checks
       const [frontValidation, backValidation] = await Promise.all([
         imageProcessor.validateImage(frontImage.buffer),
         imageProcessor.validateImage(backImage.buffer)
@@ -53,6 +53,32 @@ const htsFormsController = {
             back: backValidation.issues
           }
         });
+      }
+      
+      // Enhanced quality checks to prevent poor OCR results
+      const qualityIssues = [];
+      
+      // Check if images are too small for reliable OCR
+      if (frontValidation.metadata.width < 1200 || frontValidation.metadata.height < 1500) {
+        qualityIssues.push('Front image resolution too low for optimal OCR (recommended: 1200x1500+)');
+      }
+      if (backValidation.metadata.width < 1200 || backValidation.metadata.height < 1500) {
+        qualityIssues.push('Back image resolution too low for optimal OCR (recommended: 1200x1500+)');
+      }
+      
+      // Check if images are suspiciously small in file size (likely poor quality/compression)
+      const minFileSize = 100 * 1024; // 100KB
+      if (frontImage.size < minFileSize) {
+        qualityIssues.push('Front image file size too small - may be over-compressed or poor quality');
+      }
+      if (backImage.size < minFileSize) {
+        qualityIssues.push('Back image file size too small - may be over-compressed or poor quality');
+      }
+      
+      // If quality issues found, return warning (but don't block - let client-side validation handle it)
+      if (qualityIssues.length > 0) {
+        console.log('[OCR Analysis] Quality warnings:', qualityIssues);
+        // Log but continue - preprocessing may improve quality
       }
 
       // Process images for optimal OCR
@@ -151,6 +177,8 @@ const htsFormsController = {
     const controlNumber = await htsFormsRepository.generateControlNumber();
     const formId = await htsFormsRepository.generateControlNumber(); // Temporary ID for S3 keys
 
+    let frontImageS3Key, backImageS3Key;
+    
     try {
       // Convert base64 to buffer with error handling
       let frontImageBuffer, backImageBuffer;
@@ -163,16 +191,6 @@ const htsFormsController = {
         throw new Error(`Invalid base64 image data: ${bufferError.message}`);
       }
 
-      // Upload encrypted images to S3
-      const s3Service = require('../services/s3Service');
-      console.log('[Submit Form] Uploading images to S3...');
-      const [frontImageS3Key, backImageS3Key] = await Promise.all([
-        s3Service.uploadEncryptedImage(frontImageBuffer, formId, 'front'),
-        s3Service.uploadEncryptedImage(backImageBuffer, formId, 'back')
-      ]);
-
-      console.log(`[Submit Form] Uploaded images to S3: ${frontImageS3Key}, ${backImageS3Key}`);
-
       // Validate extracted data encryption before storing
       if (typeof extractedDataEncrypted !== 'string') {
         throw new Error(`extractedDataEncrypted must be a string (base64), got: ${typeof extractedDataEncrypted}`);
@@ -180,6 +198,16 @@ const htsFormsController = {
       if (typeof extractedDataIV !== 'string') {
         throw new Error(`extractedDataIV must be a string (base64), got: ${typeof extractedDataIV}`);
       }
+
+      // Upload encrypted images to S3
+      const s3Service = require('../services/s3Service');
+      console.log('[Submit Form] Uploading images to S3...');
+      [frontImageS3Key, backImageS3Key] = await Promise.all([
+        s3Service.uploadEncryptedImage(frontImageBuffer, formId, 'front'),
+        s3Service.uploadEncryptedImage(backImageBuffer, formId, 'back')
+      ]);
+
+      console.log(`[Submit Form] Uploaded images to S3: ${frontImageS3Key}, ${backImageS3Key}`);
 
       // Create submission with S3 keys and encrypted OCR data
       console.log('[Submit Form] Saving to database...');
@@ -211,6 +239,23 @@ const htsFormsController = {
     } catch (error) {
       console.error('[Submit Form] Error:', error);
       console.error('[Submit Form] Error stack:', error.stack);
+      
+      // Rollback: Delete S3 objects if database insertion failed
+      if (frontImageS3Key || backImageS3Key) {
+        console.log('[Submit Form] Rolling back S3 uploads due to error...');
+        const s3Service = require('../services/s3Service');
+        try {
+          const deletePromises = [];
+          if (frontImageS3Key) deletePromises.push(s3Service.deleteImage(frontImageS3Key));
+          if (backImageS3Key) deletePromises.push(s3Service.deleteImage(backImageS3Key));
+          await Promise.all(deletePromises);
+          console.log('[Submit Form] S3 rollback complete');
+        } catch (rollbackError) {
+          console.error('[Submit Form] Failed to rollback S3 uploads:', rollbackError);
+          // Log but don't throw - original error is more important
+        }
+      }
+      
       res.status(500).json({
         error: 'Failed to submit form',
         details: error.message,
@@ -329,6 +374,58 @@ const htsFormsController = {
       console.error(`[Get Form Image] Error fetching ${side} image:`, error);
       res.status(500).json({
         error: 'Failed to fetch image from S3',
+        details: error.message
+      });
+    }
+  }),
+
+  /**
+   * Update extracted data for a submission (user editing after OCR)
+   * PUT /api/hts-forms/:formId/extracted-data
+   */
+  updateExtractedData: asyncHandler(async (req, res) => {
+    const { formId } = req.params;
+    const { extractedDataEncrypted, extractedDataIV, extractionConfidence } = req.body;
+    const userId = req.currentUserId;
+
+    if (!extractedDataEncrypted || !extractedDataIV || extractionConfidence === undefined) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: extractedDataEncrypted, extractedDataIV, extractionConfidence' 
+      });
+    }
+
+    try {
+      // Verify the submission belongs to the user
+      const submission = await htsFormsRepository.getSubmissionById(formId);
+      
+      if (!submission) {
+        return res.status(404).json({ error: 'Submission not found' });
+      }
+
+      if (submission.user_id !== userId) {
+        return res.status(403).json({ error: 'You can only update your own submissions' });
+      }
+
+      // Update the extracted data
+      await htsFormsRepository.updateExtractedData(
+        formId,
+        extractedDataEncrypted,
+        extractedDataIV,
+        extractionConfidence
+      );
+
+      console.log(`[Update Extracted Data] Form ${formId} updated with new OCR data (confidence: ${extractionConfidence}%)`);
+
+      res.json({
+        success: true,
+        message: 'Extracted data updated successfully',
+        confidence: extractionConfidence
+      });
+
+    } catch (error) {
+      console.error('[Update Extracted Data] Error:', error);
+      res.status(500).json({
+        error: 'Failed to update extracted data',
         details: error.message
       });
     }

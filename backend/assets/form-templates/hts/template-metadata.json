@@ -41,15 +41,30 @@
       "fields": {
         "testDate": {
           "region": {
-            "x": 0.065,
-            "y": 0.13,
-            "width": 0.15,
-            "height": 0.025
+            "x": 0.225,
+            "y": 0.417,
+            "width": 0.183,
+            "height": 0.01
           },
           "boundingBox": {
-            "month": { "x": 0.065, "y": 0.13, "width": 0.04, "height": 0.025 },
-            "day": { "x": 0.11, "y": 0.13, "width": 0.04, "height": 0.025 },
-            "year": { "x": 0.155, "y": 0.13, "width": 0.06, "height": 0.025 }
+            "month": {
+              "x": 0.065,
+              "y": 0.13,
+              "width": 0.04,
+              "height": 0.025
+            },
+            "day": {
+              "x": 0.11,
+              "y": 0.13,
+              "width": 0.04,
+              "height": 0.025
+            },
+            "year": {
+              "x": 0.155,
+              "y": 0.13,
+              "width": 0.06,
+              "height": 0.025
+            }
           },
           "label": "Test Date",
           "type": "date",
@@ -57,15 +72,19 @@
           "required": true,
           "priority": 1,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.02, "y": 0.13, "text": "Test Date:" },
+          "nearbyLabel": {
+            "x": 0.02,
+            "y": 0.13,
+            "text": "Test Date:"
+          },
           "query": "What is the HIV test date at the top of the form?"
         },
         "philHealthNumber": {
           "region": {
-            "x": 0.145,
-            "y": 0.165,
-            "width": 0.35,
-            "height": 0.025
+            "x": 0.263,
+            "y": 0.448,
+            "width": 0.252,
+            "height": 0.01
           },
           "label": "PhilHealth Number",
           "type": "text",
@@ -73,7 +92,11 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.02, "y": 0.165, "text": "PhilHealth Number:" },
+          "nearbyLabel": {
+            "x": 0.02,
+            "y": 0.165,
+            "text": "PhilHealth Number:"
+          },
           "query": "What is the PhilHealth Identification Number?",
           "relatedCheckbox": {
             "label": "Not enrolled in PhilHealth",
@@ -85,17 +108,21 @@
         },
         "philSysNumber": {
           "region": {
-            "x": 0.145,
-            "y": 0.195,
-            "width": 0.35,
-            "height": 0.025
+            "x": 0.283,
+            "y": 0.473,
+            "width": 0.126,
+            "height": 0.011
           },
           "label": "PhilSys Number",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.02, "y": 0.195, "text": "PhilSys Number:" },
+          "nearbyLabel": {
+            "x": 0.02,
+            "y": 0.195,
+            "text": "PhilSys Number:"
+          },
           "relatedCheckbox": {
             "label": "No PhilSys Number",
             "x": 0.52,
@@ -106,118 +133,161 @@
         },
         "firstName": {
           "region": {
-            "x": 0.05,
-            "y": 0.235,
-            "width": 0.25,
-            "height": 0.03
+            "x": 0.189,
+            "y": 0.508,
+            "width": 0.043,
+            "height": 0.011
           },
           "label": "First Name",
           "type": "text",
           "required": true,
           "priority": 1,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.05, "y": 0.225, "text": "First Name" },
+          "nearbyLabel": {
+            "x": 0.05,
+            "y": 0.225,
+            "text": "First Name"
+          },
           "query": "What is the patient's first name?"
         },
         "middleName": {
           "region": {
-            "x": 0.32,
-            "y": 0.235,
-            "width": 0.25,
-            "height": 0.03
+            "x": 0.415,
+            "y": 0.508,
+            "width": 0.043,
+            "height": 0.011
           },
           "label": "Middle Name",
           "type": "text",
           "required": false,
           "priority": 2,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.32, "y": 0.225, "text": "Middle Name" }
+          "nearbyLabel": {
+            "x": 0.32,
+            "y": 0.225,
+            "text": "Middle Name"
+          }
         },
         "lastName": {
           "region": {
-            "x": 0.59,
-            "y": 0.235,
-            "width": 0.28,
-            "height": 0.03
+            "x": 0.639,
+            "y": 0.51,
+            "width": 0.031,
+            "height": 0.011
           },
           "label": "Last Name",
           "type": "text",
           "required": true,
           "priority": 1,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.59, "y": 0.225, "text": "Last Name" },
+          "nearbyLabel": {
+            "x": 0.59,
+            "y": 0.225,
+            "text": "Last Name"
+          },
           "query": "What is the patient's last name?"
         },
         "suffix": {
           "region": {
-            "x": 0.89,
-            "y": 0.235,
-            "width": 0.08,
-            "height": 0.03
+            "x": 0.826,
+            "y": 0.511,
+            "width": 0.021,
+            "height": 0.01
           },
           "label": "Suffix",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.89, "y": 0.225, "text": "Suffix (Jr, Sr, III, etc)" }
+          "nearbyLabel": {
+            "x": 0.89,
+            "y": 0.225,
+            "text": "Suffix (Jr, Sr, III, etc)"
+          }
         },
         "parentalCode": {
           "region": {
-            "x": 0.28,
-            "y": 0.275,
-            "width": 0.15,
-            "height": 0.025
+            "x": 0.22,
+            "y": 0.55,
+            "width": 0.031,
+            "height": 0.009
           },
           "label": "Parental Code - Mother's First Name (First 2 letters)",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.02, "y": 0.275, "text": "First 2 letters of mother's FIRST name" },
+          "nearbyLabel": {
+            "x": 0.02,
+            "y": 0.275,
+            "text": "First 2 letters of mother's FIRST name"
+          },
           "query": "What are the first 2 letters of mother's first name?"
         },
         "parentalCodeFather": {
           "region": {
-            "x": 0.48,
-            "y": 0.275,
-            "width": 0.15,
-            "height": 0.025
+            "x": 0.433,
+            "y": 0.551,
+            "width": 0.029,
+            "height": 0.008
           },
           "label": "Parental Code - Father's First Name (First 2 letters)",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.45, "y": 0.275, "text": "First 2 letters of father's FIRST name" },
+          "nearbyLabel": {
+            "x": 0.45,
+            "y": 0.275,
+            "text": "First 2 letters of father's FIRST name"
+          },
           "query": "What are the first 2 letters of father's first name?"
         },
         "birthOrder": {
           "region": {
-            "x": 0.7,
-            "y": 0.275,
-            "width": 0.08,
-            "height": 0.025
+            "x": 0.714,
+            "y": 0.554,
+            "width": 0.028,
+            "height": 0.008
           },
           "label": "Birth Order",
           "type": "number",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.65, "y": 0.275, "text": "Birth order" },
+          "nearbyLabel": {
+            "x": 0.65,
+            "y": 0.275,
+            "text": "Birth order"
+          },
           "query": "What is the birth order among mother's children?"
         },
         "birthDate": {
           "region": {
-            "x": 0.12,
-            "y": 0.305,
-            "width": 0.15,
-            "height": 0.025
+            "x": 0.282,
+            "y": 0.576,
+            "width": 0.125,
+            "height": 0.011
           },
           "boundingBox": {
-            "month": { "x": 0.12, "y": 0.305, "width": 0.04, "height": 0.025 },
-            "day": { "x": 0.165, "y": 0.305, "width": 0.04, "height": 0.025 },
-            "year": { "x": 0.21, "y": 0.305, "width": 0.06, "height": 0.025 }
+            "month": {
+              "x": 0.12,
+              "y": 0.305,
+              "width": 0.04,
+              "height": 0.025
+            },
+            "day": {
+              "x": 0.165,
+              "y": 0.305,
+              "width": 0.04,
+              "height": 0.025
+            },
+            "year": {
+              "x": 0.21,
+              "y": 0.305,
+              "width": 0.06,
+              "height": 0.025
+            }
           },
           "label": "Birth Date",
           "type": "date",
@@ -225,22 +295,30 @@
           "required": true,
           "priority": 1,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.02, "y": 0.305, "text": "Birth date:" },
+          "nearbyLabel": {
+            "x": 0.02,
+            "y": 0.305,
+            "text": "Birth date:"
+          },
           "query": "What is the patient's date of birth?"
         },
         "age": {
           "region": {
-            "x": 0.35,
-            "y": 0.305,
-            "width": 0.06,
-            "height": 0.025
+            "x": 0.493,
+            "y": 0.578,
+            "width": 0.027,
+            "height": 0.009
           },
           "label": "Age",
           "type": "number",
           "required": true,
           "priority": 2,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.3, "y": 0.305, "text": "Age:" },
+          "nearbyLabel": {
+            "x": 0.3,
+            "y": 0.305,
+            "text": "Age:"
+          },
           "validation": {
             "min": 0,
             "max": 120,
@@ -250,43 +328,68 @@
         },
         "ageMonths": {
           "region": {
-            "x": 0.48,
-            "y": 0.305,
-            "width": 0.06,
-            "height": 0.025
+            "x": 0.831,
+            "y": 0.58,
+            "width": 0.031,
+            "height": 0.011
           },
           "label": "Age in Months (for less than 1 year old)",
           "type": "number",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.42, "y": 0.305, "text": "Age in months:" },
+          "nearbyLabel": {
+            "x": 0.42,
+            "y": 0.305,
+            "text": "Age in months:"
+          },
           "validation": {
             "min": 0,
             "max": 11
           },
-          "conditionalOn": { "field": "age", "value": 0 },
+          "conditionalOn": {
+            "field": "age",
+            "value": 0
+          },
           "query": "What is the patient's age in months?"
         },
         "sex": {
           "region": {
-            "x": 0.16,
-            "y": 0.335,
-            "width": 0.2,
-            "height": 0.025
+            "x": 0.623,
+            "y": 0.609,
+            "width": 0.012,
+            "height": 0.009
           },
           "label": "Sex (assigned at birth)",
           "type": "checkbox",
           "options": [
             {
               "value": "Male",
-              "checkbox": { "x": 0.16, "y": 0.335, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.18, "y": 0.335, "text": "Male" }
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.335,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.18,
+                "y": 0.335,
+                "text": "Male"
+              }
             },
             {
               "value": "Female",
-              "checkbox": { "x": 0.26, "y": 0.335, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.28, "y": 0.335, "text": "Female" }
+              "checkbox": {
+                "x": 0.26,
+                "y": 0.335,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.28,
+                "y": 0.335,
+                "text": "Female"
+              }
             }
           ],
           "required": true,
@@ -296,52 +399,64 @@
         },
         "currentResidenceCity": {
           "region": {
-            "x": 0.25,
-            "y": 0.365,
-            "width": 0.35,
-            "height": 0.025
+            "x": 0.45,
+            "y": 0.624,
+            "width": 0.068,
+            "height": 0.009
           },
           "label": "Current Residence - City/Municipality",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.05, "y": 0.365, "text": "Current Place of Residence:" }
+          "nearbyLabel": {
+            "x": 0.05,
+            "y": 0.365,
+            "text": "Current Place of Residence:"
+          }
         },
         "currentResidenceProvince": {
           "region": {
-            "x": 0.7,
-            "y": 0.365,
-            "width": 0.25,
-            "height": 0.025
+            "x": 0.716,
+            "y": 0.626,
+            "width": 0.093,
+            "height": 0.013
           },
           "label": "Current Residence - Province",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.62, "y": 0.365, "text": "Province:" }
+          "nearbyLabel": {
+            "x": 0.62,
+            "y": 0.365,
+            "text": "Province:"
+          }
         },
         "permanentResidenceCity": {
           "region": {
-            "x": 0.25,
-            "y": 0.395,
-            "width": 0.35,
-            "height": 0.025
+            "x": 0.448,
+            "y": 0.637,
+            "width": 0.053,
+            "height": 0.012
           },
           "label": "Permanent Residence - City/Municipality",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.05, "y": 0.395, "text": "Permanent Residence:" }
+          "nearbyLabel": {
+            "x": 0.05,
+            "y": 0.395,
+            "text": "Permanent Residence:"
+          }
         },
         "permanentResidenceProvince": {
           "region": {
-            "x": 0.7,
-            "y": 0.395,
-            "width": 0.25,
-            "height": 0.025
+            "x": 0.718,
+            "y": 0.638,
+            "width": 0.104,
+            "height": 0.012
           },
           "label": "Permanent Residence - Province",
           "type": "text",
@@ -351,24 +466,28 @@
         },
         "placeOfBirthCity": {
           "region": {
-            "x": 0.25,
-            "y": 0.425,
-            "width": 0.35,
-            "height": 0.025
+            "x": 0.448,
+            "y": 0.637,
+            "width": 0.053,
+            "height": 0.012
           },
           "label": "Place of Birth - City/Municipality",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.05, "y": 0.425, "text": "Place of Birth:" }
+          "nearbyLabel": {
+            "x": 0.05,
+            "y": 0.425,
+            "text": "Place of Birth:"
+          }
         },
         "placeOfBirthProvince": {
           "region": {
-            "x": 0.7,
-            "y": 0.425,
-            "width": 0.25,
-            "height": 0.025
+            "x": 0.716,
+            "y": 0.626,
+            "width": 0.093,
+            "height": 0.013
           },
           "label": "Place of Birth - Province",
           "type": "text",
@@ -378,24 +497,47 @@
         },
         "nationality": {
           "region": {
-            "x": 0.13,
-            "y": 0.455,
-            "width": 0.3,
-            "height": 0.025
+            "x": 0.623,
+            "y": 0.609,
+            "width": 0.012,
+            "height": 0.009
           },
           "label": "Nationality",
           "type": "mixed",
           "checkboxes": [
             {
               "value": "Filipino",
-              "checkbox": { "x": 0.13, "y": 0.455, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.15, "y": 0.455, "text": "Filipino" }
+              "checkbox": {
+                "x": 0.13,
+                "y": 0.455,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.15,
+                "y": 0.455,
+                "text": "Filipino"
+              }
             },
             {
               "value": "Other",
-              "checkbox": { "x": 0.24, "y": 0.455, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.26, "y": 0.455, "text": "Other, please specify:" },
-              "textField": { "x": 0.45, "y": 0.455, "width": 0.3, "height": 0.025 }
+              "checkbox": {
+                "x": 0.24,
+                "y": 0.455,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.26,
+                "y": 0.455,
+                "text": "Other, please specify:"
+              },
+              "textField": {
+                "x": 0.45,
+                "y": 0.455,
+                "width": 0.3,
+                "height": 0.025
+              }
             }
           ],
           "required": false,
@@ -415,43 +557,91 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "conditionalOn": { "field": "nationality", "value": "Other" },
+          "conditionalOn": {
+            "field": "nationality",
+            "value": "Other"
+          },
           "query": "What is the patient's nationality if not Filipino?"
         },
         "civilStatus": {
           "region": {
-            "x": 0.12,
-            "y": 0.485,
-            "width": 0.7,
-            "height": 0.025
+            "x": 0.258,
+            "y": 0.692,
+            "width": 0.012,
+            "height": 0.009
           },
           "label": "Civil Status",
           "type": "checkbox",
           "options": [
             {
               "value": "Single",
-              "checkbox": { "x": 0.2, "y": 0.485, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.22, "y": 0.485, "text": "Single" }
+              "checkbox": {
+                "x": 0.2,
+                "y": 0.485,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.22,
+                "y": 0.485,
+                "text": "Single"
+              }
             },
             {
               "value": "Married",
-              "checkbox": { "x": 0.3, "y": 0.485, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.32, "y": 0.485, "text": "Married" }
+              "checkbox": {
+                "x": 0.3,
+                "y": 0.485,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.32,
+                "y": 0.485,
+                "text": "Married"
+              }
             },
             {
               "value": "Separated",
-              "checkbox": { "x": 0.42, "y": 0.485, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.44, "y": 0.485, "text": "Separated" }
+              "checkbox": {
+                "x": 0.42,
+                "y": 0.485,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.44,
+                "y": 0.485,
+                "text": "Separated"
+              }
             },
             {
               "value": "Widowed",
-              "checkbox": { "x": 0.56, "y": 0.485, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.58, "y": 0.485, "text": "Widowed" }
+              "checkbox": {
+                "x": 0.56,
+                "y": 0.485,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.58,
+                "y": 0.485,
+                "text": "Widowed"
+              }
             },
             {
               "value": "Divorced",
-              "checkbox": { "x": 0.7, "y": 0.485, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.72, "y": 0.485, "text": "Divorced" }
+              "checkbox": {
+                "x": 0.7,
+                "y": 0.485,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.72,
+                "y": 0.485,
+                "text": "Divorced"
+              }
             }
           ],
           "required": false,
@@ -460,23 +650,41 @@
         },
         "livingWithPartner": {
           "region": {
-            "x": 0.32,
-            "y": 0.515,
-            "width": 0.15,
-            "height": 0.025
+            "x": 0.397,
+            "y": 0.71,
+            "width": 0.012,
+            "height": 0.009
           },
           "label": "Currently living with a partner",
           "type": "checkbox",
           "options": [
             {
               "value": "No",
-              "checkbox": { "x": 0.32, "y": 0.515, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.34, "y": 0.515, "text": "No" }
+              "checkbox": {
+                "x": 0.32,
+                "y": 0.515,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.34,
+                "y": 0.515,
+                "text": "No"
+              }
             },
             {
               "value": "Yes",
-              "checkbox": { "x": 0.4, "y": 0.515, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.42, "y": 0.515, "text": "Yes" }
+              "checkbox": {
+                "x": 0.4,
+                "y": 0.515,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.42,
+                "y": 0.515,
+                "text": "Yes"
+              }
             }
           ],
           "required": false,
@@ -495,71 +703,131 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.52, "y": 0.515, "text": "Number of children:" }
+          "nearbyLabel": {
+            "x": 0.52,
+            "y": 0.515,
+            "text": "Number of children:"
+          }
         },
         "isPregnant": {
           "region": {
-            "x": 0.56,
-            "y": 0.545,
-            "width": 0.15,
-            "height": 0.025
+            "x": 0.397,
+            "y": 0.71,
+            "width": 0.012,
+            "height": 0.009
           },
           "label": "Currently pregnant (for female only)",
           "type": "checkbox",
           "options": [
             {
               "value": "No",
-              "checkbox": { "x": 0.56, "y": 0.545, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.58, "y": 0.545, "text": "No" }
+              "checkbox": {
+                "x": 0.56,
+                "y": 0.545,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.58,
+                "y": 0.545,
+                "text": "No"
+              }
             },
             {
               "value": "Yes",
-              "checkbox": { "x": 0.64, "y": 0.545, "width": 0.015, "height": 0.015 },
-              "label": { "x": 0.66, "y": 0.545, "text": "Yes" }
+              "checkbox": {
+                "x": 0.64,
+                "y": 0.545,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "label": {
+                "x": 0.66,
+                "y": 0.545,
+                "text": "Yes"
+              }
             }
           ],
           "required": false,
           "priority": 3,
           "extractionMethod": "checkbox-detection",
-          "conditionalOn": { "field": "sex", "value": "Female" }
+          "conditionalOn": {
+            "field": "sex",
+            "value": "Female"
+          }
         },
         "educationalAttainment": {
           "region": {
-            "x": 0.26,
-            "y": 0.595,
-            "width": 0.7,
-            "height": 0.04
+            "x": 0.647,
+            "y": 0.777,
+            "width": 0.012,
+            "height": 0.009
           },
           "label": "Highest Educational Attainment",
           "type": "checkbox",
           "options": [
             {
               "value": "No schooling",
-              "checkbox": { "x": 0.26, "y": 0.595, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.26,
+                "y": 0.595,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Elementary",
-              "checkbox": { "x": 0.4, "y": 0.595, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.4,
+                "y": 0.595,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Pre-school",
-              "checkbox": { "x": 0.55, "y": 0.595, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.55,
+                "y": 0.595,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Highschool",
-              "checkbox": { "x": 0.68, "y": 0.595, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.68,
+                "y": 0.595,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Vocational",
-              "checkbox": { "x": 0.82, "y": 0.595, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.82,
+                "y": 0.595,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "College",
-              "checkbox": { "x": 0.68, "y": 0.615, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.68,
+                "y": 0.615,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Post-Graduate",
-              "checkbox": { "x": 0.82, "y": 0.615, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.82,
+                "y": 0.615,
+                "width": 0.015,
+                "height": 0.015
+              }
             }
           ],
           "required": false,
@@ -568,21 +836,31 @@
         },
         "currentlyInSchool": {
           "region": {
-            "x": 0.32,
-            "y": 0.645,
-            "width": 0.15,
-            "height": 0.025
+            "x": 0.397,
+            "y": 0.71,
+            "width": 0.012,
+            "height": 0.009
           },
           "label": "Currently in school",
           "type": "checkbox",
           "options": [
             {
               "value": "No",
-              "checkbox": { "x": 0.32, "y": 0.645, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.32,
+                "y": 0.645,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Yes",
-              "checkbox": { "x": 0.4, "y": 0.645, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.4,
+                "y": 0.645,
+                "width": 0.015,
+                "height": 0.015
+              }
             }
           ],
           "required": false,
@@ -591,21 +869,31 @@
         },
         "currentlyWorking": {
           "region": {
-            "x": 0.24,
-            "y": 0.675,
-            "width": 0.5,
-            "height": 0.04
+            "x": 0.335,
+            "y": 0.791,
+            "width": 0.016,
+            "height": 0.007
           },
           "label": "Currently working",
           "type": "mixed",
           "checkboxes": [
             {
               "value": "No",
-              "checkbox": { "x": 0.16, "y": 0.69, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.69,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Yes",
-              "checkbox": { "x": 0.25, "y": 0.69, "width": 0.015, "height": 0.015 },
+              "checkbox": {
+                "x": 0.25,
+                "y": 0.69,
+                "width": 0.015,
+                "height": 0.015
+              },
               "textField": {
                 "label": "Current occupation (main source of income)",
                 "x": 0.28,
@@ -616,7 +904,12 @@
             },
             {
               "value": "Previous",
-              "checkbox": { "x": 0.16, "y": 0.715, "width": 0.015, "height": 0.015 },
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.715,
+                "width": 0.015,
+                "height": 0.015
+              },
               "textField": {
                 "label": "Previous occupation in the past 12 months",
                 "x": 0.28,
@@ -632,21 +925,31 @@
         },
         "workedOverseas": {
           "region": {
-            "x": 0.24,
-            "y": 0.755,
-            "width": 0.7,
-            "height": 0.07
+            "x": 0.336,
+            "y": 0.418,
+            "width": 0.071,
+            "height": 0.009
           },
           "label": "Worked overseas/abroad in past 5 years",
           "type": "mixed",
           "checkboxes": [
             {
               "value": "No",
-              "checkbox": { "x": 0.52, "y": 0.765, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.52,
+                "y": 0.765,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Yes",
-              "checkbox": { "x": 0.6, "y": 0.765, "width": 0.015, "height": 0.015 },
+              "checkbox": {
+                "x": 0.6,
+                "y": 0.765,
+                "width": 0.015,
+                "height": 0.015
+              },
               "subFields": {
                 "returnYear": {
                   "label": "Year of return from last contract",
@@ -660,11 +963,21 @@
                   "checkboxes": [
                     {
                       "value": "On a ship",
-                      "checkbox": { "x": 0.28, "y": 0.8, "width": 0.015, "height": 0.015 }
+                      "checkbox": {
+                        "x": 0.28,
+                        "y": 0.8,
+                        "width": 0.015,
+                        "height": 0.015
+                      }
                     },
                     {
                       "value": "Land",
-                      "checkbox": { "x": 0.4, "y": 0.8, "width": 0.015, "height": 0.015 }
+                      "checkbox": {
+                        "x": 0.4,
+                        "y": 0.8,
+                        "width": 0.015,
+                        "height": 0.015
+                      }
                     }
                   ]
                 },
@@ -689,10 +1002,10 @@
       "fields": {
         "riskAssessment": {
           "region": {
-            "x": 0.05,
-            "y": 0.11,
-            "width": 0.9,
-            "height": 0.25
+            "x": 0.302,
+            "y": 0.15,
+            "width": 0.431,
+            "height": 0.2
           },
           "label": "History of Exposure / Risk Assessment",
           "type": "checkboxMultiple",
@@ -702,14 +1015,34 @@
               "options": [
                 {
                   "value": "No",
-                  "checkbox": { "x": 0.28, "y": 0.145, "width": 0.015, "height": 0.015 }
+                  "checkbox": {
+                    "x": 0.28,
+                    "y": 0.145,
+                    "width": 0.015,
+                    "height": 0.015
+                  }
                 },
                 {
                   "value": "Yes",
-                  "checkbox": { "x": 0.32, "y": 0.145, "width": 0.015, "height": 0.015 },
+                  "checkbox": {
+                    "x": 0.32,
+                    "y": 0.145,
+                    "width": 0.015,
+                    "height": 0.015
+                  },
                   "subFields": {
-                    "totalNumber": { "x": 0.38, "y": 0.145, "width": 0.08, "height": 0.025 },
-                    "dateRecent": { "x": 0.72, "y": 0.145, "width": 0.2, "height": 0.025 }
+                    "totalNumber": {
+                      "x": 0.38,
+                      "y": 0.145,
+                      "width": 0.08,
+                      "height": 0.025
+                    },
+                    "dateRecent": {
+                      "x": 0.72,
+                      "y": 0.145,
+                      "width": 0.2,
+                      "height": 0.025
+                    }
                   }
                 }
               ]
@@ -719,47 +1052,127 @@
               "options": [
                 {
                   "value": "No",
-                  "checkbox": { "x": 0.28, "y": 0.17, "width": 0.015, "height": 0.015 }
+                  "checkbox": {
+                    "x": 0.28,
+                    "y": 0.17,
+                    "width": 0.015,
+                    "height": 0.015
+                  }
                 },
                 {
                   "value": "Yes",
-                  "checkbox": { "x": 0.32, "y": 0.17, "width": 0.015, "height": 0.015 },
+                  "checkbox": {
+                    "x": 0.32,
+                    "y": 0.17,
+                    "width": 0.015,
+                    "height": 0.015
+                  },
                   "subFields": {
-                    "totalNumber": { "x": 0.38, "y": 0.17, "width": 0.08, "height": 0.025 },
-                    "dateRecent": { "x": 0.72, "y": 0.17, "width": 0.2, "height": 0.025 }
+                    "totalNumber": {
+                      "x": 0.38,
+                      "y": 0.17,
+                      "width": 0.08,
+                      "height": 0.025
+                    },
+                    "dateRecent": {
+                      "x": 0.72,
+                      "y": 0.17,
+                      "width": 0.2,
+                      "height": 0.025
+                    }
                   }
                 }
               ]
             },
             {
               "label": "Paid for sex (in cash or kind)",
-              "checkbox": { "x": 0.28, "y": 0.23, "width": 0.015, "height": 0.015 },
-              "dateField": { "x": 0.72, "y": 0.23, "width": 0.2, "height": 0.025 }
+              "checkbox": {
+                "x": 0.28,
+                "y": 0.23,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "dateField": {
+                "x": 0.72,
+                "y": 0.23,
+                "width": 0.2,
+                "height": 0.025
+              }
             },
             {
               "label": "Received payment (cash or in kind) in exchange for sex",
-              "checkbox": { "x": 0.28, "y": 0.255, "width": 0.015, "height": 0.015 },
-              "dateField": { "x": 0.72, "y": 0.255, "width": 0.2, "height": 0.025 }
+              "checkbox": {
+                "x": 0.28,
+                "y": 0.255,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "dateField": {
+                "x": 0.72,
+                "y": 0.255,
+                "width": 0.2,
+                "height": 0.025
+              }
             },
             {
               "label": "Had sex under the influence of drugs",
-              "checkbox": { "x": 0.28, "y": 0.28, "width": 0.015, "height": 0.015 },
-              "dateField": { "x": 0.72, "y": 0.28, "width": 0.2, "height": 0.025 }
+              "checkbox": {
+                "x": 0.28,
+                "y": 0.28,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "dateField": {
+                "x": 0.72,
+                "y": 0.28,
+                "width": 0.2,
+                "height": 0.025
+              }
             },
             {
               "label": "Shared needles in injection of drugs",
-              "checkbox": { "x": 0.28, "y": 0.305, "width": 0.015, "height": 0.015 },
-              "dateField": { "x": 0.72, "y": 0.305, "width": 0.2, "height": 0.025 }
+              "checkbox": {
+                "x": 0.28,
+                "y": 0.305,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "dateField": {
+                "x": 0.72,
+                "y": 0.305,
+                "width": 0.2,
+                "height": 0.025
+              }
             },
             {
               "label": "Received blood transfusion",
-              "checkbox": { "x": 0.28, "y": 0.33, "width": 0.015, "height": 0.015 },
-              "dateField": { "x": 0.72, "y": 0.33, "width": 0.2, "height": 0.025 }
+              "checkbox": {
+                "x": 0.28,
+                "y": 0.33,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "dateField": {
+                "x": 0.72,
+                "y": 0.33,
+                "width": 0.2,
+                "height": 0.025
+              }
             },
             {
               "label": "Occupational exposure (needlestick/sharps)",
-              "checkbox": { "x": 0.28, "y": 0.355, "width": 0.015, "height": 0.015 },
-              "dateField": { "x": 0.72, "y": 0.355, "width": 0.2, "height": 0.025 }
+              "checkbox": {
+                "x": 0.28,
+                "y": 0.355,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "dateField": {
+                "x": 0.72,
+                "y": 0.355,
+                "width": 0.2,
+                "height": 0.025
+              }
             }
           ],
           "required": false,
@@ -768,42 +1181,82 @@
         },
         "reasonsForTesting": {
           "region": {
-            "x": 0.05,
-            "y": 0.395,
-            "width": 0.9,
-            "height": 0.06
+            "x": 0.084,
+            "y": 0.35,
+            "width": 0.687,
+            "height": 0.07
           },
           "label": "Reasons for HIV Testing",
           "type": "checkboxMultiple",
           "options": [
             {
               "value": "Possible exposure to HIV",
-              "checkbox": { "x": 0.16, "y": 0.41, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.41,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Employment - Overseas/Abroad",
-              "checkbox": { "x": 0.4, "y": 0.41, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.4,
+                "y": 0.41,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Requirement for insurance",
-              "checkbox": { "x": 0.74, "y": 0.41, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.74,
+                "y": 0.41,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Recommended by physician/nurse/midwife",
-              "checkbox": { "x": 0.16, "y": 0.435, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.435,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Employment - Local/Philippines",
-              "checkbox": { "x": 0.4, "y": 0.435, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.4,
+                "y": 0.435,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Other (please specify)",
-              "checkbox": { "x": 0.74, "y": 0.435, "width": 0.015, "height": 0.015 },
-              "textField": { "x": 0.82, "y": 0.435, "width": 0.15, "height": 0.02 }
+              "checkbox": {
+                "x": 0.74,
+                "y": 0.435,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "textField": {
+                "x": 0.82,
+                "y": 0.435,
+                "width": 0.15,
+                "height": 0.02
+              }
             },
             {
               "value": "Planned a text message/email encouraging me to get an HIV test",
-              "checkbox": { "x": 0.16, "y": 0.455, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.455,
+                "width": 0.015,
+                "height": 0.015
+              }
             }
           ],
           "required": false,
@@ -812,21 +1265,31 @@
         },
         "previouslyTested": {
           "region": {
-            "x": 0.05,
-            "y": 0.49,
-            "width": 0.9,
-            "height": 0.055
+            "x": 0.31,
+            "y": 0.166,
+            "width": 0.015,
+            "height": 0.007
           },
           "label": "Have you ever been tested for HIV before",
           "type": "mixed",
           "checkboxes": [
             {
               "value": "No",
-              "checkbox": { "x": 0.28, "y": 0.505, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.28,
+                "y": 0.505,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Yes",
-              "checkbox": { "x": 0.35, "y": 0.505, "width": 0.015, "height": 0.015 },
+              "checkbox": {
+                "x": 0.35,
+                "y": 0.505,
+                "width": 0.015,
+                "height": 0.015
+              },
               "subFields": {
                 "testDate": {
                   "label": "If yes, date of most recent test",
@@ -858,29 +1321,49 @@
         },
         "previousTestResult": {
           "region": {
-            "x": 0.2,
-            "y": 0.535,
-            "width": 0.7,
-            "height": 0.025
+            "x": 0.412,
+            "y": 0.46,
+            "width": 0.066,
+            "height": 0.007
           },
           "label": "What was the result",
           "type": "checkbox",
           "options": [
             {
               "value": "Reactive",
-              "checkbox": { "x": 0.24, "y": 0.535, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.24,
+                "y": 0.535,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Non-reactive",
-              "checkbox": { "x": 0.35, "y": 0.535, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.35,
+                "y": 0.535,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Indeterminate",
-              "checkbox": { "x": 0.48, "y": 0.535, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.48,
+                "y": 0.535,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Was not able to get result",
-              "checkbox": { "x": 0.63, "y": 0.535, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.63,
+                "y": 0.535,
+                "width": 0.015,
+                "height": 0.015
+              }
             }
           ],
           "required": false,
@@ -889,37 +1372,67 @@
         },
         "medicalHistory": {
           "region": {
-            "x": 0.05,
-            "y": 0.585,
-            "width": 0.9,
-            "height": 0.05
+            "x": 0.608,
+            "y": 0.51,
+            "width": 0.212,
+            "height": 0.03
           },
           "label": "Medical History",
           "type": "checkboxMultiple",
           "options": [
             {
               "value": "Current TB patient",
-              "checkbox": { "x": 0.16, "y": 0.6, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.6,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Diagnosed with other STIs",
-              "checkbox": { "x": 0.38, "y": 0.6, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.38,
+                "y": 0.6,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Taken PEP",
-              "checkbox": { "x": 0.64, "y": 0.6, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.64,
+                "y": 0.6,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "With hepatitis B",
-              "checkbox": { "x": 0.16, "y": 0.62, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.62,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "With hepatitis C",
-              "checkbox": { "x": 0.38, "y": 0.62, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.38,
+                "y": 0.62,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Taking PrEP",
-              "checkbox": { "x": 0.64, "y": 0.62, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.64,
+                "y": 0.62,
+                "width": 0.015,
+                "height": 0.015
+              }
             }
           ],
           "required": false,
@@ -928,21 +1441,31 @@
         },
         "clinicalPicture": {
           "region": {
-            "x": 0.16,
-            "y": 0.655,
-            "width": 0.35,
-            "height": 0.025
+            "x": 0.259,
+            "y": 0.545,
+            "width": 0.077,
+            "height": 0.009
           },
           "label": "Clinical Picture",
           "type": "checkbox",
           "options": [
             {
               "value": "Asymptomatic",
-              "checkbox": { "x": 0.24, "y": 0.655, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.24,
+                "y": 0.655,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Symptomatic",
-              "checkbox": { "x": 0.38, "y": 0.655, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.38,
+                "y": 0.655,
+                "width": 0.015,
+                "height": 0.015
+              }
             }
           ],
           "required": false,
@@ -961,7 +1484,11 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.16, "y": 0.675, "text": "Describe S/Sx:" }
+          "nearbyLabel": {
+            "x": 0.16,
+            "y": 0.675,
+            "text": "Describe S/Sx:"
+          }
         },
         "whoStaging": {
           "region": {
@@ -975,7 +1502,12 @@
           "checkboxes": [
             {
               "value": "No physician to do staging",
-              "checkbox": { "x": 0.56, "y": 0.695, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.56,
+                "y": 0.695,
+                "width": 0.015,
+                "height": 0.015
+              }
             }
           ],
           "required": false,
@@ -984,30 +1516,55 @@
         },
         "clientType": {
           "region": {
-            "x": 0.16,
-            "y": 0.74,
-            "width": 0.78,
-            "height": 0.025
+            "x": 0.372,
+            "y": 0.603,
+            "width": 0.012,
+            "height": 0.008
           },
           "label": "Client type",
           "type": "checkbox",
           "options": [
             {
               "value": "Inpatient",
-              "checkbox": { "x": 0.24, "y": 0.74, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.24,
+                "y": 0.74,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Walk-in/outpatient",
-              "checkbox": { "x": 0.38, "y": 0.74, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.38,
+                "y": 0.74,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Persons Deprived of Liberty (PDL)",
-              "checkbox": { "x": 0.6, "y": 0.74, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.6,
+                "y": 0.74,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Mobile HTS / Outreach in physical venues. Specify venue.",
-              "checkbox": { "x": 0.24, "y": 0.76, "width": 0.015, "height": 0.015 },
-              "textField": { "x": 0.62, "y": 0.76, "width": 0.3, "height": 0.02 }
+              "checkbox": {
+                "x": 0.24,
+                "y": 0.76,
+                "width": 0.015,
+                "height": 0.015
+              },
+              "textField": {
+                "x": 0.62,
+                "y": 0.76,
+                "width": 0.3,
+                "height": 0.02
+              }
             }
           ],
           "required": false,
@@ -1016,33 +1573,58 @@
         },
         "modeOfReach": {
           "region": {
-            "x": 0.16,
-            "y": 0.785,
-            "width": 0.78,
-            "height": 0.025
+            "x": 0.722,
+            "y": 0.644,
+            "width": 0.152,
+            "height": 0.01
           },
           "label": "Mode of reach",
           "type": "checkboxMultiple",
           "options": [
             {
               "value": "Clinical reach",
-              "checkbox": { "x": 0.28, "y": 0.79, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.28,
+                "y": 0.79,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Online",
-              "checkbox": { "x": 0.42, "y": 0.79, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.42,
+                "y": 0.79,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Index testing",
-              "checkbox": { "x": 0.52, "y": 0.79, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.52,
+                "y": 0.79,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Social and sexual network testing",
-              "checkbox": { "x": 0.68, "y": 0.79, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.68,
+                "y": 0.79,
+                "width": 0.015,
+                "height": 0.015
+              }
             },
             {
               "value": "Outreach in physical venues",
-              "checkbox": { "x": 0.72, "y": 0.81, "width": 0.015, "height": 0.015 }
+              "checkbox": {
+                "x": 0.72,
+                "y": 0.81,
+                "width": 0.015,
+                "height": 0.015
+              }
             }
           ],
           "required": false,
@@ -1051,17 +1633,22 @@
         },
         "testingAccepted": {
           "region": {
-            "x": 0.16,
-            "y": 0.835,
-            "width": 0.78,
-            "height": 0.055
+            "x": 0.084,
+            "y": 0.67,
+            "width": 0.74,
+            "height": 0.02
           },
           "label": "HIV Testing Status",
           "type": "mixed",
           "checkboxes": [
             {
               "value": "Refused HIV Testing",
-              "checkbox": { "x": 0.16, "y": 0.84, "width": 0.015, "height": 0.015 },
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.84,
+                "width": 0.015,
+                "height": 0.015
+              },
               "textField": {
                 "label": "Reason for refusal",
                 "x": 0.3,
@@ -1072,26 +1659,51 @@
             },
             {
               "value": "Accepted HIV Testing",
-              "checkbox": { "x": 0.16, "y": 0.86, "width": 0.015, "height": 0.015 },
+              "checkbox": {
+                "x": 0.16,
+                "y": 0.86,
+                "width": 0.015,
+                "height": 0.015
+              },
               "subFields": {
                 "modality": {
                   "label": "HIV testing modality",
                   "checkboxes": [
                     {
                       "value": "Facility-based testing (FBT)",
-                      "checkbox": { "x": 0.28, "y": 0.865, "width": 0.015, "height": 0.015 }
+                      "checkbox": {
+                        "x": 0.28,
+                        "y": 0.865,
+                        "width": 0.015,
+                        "height": 0.015
+                      }
                     },
                     {
                       "value": "Non-laboratory FBT",
-                      "checkbox": { "x": 0.52, "y": 0.865, "width": 0.015, "height": 0.015 }
+                      "checkbox": {
+                        "x": 0.52,
+                        "y": 0.865,
+                        "width": 0.015,
+                        "height": 0.015
+                      }
                     },
                     {
                       "value": "Community-based",
-                      "checkbox": { "x": 0.74, "y": 0.865, "width": 0.015, "height": 0.015 }
+                      "checkbox": {
+                        "x": 0.74,
+                        "y": 0.865,
+                        "width": 0.015,
+                        "height": 0.015
+                      }
                     },
                     {
                       "value": "Self-testing",
-                      "checkbox": { "x": 0.88, "y": 0.865, "width": 0.015, "height": 0.015 }
+                      "checkbox": {
+                        "x": 0.88,
+                        "y": 0.865,
+                        "width": 0.015,
+                        "height": 0.015
+                      }
                     }
                   ]
                 }
@@ -1114,7 +1726,11 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.58, "y": 0.91, "text": "Brand of test kit used:" }
+          "nearbyLabel": {
+            "x": 0.58,
+            "y": 0.91,
+            "text": "Brand of test kit used:"
+          }
         },
         "testKitLotNumber": {
           "region": {
@@ -1128,7 +1744,11 @@
           "required": false,
           "priority": 4,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.58, "y": 0.935, "text": "Test kit lot number:" }
+          "nearbyLabel": {
+            "x": 0.58,
+            "y": 0.935,
+            "text": "Test kit lot number:"
+          }
         },
         "testKitExpiration": {
           "region": {
@@ -1143,28 +1763,39 @@
           "required": false,
           "priority": 4,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.58, "y": 0.96, "text": "Test kit expiry (MM/DD/YYYY):" }
+          "nearbyLabel": {
+            "x": 0.58,
+            "y": 0.96,
+            "text": "Test kit expiry (MM/DD/YYYY):"
+          }
         },
         "testingFacility": {
           "region": {
-            "x": 0.4,
-            "y": 0.985,
-            "width": 0.55,
-            "height": 0.015
+            "x": 0.514,
+            "y": 0.816,
+            "width": 0.184,
+            "height": 0.013
           },
           "label": "Name of Testing Facility/Organization",
           "type": "text",
           "required": true,
           "priority": 2,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.05, "y": 0.985, "text": "Name of Testing Facility/Organization:" },
-          "expectedValues": ["LoveYourself Inc.", "LoveYourself Inc. (Bagani)"]
+          "nearbyLabel": {
+            "x": 0.05,
+            "y": 0.985,
+            "text": "Name of Testing Facility/Organization:"
+          },
+          "expectedValues": [
+            "LoveYourself Inc.",
+            "LoveYourself Inc. (Bagani)"
+          ]
         },
         "facilityAddress": {
           "region": {
-            "x": 0.4,
-            "y": 0.998,
-            "width": 0.55,
+            "x": 0.339,
+            "y": 0.83,
+            "width": 0.509,
             "height": 0.015
           },
           "label": "Complete Mailing Address",
@@ -1172,14 +1803,18 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.05, "y": 0.998, "text": "Complete Mailing Address:" }
+          "nearbyLabel": {
+            "x": 0.05,
+            "y": 0.998,
+            "text": "Complete Mailing Address:"
+          }
         },
         "contactNumber": {
           "region": {
-            "x": 0.2,
-            "y": 1.01,
-            "width": 0.2,
-            "height": 0.015
+            "x": 0.339,
+            "y": 0.847,
+            "width": 0.09,
+            "height": 0.01
           },
           "label": "Contact Numbers",
           "type": "text",
@@ -1187,35 +1822,47 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.05, "y": 1.01, "text": "Contact Numbers:" }
+          "nearbyLabel": {
+            "x": 0.05,
+            "y": 1.01,
+            "text": "Contact Numbers:"
+          }
         },
         "emailAddress": {
           "region": {
-            "x": 0.58,
-            "y": 1.01,
-            "width": 0.37,
-            "height": 0.015
+            "x": 0.686,
+            "y": 0.851,
+            "width": 0.124,
+            "height": 0.011
           },
           "label": "Email address",
           "type": "email",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.45, "y": 1.01, "text": "Email address:" }
+          "nearbyLabel": {
+            "x": 0.45,
+            "y": 1.01,
+            "text": "Email address:"
+          }
         },
         "counselorName": {
           "region": {
-            "x": 0.28,
-            "y": 1.025,
-            "width": 0.35,
-            "height": 0.015
+            "x": 0.514,
+            "y": 0.816,
+            "width": 0.121,
+            "height": 0.011
           },
           "label": "Name of service provider",
           "type": "text",
           "required": false,
           "priority": 3,
           "extractionMethod": "form-field",
-          "nearbyLabel": { "x": 0.05, "y": 1.025, "text": "Primary HTS provider:" }
+          "nearbyLabel": {
+            "x": 0.05,
+            "y": 1.025,
+            "text": "Primary HTS provider:"
+          }
         },
         "counselorRole": {
           "region": {
@@ -1229,19 +1876,39 @@
           "options": [
             {
               "value": "HIV Counselor",
-              "checkbox": { "x": 0.28, "y": 1.038, "width": 0.012, "height": 0.012 }
+              "checkbox": {
+                "x": 0.28,
+                "y": 1.038,
+                "width": 0.012,
+                "height": 0.012
+              }
             },
             {
               "value": "Medical Technologist",
-              "checkbox": { "x": 0.42, "y": 1.038, "width": 0.012, "height": 0.012 }
+              "checkbox": {
+                "x": 0.42,
+                "y": 1.038,
+                "width": 0.012,
+                "height": 0.012
+              }
             },
             {
               "value": "CBS Motivator",
-              "checkbox": { "x": 0.64, "y": 1.038, "width": 0.012, "height": 0.012 }
+              "checkbox": {
+                "x": 0.64,
+                "y": 1.038,
+                "width": 0.012,
+                "height": 0.012
+              }
             },
             {
               "value": "Others",
-              "checkbox": { "x": 0.78, "y": 1.038, "width": 0.012, "height": 0.012 }
+              "checkbox": {
+                "x": 0.78,
+                "y": 1.038,
+                "width": 0.012,
+                "height": 0.012
+              }
             }
           ],
           "required": false,
@@ -1300,7 +1967,10 @@
       "description": "Extract date with format validation",
       "method": "textract-key-value",
       "validation": "date-format",
-      "formats": ["MM/DD/YYYY", "DD/MM/YYYY"]
+      "formats": [
+        "MM/DD/YYYY",
+        "DD/MM/YYYY"
+      ]
     }
   },
   "validationRules": {
@@ -1313,20 +1983,29 @@
       "testingAccepted",
       "testingFacility"
     ],
-    "confidenceThreshold": 0.80,
+    "confidenceThreshold": 0.8,
     "crossFieldValidation": [
       {
         "rule": "ageMatchesBirthDate",
-        "fields": ["age", "birthDate"],
+        "fields": [
+          "age",
+          "birthDate"
+        ],
         "tolerance": 1
       },
       {
         "rule": "testDateAfterBirthDate",
-        "fields": ["testDate", "birthDate"]
+        "fields": [
+          "testDate",
+          "birthDate"
+        ]
       },
       {
         "rule": "previousTestDateBeforeTestDate",
-        "fields": ["previousTestDate", "testDate"]
+        "fields": [
+          "previousTestDate",
+          "testDate"
+        ]
       }
     ]
   },

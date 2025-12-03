@@ -99,7 +99,8 @@ class CheckboxDetector {
     
     // Log if coordinates were adjusted
     if (boundedLeft !== left || boundedTop !== top || boundedWidth !== width || boundedHeight !== height) {
-      console.warn(`[CheckboxDetector] Bounds adjusted: (${left},${top},${width}x${height}) -> (${boundedLeft},${boundedTop},${boundedWidth}x${boundedHeight}) for image ${imageWidth}x${imageHeight}`);
+      const msg = `[CheckboxDetector] Bounds adjusted: (${left},${top},${width}x${height}) to (${boundedLeft},${boundedTop},${boundedWidth}x${boundedHeight}) for image ${imageWidth}x${imageHeight}`;
+      console.warn(msg);
     }
     
     return {

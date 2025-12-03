@@ -198,11 +198,11 @@ class OCRFieldExtractor {
 
     // Build strategy list based on extraction mode
     if (extractionMode === 'queries' || extractionMode === 'hybrid') {
-      strategies.push({ type: 'query', priority: 1, minConfidence: 75 });
+      strategies.push({ type: 'query', priority: 1, minConfidence: 0.75 });
     }
 
     if (extractionMode === 'coordinate' || extractionMode === 'hybrid') {
-      strategies.push({ type: 'coordinate', priority: 2, minConfidence: 70 });
+      strategies.push({ type: 'coordinate', priority: 2, minConfidence: 0.70 });
     }
 
     // Try each strategy in priority order
@@ -346,13 +346,26 @@ class OCRFieldExtractor {
    */
   extractTextField(textractResult, fieldConfig, imageDimensions) {
     const region = fieldConfig.region;
+    
+    // Validate region exists
+    if (!region || !region.x || !region.y || !region.width || !region.height) {
+      console.warn(`[TextField] Field ${fieldConfig.label} missing region coordinates`);
+      return {
+        value: null,
+        confidence: 0,
+        requiresReview: true,
+        extractionMethod: 'failed',
+        error: 'Missing region coordinates'
+      };
+    }
+    
     const blocks = textractResult.Blocks || [];
     const lineBlocks = blocks.filter(b => b.BlockType === 'LINE' && b.Geometry);
 
     console.log(`[TextField] Field: ${fieldConfig.label}, Total blocks: ${blocks.length}, LINE blocks: ${lineBlocks.length}, Region: x=${region.x.toFixed(3)}, y=${region.y.toFixed(3)}, w=${region.width.toFixed(3)}, h=${region.height.toFixed(3)}`);
 
-    // Add tolerance for region matching (5% of image)
-    const tolerance = 0.05;
+    // Add tolerance for region matching (2% of image)
+    const tolerance = 0.02;
 
     // Find blocks within the region
     const blocksInRegion = lineBlocks.filter(block => {

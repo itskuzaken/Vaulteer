@@ -31,6 +31,7 @@ router.post('/analyze-ocr',
   htsFormsController.analyzeOCR
 );
 router.post('/submit', authenticate, htsFormsController.submitForm);
+router.put('/:formId/extracted-data', authenticate, htsFormsController.updateExtractedData);
 router.get('/my-submissions', authenticate, htsFormsController.getMySubmissions);
 
 // Admin routes

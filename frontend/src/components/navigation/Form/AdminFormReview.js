@@ -4,6 +4,7 @@ import { getAuth } from "firebase/auth";
 import Image from "next/image";
 import { IoSearchOutline, IoPersonOutline, IoCalendarOutline, IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
 import Button from "../../ui/Button";
+import AdminHTSDetailView from "../../ui/AdminHTSDetailView";
 import { decryptFormImages, decryptJSON, importKey } from "../../../utils/imageEncryption";
 import { API_BASE } from "../../../config/config";
 
@@ -475,10 +476,24 @@ export default function AdminFormReview() {
                 </div>
               </div>
 
-              {/* OCR Analysis Section */}
+              {/* OCR Analysis Section - Enhanced with Template-Based View */}
               {extractedData && (
                 <div className="mt-6 border-t border-gray-200 dark:border-gray-700 pt-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">📄 OCR Analysis</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">📄 Extracted Data - All Fields</h3>
+                  
+                  {/* Use AdminHTSDetailView for comprehensive field display */}
+                  <AdminHTSDetailView 
+                    extractedData={extractedData}
+                    submissionInfo={selectedSubmission}
+                  />
+                  
+                  {/* Legacy OCR Summary (kept for reference) */}
+                  <details className="mt-6 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                    <summary className="cursor-pointer font-medium text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-3">
+                      View Legacy OCR Summary
+                    </summary>
+                    <div className="p-3 space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">📄 OCR Analysis (Legacy View)</h3>
                   
                   {/* Confidence Score */}
                   <div className="mb-4">
@@ -612,6 +627,8 @@ export default function AdminFormReview() {
                       </span>
                     )}
                   </div>
+                  </div>
+                  </details>
                 </div>
               )}
 
