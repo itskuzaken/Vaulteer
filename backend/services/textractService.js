@@ -5,6 +5,7 @@ const { getPool } = require('../db/pool');
 const fs = require('fs');
 const path = require('path');
 const templateMatcher = require('./templateMatcher');
+const { validateAndCorrectFields, applyValidationCorrections, getValidationSummary } = require('../utils/ocrValidation');
 
 // Load DOH HTS Form 2021 metadata for field extraction
 const metadataPath = path.join(__dirname, '../assets/form-templates/hts/template-metadata.json');
@@ -852,18 +853,32 @@ async function analyzeHTSForm(frontImageBuffer, backImageBuffer) {
     // Parse extracted data
     const extractedData = parseHTSFormData(frontResult, backResult);
     
+    // Apply pattern validation and corrections
+    console.log('🔍 Applying pattern validation...');
+    const validations = validateAndCorrectFields(extractedData);
+    const correctedData = applyValidationCorrections(extractedData, validations);
+    const validationSummary = getValidationSummary(validations);
+    
+    console.log(`✅ Validation complete: ${validationSummary.corrected} auto-corrections, ${validationSummary.validPercentage}% valid`);
+    
     // Calculate confidence
     const frontConfidence = calculateAverageConfidence(frontResult.Blocks || []);
     const backConfidence = calculateAverageConfidence(backResult.Blocks || []);
     const avgConfidence = (frontConfidence + backConfidence) / 2;
     
-    console.log(`✅ Extraction complete. Confidence: ${avgConfidence.toFixed(2)}%`);
+    // Adjust confidence based on validation results
+    const adjustedConfidence = (avgConfidence + validationSummary.avgConfidence) / 2;
+    
+    console.log(`✅ Extraction complete. Raw confidence: ${avgConfidence.toFixed(2)}%, Adjusted: ${adjustedConfidence.toFixed(2)}%`);
     
     return {
-      ...extractedData,
-      confidence: avgConfidence,
+      ...correctedData,
+      confidence: adjustedConfidence,
+      rawConfidence: avgConfidence,
       frontConfidence,
-      backConfidence
+      backConfidence,
+      validationSummary,
+      validations
     };
   } catch (error) {
     console.error('❌ OCR analysis failed:', error);
