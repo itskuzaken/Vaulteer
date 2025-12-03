@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { IoCamera, IoClose, IoCheckmark, IoCloudUploadOutline, IoDocumentText, IoTime, IoCheckmarkCircle, IoAlertCircle, IoHourglassOutline, IoAddCircle, IoListOutline, IoEyeOutline } from "react-icons/io5";
 import { getAuth } from "firebase/auth";
 import Button from "../../ui/Button";
@@ -261,7 +261,7 @@ export default function HTSFormManagement() {
     };
   }, [autoCapture, isVideoReady, isCameraOpen, triggerAutoCaptureCountdown]);
 
-  const triggerAutoCaptureCountdown = () => {
+  const triggerAutoCaptureCountdown = useCallback(() => {
     // Prevent multiple countdowns
     if (autoCaptureCountdownRef.current || formDetection.countdown) {
       return;
@@ -288,7 +288,7 @@ export default function HTSFormManagement() {
     }, 1000);
 
     autoCaptureCountdownRef.current = countdownInterval;
-  };
+  }, [formDetection.countdown, captureImage]);
 
   const startCamera = async (side) => {
     // Check if image already exists for this side
@@ -445,7 +445,7 @@ export default function HTSFormManagement() {
     }
   };
 
-  const captureImage = async () => {
+  const captureImage = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
       showAlert(
         "Camera Not Ready",
@@ -563,7 +563,7 @@ export default function HTSFormManagement() {
         "error"
       );
     }
-  };
+  }, [isVideoReady, currentStep, showAlert, showConfirm, closeConfirm]);
 
   const finalizeCaptureImage = async (step, imageData) => {
     try {
