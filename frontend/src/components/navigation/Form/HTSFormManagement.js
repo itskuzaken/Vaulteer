@@ -6,6 +6,8 @@ import Button from "../../ui/Button";
 import ImageLightbox from "../../ui/ImageLightbox";
 import CameraQualityIndicator from "../../ui/CameraQualityIndicator";
 import OCRFieldWarnings from "../../ui/OCRFieldWarnings";
+import AlertModal from "../../ui/AlertModal";
+import ConfirmModal from "../../ui/ConfirmModal";
 import NextImage from 'next/image';
 import { API_BASE } from "../../../config/config";
 import { encryptFormImages, encryptJSON, generateEncryptionKey, exportKey, encryptFormSubmission } from "../../../utils/imageEncryption";
@@ -60,6 +62,66 @@ export default function HTSFormManagement() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  // Modal state
+  const [alertModal, setAlertModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    type: "info",
+    onConfirm: null,
+  });
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: "",
+    message: "",
+    onConfirm: null,
+    confirmText: "Confirm",
+    cancelText: "Cancel",
+  });
+
+  // Helper functions for modals
+  const showAlert = (title, message, type = "info", onConfirm = null) => {
+    setAlertModal({
+      isOpen: true,
+      title,
+      message,
+      type,
+      onConfirm,
+    });
+  };
+
+  const closeAlert = () => {
+    setAlertModal({
+      isOpen: false,
+      title: "",
+      message: "",
+      type: "info",
+      onConfirm: null,
+    });
+  };
+
+  const showConfirm = (title, message, onConfirm, confirmText = "Confirm", cancelText = "Cancel") => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      confirmText,
+      cancelText,
+    });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal({
+      isOpen: false,
+      title: "",
+      message: "",
+      onConfirm: null,
+      confirmText: "Confirm",
+      cancelText: "Cancel",
+    });
+  };
+
   // Check camera permission on mount
   useEffect(() => {
     const checkPermission = async () => {
@@ -95,26 +157,38 @@ export default function HTSFormManagement() {
     // Check if image already exists for this side
     const existingImage = side === "front" ? frontImage : backImage;
     if (existingImage) {
-      const confirmed = confirm(
-        `An image already exists for the ${side} side. Replace it?`
-      );
-      if (!confirmed) {
-        return;
-      }
+      return new Promise((resolve) => {
+        showConfirm(
+          "Replace Image?",
+          `An image already exists for the ${side} side. Replace it?`,
+          () => {
+            closeConfirm();
+            resolve(true);
+            startCameraInternal(side);
+          },
+          "Replace",
+          "Cancel"
+        );
+      });
     }
+    await startCameraInternal(side);
+  };
+
+  const startCameraInternal = async (side) => {
     
     setHasAttemptedCameraRequest(true);
     setIsRequestingCameraPermission(true);
     try {
       // Check if camera is supported
       if (!isCameraSupported()) {
-        alert(
-          "📷 Camera Not Supported\n\n" +
+        showAlert(
+          "Camera Not Supported",
           "Your browser doesn't support camera access.\n\n" +
           "Please:\n" +
           "• Use a modern browser (Chrome, Firefox, Edge, Safari)\n" +
           "• Ensure you're using HTTPS connection\n" +
-          "• Update your browser to the latest version"
+          "• Update your browser to the latest version",
+          "error"
         );
         return;
       }
@@ -144,7 +218,11 @@ export default function HTSFormManagement() {
       setTimeout(() => {
         if (!videoRef.current) {
           console.error("❌ Video element not found after modal opened!");
-          alert("Failed to initialize camera view. Please try again.");
+          showAlert(
+            "Camera Initialization Failed",
+            "Failed to initialize camera view. Please try again.",
+            "error"
+          );
           stopCamera();
           return;
         }
@@ -173,7 +251,11 @@ export default function HTSFormManagement() {
             console.error("⏱️ Video initialization timeout");
             console.error(`Final state: width=${video.videoWidth}, height=${video.videoHeight}, readyState=${video.readyState}`);
             clearInterval(checkInterval);
-            alert("Camera failed to initialize. Please try again or use a different browser.");
+            showAlert(
+              "Camera Initialization Timeout",
+              "Camera failed to initialize. Please try again or use a different browser.",
+              "error"
+            );
             stopCamera();
           }
         }, 500);
@@ -228,7 +310,11 @@ export default function HTSFormManagement() {
 
   const captureImage = async () => {
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
-      alert("Camera not ready. Please wait...");
+      showAlert(
+        "Camera Not Ready",
+        "Camera is still initializing. Please wait a moment...",
+        "warning"
+      );
       return;
     }
     
@@ -237,7 +323,11 @@ export default function HTSFormManagement() {
     // Validate video dimensions before capture
     if (video.videoWidth === 0 || video.videoHeight === 0) {
       console.error("❌ Video dimensions are 0x0 - not ready for capture");
-      alert("Camera is still loading. Please wait a moment and try again.");
+      showAlert(
+        "Camera Loading",
+        "Camera is still loading. Please wait a moment and try again.",
+        "warning"
+      );
       return;
     }
     
@@ -254,7 +344,11 @@ export default function HTSFormManagement() {
       const preCheck = await validateQuality(testCanvas);
       
       if (!preCheck.isValid) {
-        alert(`⚠️ Image quality insufficient: ${preCheck.message}\n\nPlease adjust and try again.`);
+        showAlert(
+          "Image Quality Insufficient",
+          `${preCheck.message}\n\nPlease adjust and try again.`,
+          "warning"
+        );
         return;
       }
       
@@ -265,7 +359,11 @@ export default function HTSFormManagement() {
       const bestFrame = await captureMultipleFrames(video, 3, 300);
       
       if (!bestFrame) {
-        alert('Failed to capture acceptable quality image. Please ensure good lighting and hold camera steady.');
+        showAlert(
+          "Capture Failed",
+          "Failed to capture acceptable quality image. Please ensure good lighting and hold camera steady.",
+          "error"
+        );
         return;
       }
       
@@ -281,35 +379,60 @@ export default function HTSFormManagement() {
       console.log(`[Quality Check] Final score: ${finalQuality.score}/100`);
       
       if (finalQuality.score < 70) {
-        const shouldRetry = confirm(
-          `⚠️ Image Quality: ${finalQuality.score}/100\n\n` +
-          `${finalQuality.feedback}\n\n` +
-          `Recommendation: Retake image for better OCR accuracy.\n\n` +
-          `Continue anyway?`
-        );
-        
-        if (!shouldRetry) {
-          console.log('[Quality Check] User chose to retake image');
-          return;
-        }
+        return new Promise((resolve) => {
+          showConfirm(
+            "Low Image Quality",
+            `Image Quality: ${finalQuality.score}/100\n\n` +
+            `${finalQuality.feedback}\n\n` +
+            `Recommendation: Retake image for better OCR accuracy.\n\n` +
+            `Continue anyway?`,
+            () => {
+              closeConfirm();
+              resolve(true);
+              // Continue with capture
+              finalizeCaptureImage(currentStep, imageData);
+            },
+            "Continue Anyway",
+            "Retake"
+          );
+        });
       }
       
       console.log('[Quality Check] ✅ Image quality is acceptable');
       
       // Save image and proceed
-      if (currentStep === "front") {
+      finalizeCaptureImage(currentStep, imageData);
+      
+    } catch (error) {
+      console.error('❌ Capture error:', error);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      showAlert(
+        "Capture Failed",
+        `Failed to capture image: ${errorMessage}\n\nPlease try again.`,
+        "error"
+      );
+    }
+  };
+
+  const finalizeCaptureImage = async (step, imageData) => {
+    try {
+      if (step === "front") {
         setFrontImage(imageData);
         await stopCamera();
         setCurrentStep("back");
-      } else if (currentStep === "back") {
+      } else if (step === "back") {
         setBackImage(imageData);
         await stopCamera();
         setCurrentStep("result");
       }
-      
     } catch (error) {
-      console.error('❌ Capture error:', error);
-      alert(`Failed to capture image: ${error.message}`);
+      console.error('❌ Finalize capture error:', error);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      showAlert(
+        "Save Failed",
+        `Failed to save image: ${errorMessage}\n\nPlease try again.`,
+        "error"
+      );
     }
   };
 
@@ -335,7 +458,12 @@ export default function HTSFormManagement() {
       
     } catch (error) {
       console.error('❌ Retake error:', error);
-      alert(`Failed to retake image: ${error.message}`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      showAlert(
+        "Retake Failed",
+        `Failed to retake image: ${errorMessage}\n\nPlease try again.`,
+        "error"
+      );
     }
   };
 
@@ -363,17 +491,29 @@ export default function HTSFormManagement() {
     const user = auth.currentUser;
 
     if (!user) {
-      alert("You must be logged in to submit a form.");
+      showAlert(
+        "Login Required",
+        "You must be logged in to submit a form.",
+        "warning"
+      );
       return;
     }
 
     if (!frontImage || !backImage || !testResult) {
-      alert("Please complete all steps before submitting.");
+      showAlert(
+        "Incomplete Form",
+        "Please complete all steps before submitting.",
+        "warning"
+      );
       return;
     }
 
     if (!extractedData) {
-      alert("Please analyze images with OCR before submitting.");
+      showAlert(
+        "OCR Analysis Required",
+        "Please analyze images with OCR before submitting.",
+        "warning"
+      );
       return;
     }
 
@@ -437,12 +577,21 @@ export default function HTSFormManagement() {
       } else {
         const errorMsg = `Failed to submit form: ${data.error || 'Unknown error'}${data.details ? '\nDetails: ' + data.details : ''}`;
         console.error("[Submit] Backend error:", errorMsg);
-        alert(errorMsg);
+        showAlert(
+          "Submission Failed",
+          errorMsg,
+          "error"
+        );
       }
     } catch (error) {
       console.error("[Submit] Error submitting form:", error);
       console.error("[Submit] Error stack:", error.stack);
-      alert(`An error occurred: ${error.message}\n\nPlease check the console for details and try again.`);
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      showAlert(
+        "Submission Error",
+        `An error occurred: ${errorMessage}\n\nPlease check the console for details and try again.`,
+        "error"
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -514,7 +663,11 @@ export default function HTSFormManagement() {
   // Save edited data
   const saveEditedData = () => {
     if (!validateEditedFields()) {
-      alert('Please fix validation errors before saving.');
+      showAlert(
+        "Validation Errors",
+        "Please fix validation errors before saving.",
+        "warning"
+      );
       return;
     }
     
@@ -530,7 +683,11 @@ export default function HTSFormManagement() {
     }));
     
     setIsEditMode(false);
-    alert('Changes saved successfully!');
+    showAlert(
+      "Changes Saved",
+      "Your changes have been saved successfully!",
+      "success"
+    );
   };
 
   // Enter edit mode with ALL 56 fields from DOH HTS Form 2021
@@ -622,7 +779,11 @@ export default function HTSFormManagement() {
 
   const handleAnalyzeImages = async () => {
     if (!frontImage || !backImage) {
-      alert("Please capture both front and back images first.");
+      showAlert(
+        "Missing Images",
+        "Please capture both front and back images first.",
+        "warning"
+      );
       return;
     }
 
@@ -633,7 +794,11 @@ export default function HTSFormManagement() {
       const user = auth.currentUser;
 
       if (!user) {
-        alert("You must be logged in to analyze images.");
+        showAlert(
+          "Login Required",
+          "You must be logged in to analyze images.",
+          "warning"
+        );
         return;
       }
 
@@ -692,11 +857,20 @@ export default function HTSFormManagement() {
         setShowOCRReview(true);
         console.log("[OCR Analysis] Extraction completed with confidence:", data.data?.confidence);
       } else {
-        alert(`Failed to analyze images: ${data.error || 'Unknown error'}`);
+        showAlert(
+          "Analysis Failed",
+          `Failed to analyze images: ${data.error || 'Unknown error'}`,
+          "error"
+        );
       }
     } catch (error) {
       console.error("Error analyzing images:", error);
-      alert("Failed to analyze images. Please ensure images are clear and try again.");
+      const errorMessage = error?.message || error?.toString() || 'Unknown error occurred';
+      showAlert(
+        "Analysis Error",
+        `Failed to analyze images: ${errorMessage}\n\nPlease ensure images are clear and try again.`,
+        "error"
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -2144,6 +2318,32 @@ export default function HTSFormManagement() {
             setLightboxImage(lightboxImages[newIndex]);
           }
         }}
+      />
+
+      {/* Alert Modal */}
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={closeAlert}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+        onConfirm={alertModal.onConfirm}
+      />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirm}
+        onConfirm={() => {
+          if (confirmModal.onConfirm) {
+            confirmModal.onConfirm();
+          }
+          closeConfirm();
+        }}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
       />
     </>
   );
