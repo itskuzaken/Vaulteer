@@ -22,6 +22,19 @@ export default function AdminFormReview() {
     fetchAllSubmissions();
   }, []);
 
+  // Helper function to extract field values from nested structure
+  const getFieldValue = (extractedData, fieldName) => {
+    if (!extractedData) return '';
+    
+    // Check if extractedData has 'fields' property (new backend format)
+    if (extractedData.fields && extractedData.fields[fieldName]) {
+      return extractedData.fields[fieldName].value || '';
+    }
+    
+    // Fallback to direct property access (old format or already transformed)
+    return extractedData[fieldName] || '';
+  };
+
   const filterSubmissions = useCallback(() => {
     let filtered = submissions;
 
@@ -193,11 +206,16 @@ export default function AdminFormReview() {
 
   // Check for test result mismatch
   const checkTestResultMismatch = (submission) => {
-    if (!submission.extracted_data || !submission.extracted_data.testResult) {
+    if (!submission.extracted_data) {
       return false;
     }
     
-    return submission.test_result !== submission.extracted_data.testResult;
+    const extractedTestResult = getFieldValue(submission.extracted_data, 'testResult');
+    if (!extractedTestResult) {
+      return false;
+    }
+    
+    return submission.test_result !== extractedTestResult;
   };
 
   // Handle opening submission modal with decryption
@@ -516,7 +534,7 @@ export default function AdminFormReview() {
                           <p className="font-semibold text-base">Test Result Mismatch Detected</p>
                           <p className="text-sm mt-1">
                             User submitted: <strong className="font-bold">{selectedSubmission.test_result}</strong><br/>
-                            OCR extracted: <strong className="font-bold">{extractedData.testResult}</strong>
+                            OCR extracted: <strong className="font-bold">{getFieldValue(extractedData, 'testResult')}</strong>
                           </p>
                           <p className="text-sm mt-2 italic">Please review manually and verify the correct result.</p>
                         </div>
@@ -529,43 +547,43 @@ export default function AdminFormReview() {
                     <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
                       <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Control Number (OCR)</span>
                       <p className="font-medium text-gray-900 dark:text-white mt-1">
-                        {extractedData.controlNumber || 'Not detected'}
+                        {getFieldValue(extractedData, 'controlNumber') || 'Not detected'}
                       </p>
                     </div>
                     <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
                       <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Test Result (OCR)</span>
                       <p className={`font-medium mt-1 ${
-                        extractedData.testResult === 'reactive' ? 'text-red-600' : 
-                        extractedData.testResult === 'non-reactive' ? 'text-green-600' :
+                        getFieldValue(extractedData, 'testResult') === 'reactive' ? 'text-red-600' : 
+                        getFieldValue(extractedData, 'testResult') === 'non-reactive' ? 'text-green-600' :
                         'text-gray-900 dark:text-white'
                       }`}>
-                        {extractedData.testResult === 'reactive' ? '⚠️ Reactive' : 
-                         extractedData.testResult === 'non-reactive' ? '✓ Non-Reactive' :
-                         extractedData.testResult || 'Not detected'}
+                        {getFieldValue(extractedData, 'testResult') === 'reactive' ? '⚠️ Reactive' : 
+                         getFieldValue(extractedData, 'testResult') === 'non-reactive' ? '✓ Non-Reactive' :
+                         getFieldValue(extractedData, 'testResult') || 'Not detected'}
                       </p>
                     </div>
-                    {extractedData.fullName && (
+                    {getFieldValue(extractedData, 'fullName') && (
                       <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
                         <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Full Name (OCR)</span>
-                        <p className="font-medium text-gray-900 dark:text-white mt-1">{extractedData.fullName}</p>
+                        <p className="font-medium text-gray-900 dark:text-white mt-1">{getFieldValue(extractedData, 'fullName')}</p>
                       </div>
                     )}
-                    {extractedData.testingFacility && (
+                    {getFieldValue(extractedData, 'testingFacility') && (
                       <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
                         <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Testing Facility</span>
-                        <p className="font-medium text-gray-900 dark:text-white mt-1">{extractedData.testingFacility}</p>
+                        <p className="font-medium text-gray-900 dark:text-white mt-1">{getFieldValue(extractedData, 'testingFacility')}</p>
                       </div>
                     )}
-                    {extractedData.testDate && (
+                    {getFieldValue(extractedData, 'testDate') && (
                       <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
                         <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">Test Date (OCR)</span>
-                        <p className="font-medium text-gray-900 dark:text-white mt-1">{extractedData.testDate.raw}</p>
+                        <p className="font-medium text-gray-900 dark:text-white mt-1">{getFieldValue(extractedData, 'testDate')}</p>
                       </div>
                     )}
-                    {extractedData.philHealthNumber && (
+                    {getFieldValue(extractedData, 'philHealthNumber') && (
                       <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
                         <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide">PhilHealth Number</span>
-                        <p className="font-medium text-gray-900 dark:text-white mt-1">{extractedData.philHealthNumber}</p>
+                        <p className="font-medium text-gray-900 dark:text-white mt-1">{getFieldValue(extractedData, 'philHealthNumber')}</p>
                       </div>
                     )}
                   </div>
@@ -577,13 +595,13 @@ export default function AdminFormReview() {
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">Front Image: </span>
                         <span className="font-semibold text-gray-900 dark:text-white">
-                          {extractedData.frontConfidence?.toFixed(2)}%
+                          {(extractedData.frontConfidence || 0).toFixed(2)}%
                         </span>
                       </div>
                       <div>
                         <span className="text-sm text-gray-600 dark:text-gray-400">Back Image: </span>
                         <span className="font-semibold text-gray-900 dark:text-white">
-                          {extractedData.backConfidence?.toFixed(2)}%
+                          {(extractedData.backConfidence || 0).toFixed(2)}%
                         </span>
                       </div>
                     </div>
