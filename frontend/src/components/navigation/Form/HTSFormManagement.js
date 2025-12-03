@@ -385,8 +385,10 @@ export default function HTSFormManagement() {
       
       // Preprocess image for better OCR
       console.log('[Preprocessing] Enhancing image...');
-      const processedCanvas = await preprocessImage(bestFrame.canvas);
-      const imageData = processedCanvas.toDataURL("image/jpeg", 0.95);
+      // Convert canvas to data URL before preprocessing
+      const frameDataURL = bestFrame.canvas.toDataURL("image/jpeg", 0.95);
+      const processedResult = await preprocessImage(frameDataURL);
+      const imageData = processedResult.processedImage;
       
       // Final quality check with feedback
       const finalQuality = await validateImageQuality(imageData);
