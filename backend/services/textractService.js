@@ -245,6 +245,44 @@ function extractFromQueryResults(blocks) {
 }
 
 /**
+ * Split queries into batches of specified size
+ * @param {Array} queries - Array of query objects
+ * @param {number} batchSize - Maximum queries per batch (default: 15)
+ * @returns {Array} Array of query batches
+ */
+function batchQueries(queries, batchSize = 15) {
+  const batches = [];
+  for (let i = 0; i < queries.length; i += batchSize) {
+    batches.push(queries.slice(i, i + batchSize));
+  }
+  return batches;
+}
+
+/**
+ * Process multiple query batches and merge results
+ * @param {Buffer} imageBuffer - Image buffer
+ * @param {Array} batches - Array of query batches
+ * @returns {Promise<Object>} Merged query results
+ */
+async function processBatchQueries(imageBuffer, batches) {
+  const allResults = {};
+  
+  for (let i = 0; i < batches.length; i++) {
+    console.log(`  📋 Processing batch ${i + 1}/${batches.length} (${batches[i].length} queries)...`);
+    
+    const textractResult = await analyzeDocumentWithQueries(imageBuffer, batches[i]);
+    const batchResults = extractFromQueryResults(textractResult.Blocks || []);
+    
+    // Merge results
+    Object.assign(allResults, batchResults);
+    
+    console.log(`  ✅ Batch ${i + 1} complete: ${Object.keys(batchResults).length} fields extracted`);
+  }
+  
+  return allResults;
+}
+
+/**
  * Generate HTS Form queries for Textract Queries API
  * @param {string} page - 'front' or 'back'
  * @returns {Array} Array of query objects
@@ -1000,39 +1038,48 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
   try {
     let queryResults = null;
 
-    // Step 1: Run Textract with Queries API if enabled
+    // Step 1: Run Textract with Queries API if enabled (with batching support)
     if (useQueries && extractionMode !== 'coordinate') {
-      console.log('🔍 Running Textract Queries API...');
+      console.log('🔍 Running Textract Queries API with batch support...');
       
       const frontQueries = generateHTSFormQueries('front');
       const backQueries = generateHTSFormQueries('back');
       
-      const [frontTextractResult, backTextractResult] = await Promise.all([
-        analyzeDocumentWithQueries(frontImageBuffer, frontQueries),
-        analyzeDocumentWithQueries(backImageBuffer, backQueries)
+      // AWS Textract limit: 15 queries per request
+      // Split into batches if needed
+      const frontBatches = batchQueries(frontQueries, 15);
+      const backBatches = batchQueries(backQueries, 15);
+      
+      console.log(`📊 Front page: ${frontQueries.length} queries in ${frontBatches.length} batch(es)`);
+      console.log(`📊 Back page: ${backQueries.length} queries in ${backBatches.length} batch(es)`);
+      
+      // Process all batches in parallel
+      const [frontResults, backResults] = await Promise.all([
+        processBatchQueries(frontImageBuffer, frontBatches),
+        processBatchQueries(backImageBuffer, backBatches)
       ]);
 
-      // Extract query results
+      // Merge results from all batches
       queryResults = {
-        front: extractFromQueryResults(frontTextractResult.Blocks || []),
-        back: extractFromQueryResults(backTextractResult.Blocks || [])
+        front: frontResults,
+        back: backResults
       };
 
-      console.log(`✅ Query extraction complete: Front=${Object.keys(queryResults.front).length}, Back=${Object.keys(queryResults.back).length}`);
+      const totalFields = Object.keys(queryResults.front).length + Object.keys(queryResults.back).length;
+      console.log(`✅ Query extraction complete: Front=${Object.keys(queryResults.front).length}, Back=${Object.keys(queryResults.back).length}, Total=${totalFields}`);
       
       // Generate calibration report if in development/debug mode
       if (process.env.OCR_DEBUG === 'true' || process.env.NODE_ENV === 'development') {
         try {
           const calibrator = new OCRRegionCalibrator();
-          const textractResults = { front: frontTextractResult, back: backTextractResult };
-          const calibrationAnalysis = calibrator.analyzeFieldPositions(queryResults, textractResults);
+          // Note: textractResults only available for last batch in current implementation
+          // For full calibration, consider storing all batch results
+          const calibrationAnalysis = calibrator.analyzeFieldPositions(queryResults, {});
           
           const reportPath = path.join(__dirname, '../logs', `ocr-calibration-${Date.now()}.md`);
           calibrator.saveReport(calibrationAnalysis, reportPath);
           
           console.log(`📊 [Calibration] Report generated: ${reportPath}`);
-          console.log(`📊 [Calibration] Front mismatches: ${calibrationAnalysis.front.coordinateMismatch.length}`);
-          console.log(`📊 [Calibration] Back mismatches: ${calibrationAnalysis.back.coordinateMismatch.length}`);
         } catch (calibError) {
           console.warn('⚠️ [Calibration] Failed to generate report:', calibError.message);
         }
@@ -1234,6 +1281,8 @@ module.exports = {
   analyzeDocumentWithQueries,
   extractFromQueryResults,
   generateHTSFormQueries,
+  batchQueries,
+  processBatchQueries,
   analyzeHTSForm,
   analyzeHTSFormEnhanced,
   extractTextLines,

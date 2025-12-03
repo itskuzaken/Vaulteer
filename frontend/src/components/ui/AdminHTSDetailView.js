@@ -243,7 +243,7 @@ const AdminFieldSection = ({ title, fields, extractedData }) => {
           {fields.filter(f => extractedData[f]).length} / {fields.length} fields
         </span>
       </h5>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-4">
         {fields.map((field) => {
           if (!extractedData[field]) return null;
           
