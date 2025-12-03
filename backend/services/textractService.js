@@ -180,11 +180,11 @@ async function analyzeDocumentWithQueries(imageBuffer, queries = [], featureType
   };
 
   // Add queries configuration
+  // Note: Pages parameter not supported in synchronous AnalyzeDocument API
   params.QueriesConfig = {
     Queries: queries.map(q => ({
       Text: q.text,
-      Alias: q.alias || q.text.substring(0, 50), // Use first 50 chars if no alias
-      ...(q.pages && { Pages: q.pages }) // Optional page targeting
+      Alias: q.alias || q.text.substring(0, 50) // Use first 50 chars if no alias
     }))
   };
 
@@ -254,52 +254,52 @@ function generateHTSFormQueries(page = 'front') {
   const queries = {
     front: [
       // Critical identification fields (highest priority)
-      { text: 'What is the HIV test date at the top of the form?', alias: 'test_date', pages: ['1'] },
-      { text: 'What is the PhilHealth Identification Number?', alias: 'philhealth_number', pages: ['1'] },
-      { text: "What is the patient's first name?", alias: 'first_name', pages: ['1'] },
-      { text: "What is the patient's middle name?", alias: 'middle_name', pages: ['1'] },
-      { text: "What is the patient's last name?", alias: 'last_name', pages: ['1'] },
-      { text: "What is the patient's date of birth?", alias: 'birth_date', pages: ['1'] },
-      { text: "What is the patient's age in years?", alias: 'age', pages: ['1'] },
-      { text: 'What is the patient\'s sex assigned at birth - Male or Female?', alias: 'sex', pages: ['1'] },
+      { text: 'What is the HIV test date at the top of the form?', alias: 'test_date' },
+      { text: 'What is the PhilHealth Identification Number?', alias: 'philhealth_number' },
+      { text: "What is the patient's first name?", alias: 'first_name' },
+      { text: "What is the patient's middle name?", alias: 'middle_name' },
+      { text: "What is the patient's last name?", alias: 'last_name' },
+      { text: "What is the patient's date of birth?", alias: 'birth_date' },
+      { text: "What is the patient's age in years?", alias: 'age' },
+      { text: 'What is the patient\'s sex assigned at birth - Male or Female?', alias: 'sex' },
       
       // Complex fields that benefit from NLP
-      { text: "What are the first 2 letters of mother's first name?", alias: 'parental_code_mother', pages: ['1'] },
-      { text: "What are the first 2 letters of father's first name?", alias: 'parental_code_father', pages: ['1'] },
-      { text: "What is the patient's nationality?", alias: 'nationality', pages: ['1'] },
-      { text: "What is the patient's civil status?", alias: 'civil_status', pages: ['1'] },
-      { text: 'What is the highest educational attainment?', alias: 'educational_attainment', pages: ['1'] },
+      { text: "What are the first 2 letters of mother's first name?", alias: 'parental_code_mother' },
+      { text: "What are the first 2 letters of father's first name?", alias: 'parental_code_father' },
+      { text: "What is the patient's nationality?", alias: 'nationality' },
+      { text: "What is the patient's civil status?", alias: 'civil_status' },
+      { text: 'What is the highest educational attainment?', alias: 'educational_attainment' },
       
       // Location fields (2 most important)
-      { text: 'What is the current residence city or municipality?', alias: 'current_residence_city', pages: ['1'] },
-      { text: 'What is the current residence province?', alias: 'current_residence_province', pages: ['1'] }
+      { text: 'What is the current residence city or municipality?', alias: 'current_residence_city' },
+      { text: 'What is the current residence province?', alias: 'current_residence_province' }
       // Note: Other fields will use coordinate-based extraction as fallback
     ],
     back: [
       // Critical test information
-      { text: 'What is the brand of test kit used?', alias: 'test_kit_brand', pages: ['2'] },
-      { text: 'What is the test kit lot number?', alias: 'test_kit_lot_number', pages: ['2'] },
-      { text: 'What is the test kit expiration date?', alias: 'test_kit_expiration', pages: ['2'] },
+      { text: 'What is the brand of test kit used?', alias: 'test_kit_brand' },
+      { text: 'What is the test kit lot number?', alias: 'test_kit_lot_number' },
+      { text: 'What is the test kit expiration date?', alias: 'test_kit_expiration' },
       
       // Medical assessment fields
-      { text: 'What is the clinical picture - Asymptomatic or Symptomatic?', alias: 'clinical_picture', pages: ['2'] },
-      { text: 'What is the WHO staging?', alias: 'who_staging', pages: ['2'] },
-      { text: 'What is the client type?', alias: 'client_type', pages: ['2'] },
-      { text: 'What is the mode of reach?', alias: 'mode_of_reach', pages: ['2'] },
+      { text: 'What is the clinical picture - Asymptomatic or Symptomatic?', alias: 'clinical_picture' },
+      { text: 'What is the WHO staging?', alias: 'who_staging' },
+      { text: 'What is the client type?', alias: 'client_type' },
+      { text: 'What is the mode of reach?', alias: 'mode_of_reach' },
       
       // Testing history
-      { text: 'Has the patient been tested for HIV before?', alias: 'previously_tested', pages: ['2'] },
-      { text: 'What was the previous HIV test result?', alias: 'previous_test_result', pages: ['2'] },
-      { text: 'When was the previous HIV test date?', alias: 'previous_test_date', pages: ['2'] },
+      { text: 'Has the patient been tested for HIV before?', alias: 'previously_tested' },
+      { text: 'What was the previous HIV test result?', alias: 'previous_test_result' },
+      { text: 'When was the previous HIV test date?', alias: 'previous_test_date' },
       
       // Facility information
-      { text: 'What is the name of the testing facility at the bottom?', alias: 'testing_facility', pages: ['2'] },
-      { text: 'What is the facility complete mailing address?', alias: 'facility_address', pages: ['2'] },
-      { text: 'What is the name of the HTS service provider at the bottom?', alias: 'counselor_name', pages: ['2'] },
-      { text: 'What is the role of the service provider?', alias: 'counselor_role', pages: ['2'] },
+      { text: 'What is the name of the testing facility at the bottom?', alias: 'testing_facility' },
+      { text: 'What is the facility complete mailing address?', alias: 'facility_address' },
+      { text: 'What is the name of the HTS service provider at the bottom?', alias: 'counselor_name' },
+      { text: 'What is the role of the service provider?', alias: 'counselor_role' },
       
       // Other critical fields
-      { text: 'Was HIV testing accepted or declined?', alias: 'testing_accepted', pages: ['2'] }
+      { text: 'Was HIV testing accepted or declined?', alias: 'testing_accepted' }
       // Note: Remaining fields will use coordinate-based extraction
     ]
   };
