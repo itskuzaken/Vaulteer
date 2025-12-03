@@ -293,7 +293,9 @@ function loadImage(dataURL) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = (event) => {
+      reject(new Error('Failed to load image data for preprocessing. Image may be corrupted or invalid.'));
+    };
     img.src = dataURL;
   });
 }
