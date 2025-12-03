@@ -371,7 +371,135 @@ function validateSex(value) {
 }
 
 /**
+ * Validate field value based on per-field confidence
+ * @param {Object} field - Field data with value and confidence
+ * @param {Object} fieldConfig - Field configuration from template
+ * @returns {Object} Validation result
+ */
+function validateFieldConfidence(field, fieldConfig = {}) {
+  const confidence = field.confidence || 0;
+  const value = field.value;
+  
+  // Confidence-based validation
+  if (confidence >= 0.90) {
+    return {
+      level: 'high',
+      requiresReview: false,
+      message: 'High confidence - auto-accepted'
+    };
+  } else if (confidence >= 0.70) {
+    return {
+      level: 'medium',
+      requiresReview: true,
+      message: 'Medium confidence - recommend review'
+    };
+  } else {
+    return {
+      level: 'low',
+      requiresReview: true,
+      message: 'Low confidence - requires manual entry'
+    };
+  }
+}
+
+/**
+ * Cross-field validation rules
+ * Validates relationships between fields
+ */
+function validateCrossFields(extractedData) {
+  const errors = [];
+  
+  // Rule 1: Test date must be after birth date
+  if (extractedData.testDate && extractedData.birthDate) {
+    const testDate = new Date(extractedData.testDate.value || extractedData.testDate);
+    const birthDate = new Date(extractedData.birthDate.value || extractedData.birthDate);
+    
+    if (testDate < birthDate) {
+      errors.push({
+        rule: 'testDateAfterBirthDate',
+        severity: 'critical',
+        fields: ['testDate', 'birthDate'],
+        message: 'Test date must be after birth date'
+      });
+    }
+  }
+  
+  // Rule 2: Age should match birth date (with tolerance)
+  if (extractedData.age && extractedData.birthDate && extractedData.testDate) {
+    const birthDate = new Date(extractedData.birthDate.value || extractedData.birthDate);
+    const testDate = new Date(extractedData.testDate.value || extractedData.testDate);
+    const calculatedAge = testDate.getFullYear() - birthDate.getFullYear();
+    const extractedAge = parseInt(extractedData.age.value || extractedData.age);
+    
+    if (Math.abs(calculatedAge - extractedAge) > 1) {
+      errors.push({
+        rule: 'ageMatchesBirthDate',
+        severity: 'major',
+        fields: ['age', 'birthDate', 'testDate'],
+        message: `Age mismatch: extracted ${extractedAge}, calculated ${calculatedAge}`,
+        suggestedValue: calculatedAge
+      });
+    }
+  }
+  
+  // Rule 3: Previous test date must be before current test date
+  if (extractedData.previousTestDate && extractedData.testDate) {
+    const previousDate = new Date(extractedData.previousTestDate.value || extractedData.previousTestDate);
+    const testDate = new Date(extractedData.testDate.value || extractedData.testDate);
+    
+    if (previousDate >= testDate) {
+      errors.push({
+        rule: 'previousTestDateBeforeTestDate',
+        severity: 'major',
+        fields: ['previousTestDate', 'testDate'],
+        message: 'Previous test date must be before current test date'
+      });
+    }
+  }
+  
+  // Rule 4: If pregnant = Yes, sex must be Female
+  if (extractedData.isPregnant && extractedData.sex) {
+    const pregnant = extractedData.isPregnant.value || extractedData.isPregnant;
+    const sex = (extractedData.sex.value || extractedData.sex || '').toLowerCase();
+    
+    if (pregnant === 'Yes' || pregnant === true) {
+      if (sex !== 'female' && sex !== 'f') {
+        errors.push({
+          rule: 'pregnantRequiresFemale',
+          severity: 'critical',
+          fields: ['isPregnant', 'sex'],
+          message: 'Pregnant status requires female sex'
+        });
+      }
+    }
+  }
+  
+  // Rule 5: Required fields must have values
+  const requiredFields = [
+    'testDate', 'firstName', 'lastName', 'birthDate', 'sex', 
+    'testingAccepted', 'testingFacility'
+  ];
+  
+  for (const fieldName of requiredFields) {
+    const fieldData = extractedData[fieldName];
+    const value = fieldData?.value !== undefined ? fieldData.value : fieldData;
+    
+    if (!value || value === null || value === '') {
+      errors.push({
+        rule: 'requiredField',
+        severity: 'critical',
+        fields: [fieldName],
+        message: `Required field "${fieldName}" is missing or empty`
+      });
+    }
+  }
+  
+  return errors;
+}
+
+/**
  * Main validation function - validates all fields in extracted data
+ * Enhanced with per-field confidence and cross-field validation
  */
 function validateAndCorrectFields(extractedData) {
   const validations = {};
@@ -392,8 +520,10 @@ function validateAndCorrectFields(extractedData) {
     sex: validateSex
   };
   
-  for (const [fieldName, value] of Object.entries(extractedData)) {
+  // Per-field validation
+  for (const [fieldName, fieldData] of Object.entries(extractedData)) {
     const validator = fieldValidators[fieldName];
+    const value = fieldData?.value !== undefined ? fieldData.value : fieldData;
     
     if (validator && value) {
       const result = validator(value);
@@ -402,7 +532,20 @@ function validateAndCorrectFields(extractedData) {
         original: value,
         ...result
       };
+      
+      // Add confidence-based validation if field has confidence
+      if (fieldData?.confidence !== undefined) {
+        const confidenceValidation = validateFieldConfidence(fieldData);
+        validations[fieldName].confidenceLevel = confidenceValidation.level;
+        validations[fieldName].requiresReview = validations[fieldName].requiresReview || confidenceValidation.requiresReview;
+      }
     }
+  }
+  
+  // Cross-field validation
+  const crossFieldErrors = validateCrossFields(extractedData);
+  if (crossFieldErrors.length > 0) {
+    validations._crossFieldErrors = crossFieldErrors;
   }
   
   return validations;
@@ -428,25 +571,51 @@ function applyValidationCorrections(extractedData, validations) {
 
 /**
  * Get validation summary statistics
+ * Enhanced with confidence levels and cross-field errors
  */
 function getValidationSummary(validations) {
-  const total = Object.keys(validations).length;
-  const valid = Object.values(validations).filter(v => v.isValid).length;
-  const corrected = Object.values(validations).filter(v => v.corrected && v.corrected !== v.original).length;
-  const avgConfidence = Object.values(validations)
-    .reduce((sum, v) => sum + (v.confidence || 0), 0) / total;
+  const fieldValidations = Object.entries(validations).filter(([key]) => key !== '_crossFieldErrors');
+  const total = fieldValidations.length;
+  const valid = fieldValidations.filter(([, v]) => v.isValid).length;
+  const corrected = fieldValidations.filter(([, v]) => v.corrected && v.corrected !== v.original).length;
+  const avgConfidence = fieldValidations
+    .reduce((sum, [, v]) => sum + (v.confidence || 0), 0) / (total || 1);
+  
+  // Count confidence levels
+  const highConfidence = fieldValidations.filter(([, v]) => v.confidenceLevel === 'high').length;
+  const mediumConfidence = fieldValidations.filter(([, v]) => v.confidenceLevel === 'medium').length;
+  const lowConfidence = fieldValidations.filter(([, v]) => v.confidenceLevel === 'low').length;
+  const requiresReview = fieldValidations.filter(([, v]) => v.requiresReview).length;
+  
+  // Cross-field errors
+  const crossFieldErrors = validations._crossFieldErrors || [];
+  const criticalErrors = crossFieldErrors.filter(e => e.severity === 'critical').length;
+  const majorErrors = crossFieldErrors.filter(e => e.severity === 'major').length;
   
   return {
     total,
     valid,
     corrected,
     avgConfidence: Math.round(avgConfidence * 100),
-    validPercentage: Math.round((valid / total) * 100)
+    validPercentage: Math.round((valid / total) * 100),
+    confidenceLevels: {
+      high: highConfidence,
+      medium: mediumConfidence,
+      low: lowConfidence
+    },
+    requiresReview,
+    crossFieldErrors: {
+      total: crossFieldErrors.length,
+      critical: criticalErrors,
+      major: majorErrors
+    }
   };
 }
 
 module.exports = {
   validateAndCorrectFields,
+  validateFieldConfidence,
+  validateCrossFields,
   applyValidationCorrections,
   getValidationSummary,
   PHILIPPINES_MUNICIPALITIES,
