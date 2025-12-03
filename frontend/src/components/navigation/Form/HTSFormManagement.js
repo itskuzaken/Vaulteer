@@ -433,25 +433,6 @@ export default function HTSFormManagement() {
     }
   }, [isFlashlightOn, showAlert]);
 
-    try {
-      if (step === "front") {
-        setFrontImage(imageData);
-        if (stopCamera) stopCamera();
-        setCurrentStep("back");
-      } else if (step === "back") {
-        setBackImage(imageData);
-        if (stopCamera) stopCamera();
-        setCurrentStep("result");
-      }
-    } catch (error) {
-      console.error('❌ Finalize capture error:', error);
-      const errorMessage = getErrorMessage(error);
-      showAlert(
-        "Save Failed",
-        `Failed to save image: ${errorMessage}\n\nPlease try again.`,
-        "error"
-      );
-    }
   const finalizeCaptureImage = useCallback(
     async (step, imageData) => {
       try {
