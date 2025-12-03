@@ -5,8 +5,15 @@ import Image from "next/image";
 import { IoSearchOutline, IoPersonOutline, IoCalendarOutline, IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
 import Button from "../../ui/Button";
 import AdminHTSDetailView from "../../ui/AdminHTSDetailView";
-import { decryptFormImages, decryptJSON, importKey } from "../../../utils/imageEncryption";
+import * as imageEncryption from "../../../utils/imageEncryption";
 import { API_BASE } from "../../../config/config";
+
+// Destructure with defaults to avoid undefined errors
+const { 
+  decryptFormImages = () => { throw new Error("decryptFormImages not available"); },
+  decryptJSON = () => { throw new Error("decryptJSON not available"); },
+  importKey = () => { throw new Error("importKey not available"); }
+} = imageEncryption || {};
 
 export default function AdminFormReview() {
   const [submissions, setSubmissions] = useState([]);
@@ -102,6 +109,12 @@ export default function AdminFormReview() {
     }
 
     try {
+      // Ensure crypto functions are available
+      if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
+        console.error("Web Crypto API not available");
+        return submission.extracted_data || null;
+      }
+
       const key = await importKey(submission.encryption_key);
       const decryptedData = await decryptJSON(
         submission.extracted_data_encrypted,
@@ -111,7 +124,8 @@ export default function AdminFormReview() {
       return decryptedData;
     } catch (error) {
       console.error("Error decrypting extracted data:", error);
-      return null;
+      // Fallback to plaintext if decryption fails
+      return submission.extracted_data || null;
     }
   };
 
@@ -123,6 +137,13 @@ export default function AdminFormReview() {
     }
 
     try {
+      // Ensure crypto functions are available
+      if (typeof window === 'undefined' || !window.crypto || !window.crypto.subtle) {
+        console.error("Web Crypto API not available");
+        alert("Encryption features are not available in this browser.");
+        return null;
+      }
+
       // Check if using S3 storage (OCR-first workflow)
       if (submission.front_image_s3_key && submission.back_image_s3_key) {
         // Fetch pre-signed URLs from backend for S3 images
@@ -589,44 +610,76 @@ export default function AdminFormReview() {
                   </div>
                   
                   {/* Confidence Breakdown */}
-                  <div className="mb-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confidence Breakdown:</p>
-                    <div className="flex gap-6">
-                      <div>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Front Image: </span>
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {(extractedData.frontConfidence || 0).toFixed(2)}%
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-sm text-gray-600 dark:text-gray-400">Back Image: </span>
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {(extractedData.backConfidence || 0).toFixed(2)}%
-                        </span>
+                  {(extractedData.frontConfidence || extractedData.backConfidence) ? (
+                    <div className="mb-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Confidence Breakdown:</p>
+                      <div className="flex gap-6">
+                        <div>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Front Image: </span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {(extractedData.frontConfidence || 0).toFixed(2)}%
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Back Image: </span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {(extractedData.backConfidence || 0).toFixed(2)}%
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="mb-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Extraction Statistics:</p>
+                      <div className="flex gap-6">
+                        <div>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">High Confidence Fields: </span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {extractedData.stats?.highConfidence || 0}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Medium Confidence Fields: </span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {extractedData.stats?.mediumConfidence || 0}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">Low Confidence Fields: </span>
+                          <span className="font-semibold text-gray-900 dark:text-white">
+                            {extractedData.stats?.lowConfidence || 0}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
-                  {/* Raw Text (Collapsible) */}
-                  <details className="mb-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
-                    <summary className="cursor-pointer font-medium text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-3">
-                      View Raw Extracted Text
-                    </summary>
-                    <div className="px-3 pb-3 space-y-3">
-                      <div>
-                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Front Image Text:</p>
-                        <pre className="text-xs bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 overflow-auto max-h-40 text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                          {extractedData.frontText || 'No text extracted'}
-                        </pre>
+                  {/* Raw Text (Collapsible) - Only show if available */}
+                  {(extractedData.frontText || extractedData.backText) && (
+                    <details className="mb-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
+                      <summary className="cursor-pointer font-medium text-sm text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white p-3">
+                        View Raw Extracted Text
+                      </summary>
+                      <div className="px-3 pb-3 space-y-3">
+                        {extractedData.frontText && (
+                          <div>
+                            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Front Image Text:</p>
+                            <pre className="text-xs bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 overflow-auto max-h-40 text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                              {extractedData.frontText}
+                            </pre>
+                          </div>
+                        )}
+                        {extractedData.backText && (
+                          <div>
+                            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Back Image Text:</p>
+                            <pre className="text-xs bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 overflow-auto max-h-40 text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
+                              {extractedData.backText}
+                            </pre>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1">Back Image Text:</p>
-                        <pre className="text-xs bg-white dark:bg-gray-800 p-3 rounded border border-gray-200 dark:border-gray-700 overflow-auto max-h-40 text-gray-900 dark:text-gray-100 whitespace-pre-wrap">
-                          {extractedData.backText || 'No text extracted'}
-                        </pre>
-                      </div>
-                    </div>
-                  </details>
+                    </details>
+                  )}
                   
                   {/* OCR Status */}
                   <div className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">

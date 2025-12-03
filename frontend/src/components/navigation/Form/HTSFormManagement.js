@@ -843,21 +843,39 @@ export default function HTSFormManagement() {
       return;
     }
     
-    // Merge edited fields back into extractedData
-    setExtractedData(prev => ({
-      ...prev,
-      ...editableData,
-      // Mark as edited for tracking
-      wasEdited: true,
-      editedFields: Object.keys(editableData).filter(
-        key => editableData[key] !== prev[key]
-      )
-    }));
+    // Merge edited fields back into extractedData (handle both flat and nested structures)
+    setExtractedData(prev => {
+      // If prev has fields property (nested structure), update it
+      if (prev.fields) {
+        const updatedFields = { ...prev.fields };
+        // Update each field's value
+        Object.keys(editableData).forEach(key => {
+          if (updatedFields[key]) {
+            updatedFields[key] = { ...updatedFields[key], value: editableData[key] };
+          } else {
+            // Create new field if it doesn't exist
+            updatedFields[key] = { value: editableData[key], confidence: 1.0, requiresReview: false };
+          }
+        });
+        return { ...prev, fields: updatedFields, wasEdited: true };
+      }
+      // Fallback: flat structure
+      return {
+        ...prev,
+        ...editableData,
+        wasEdited: true,
+        editedFields: Object.keys(editableData).filter(
+          key => editableData[key] !== prev[key]
+        )
+      };
+    });
     
     setIsEditMode(false);
+    setShowOCRReview(false);
+    setCurrentStep('result');
     showAlert(
       "Changes Saved",
-      "Your changes have been saved successfully!",
+      "Your changes have been saved successfully! Please select the test result to continue.",
       "success"
     );
   };
@@ -1977,73 +1995,7 @@ export default function HTSFormManagement() {
               {/* Low Confidence Field Warnings */}
               <OCRFieldWarnings extractedData={extractedData} />
 
-              {/* View Mode: Read-only Fields */}
-              {!isEditMode && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  {getFieldValue('testResult') && (
-                    <div className={`rounded-lg p-4 ${
-                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
-                    }`}>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Result</p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {getFieldValue('testResult')}
-                      </p>
-                    </div>
-                  )}
-                  {getFieldValue('fullName') && (
-                    <div className={`rounded-lg p-4 ${
-                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
-                    }`}>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Full Name</p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {getFieldValue('fullName')}
-                      </p>
-                    </div>
-                  )}
-                  {getFieldValue('testDate') && (
-                    <div className={`rounded-lg p-4 ${
-                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
-                    }`}>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Test Date</p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {getFieldValue('testDate')}
-                      </p>
-                    </div>
-                  )}
-                  {getFieldValue('birthDate') && (
-                    <div className={`rounded-lg p-4 ${
-                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
-                    }`}>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Birth Date</p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {getFieldValue('birthDate')}
-                      </p>
-                    </div>
-                  )}
-                  {getFieldValue('philHealthNumber') && (
-                    <div className={`rounded-lg p-4 ${
-                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
-                    }`}>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">PhilHealth Number</p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {getFieldValue('philHealthNumber')}
-                      </p>
-                    </div>
-                  )}
-                  {getFieldValue('testingFacility') && (
-                    <div className={`rounded-lg p-4 ${
-                      extractedData.confidence < 80 ? 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-300' : 'bg-gray-50 dark:bg-gray-900/50'
-                    }`}>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Testing Facility</p>
-                      <p className="font-semibold text-gray-900 dark:text-white">
-                        {getFieldValue('testingFacility')}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Edit Mode: All 56 Editable Fields */}
+              {/* Edit Mode: All Editable Fields - Always shown after OCR */}
               {isEditMode && editableData && (
                 <div className="space-y-4 sm:space-y-6 max-h-[65vh] overflow-y-auto px-1">
                   {/* TEST RESULT */}
@@ -2591,59 +2543,28 @@ export default function HTSFormManagement() {
               {/* Action Buttons */}
               {!isEditMode ? (
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4">
-                  {/* Show different buttons based on confidence */}
-                  {extractedData.confidence < 80 ? (
-                    // Low confidence: Only allow retake
-                    <Button
-                      onClick={() => {
-                        setShowOCRReview(false);
-                        setExtractedData(null);
-                        setIsEditMode(false);
-                        setCurrentStep("front");
-                      }}
-                      variant="primary"
-                      className="w-full gap-2"
-                    >
-                      <IoCamera className="w-5 h-5" />
-                      Retake Images (Required)
-                    </Button>
-                  ) : (
-                    // Good confidence (≥80%): Allow edit and proceed
-                    <>
-                      <Button
-                        onClick={enterEditMode}
-                        variant="secondary"
-                        className="flex-1"
-                      >
-                        <IoDocumentText className="w-5 h-5" />
-                        Edit
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setShowOCRReview(false);
-                          setIsEditMode(false);
-                        }}
-                        variant="primary"
-                        className="flex-1"
-                      >
-                        <IoCheckmark className="w-5 h-5" />
-                        Looks Good
-                      </Button>
-                      <Button
-                        onClick={() => {
-                          setShowOCRReview(false);
-                          setExtractedData(null);
-                          setIsEditMode(false);
-                          setCurrentStep("front");
-                        }}
-                        variant="secondary"
-                        className="flex-1"
-                      >
-                        <IoCamera className="w-5 h-5" />
-                        Retake
-                      </Button>
-                    </>
-                  )}
+                  {/* Single button to enter edit mode and view all fields */}
+                  <Button
+                    onClick={enterEditMode}
+                    variant="primary"
+                    className="flex-1 gap-2"
+                  >
+                    <IoDocumentText className="w-5 h-5" />
+                    Edit All Fields
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowOCRReview(false);
+                      setExtractedData(null);
+                      setIsEditMode(false);
+                      setCurrentStep("front");
+                    }}
+                    variant="secondary"
+                    className="flex-1 gap-2"
+                  >
+                    <IoCamera className="w-5 h-5" />
+                    Retake Images
+                  </Button>
                 </div>
               ) : (
                 <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 pt-4">
