@@ -878,10 +878,14 @@ export default function HTSFormManagement() {
       suffix: extractedData.suffix || '',
       fullName: extractedData.fullName || '',
       parentalCode: extractedData.parentalCode || '',
+      parentalCodeMother: extractedData.parentalCodeMother || '',
+      parentalCodeFather: extractedData.parentalCodeFather || '',
+      birthOrder: extractedData.birthOrder || '',
       
       // Demographic Data (Q8-12)
       birthDate: formatDateForInput(extractedData.birthDate),
       age: extractedData.age || '',
+      ageMonths: extractedData.ageMonths || '',
       sex: extractedData.sex || '',
       currentResidenceCity: extractedData.currentResidenceCity || '',
       currentResidenceProvince: extractedData.currentResidenceProvince || '',
@@ -890,6 +894,7 @@ export default function HTSFormManagement() {
       placeOfBirthCity: extractedData.placeOfBirthCity || '',
       placeOfBirthProvince: extractedData.placeOfBirthProvince || '',
       nationality: extractedData.nationality || '',
+      nationalityOther: extractedData.nationalityOther || '',
       civilStatus: extractedData.civilStatus || '',
       livingWithPartner: extractedData.livingWithPartner || '',
       numberOfChildren: extractedData.numberOfChildren || '',
@@ -898,6 +903,7 @@ export default function HTSFormManagement() {
       // Education & Occupation (Q13-16)
       educationalAttainment: extractedData.educationalAttainment || '',
       currentlyInSchool: extractedData.currentlyInSchool || '',
+      occupation: extractedData.occupation || '',
       currentlyWorking: extractedData.currentlyWorking || '',
       workedOverseas: extractedData.workedOverseas || '',
       overseasReturnYear: extractedData.overseasReturnYear || '',
@@ -906,11 +912,21 @@ export default function HTSFormManagement() {
       
       // Risk Assessment (Q17-18)
       riskAssessment: extractedData.riskAssessment || '',
+      riskAssessmentSexMale: extractedData.riskAssessmentSexMale || '',
+      riskAssessmentSexFemale: extractedData.riskAssessmentSexFemale || '',
+      riskAssessmentPaidForSex: extractedData.riskAssessmentPaidForSex || '',
+      riskAssessmentReceivedPayment: extractedData.riskAssessmentReceivedPayment || '',
+      riskAssessmentSexUnderInfluence: extractedData.riskAssessmentSexUnderInfluence || '',
+      riskAssessmentSharedNeedles: extractedData.riskAssessmentSharedNeedles || '',
+      riskAssessmentBloodTransfusion: extractedData.riskAssessmentBloodTransfusion || '',
+      riskAssessmentOccupationalExposure: extractedData.riskAssessmentOccupationalExposure || '',
       reasonsForTesting: extractedData.reasonsForTesting || '',
       
       // Previous HIV Test (Q19)
       previouslyTested: extractedData.previouslyTested || '',
       previousTestDate: formatDateForInput(extractedData.previousTestDate),
+      previousTestProvider: extractedData.previousTestProvider || '',
+      previousTestCity: extractedData.previousTestCity || '',
       previousTestResult: extractedData.previousTestResult || '',
       
       // Medical History (Q20-21)
@@ -931,7 +947,9 @@ export default function HTSFormManagement() {
       
       // HTS Provider (Q26-27)
       testingFacility: extractedData.testingFacility || '',
+      facilityAddress: extractedData.facilityAddress || '',
       counselorName: extractedData.counselorName || '',
+      counselorRole: extractedData.counselorRole || '',
       counselorSignature: extractedData.counselorSignature || '',
       
       // Consent Fields
@@ -2096,6 +2114,23 @@ export default function HTSFormManagement() {
                           placeholder="Mother+Father initials+Birth order" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
                       </div>
                     </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-3 sm:mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Mother&apos;s First Name (2 letters)</label>
+                        <input type="text" value={editableData.parentalCodeMother} onChange={(e) => handleFieldChange('parentalCodeMother', e.target.value)}
+                          maxLength="2" placeholder="AA" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Father&apos;s First Name (2 letters)</label>
+                        <input type="text" value={editableData.parentalCodeFather} onChange={(e) => handleFieldChange('parentalCodeFather', e.target.value)}
+                          maxLength="2" placeholder="BB" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Birth Order</label>
+                        <input type="number" value={editableData.birthOrder} onChange={(e) => handleFieldChange('birthOrder', e.target.value)}
+                          min="1" placeholder="1" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
                   </div>
 
                   {/* DEMOGRAPHIC DATA (Q8-12) */}
@@ -2111,6 +2146,11 @@ export default function HTSFormManagement() {
                         <label className="block text-sm font-medium mb-2">Age</label>
                         <input type="number" value={editableData.age} onChange={(e) => handleFieldChange('age', e.target.value)}
                           min="15" max="120" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Age (Months, if &lt;1 year)</label>
+                        <input type="number" value={editableData.ageMonths} onChange={(e) => handleFieldChange('ageMonths', e.target.value)}
+                          min="0" max="11" placeholder="0-11" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">Sex *</label>
@@ -2151,95 +2191,120 @@ export default function HTSFormManagement() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Nationality (Q9)</label>
-                        <input type="text" value={editableData.nationality} onChange={(e) => handleFieldChange('nationality', e.target.value)}
-                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <label className="block text-sm font-medium mb-2">Nationality (Q10)</label>
+                        <select value={editableData.nationality} onChange={(e) => handleFieldChange('nationality', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Filipino">Filipino</option>
+                          <option value="Other">Other</option>
+                        </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Civil Status (Q10)</label>
+                        <label className="block text-sm font-medium mb-2">Nationality Other (specify)</label>
+                        <input type="text" value={editableData.nationalityOther} onChange={(e) => handleFieldChange('nationalityOther', e.target.value)}
+                          placeholder="If not Filipino" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Civil Status (Q11)</label>
                         <select value={editableData.civilStatus} onChange={(e) => handleFieldChange('civilStatus', e.target.value)}
                           className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
                           <option value="">Select</option>
                           <option value="Single">Single</option>
                           <option value="Married">Married</option>
-                          <option value="Widowed">Widowed</option>
                           <option value="Separated">Separated</option>
-                          <option value="Living-in">Living-in</option>
+                          <option value="Widowed">Widowed</option>
+                          <option value="Divorced">Divorced</option>
                         </select>
                       </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mt-3 sm:mt-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Living with Partner? (Q11)</label>
+                        <label className="block text-sm font-medium mb-2">Living with Partner</label>
                         <select value={editableData.livingWithPartner} onChange={(e) => handleFieldChange('livingWithPartner', e.target.value)}
                           className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
                           <option value="">Select</option>
-                          <option value="Yes">Yes</option>
                           <option value="No">No</option>
+                          <option value="Yes">Yes</option>
                         </select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">Number of Children</label>
                         <input type="number" value={editableData.numberOfChildren} onChange={(e) => handleFieldChange('numberOfChildren', e.target.value)}
-                          min="0" max="20" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                          min="0" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Pregnant? (Q12)</label>
+                        <label className="block text-sm font-medium mb-2">Currently Pregnant (female only)</label>
                         <select value={editableData.isPregnant} onChange={(e) => handleFieldChange('isPregnant', e.target.value)}
                           className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
                           <option value="">Select</option>
-                          <option value="Yes">Yes</option>
                           <option value="No">No</option>
-                          <option value="N/A">N/A</option>
+                          <option value="Yes">Yes</option>
                         </select>
                       </div>
                     </div>
                   </div>
 
-                  {/* EDUCATION & OCCUPATION (Q13-16) */}
+                  {/* EDUCATION & EMPLOYMENT (Q13-16) */}
                   <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-                    <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Education & Occupation</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                    <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Education & Employment</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Educational Attainment (Q13)</label>
+                        <label className="block text-sm font-medium mb-2">Highest Educational Attainment (Q13)</label>
                         <select value={editableData.educationalAttainment} onChange={(e) => handleFieldChange('educationalAttainment', e.target.value)}
                           className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
                           <option value="">Select</option>
+                          <option value="No schooling">No schooling</option>
                           <option value="Elementary">Elementary</option>
-                          <option value="High School">High School</option>
+                          <option value="Pre-school">Pre-school</option>
+                          <option value="Highschool">Highschool</option>
                           <option value="Vocational">Vocational</option>
                           <option value="College">College</option>
                           <option value="Post-Graduate">Post-Graduate</option>
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium mb-2">Currently in School? (Q14)</label>
+                        <label className="block text-sm font-medium mb-2">Currently in School</label>
                         <select value={editableData.currentlyInSchool} onChange={(e) => handleFieldChange('currentlyInSchool', e.target.value)}
                           className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
                           <option value="">Select</option>
-                          <option value="Yes">Yes</option>
                           <option value="No">No</option>
+                          <option value="Yes">Yes</option>
                         </select>
                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
                       <div>
-                        <label className="block text-sm font-medium mb-2">Currently Working? (Q15)</label>
+                        <label className="block text-sm font-medium mb-2">Occupation (Q14)</label>
+                        <input type="text" value={editableData.occupation} onChange={(e) => handleFieldChange('occupation', e.target.value)}
+                          placeholder="Main source of income" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Currently Working</label>
                         <select value={editableData.currentlyWorking} onChange={(e) => handleFieldChange('currentlyWorking', e.target.value)}
                           className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
                           <option value="">Select</option>
-                          <option value="Yes">Yes</option>
                           <option value="No">No</option>
+                          <option value="Yes">Yes</option>
+                          <option value="Previous">Previous</option>
                         </select>
                       </div>
                     </div>
                     <div className="mt-3 sm:mt-4">
-                      <label className="block text-sm font-semibold mb-2">Worked Overseas? (Q16)</label>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                        <select value={editableData.workedOverseas} onChange={(e) => handleFieldChange('workedOverseas', e.target.value)}
-                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
-                          <option value="">Select</option>
-                          <option value="Yes">Yes</option>
-                          <option value="No">No</option>
-                        </select>
+                      <label className="block text-sm font-semibold mb-2">Overseas Work (Q16)</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Worked Overseas (past 5 years)</label>
+                          <select value={editableData.workedOverseas} onChange={(e) => handleFieldChange('workedOverseas', e.target.value)}
+                            className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                            <option value="">Select</option>
+                            <option value="No">No</option>
+                            <option value="Yes">Yes</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-3">
                         <input type="text" value={editableData.overseasReturnYear} onChange={(e) => handleFieldChange('overseasReturnYear', e.target.value)}
                           placeholder="Return Year" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
                         <input type="text" value={editableData.overseasLocation} onChange={(e) => handleFieldChange('overseasLocation', e.target.value)}
@@ -2253,11 +2318,61 @@ export default function HTSFormManagement() {
                   {/* RISK ASSESSMENT & TESTING (Q17-19) */}
                   <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
                     <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Risk Assessment & Testing History</h3>
+                    
+                    {/* Overall Risk Assessment */}
                     <div>
-                      <label className="block text-sm font-medium mb-2">Risk Assessment (Q17)</label>
+                      <label className="block text-sm font-medium mb-2">Risk Assessment (Q17) - Complete</label>
                       <textarea value={editableData.riskAssessment} onChange={(e) => handleFieldChange('riskAssessment', e.target.value)}
-                        rows="2" placeholder="Risk factors identified" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        rows="2" placeholder="Overall risk factors" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
                     </div>
+
+                    {/* Individual Risk Categories */}
+                    <div className="mt-4 space-y-2">
+                      <label className="block text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">Individual Risk Categories:</label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Sex with a MALE</label>
+                          <input type="text" value={editableData.riskAssessmentSexMale} onChange={(e) => handleFieldChange('riskAssessmentSexMale', e.target.value)}
+                            placeholder="Yes/No + details" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Sex with a FEMALE</label>
+                          <input type="text" value={editableData.riskAssessmentSexFemale} onChange={(e) => handleFieldChange('riskAssessmentSexFemale', e.target.value)}
+                            placeholder="Yes/No + details" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Paid for sex (cash or kind)</label>
+                          <input type="text" value={editableData.riskAssessmentPaidForSex} onChange={(e) => handleFieldChange('riskAssessmentPaidForSex', e.target.value)}
+                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Received payment for sex</label>
+                          <input type="text" value={editableData.riskAssessmentReceivedPayment} onChange={(e) => handleFieldChange('riskAssessmentReceivedPayment', e.target.value)}
+                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Sex under influence of drugs</label>
+                          <input type="text" value={editableData.riskAssessmentSexUnderInfluence} onChange={(e) => handleFieldChange('riskAssessmentSexUnderInfluence', e.target.value)}
+                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Shared needles (drug injection)</label>
+                          <input type="text" value={editableData.riskAssessmentSharedNeedles} onChange={(e) => handleFieldChange('riskAssessmentSharedNeedles', e.target.value)}
+                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Received blood transfusion</label>
+                          <input type="text" value={editableData.riskAssessmentBloodTransfusion} onChange={(e) => handleFieldChange('riskAssessmentBloodTransfusion', e.target.value)}
+                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium mb-1 text-gray-600 dark:text-gray-400">Occupational exposure (needlestick)</label>
+                          <input type="text" value={editableData.riskAssessmentOccupationalExposure} onChange={(e) => handleFieldChange('riskAssessmentOccupationalExposure', e.target.value)}
+                            placeholder="Yes/No + date" className="w-full px-3 py-2 text-sm border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="mt-4">
                       <label className="block text-sm font-medium mb-2">Reasons for Testing (Q18)</label>
                       <textarea value={editableData.reasonsForTesting} onChange={(e) => handleFieldChange('reasonsForTesting', e.target.value)}
@@ -2274,6 +2389,10 @@ export default function HTSFormManagement() {
                         </select>
                         <input type="date" value={editableData.previousTestDate} onChange={(e) => handleFieldChange('previousTestDate', e.target.value)}
                           placeholder="Previous test date" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <input type="text" value={editableData.previousTestProvider} onChange={(e) => handleFieldChange('previousTestProvider', e.target.value)}
+                          placeholder="HTS Provider (Facility/Organization)" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                        <input type="text" value={editableData.previousTestCity} onChange={(e) => handleFieldChange('previousTestCity', e.target.value)}
+                          placeholder="City/Municipality" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
                         <select value={editableData.previousTestResult} onChange={(e) => handleFieldChange('previousTestResult', e.target.value)}
                           className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
                           <option value="">Previous result</option>
@@ -2379,12 +2498,30 @@ export default function HTSFormManagement() {
                       <input type="text" value={editableData.testingFacility} onChange={(e) => handleFieldChange('testingFacility', e.target.value)}
                         className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
                     </div>
+                    <div className="mt-3 sm:mt-4">
+                      <label className="block text-sm font-medium mb-2">Complete Mailing Address</label>
+                      <input type="text" value={editableData.facilityAddress} onChange={(e) => handleFieldChange('facilityAddress', e.target.value)}
+                        className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
+                    </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-3 sm:mt-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">Counselor Name (Q27)</label>
                         <input type="text" value={editableData.counselorName} onChange={(e) => handleFieldChange('counselorName', e.target.value)}
                           className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Counselor Role</label>
+                        <select value={editableData.counselorRole} onChange={(e) => handleFieldChange('counselorRole', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="HIV Counselor">HIV Counselor</option>
+                          <option value="Medical Technologist">Medical Technologist</option>
+                          <option value="CBS Motivator">CBS Motivator</option>
+                          <option value="Others">Others</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="mt-3 sm:mt-4">
                       <div>
                         <label className="block text-sm font-medium mb-2">Counselor Signature</label>
                         <input type="text" value={editableData.counselorSignature} onChange={(e) => handleFieldChange('counselorSignature', e.target.value)}

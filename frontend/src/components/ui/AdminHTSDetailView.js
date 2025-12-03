@@ -36,10 +36,20 @@ const TEMPLATE_FIELD_LABELS = {
   
   // Back page fields
   motherHIV: 'Mother with HIV',
-  riskAssessment: 'Risk Assessment',
+  riskAssessment: 'History of Exposure / Risk Assessment (Complete)',
+  riskAssessmentSexMale: 'Sex with a MALE',
+  riskAssessmentSexFemale: 'Sex with a FEMALE',
+  riskAssessmentPaidForSex: 'Paid for sex (in cash or kind)',
+  riskAssessmentReceivedPayment: 'Received payment (cash or in kind) in exchange for sex',
+  riskAssessmentSexUnderInfluence: 'Had sex under the influence of drugs',
+  riskAssessmentSharedNeedles: 'Shared needles in injection of drugs',
+  riskAssessmentBloodTransfusion: 'Received blood transfusion',
+  riskAssessmentOccupationalExposure: 'Occupational exposure (needlestick/sharps)',
   reasonsForTesting: 'Reasons for Testing',
   previouslyTested: 'Previously Tested',
   previousTestDate: 'Previous Test Date',
+  previousTestProvider: 'HTS Provider (Facility/Organization)',
+  previousTestCity: 'City/Municipality',
   previousTestResult: 'Previous Test Result',
   medicalHistory: 'Medical History',
   clinicalPicture: 'Clinical Picture',
@@ -78,11 +88,20 @@ const FRONT_PAGE_SECTIONS = {
 };
 
 const BACK_PAGE_SECTIONS = {
-  'Risk Assessment': [
-    'motherHIV', 'riskAssessment'
+  'Risk Assessment & Exposure History': [
+    'motherHIV', 
+    'riskAssessment',
+    'riskAssessmentSexMale',
+    'riskAssessmentSexFemale',
+    'riskAssessmentPaidForSex',
+    'riskAssessmentReceivedPayment',
+    'riskAssessmentSexUnderInfluence',
+    'riskAssessmentSharedNeedles',
+    'riskAssessmentBloodTransfusion',
+    'riskAssessmentOccupationalExposure'
   ],
   'Testing Information': [
-    'reasonsForTesting', 'previouslyTested', 'previousTestDate', 'previousTestResult'
+    'reasonsForTesting', 'previouslyTested', 'previousTestDate', 'previousTestProvider', 'previousTestCity', 'previousTestResult'
   ],
   'Medical History': [
     'medicalHistory', 'clinicalPicture', 'symptoms', 'whoStaging'

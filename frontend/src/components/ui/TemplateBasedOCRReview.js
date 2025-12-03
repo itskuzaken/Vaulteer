@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 
 // Field labels mapping from template metadata
 const TEMPLATE_FIELD_LABELS = {
-  // Front page fields
+  // Front page fields - Personal Information
   testDate: 'Test Date',
   philHealthNumber: 'PhilHealth Number',
   philSysNumber: 'PhilSys Number',
@@ -16,10 +16,32 @@ const TEMPLATE_FIELD_LABELS = {
   middleName: 'Middle Name',
   lastName: 'Last Name',
   suffix: 'Suffix',
+  
+  // Front page - Parental & Birth Information
+  parentalCode: "Mother's First Name (First 2 letters)",
+  parentalCodeMother: "Mother's First Name (First 2 letters)",
+  parentalCodeFather: "Father's First Name (First 2 letters)",
+  birthOrder: 'Birth Order',
   birthDate: 'Birth Date',
   age: 'Age',
-  sex: 'Sex',
+  ageMonths: 'Age in Months (for <1 year old)',
+  sex: 'Sex (assigned at birth)',
+  
+  // Front page - Residence & Location
+  currentResidenceCity: 'Current Residence - City/Municipality',
+  currentResidenceProvince: 'Current Residence - Province',
+  permanentResidenceCity: 'Permanent Residence - City/Municipality',
+  permanentResidenceProvince: 'Permanent Residence - Province',
+  placeOfBirthCity: 'Place of Birth - City/Municipality',
+  placeOfBirthProvince: 'Place of Birth - Province',
+  
+  // Front page - Contact & Identity
+  nationality: 'Nationality',
+  nationalityOther: 'Nationality - Other (specify)',
   civilStatus: 'Civil Status',
+  livingWithPartner: 'Currently living with a partner',
+  numberOfChildren: 'Number of children',
+  isPregnant: 'Currently pregnant (for female only)',
   contactNumber: 'Contact Number',
   email: 'Email',
   region: 'Region',
@@ -28,34 +50,63 @@ const TEMPLATE_FIELD_LABELS = {
   barangay: 'Barangay',
   houseNumberStreet: 'House Number/Street',
   landmark: 'Landmark',
-  educationalAttainment: 'Educational Attainment',
+  
+  // Front page - Education & Employment
+  educationalAttainment: 'Highest Educational Attainment',
+  currentlyInSchool: 'Currently in school',
   occupation: 'Occupation',
+  currentlyWorking: 'Currently working',
+  workedOverseas: 'Worked overseas/abroad in past 5 years',
   monthlyIncome: 'Monthly Income',
   pwdId: 'PWD ID',
   indigenousPerson: 'Indigenous Person',
   
-  // Back page fields
+  // Back page fields - Risk & Testing
   motherHIV: 'Mother with HIV',
-  riskAssessment: 'Risk Assessment',
-  reasonsForTesting: 'Reasons for Testing',
-  previouslyTested: 'Previously Tested',
+  riskAssessment: 'History of Exposure / Risk Assessment (Complete)',
+  riskAssessmentSexMale: 'Sex with a MALE',
+  riskAssessmentSexFemale: 'Sex with a FEMALE',
+  riskAssessmentPaidForSex: 'Paid for sex (in cash or kind)',
+  riskAssessmentReceivedPayment: 'Received payment (cash or in kind) in exchange for sex',
+  riskAssessmentSexUnderInfluence: 'Had sex under the influence of drugs',
+  riskAssessmentSharedNeedles: 'Shared needles in injection of drugs',
+  riskAssessmentBloodTransfusion: 'Received blood transfusion',
+  riskAssessmentOccupationalExposure: 'Occupational exposure (needlestick/sharps)',
+  reasonsForTesting: 'Reasons for HIV Testing',
+  previouslyTested: 'Previously Tested for HIV',
   previousTestDate: 'Previous Test Date',
+  previousTestProvider: 'HTS Provider (Facility/Organization)',
+  previousTestCity: 'City/Municipality',
   previousTestResult: 'Previous Test Result',
+  
+  // Back page - Medical & Clinical
   medicalHistory: 'Medical History',
   clinicalPicture: 'Clinical Picture',
-  symptoms: 'Symptoms',
+  symptoms: 'Describe Signs/Symptoms',
   whoStaging: 'WHO Staging',
+  
+  // Back page - Client & Testing Details
   clientType: 'Client Type',
   venue: 'Venue',
   modeOfReach: 'Mode of Reach',
-  testingAccepted: 'Testing Accepted',
-  kitName: 'Test Kit Name',
-  kitLotNumber: 'Kit Lot Number',
-  testingFacility: 'Testing Facility',
-  facilityAddress: 'Facility Address',
-  contactNumber: 'Contact Number',
+  testingAccepted: 'HIV Testing Status',
+  
+  // Back page - Test Kit Information
+  kitName: 'Test Kit Brand',
+  testKitBrand: 'Brand of Test Kit Used',
+  kitLotNumber: 'Test Kit Lot Number',
+  testKitLotNumber: 'Lot Number',
+  testKitExpiration: 'Test Kit Expiration Date',
+  
+  // Back page - Facility & Provider
+  testingFacility: 'Name of Testing Facility/Organization',
+  facilityAddress: 'Complete Mailing Address',
+  contactNumber: 'Contact Numbers',
   emailAddress: 'Email Address',
+  counselorName: 'Name of Service Provider',
   serviceProvider: 'Service Provider',
+  counselorRole: 'Role',
+  counselorSignature: 'Name & Signature of Service Provider',
   otherServices: 'Other Services Provided'
 };
 
@@ -65,37 +116,62 @@ const FRONT_PAGE_SECTIONS = {
     'testDate', 'philHealthNumber', 'philSysNumber', 
     'firstName', 'middleName', 'lastName', 'suffix'
   ],
+  'Parental & Birth Information': [
+    'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
+    'birthDate', 'age', 'ageMonths'
+  ],
   'Demographic Data': [
-    'birthDate', 'age', 'sex', 'civilStatus'
+    'sex', 'civilStatus', 'livingWithPartner', 'numberOfChildren', 'isPregnant'
+  ],
+  'Residence Information': [
+    'currentResidenceCity', 'currentResidenceProvince',
+    'permanentResidenceCity', 'permanentResidenceProvince',
+    'placeOfBirthCity', 'placeOfBirthProvince'
   ],
   'Contact Information': [
     'contactNumber', 'email', 'region', 'province', 
     'cityMunicipality', 'barangay', 'houseNumberStreet', 'landmark'
   ],
-  'Education & Occupation': [
-    'educationalAttainment', 'occupation', 'monthlyIncome', 
-    'pwdId', 'indigenousPerson'
+  'Nationality': [
+    'nationality', 'nationalityOther'
+  ],
+  'Education & Employment': [
+    'educationalAttainment', 'currentlyInSchool', 
+    'occupation', 'currentlyWorking', 'workedOverseas',
+    'monthlyIncome', 'pwdId', 'indigenousPerson'
   ]
 };
 
 const BACK_PAGE_SECTIONS = {
-  'Risk Assessment': [
-    'motherHIV', 'riskAssessment'
+  'Maternal HIV Status': [
+    'motherHIV'
   ],
-  'Testing Information': [
-    'reasonsForTesting', 'previouslyTested', 'previousTestDate', 'previousTestResult'
+  'Risk Assessment & Exposure History': [
+    'riskAssessment',
+    'riskAssessmentSexMale',
+    'riskAssessmentSexFemale',
+    'riskAssessmentPaidForSex',
+    'riskAssessmentReceivedPayment',
+    'riskAssessmentSexUnderInfluence',
+    'riskAssessmentSharedNeedles',
+    'riskAssessmentBloodTransfusion',
+    'riskAssessmentOccupationalExposure'
   ],
-  'Medical History': [
+  'Previous HIV Test (Q19)': [
+    'reasonsForTesting', 'previouslyTested', 'previousTestDate', 'previousTestProvider', 'previousTestCity', 'previousTestResult'
+  ],
+  'Medical History & Clinical Picture': [
     'medicalHistory', 'clinicalPicture', 'symptoms', 'whoStaging'
   ],
   'Client Details': [
     'clientType', 'venue', 'modeOfReach', 'testingAccepted'
   ],
   'Test Kit Information': [
-    'kitName', 'kitLotNumber'
+    'testKitBrand', 'kitName', 'testKitLotNumber', 'kitLotNumber', 'testKitExpiration'
   ],
-  'Facility & Provider': [
-    'testingFacility', 'facilityAddress', 'contactNumber', 'emailAddress', 'serviceProvider'
+  'Testing Facility & Provider': [
+    'testingFacility', 'facilityAddress', 'contactNumber', 'emailAddress', 
+    'counselorName', 'serviceProvider', 'counselorRole', 'counselorSignature'
   ],
   'Additional Services': [
     'otherServices'
@@ -263,9 +339,8 @@ const EditableOCRField = ({ field, value, label, onEdit, isEditing, onSave, onCa
  * Section Component
  */
 const FieldSection = ({ title, fields, extractedData, editingField, onEdit, onSave, onCancel, validationWarnings }) => {
-  const hasAnyField = fields.some(field => extractedData[field]);
-  
-  if (!hasAnyField) return null;
+  // Always show section - don't hide if no fields detected
+  // This allows users to see all expected fields and enter data manually
   
   return (
     <section className="mb-8">
@@ -277,15 +352,15 @@ const FieldSection = ({ title, fields, extractedData, editingField, onEdit, onSa
       </div>
       <div className="space-y-4">
         {fields.map((field) => {
-          if (!extractedData[field]) return null;
-          
+          // Always render field, even if not detected
+          const fieldData = extractedData[field] || { value: null, confidence: 0, requiresReview: true };
           const warning = validationWarnings.find(w => w.field === field);
           
           return (
             <EditableOCRField
               key={field}
               field={field}
-              value={extractedData[field]}
+              value={fieldData}
               label={TEMPLATE_FIELD_LABELS[field] || field}
               onEdit={onEdit}
               isEditing={editingField === field}
