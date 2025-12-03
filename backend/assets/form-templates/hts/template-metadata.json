@@ -97,7 +97,7 @@
             "y": 0.165,
             "text": "PhilHealth Number:"
           },
-          "query": "What is the PhilHealth Identification Number?",
+          "query": "What is the 12-digit PhilHealth Number in format XX-XXXXXXXXX-X?",
           "relatedCheckbox": {
             "label": "Not enrolled in PhilHealth",
             "x": 0.52,
@@ -123,6 +123,7 @@
             "y": 0.195,
             "text": "PhilSys Number:"
           },
+          "query": "What is the 16-digit PhilSys Number?",
           "relatedCheckbox": {
             "label": "No PhilSys Number",
             "x": 0.52,
@@ -166,7 +167,8 @@
             "x": 0.32,
             "y": 0.225,
             "text": "Middle Name"
-          }
+          },
+          "query": "What is the patient's middle name only, not including the words 'Middle Name'?"
         },
         "lastName": {
           "region": {
@@ -203,7 +205,8 @@
             "x": 0.89,
             "y": 0.225,
             "text": "Suffix (Jr, Sr, III, etc)"
-          }
+          },
+          "query": "What is the patient's name suffix such as Jr, Sr, III, or IV?"
         },
         "parentalCode": {
           "region": {
@@ -646,7 +649,8 @@
           ],
           "required": false,
           "priority": 2,
-          "extractionMethod": "checkbox-detection"
+          "extractionMethod": "checkbox-detection",
+          "query": "What is the patient's civil status - Single, Married, Separated, Widowed, or Divorced?"
         },
         "livingWithPartner": {
           "region": {

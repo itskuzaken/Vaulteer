@@ -322,24 +322,21 @@ function generateHTSFormQueries(page = 'front') {
     front: [
       // Critical identification fields (highest priority)
       { text: 'What is the HIV test date at the top of the form?', alias: 'test_date' },
-      { text: 'What is the PhilHealth Identification Number?', alias: 'philhealth_number' },
-      { text: "What is the patient's first name?", alias: 'first_name' },
-      { text: "What is the patient's middle name?", alias: 'middle_name' },
-      { text: "What is the patient's last name?", alias: 'last_name' },
-      { text: "What is the patient's date of birth?", alias: 'birth_date' },
-      { text: "What is the patient's age in years?", alias: 'age' },
-      { text: 'What is the patient\'s sex assigned at birth - Male or Female?', alias: 'sex' },
+      { text: 'What is the 12-digit PhilHealth Number in format XX-XXXXXXXXX-X?', alias: 'phil_health_number' },
+      { text: 'What is the 16-digit PhilSys Number?', alias: 'phil_sys_number' },
+      { text: "What is the patient's first name only, without the label?", alias: 'first_name' },
+      { text: "What is the patient's middle name only, not including the words 'Middle Name'?", alias: 'middle_name' },
+      { text: "What is the patient's last name only, without any suffix?", alias: 'last_name' },
+      { text: "What is the patient's name suffix such as Jr, Sr, III, or IV?", alias: 'suffix' },
+      { text: "What is the patient's date of birth in MM/DD/YYYY format?", alias: 'birth_date' },
+      { text: "What is the patient's age in years as a number?", alias: 'age' },
+      { text: 'What is the patient\'s sex - Male or Female?', alias: 'sex' },
+      { text: "What is the patient's civil status - Single, Married, Separated, Widowed, or Divorced?", alias: 'civil_status' },
       
       // Complex fields that benefit from NLP
       { text: "What are the first 2 letters of mother's first name?", alias: 'parental_code_mother' },
       { text: "What are the first 2 letters of father's first name?", alias: 'parental_code_father' },
-      { text: "What is the patient's nationality?", alias: 'nationality' },
-      { text: "What is the patient's civil status?", alias: 'civil_status' },
-      { text: 'What is the highest educational attainment?', alias: 'educational_attainment' },
-      
-      // Location fields (2 most important)
-      { text: 'What is the current residence city or municipality?', alias: 'current_residence_city' },
-      { text: 'What is the current residence province?', alias: 'current_residence_province' }
+      { text: "What is the patient's nationality?", alias: 'nationality' }
       // Note: Other fields will use coordinate-based extraction as fallback
     ],
     back: [
