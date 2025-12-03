@@ -422,9 +422,9 @@ const TemplateBasedOCRReview = ({ extractedData, onUpdate, onAccept, onReanalyze
   };
   
   return (
-    <div className="space-y-6 max-h-[80vh] overflow-y-auto p-6 bg-gray-50 dark:bg-gray-950">
-      {/* Overall Summary - Dashboard Style */}
-      <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm transition-colors sticky top-0 z-10">
+    <div className="bg-gray-50 dark:bg-gray-950">
+      {/* Overall Summary - Dashboard Style - Fixed at top */}
+      <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm transition-colors mb-6">
         <div className="p-6">
           <div className="flex items-center gap-3 mb-6">
             <span className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-900/30">
@@ -475,101 +475,104 @@ const TemplateBasedOCRReview = ({ extractedData, onUpdate, onAccept, onReanalyze
         </div>
       </section>
       
-      {/* Validation Warnings - Dashboard Style */}
-      {validationWarnings.length > 0 && (
-        <section className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-500 p-5 rounded-xl shadow-sm">
-          <div className="flex items-start gap-3">
-            <span className="text-3xl">⚠️</span>
-            <div className="flex-1">
-              <h4 className="text-base font-bold text-yellow-800 dark:text-yellow-200 mb-3">
-                Data Consistency Warnings
-              </h4>
-              <ul className="space-y-2">
-                {validationWarnings.map((warning, index) => (
-                  <li key={index} className="text-sm text-yellow-700 dark:text-yellow-300 flex items-start gap-2">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></span>
-                    <span><strong>{TEMPLATE_FIELD_LABELS[warning.field] || warning.field}:</strong> {warning.message}</span>
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-3 italic">
-                Please review and correct these fields before submitting.
-              </p>
+      {/* Scrollable Content Area */}
+      <div className="space-y-6">
+        {/* Validation Warnings - Dashboard Style */}
+        {validationWarnings.length > 0 && (
+          <section className="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-500 p-5 rounded-xl shadow-sm">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">⚠️</span>
+              <div className="flex-1">
+                <h4 className="text-base font-bold text-yellow-800 dark:text-yellow-200 mb-3">
+                  Data Consistency Warnings
+                </h4>
+                <ul className="space-y-2">
+                  {validationWarnings.map((warning, index) => (
+                    <li key={index} className="text-sm text-yellow-700 dark:text-yellow-300 flex items-start gap-2">
+                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></span>
+                      <span><strong>{TEMPLATE_FIELD_LABELS[warning.field] || warning.field}:</strong> {warning.message}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-3 italic">
+                  Please review and correct these fields before submitting.
+                </p>
+              </div>
             </div>
+          </section>
+        )}
+        
+        {/* Front Page - Dashboard Style */}
+        <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm transition-colors">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-2xl">📄</span>
+              <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                Front Page - Personal Information Sheet
+              </h4>
+            </div>
+            {Object.entries(FRONT_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
+              <FieldSection
+                key={sectionTitle}
+                title={sectionTitle}
+                fields={sectionFields}
+                extractedData={modifiedData}
+                editingField={editingField}
+                onEdit={handleEdit}
+                onSave={handleSave}
+                onCancel={handleCancel}
+                validationWarnings={validationWarnings}
+              />
+            ))}
           </div>
         </section>
-      )}
-      
-      {/* Front Page - Dashboard Style */}
-      <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm transition-colors">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-2xl">📄</span>
-            <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-              Front Page - Personal Information Sheet
-            </h4>
+        
+        {/* Back Page - Dashboard Style */}
+        <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm transition-colors">
+          <div className="p-6">
+            <div className="flex items-center gap-3 mb-6">
+              <span className="text-2xl">📄</span>
+              <h4 className="text-lg font-bold text-gray-900 dark:text-white">
+                Back Page - Testing & Medical History
+              </h4>
+            </div>
+            {Object.entries(BACK_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
+              <FieldSection
+                key={sectionTitle}
+                title={sectionTitle}
+                fields={sectionFields}
+                extractedData={modifiedData}
+                editingField={editingField}
+                onEdit={handleEdit}
+                onSave={handleSave}
+                onCancel={handleCancel}
+                validationWarnings={validationWarnings}
+              />
+            ))}
           </div>
-          {Object.entries(FRONT_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
-            <FieldSection
-              key={sectionTitle}
-              title={sectionTitle}
-              fields={sectionFields}
-              extractedData={modifiedData}
-              editingField={editingField}
-              onEdit={handleEdit}
-              onSave={handleSave}
-              onCancel={handleCancel}
-              validationWarnings={validationWarnings}
-            />
-          ))}
+        </section>
+        
+        {/* Action Buttons - Dashboard Style */}
+        <div className="flex gap-4 justify-end bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-2xl shadow-lg">
+          <button
+            onClick={onReanalyze}
+            className="inline-flex items-center gap-2 px-6 py-3 border-2 border-blue-600 dark:border-blue-500 text-blue-700 dark:text-blue-400 font-medium rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+          >
+            <span>🔄</span> Re-analyze Images
+          </button>
+          <button
+            onClick={() => onAccept(modifiedData)}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors shadow-md hover:shadow-lg"
+          >
+            <span>✓</span> Accept & Continue to Submission
+          </button>
         </div>
-      </section>
-      
-      {/* Back Page - Dashboard Style */}
-      <section className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm transition-colors">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-2xl">📄</span>
-            <h4 className="text-lg font-bold text-gray-900 dark:text-white">
-              Back Page - Testing & Medical History
-            </h4>
-          </div>
-          {Object.entries(BACK_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
-            <FieldSection
-              key={sectionTitle}
-              title={sectionTitle}
-              fields={sectionFields}
-              extractedData={modifiedData}
-              editingField={editingField}
-              onEdit={handleEdit}
-              onSave={handleSave}
-              onCancel={handleCancel}
-              validationWarnings={validationWarnings}
-            />
-          ))}
+        
+        {/* Extraction Info */}
+        <div className="text-center text-sm text-gray-500 pb-6">
+          Extraction Method: {extractedData.extractionMethod || 'Hybrid (Queries + Forms + Checkboxes)'} | 
+          Template: {extractedData.templateId || 'doh-hts-2021-v2'}
         </div>
-      </section>
-      
-      {/* Action Buttons - Dashboard Style */}
-      <div className="flex gap-4 justify-end sticky bottom-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-5 rounded-2xl shadow-lg">
-        <button
-          onClick={onReanalyze}
-          className="inline-flex items-center gap-2 px-6 py-3 border-2 border-blue-600 dark:border-blue-500 text-blue-700 dark:text-blue-400 font-medium rounded-xl hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-        >
-          <span>🔄</span> Re-analyze Images
-        </button>
-        <button
-          onClick={() => onAccept(modifiedData)}
-          className="inline-flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-medium rounded-xl transition-colors shadow-md hover:shadow-lg"
-        >
-          <span>✓</span> Accept & Continue to Submission
-        </button>
-      </div>
-      
-      {/* Extraction Info */}
-      <div className="text-center text-sm text-gray-500">
-        Extraction Method: {extractedData.extractionMethod || 'Hybrid (Queries + Forms + Checkboxes)'} | 
-        Template: {extractedData.templateId || 'doh-hts-2021-v2'}
       </div>
     </div>
   );

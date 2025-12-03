@@ -2,32 +2,33 @@ const sharp = require('sharp');
 const { AnalyzeDocumentCommand } = require('@aws-sdk/client-textract');
 const { textractClient } = require('../config/aws');
 const CheckboxDetector = require('../utils/checkboxDetector');
+const templateManager = require('./templateManager');
 const fs = require('fs');
 const path = require('path');
 
 /**
  * OCR Field Extractor Service
  * Coordinate-based field extraction for HTS forms using AWS Textract
+ * Updated to use singleton TemplateManager for shared calibrated coordinates
  */
 
 class OCRFieldExtractor {
   constructor() {
     this.checkboxDetector = new CheckboxDetector();
+    this.templateManager = templateManager;
     this.templateMetadata = null;
     this.loadTemplate();
   }
 
   /**
-   * Load template metadata
+   * Load template metadata from TemplateManager
    */
   loadTemplate(formType = 'doh-hts-2021-v2') {
     try {
-      const metadataPath = path.join(
-        __dirname,
-        '../assets/form-templates/hts/template-metadata.json'
-      );
-      this.templateMetadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+      // Use shared template manager instance
+      this.templateMetadata = this.templateManager.getTemplateReference();
       console.log(`✅ [OCRFieldExtractor] Loaded template: ${this.templateMetadata.name}`);
+      console.log(`✅ [OCRFieldExtractor] Template version: ${this.templateManager.version}, calibrations: ${this.templateManager.calibrationCount}`);
       console.log(`✅ [OCRFieldExtractor] Template has ocrMapping: ${!!this.templateMetadata.ocrMapping}`);
       console.log(`✅ [OCRFieldExtractor] Template has front fields: ${!!this.templateMetadata.ocrMapping?.front?.fields}`);
       console.log(`✅ [OCRFieldExtractor] Template has back fields: ${!!this.templateMetadata.ocrMapping?.back?.fields}`);

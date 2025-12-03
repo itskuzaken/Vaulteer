@@ -8,6 +8,8 @@ const templateMatcher = require('./templateMatcher');
 const { validateAndCorrectFields, applyValidationCorrections, getValidationSummary } = require('../utils/ocrValidation');
 const ocrFieldExtractor = require('./ocrFieldExtractor');
 const OCRRegionCalibrator = require('../utils/calibrateOCRRegions');
+const imagePreprocessor = require('./imagePreprocessor');
+const templateManager = require('./templateManager');
 
 // Load DOH HTS Form 2021 metadata for field extraction
 const metadataPath = path.join(__dirname, '../assets/form-templates/hts/template-metadata.json');
@@ -1057,11 +1059,33 @@ function parseHTSFormData(frontResult, backResult) {
  * @returns {Promise<Object>} Extracted data with field-level confidence
  */
 async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options = {}) {
-  const { useQueries = false, extractionMode = 'hybrid' } = options;
+  const { useQueries = false, extractionMode = 'hybrid', preprocessImages = true } = options;
   
-  console.log(`📤 [Enhanced OCR] Starting field extraction (mode: ${extractionMode}, queries: ${useQueries})...`);
+  console.log(`📤 [Enhanced OCR] Starting field extraction (mode: ${extractionMode}, queries: ${useQueries}, preprocess: ${preprocessImages})...`);
   
   try {
+    // Step 0: Preprocess images for better OCR accuracy
+    if (preprocessImages) {
+      console.log('🖼️ Preprocessing images for optimal OCR...');
+      
+      try {
+        const [frontProcessed, backProcessed] = await Promise.all([
+          imagePreprocessor.process(frontImageBuffer, { mode: 'auto' }),
+          imagePreprocessor.process(backImageBuffer, { mode: 'auto' })
+        ]);
+
+        console.log(`✅ [Preprocessing] Front: ${frontProcessed.applied.join(', ')}`);
+        console.log(`✅ [Preprocessing] Back: ${backProcessed.applied.join(', ')}`);
+
+        // Use preprocessed images
+        frontImageBuffer = frontProcessed.buffer;
+        backImageBuffer = backProcessed.buffer;
+      } catch (preprocessError) {
+        console.warn('⚠️ [Preprocessing] Failed, using original images:', preprocessError.message);
+        // Continue with original images if preprocessing fails
+      }
+    }
+
     let queryResults = null;
 
     // Step 1: Run Textract with Queries API if enabled (with batching support)

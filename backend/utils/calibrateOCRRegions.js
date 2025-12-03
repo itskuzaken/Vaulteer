@@ -2,26 +2,24 @@
  * OCR Region Calibration Tool
  * Helps identify and fix misaligned region coordinates by comparing
  * expected field locations with actual Textract block positions
+ * 
+ * Updated to use singleton TemplateManager for shared state
  */
 
 const fs = require('fs');
 const path = require('path');
+const templateManager = require('../services/templateManager');
 
 class OCRRegionCalibrator {
   constructor() {
-    this.templatePath = path.join(__dirname, '../assets/form-templates/hts/template-metadata.json');
-    this.template = null;
-    this.loadTemplate();
+    // Use shared template manager instance
+    this.templateManager = templateManager;
+    this.template = this.templateManager.getTemplateReference();
   }
 
   loadTemplate() {
-    try {
-      this.template = JSON.parse(fs.readFileSync(this.templatePath, 'utf8'));
-      console.log(`✅ Loaded template: ${this.template.name}`);
-    } catch (error) {
-      console.error('❌ Failed to load template:', error.message);
-      throw error;
-    }
+    // No longer needed - using TemplateManager
+    this.template = this.templateManager.getTemplateReference();
   }
 
   /**
@@ -266,21 +264,16 @@ class OCRRegionCalibrator {
   }
 
   /**
-   * Apply calibration updates to template (in-memory only, does not save)
+   * Apply calibration updates to template (uses shared TemplateManager)
    */
   applyUpdates(updates) {
-    let totalUpdated = 0;
+    const totalUpdated = this.templateManager.applyCalibrationUpdates(updates);
+    
+    // Auto-save template if threshold reached
+    this.templateManager.saveTemplate({ autoSaveThreshold: 10 }).catch(err => {
+      console.warn('⚠️ [Calibration] Auto-save failed:', err.message);
+    });
 
-    for (const [pageName, pageUpdates] of Object.entries(updates)) {
-      for (const [fieldName, newRegion] of Object.entries(pageUpdates)) {
-        if (this.template.ocrMapping[pageName].fields[fieldName]) {
-          this.template.ocrMapping[pageName].fields[fieldName].region = newRegion;
-          totalUpdated++;
-        }
-      }
-    }
-
-    console.log(`✅ Applied ${totalUpdated} calibration updates to template (in-memory)`);
     return totalUpdated;
   }
 
