@@ -312,115 +312,198 @@ async function processBatchQueries(imageBuffer, batches) {
 
 /**
  * Generate HTS Form queries for Textract Queries API
+ * Organized by HTS Form structure and category
  * @param {string} page - 'front' or 'back'
  * @returns {Array} Array of query objects
  */
 function generateHTSFormQueries(page = 'front') {
   // AWS Textract Queries API limit: 15 queries per document
-  // Comprehensive field coverage across multiple batches
+  // Queries are organized by HTS Form categories for clarity
   const queries = {
     front: [
-      // BATCH 1 - Core identification fields (15 queries)
+      // ============================================================
+      // BATCH 1: INFORMED CONSENT & DEMOGRAPHIC DATA (15 queries)
+      // ============================================================
+      
+      // INFORMED CONSENT - Test identification
       { text: 'What is the HIV test date at the top of the form?', alias: 'test_date' },
       { text: 'What is the 12-digit PhilHealth Number in format XX-XXXXXXXXX-X?', alias: 'phil_health_number' },
       { text: 'What is the 16-digit PhilSys Number in the ID section, written as exactly 16 consecutive digits without dashes or spaces?', alias: 'phil_sys_number' },
+      
+      // INFORMED CONSENT - Patient name
       { text: "What is the patient's first name?", alias: 'first_name' },
       { text: "What is the patient's middle name only, not including the words 'Middle Name'?", alias: 'middle_name' },
       { text: "What is the patient's last name?", alias: 'last_name' },
       { text: "What is the patient's name suffix such as Jr, Sr, III, or IV?", alias: 'suffix' },
+      
+      // INFORMED CONSENT - Parental codes
       { text: "What are the first 2 letters of mother's first name?", alias: 'parental_code_mother' },
       { text: "What are the first 2 letters of father's first name?", alias: 'parental_code_father' },
       { text: "What is the birth order among mother's children?", alias: 'birth_order' },
+      
+      // DEMOGRAPHIC DATA - Basic information
       { text: "What is the patient's date of birth?", alias: 'birth_date' },
       { text: "What is the patient's age in years?", alias: 'age' },
       { text: "What is the patient's age in months?", alias: 'age_months' },
       { text: "What is the patient's sex assigned at birth - Male or Female?", alias: 'sex' },
-      { text: "What is the patient's civil status - Single, Married, Separated, Widowed, or Divorced?", alias: 'civil_status' },
+      { text: "What is the patient's gender identity - Man, Woman, or Other?(Specify)", alias: 'gender_identity' },
       
-      // BATCH 2 - Address and residency information (15 queries)
+      // ============================================================
+      // BATCH 2: DEMOGRAPHIC DATA & EDUCATION (15 queries)
+      // ============================================================
+      
+      // DEMOGRAPHIC DATA - Residence
       { text: "What is the city or municipality of the patient's current residence?", alias: 'current_residence_city' },
       { text: "What is the province of the patient's current residence?", alias: 'current_residence_province' },
       { text: "What is the city or municipality of the patient's permanent residence?", alias: 'permanent_residence_city' },
       { text: "What is the province of the patient's permanent residence?", alias: 'permanent_residence_province' },
+      
+      // DEMOGRAPHIC DATA - Place of birth
       { text: "What is the city or municipality where the patient was born?", alias: 'place_of_birth_city' },
       { text: "What is the province where the patient was born?", alias: 'place_of_birth_province' },
+      
+      // DEMOGRAPHIC DATA - Personal status
       { text: "What is the patient's nationality?", alias: 'nationality' },
       { text: "If the patient's nationality is not Filipino, what is it?", alias: 'nationality_other' },
+      { text: "What is the patient's civil status - Single, Married, Separated, Widowed, or Divorced?", alias: 'civil_status' },
       { text: "Is the patient currently living with a partner?", alias: 'living_with_partner' },
       { text: "How many children does the patient have?", alias: 'number_of_children' },
       { text: "Is the patient currently pregnant? (for female only)", alias: 'is_pregnant' },
-      { text: "What is the patient's highest educational attainment?", alias: 'educational_attainment' },
+      
+      // EDUCATION & OCCUPATION
+      { text: "What is the patient's highest educational attainment? - No grade completed, Pre-school, Elementary, Highschool, College, Vocational, or Post-Graduate?", alias: 'educational_attainment' },
       { text: "Is the patient currently in school?", alias: 'currently_in_school' },
       { text: "Is the patient currently working?", alias: 'currently_working' },
-      { text: "What is the patient's current or previous occupation?", alias: 'occupation' },
       
-      // BATCH 3 - Work history and overseas information (6 queries for front page)
+      // ============================================================
+      // BATCH 3: EDUCATION & OCCUPATION + CONTACT INFO (7 queries)
+      // ============================================================
+      
+      // EDUCATION & OCCUPATION - Work details
+      { text: "What is the patient's current or previous occupation?", alias: 'occupation' },
       { text: "Has the patient worked overseas or abroad in the past 5 years?", alias: 'worked_overseas' },
       { text: "If the patient worked overseas, what year did they return from their last contract?", alias: 'overseas_return_year' },
       { text: "Where was the patient based while working overseas - on a ship or on land?", alias: 'overseas_location' },
       { text: "What country did the patient last work in while overseas?", alias: 'overseas_country' },
+      
+      // INFORMED CONSENT - Contact information
       { text: "What are the contact numbers for the patient?", alias: 'contact_number' },
       { text: "What is the email address of the patient?", alias: 'email_address' }
-      // Total: 36 queries across 3 batches (15 + 15 + 6)
+      // Total: 37 queries across 3 batches (15 + 15 + 7)
     ],
     back: [
-      // BATCH 1 - Medical history and risk assessment (15 queries)
+      // ============================================================
+      // BATCH 1: HISTORY OF EXPOSURE / RISK ASSESSMENT (15 queries)
+      // ============================================================
+      
+      // Mother's HIV status
       { text: 'Is the mother of the patient known to have HIV?', alias: 'mother_hiv' },
+      
+      // Risk Factor: Sex with MALE
       { text: 'Has the patient had sex with a male partner? Answer Yes or No', alias: 'risk_sex_male_status' },
       { text: 'If yes to sex with male, what is the total number?', alias: 'risk_sex_male_total' },
       { text: 'If yes to sex with male, what is the first date in MM/YYYY format?', alias: 'risk_sex_male_date1' },
       { text: 'If yes to sex with male, what is the second date in MM/YYYY format?', alias: 'risk_sex_male_date2' },
+      
+      // Risk Factor: Sex with FEMALE
       { text: 'Has the patient had sex with a female partner? Answer Yes or No', alias: 'risk_sex_female_status' },
       { text: 'If yes to sex with female, what is the total number?', alias: 'risk_sex_female_total' },
       { text: 'If yes to sex with female, what is the first date in MM/YYYY format?', alias: 'risk_sex_female_date1' },
       { text: 'If yes to sex with female, what is the second date in MM/YYYY format?', alias: 'risk_sex_female_date2' },
+      
+      // Risk Factor: Paid for sex
       { text: 'Has the patient paid for sex in cash or kind? Answer Yes or No', alias: 'risk_paid_for_sex_status' },
       { text: 'If yes to paid for sex, what is the date in MM/YYYY format?', alias: 'risk_paid_for_sex_date' },
+      
+      // Risk Factor: Received payment for sex
       { text: 'Has the patient received payment for sex? Answer Yes or No', alias: 'risk_received_payment_status' },
       { text: 'If yes to received payment, what is the date in MM/YYYY format?', alias: 'risk_received_payment_date' },
+      
+      // Risk Factor: Sex under influence of drugs
       { text: 'Has the patient had sex under the influence of drugs? Answer Yes or No', alias: 'risk_sex_under_drugs_status' },
       { text: 'If yes to sex under drugs, what is the date in MM/YYYY format?', alias: 'risk_sex_under_drugs_date' },
+      
+      // ============================================================
+      // BATCH 2: RISK ASSESSMENT + TESTING HISTORY (15 queries)
+      // ============================================================
+      
+      // Risk Factor: Shared needles
       { text: 'Has the patient shared needles for drug injection? Answer Yes or No', alias: 'risk_shared_needles_status' },
       { text: 'If yes to shared needles, what is the date in MM/YYYY format?', alias: 'risk_shared_needles_date' },
       
-      // BATCH 2 - Remaining risk fields and clinical information (15 queries)
+      // Risk Factor: Blood transfusion
       { text: 'Has the patient received blood transfusion? Answer Yes or No', alias: 'risk_blood_transfusion_status' },
       { text: 'If yes to blood transfusion, what is the date in MM/YYYY format?', alias: 'risk_blood_transfusion_date' },
+      
+      // Risk Factor: Occupational exposure
       { text: 'Has the patient had occupational exposure to needlestick or sharps? Answer Yes or No', alias: 'risk_occupational_exposure_status' },
       { text: 'If yes to occupational exposure, what is the date in MM/YYYY format?', alias: 'risk_occupational_exposure_date' },
-      { text: 'What are the reasons the patient is seeking HIV testing?', alias: 'reasons_for_testing' },
+      
+      // REASONS FOR HIV TESTING
+      { text: 'What are the reasons the patient is seeking HIV testing? - Possible exposure to HIV, Recommended by a physician/nurse/midwife, Referred by a peer educator, Employment - Overseas/Abroad, Employment - Local/Philippines, Received a text message/email encouraging me to get an HIV test, Requirement for insurance, Other (please specify):', alias: 'reasons_for_testing' },
+      
+      // PREVIOUS HIV TEST
+      { text: 'Has the patient been tested for HIV before?', alias: 'previously_tested' },
+      { text: 'If yes, when was the previous HIV test date?', alias: 'previous_test_date' },
+      { text: 'Which HTS provider or facility conducted the previous test?', alias: 'previous_test_provider' },
+      { text: 'In what city or municipality was the previous test conducted?', alias: 'previous_test_city' },
+      { text: 'What was the previous HIV test result - Reactive, Non-reactive, Indeterminate, or Unable to get result?', alias: 'previous_test_result' },
+      
+      // MEDICAL HISTORY & CLINICAL PICTURE
       { text: 'Is the patient a current TB patient?', alias: 'medical_tb' },
       { text: 'Has the patient been diagnosed with other STIs?', alias: 'medical_sti' },
       { text: 'Has the patient taken PEP (Post-Exposure Prophylaxis)?', alias: 'medical_pep' },
       { text: 'Is the patient currently taking PrEP (Pre-Exposure Prophylaxis)?', alias: 'medical_prep' },
+      
+      // ============================================================
+      // BATCH 3: MEDICAL HISTORY + TESTING DETAILS (15 queries)
+      // ============================================================
+      
+      // MEDICAL HISTORY & CLINICAL PICTURE (continued)
       { text: 'Does the patient have hepatitis B?', alias: 'medical_hepatitis_b' },
       { text: 'Does the patient have hepatitis C?', alias: 'medical_hepatitis_c' },
       { text: 'What is the clinical picture - Asymptomatic or Symptomatic?', alias: 'clinical_picture' },
-      { text: 'Describe the signs or symptoms the patient is experiencing?', alias: 'symptoms' },
+      { text: 'If Symptomatic, describe the signs or symptoms the patient is experiencing?', alias: 'symptoms' },
       { text: 'What is the WHO staging of the patient?', alias: 'who_staging' },
-      { text: 'What is the client type - Inpatient, Walk-in/outpatient, PDL, or Mobile HTS?', alias: 'client_type' },
+      
+      // TESTING DETAILS
+      { text: 'What is the client type - Inpatient, Walk-in/outpatient, PDL, or Mobile HTS/Outreach?', alias: 'client_type' },
       { text: 'What is the mode of reach - Clinical, Online, Index testing, Network testing, or Outreach?', alias: 'mode_of_reach' },
       { text: 'Did the patient refuse or accept HIV testing?', alias: 'testing_accepted' },
       { text: 'If testing was refused, what was the reason?', alias: 'testing_refused_reason' },
       { text: 'What HIV testing modality was used - Facility-based, Non-laboratory, Community-based, or Self-testing?', alias: 'testing_modality' },
-      { text: 'Has the patient been tested for HIV before?', alias: 'previously_tested' },
-      { text: 'What was the previous HIV test result - Reactive, Non-reactive, Indeterminate, or Unable to get result?', alias: 'previous_test_result' },
-      { text: 'When was the previous HIV test date?', alias: 'previous_test_date' },
-      { text: 'Which HTS provider or facility conducted the previous test?', alias: 'previous_test_provider' },
-      { text: 'In what city or municipality was the previous test conducted?', alias: 'previous_test_city' },
+      { text: 'What is the linkage to care plan for the patient after testing? - Refer to ART, Advised for retesting, Refer for Confirmatory Testing, or Suggested date:(MM/DD/YYYY)', alias: 'linkage_to_care' },
+      { text: 'What are the other services provided to client?', alias: 'other_services' },
       
-      // BATCH 3 - Test kit and facility information (9 queries)
+      // INVENTORY INFORMATION
       { text: 'What is the brand of test kit used for this HIV test?', alias: 'test_kit_brand' },
       { text: 'What is the test kit lot number?', alias: 'test_kit_lot_number' },
       { text: 'What is the test kit expiration date?', alias: 'test_kit_expiration' },
+      
+      // ============================================================
+      // BATCH 4: HTS PROVIDER DETAILS (15 queries)
+      // ============================================================
+      
+      // HTS PROVIDER DETAILS
       { text: 'What is the name of the testing facility or organization?', alias: 'testing_facility' },
       { text: 'What is the complete mailing address of the testing facility?', alias: 'facility_address' },
       { text: 'What are the contact numbers for the testing facility?', alias: 'facility_contact_number' },
       { text: 'What is the email address of the testing facility?', alias: 'facility_email' },
+      { text: 'What is the role of the counselor - HIV Counselor, Medical Technologist, CBS Motivator, or Others?', alias: 'counselor_role' },
       { text: 'What is the name of the HTS service provider or counselor?', alias: 'counselor_name' },
-      { text: 'What is the role of the counselor - HIV Counselor, Medical Technologist, CBS Motivator, or Others?', alias: 'counselor_role' }
-      // Total: 56 queries across 4 batches (15 + 15 + 15 + 11)
-    ]
+      
+      // Additional fields to complete batch
+      { text: 'What is the facility code or identifier?', alias: 'facility_code' },
+      { text: 'What region is the testing facility located in?', alias: 'facility_region' },
+      { text: 'What province is the testing facility located in?', alias: 'facility_province' },
+      { text: 'What city or municipality is the testing facility located in?', alias: 'facility_city' },
+      { text: 'What is the signature of the service provider?', alias: 'counselor_signature' },
+      { text: 'What is the date when the form was completed?', alias: 'form_completion_date' },
+      { text: 'What is the license number of the counselor or service provider?', alias: 'counselor_license' },
+      { text: 'What is the designation or position of the service provider?', alias: 'counselor_designation' },
+      { text: 'What is the contact number of the service provider?', alias: 'counselor_contact' }
+      // Total: 60 queries across 4 batches (15 + 15 + 15 + 15)
+    ],
   };
 
   return queries[page] || [];

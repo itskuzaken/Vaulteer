@@ -6,12 +6,11 @@ import Button from "../../ui/Button";
 import ImageLightbox from "../../ui/ImageLightbox";
 import CameraQualityIndicator from "../../ui/CameraQualityIndicator";
 import OCRFieldWarnings from "../../ui/OCRFieldWarnings";
-import EnhancedOCRReview from "../../ui/EnhancedOCRReview";
 import AlertModal from "../../ui/AlertModal";
 import ConfirmModal from "../../ui/ConfirmModal";
 import NextImage from 'next/image';
 import { API_BASE } from "../../../config/config";
-import { encryptFormImages, encryptJSON, generateEncryptionKey, exportKey, encryptFormSubmission } from "../../../utils/imageEncryption";
+import { encryptFormSubmission } from "../../../utils/imageEncryption";
 import {
   isCameraSupported,
   getCameraPermission,
@@ -40,7 +39,6 @@ export default function HTSFormManagement() {
   const [isFlashlightOn, setIsFlashlightOn] = useState(false);
   const [isFlashlightSupported, setIsFlashlightSupported] = useState(false);
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const metadataTimeoutRef = useRef(null);
   const isMountedRef = useRef(true); // Track component mount status
@@ -458,7 +456,7 @@ export default function HTSFormManagement() {
   );
 
   const captureImage = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || !isVideoReady) {
+    if (!videoRef.current || !isVideoReady) {
       showAlert(
         "Camera Not Ready",
         "Camera is still initializing. Please wait a moment...",
@@ -537,23 +535,22 @@ export default function HTSFormManagement() {
       console.log(`[Quality Check] Final score: ${finalQuality.score}/100`);
       
       if (finalQuality.score < 70) {
-        return new Promise((resolve) => {
-          showConfirm(
-            "Low Image Quality",
-            `Image Quality: ${finalQuality.score}/100\n\n` +
-            `${finalQuality.feedback}\n\n` +
-            `Recommendation: Retake image for better OCR accuracy.\n\n` +
-            `Continue anyway?`,
-            () => {
-              closeConfirm();
-              resolve(true);
-              // Continue with capture
-              finalizeCaptureImage(currentStep, imageData);
-            },
-            "Continue Anyway",
-            "Retake"
-          );
-        });
+        // Show confirmation dialog and wait for user decision
+        showConfirm(
+          "Low Image Quality",
+          `Image Quality: ${finalQuality.score}/100\n\n` +
+          `${finalQuality.feedback}\n\n` +
+          `Recommendation: Retake image for better OCR accuracy.\n\n` +
+          `Continue anyway?`,
+          () => {
+            closeConfirm();
+            // Continue with capture after user confirms
+            finalizeCaptureImage(currentStep, imageData);
+          },
+          "Continue Anyway",
+          "Retake"
+        );
+        return; // Stop execution here - user will decide via modal
       }
       
       console.log('[Quality Check] ✅ Image quality is acceptable');
@@ -917,6 +914,7 @@ export default function HTSFormManagement() {
       age: getFieldValue('age'),
       ageMonths: getFieldValue('ageMonths'),
       sex: getFieldValue('sex'),
+      genderIdentity: getFieldValue('genderIdentity'),
       currentResidenceCity: getFieldValue('currentResidenceCity'),
       currentResidenceProvince: getFieldValue('currentResidenceProvince'),
       permanentResidenceCity: getFieldValue('permanentResidenceCity'),
@@ -1394,8 +1392,8 @@ export default function HTSFormManagement() {
                   playsInline
                   muted
                   webkit-playsinline="true"
-                  className="w-full object-cover rounded-lg"
-                  style={{ aspectRatio: '3/4', maxHeight: '60vh' }}
+                  className="w-full h-auto object-contain rounded-lg"
+                  style={{ maxHeight: '70vh' }}
                 />
                 
                 {/* Real-time quality indicator */}
@@ -1409,7 +1407,6 @@ export default function HTSFormManagement() {
                   </div>
                 )}
               </div>
-              <canvas ref={canvasRef} style={{ display: "none" }} />
 
               <div className="flex flex-col gap-3 w-full flex-shrink-0">
                 {/* Flashlight Button - Only show if supported */}
@@ -2135,6 +2132,16 @@ export default function HTSFormManagement() {
                           <option value="">Select</option>
                           <option value="Male">Male</option>
                           <option value="Female">Female</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium mb-2">Gender Identity</label>
+                        <select value={editableData.genderIdentity} onChange={(e) => handleFieldChange('genderIdentity', e.target.value)}
+                          className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white">
+                          <option value="">Select</option>
+                          <option value="Man">Man</option>
+                          <option value="Woman">Woman</option>
+                          <option value="Other">Other (Specify)</option>
                         </select>
                       </div>
                     </div>

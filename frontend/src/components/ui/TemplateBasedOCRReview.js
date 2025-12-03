@@ -1,197 +1,167 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 /**
  * Template-Based OCR Review Component
- * Displays all extracted fields from template-metadata.json with editing capabilities
- * Updated to match dashboard design aesthetic
+ * Dynamically organizes fields by category based on HTS form structure
+ * Auto-categorizes fields for cleaner, maintainable code
  */
 
-// Field labels mapping from template metadata
-const TEMPLATE_FIELD_LABELS = {
-  // Current test result
-  testResult: 'Current Test Result',
-  testDate: 'Current Test Date',
+// Comprehensive field metadata with categories matching HTS Form structure
+const FIELD_METADATA = {
+  // Test Result (not on HTS form, only in review)
+  testResult: { label: 'Current Test Result', category: 'TEST RESULT', page: 'front', priority: 1 },
   
-  // Front page fields - Personal Information
-  philHealthNumber: 'PhilHealth Number',
-  philSysNumber: 'PhilSys Number',
-  firstName: 'First Name',
-  middleName: 'Middle Name',
-  lastName: 'Last Name',
-  suffix: 'Suffix',
+  // INFORMED CONSENT
+  testDate: { label: 'Current Test Date', category: 'INFORMED CONSENT', page: 'front', priority: 1 },
+  philHealthNumber: { label: 'PhilHealth Number', category: 'INFORMED CONSENT', page: 'front', priority: 2 },
+  philSysNumber: { label: 'PhilSys Number', category: 'INFORMED CONSENT', page: 'front', priority: 2 },
+  firstName: { label: 'First Name', category: 'INFORMED CONSENT', page: 'front', priority: 1 },
+  middleName: { label: 'Middle Name', category: 'INFORMED CONSENT', page: 'front', priority: 2 },
+  lastName: { label: 'Last Name', category: 'INFORMED CONSENT', page: 'front', priority: 1 },
+  suffix: { label: 'Suffix', category: 'INFORMED CONSENT', page: 'front', priority: 3 },
+  parentalCode: { label: "Parental Code (Mother+Father+Birth Order)", category: 'INFORMED CONSENT', page: 'front', priority: 3 },
+  parentalCodeMother: { label: "Mother's First Name (First 2 letters)", category: 'INFORMED CONSENT', page: 'front', priority: 3 },
+  parentalCodeFather: { label: "Father's First Name (First 2 letters)", category: 'INFORMED CONSENT', page: 'front', priority: 3 },
+  birthOrder: { label: 'Birth Order', category: 'INFORMED CONSENT', page: 'front', priority: 3 },
+  contactNumber: { label: 'Contact Number', category: 'INFORMED CONSENT', page: 'front', priority: 2 },
+  email: { label: 'Email', category: 'INFORMED CONSENT', page: 'front', priority: 3 },
+  emailAddress: { label: 'Email Address', category: 'INFORMED CONSENT', page: 'front', priority: 3 },
   
-  // Front page - Parental & Birth Information
-  parentalCode: "Mother's First Name (First 2 letters)",
-  parentalCodeMother: "Mother's First Name (First 2 letters)",
-  parentalCodeFather: "Father's First Name (First 2 letters)",
-  birthOrder: 'Birth Order',
-  birthDate: 'Birth Date',
-  age: 'Age',
-  ageMonths: 'Age in Months (for <1 year old)',
-  sex: 'Sex (assigned at birth)',
+  // DEMOGRAPHIC DATA
+  birthDate: { label: 'Birth Date', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 1 },
+  age: { label: 'Age', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 1 },
+  ageMonths: { label: 'Age in Months (for <1 year old)', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 2 },
+  sex: { label: 'Sex (assigned at birth)', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 1 },
+  genderIdentity: { label: 'Gender Identity', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 2 },
+  currentResidenceCity: { label: 'Current Residence - City/Municipality', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 2 },
+  currentResidenceProvince: { label: 'Current Residence - Province', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 2 },
+  permanentResidenceCity: { label: 'Permanent Residence - City/Municipality', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  permanentResidenceProvince: { label: 'Permanent Residence - Province', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  placeOfBirthCity: { label: 'Place of Birth - City/Municipality', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  placeOfBirthProvince: { label: 'Place of Birth - Province', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  nationality: { label: 'Nationality', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 2 },
+  nationalityOther: { label: 'Nationality - Other (specify)', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  civilStatus: { label: 'Civil Status', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 2 },
+  livingWithPartner: { label: 'Currently living with a partner', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  numberOfChildren: { label: 'Number of children', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  isPregnant: { label: 'Currently pregnant (for female only)', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  region: { label: 'Region', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  province: { label: 'Province', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  cityMunicipality: { label: 'City/Municipality', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  barangay: { label: 'Barangay', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  houseNumberStreet: { label: 'House Number/Street', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
+  landmark: { label: 'Landmark', category: 'DEMOGRAPHIC DATA', page: 'front', priority: 3 },
   
-  // Front page - Residence & Location
-  currentResidenceCity: 'Current Residence - City/Municipality',
-  currentResidenceProvince: 'Current Residence - Province',
-  permanentResidenceCity: 'Permanent Residence - City/Municipality',
-  permanentResidenceProvince: 'Permanent Residence - Province',
-  placeOfBirthCity: 'Place of Birth - City/Municipality',
-  placeOfBirthProvince: 'Place of Birth - Province',
+  // EDUCATION & OCCUPATION
+  educationalAttainment: { label: 'Highest Educational Attainment', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 2 },
+  currentlyInSchool: { label: 'Currently in school', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 3 },
+  occupation: { label: 'Occupation', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 2 },
+  currentlyWorking: { label: 'Currently working', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 3 },
+  workedOverseas: { label: 'Worked overseas/abroad in past 5 years', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 3 },
+  overseasReturnYear: { label: 'Overseas Return Year', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 3 },
+  overseasLocation: { label: 'Overseas Location (Ship/Land)', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 3 },
+  overseasCountry: { label: 'Overseas Country', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 3 },
+  monthlyIncome: { label: 'Monthly Income', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 3 },
+  pwdId: { label: 'PWD ID', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 3 },
+  indigenousPerson: { label: 'Indigenous Person', category: 'EDUCATION & OCCUPATION', page: 'front', priority: 3 },
   
-  // Front page - Contact & Identity
-  nationality: 'Nationality',
-  nationalityOther: 'Nationality - Other (specify)',
-  civilStatus: 'Civil Status',
-  livingWithPartner: 'Currently living with a partner',
-  numberOfChildren: 'Number of children',
-  isPregnant: 'Currently pregnant (for female only)',
-  contactNumber: 'Contact Number',
-  email: 'Email',
-  region: 'Region',
-  province: 'Province',
-  cityMunicipality: 'City/Municipality',
-  barangay: 'Barangay',
-  houseNumberStreet: 'House Number/Street',
-  landmark: 'Landmark',
+  // HISTORY OF EXPOSURE / RISK ASSESSMENT
+  motherHIV: { label: 'Mother with HIV', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskAssessment: { label: 'History of Exposure / Risk Assessment', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexMaleStatus: { label: 'Sex with a MALE - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexMaleTotal: { label: 'Sex with a MALE - Total No.', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexMaleDate1: { label: 'Sex with a MALE - Date 1', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexMaleDate2: { label: 'Sex with a MALE - Date 2', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexFemaleStatus: { label: 'Sex with a FEMALE - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexFemaleTotal: { label: 'Sex with a FEMALE - Total No.', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexFemaleDate1: { label: 'Sex with a FEMALE - Date 1', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexFemaleDate2: { label: 'Sex with a FEMALE - Date 2', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskPaidForSexStatus: { label: 'Paid for sex (cash/kind) - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskPaidForSexDate: { label: 'Paid for sex (cash/kind) - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskReceivedPaymentStatus: { label: 'Received payment for sex - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskReceivedPaymentDate: { label: 'Received payment for sex - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexUnderDrugsStatus: { label: 'Sex under influence of drugs - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSexUnderDrugsDate: { label: 'Sex under influence of drugs - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSharedNeedlesStatus: { label: 'Shared needles for drug injection - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskSharedNeedlesDate: { label: 'Shared needles for drug injection - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskBloodTransfusionStatus: { label: 'Received blood transfusion - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskBloodTransfusionDate: { label: 'Received blood transfusion - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskOccupationalExposureStatus: { label: 'Occupational exposure (needlestick/sharps) - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskOccupationalExposureDate: { label: 'Occupational exposure (needlestick/sharps) - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskAssessmentSexMale: { label: 'Sex with a MALE', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskAssessmentSexFemale: { label: 'Sex with a FEMALE', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskAssessmentPaidForSex: { label: 'Paid for sex (in cash or kind)', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskAssessmentReceivedPayment: { label: 'Received payment for sex', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskAssessmentSexUnderInfluence: { label: 'Had sex under the influence of drugs', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskAssessmentSharedNeedles: { label: 'Shared needles in injection of drugs', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskAssessmentBloodTransfusion: { label: 'Received blood transfusion', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskAssessmentOccupationalExposure: { label: 'Occupational exposure (needlestick/sharps)', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
   
-  // Front page - Education & Employment
-  educationalAttainment: 'Highest Educational Attainment',
-  currentlyInSchool: 'Currently in school',
-  occupation: 'Occupation',
-  currentlyWorking: 'Currently working',
-  workedOverseas: 'Worked overseas/abroad in past 5 years',
-  overseasReturnYear: 'Overseas Return Year',
-  overseasLocation: 'Overseas Location (Ship/Land)',
-  overseasCountry: 'Overseas Country',
-  monthlyIncome: 'Monthly Income',
-  pwdId: 'PWD ID',
-  indigenousPerson: 'Indigenous Person',
+  // REASONS FOR HIV TESTING
+  reasonsForTesting: { label: 'Reasons for HIV Testing', category: 'REASONS FOR HIV TESTING', page: 'back', priority: 2 },
   
-  // Back page fields - Risk & Testing
-  motherHIV: 'Mother with HIV',
-  riskAssessment: 'History of Exposure / Risk Assessment (Complete)',
-  riskAssessmentSexMale: 'Sex with a MALE',
-  riskAssessmentSexFemale: 'Sex with a FEMALE',
-  riskAssessmentPaidForSex: 'Paid for sex (in cash or kind)',
-  riskAssessmentReceivedPayment: 'Received payment (cash or in kind) in exchange for sex',
-  riskAssessmentSexUnderInfluence: 'Had sex under the influence of drugs',
-  riskAssessmentSharedNeedles: 'Shared needles in injection of drugs',
-  riskAssessmentBloodTransfusion: 'Received blood transfusion',
-  riskAssessmentOccupationalExposure: 'Occupational exposure (needlestick/sharps)',
-  reasonsForTesting: 'Reasons for HIV Testing',
-  previouslyTested: 'Previously Tested for HIV',
-  previousTestDate: 'Previous Test Date',
-  previousTestProvider: 'HTS Provider (Facility/Organization)',
-  previousTestCity: 'City/Municipality',
-  previousTestResult: 'Previous Test Result',
+  // PREVIOUS HIV TEST
+  previouslyTested: { label: 'Previously Tested for HIV', category: 'PREVIOUS HIV TEST', page: 'back', priority: 2 },
+  previousTestDate: { label: 'Previous Test Date', category: 'PREVIOUS HIV TEST', page: 'back', priority: 2 },
+  previousTestProvider: { label: 'HTS Provider (Facility/Organization)', category: 'PREVIOUS HIV TEST', page: 'back', priority: 3 },
+  previousTestCity: { label: 'City/Municipality', category: 'PREVIOUS HIV TEST', page: 'back', priority: 3 },
+  previousTestResult: { label: 'Previous Test Result', category: 'PREVIOUS HIV TEST', page: 'back', priority: 2 },
   
-  // Back page - Medical & Clinical
-  medicalHistory: 'Medical History',
-  clinicalPicture: 'Clinical Picture',
-  symptoms: 'Describe Signs/Symptoms',
-  whoStaging: 'WHO Staging',
+  // MEDICAL HISTORY & CLINICAL PICTURE
+  medicalHistory: { label: 'Medical History', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
+  medicalTB: { label: 'Current TB Patient', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
+  medicalSTI: { label: 'Diagnosed with Other STIs', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
+  medicalPEP: { label: 'Taken PEP (Post-Exposure Prophylaxis)', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
+  medicalPrEP: { label: 'Currently Taking PrEP (Pre-Exposure Prophylaxis)', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
+  medicalHepatitisB: { label: 'Has Hepatitis B', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
+  medicalHepatitisC: { label: 'Has Hepatitis C', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
+  clinicalPicture: { label: 'Clinical Picture', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
+  symptoms: { label: 'Describe Signs/Symptoms', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
+  whoStaging: { label: 'WHO Staging', category: 'MEDICAL HISTORY & CLINICAL PICTURE', page: 'back', priority: 2 },
   
-  // Back page - Client & Testing Details
-  clientType: 'Client Type',
-  venue: 'Venue',
-  modeOfReach: 'Mode of Reach',
-  testingAccepted: 'HIV Testing Status',
-  refusalReason: 'Refusal Reason',
+  // TESTING DETAILS
+  clientType: { label: 'Client Type', category: 'TESTING DETAILS', page: 'back', priority: 2 },
+  venue: { label: 'Venue', category: 'TESTING DETAILS', page: 'back', priority: 3 },
+  modeOfReach: { label: 'Mode of Reach', category: 'TESTING DETAILS', page: 'back', priority: 2 },
+  testingAccepted: { label: 'HIV Testing Status', category: 'TESTING DETAILS', page: 'back', priority: 1 },
+  testingModality: { label: 'HIV Testing Modality', category: 'TESTING DETAILS', page: 'back', priority: 2 },
+  linkageToCare: { label: 'Linkage to Care Plan', category: 'TESTING DETAILS', page: 'back', priority: 2 },
+  refusalReason: { label: 'Refusal Reason', category: 'TESTING DETAILS', page: 'back', priority: 3 },
+  otherServices: { label: 'Other Services Provided', category: 'TESTING DETAILS', page: 'back', priority: 3 },
   
-  // Back page - Test Kit Information
-  kitName: 'Test Kit Brand',
-  testKitBrand: 'Brand of Test Kit Used',
-  kitLotNumber: 'Test Kit Lot Number',
-  testKitLotNumber: 'Lot Number',
-  testKitExpiration: 'Test Kit Expiration Date',
+  // INVENTORY INFORMATION
+  kitName: { label: 'Test Kit Brand', category: 'INVENTORY INFORMATION', page: 'back', priority: 2 },
+  testKitBrand: { label: 'Brand of Test Kit Used', category: 'INVENTORY INFORMATION', page: 'back', priority: 2 },
+  kitLotNumber: { label: 'Test Kit Lot Number', category: 'INVENTORY INFORMATION', page: 'back', priority: 2 },
+  testKitLotNumber: { label: 'Lot Number', category: 'INVENTORY INFORMATION', page: 'back', priority: 2 },
+  testKitExpiration: { label: 'Test Kit Expiration Date', category: 'INVENTORY INFORMATION', page: 'back', priority: 2 },
   
-  // Back page - Facility & Provider
-  testingFacility: 'Name of Testing Facility/Organization',
-  facilityAddress: 'Complete Mailing Address',
-  contactNumber: 'Contact Numbers',
-  emailAddress: 'Email Address',
-  counselorName: 'Name of Service Provider',
-  serviceProvider: 'Service Provider',
-  counselorRole: 'Role',
-  counselorSignature: 'Name & Signature of Service Provider',
-  otherServices: 'Other Services Provided'
+  // HTS PROVIDER DETAILS
+  testingFacility: { label: 'Name of Testing Facility/Organization', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  facilityAddress: { label: 'Complete Mailing Address', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  facilityContactNumber: { label: 'Facility Contact Number', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  facilityEmail: { label: 'Facility Email Address', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  counselorName: { label: 'Name of Service Provider', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  serviceProvider: { label: 'Service Provider', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  counselorRole: { label: 'Role', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  counselorSignature: { label: 'Name & Signature of Service Provider', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 }
 };
 
-// Group fields by section for better organization
-const FRONT_PAGE_SECTIONS = {
-  'Current Test Result': [
-    'testResult', 'testDate'
+// Category display order matching HTS Form template structure
+const CATEGORY_ORDER = {
+  front: [
+    'INFORMED CONSENT',
+    'DEMOGRAPHIC DATA',
+    'EDUCATION & OCCUPATION'
   ],
-  'Identity & Registration': [
-    'philHealthNumber', 'philSysNumber', 
-    'firstName', 'middleName', 'lastName', 'suffix',
-    'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder'
-  ],
-  'Demographic Data': [
-    'birthDate', 'age', 'ageMonths',
-    'sex', 
-    'currentResidenceCity', 'currentResidenceProvince',
-    'permanentResidenceCity', 'permanentResidenceProvince',
-    'placeOfBirthCity', 'placeOfBirthProvince',
-    'nationality', 'nationalityOther',
-    'civilStatus', 'livingWithPartner', 'numberOfChildren', 'isPregnant'
-  ],
-  'Education & Employment': [
-    'educationalAttainment', 'currentlyInSchool', 
-    'occupation', 'currentlyWorking', 
-    'workedOverseas', 'overseasReturnYear', 'overseasLocation', 'overseasCountry',
-    'monthlyIncome', 'pwdId', 'indigenousPerson'
-  ],
-  'Contact Information': [
-    'contactNumber', 'email', 'region', 'province', 
-    'cityMunicipality', 'barangay', 'houseNumberStreet', 'landmark'
-  ]
-};
-
-const BACK_PAGE_SECTIONS = {
-  'Risk Assessment & Testing History': [
-    'motherHIV',
-    'riskAssessment',
-    'riskAssessmentSexMale',
-    'riskAssessmentSexFemale',
-    'riskAssessmentPaidForSex',
-    'riskAssessmentReceivedPayment',
-    'riskAssessmentSexUnderInfluence',
-    'riskAssessmentSharedNeedles',
-    'riskAssessmentBloodTransfusion',
-    'riskAssessmentOccupationalExposure',
-    'reasonsForTesting',
-    'previouslyTested', 
-    'previousTestDate', 
-    'previousTestProvider', 
-    'previousTestCity', 
-    'previousTestResult'
-  ],
-  'Medical History': [
-    'medicalHistory', 
-    'clinicalPicture', 
-    'symptoms', 
-    'whoStaging'
-  ],
-  'Testing Details': [
-    'clientType', 
-    'modeOfReach', 
-    'testingAccepted',
-    'refusalReason',
-    'otherServices',
-    'testKitBrand', 
-    'kitName', 
-    'testKitLotNumber', 
-    'kitLotNumber', 
-    'testKitExpiration'
-  ],
-  'HTS Provider Details': [
-    'testingFacility', 
-    'facilityAddress', 
-    'counselorName', 
-    'serviceProvider', 
-    'counselorRole', 
-    'counselorSignature'
+  back: [
+    'HISTORY OF EXPOSURE / RISK ASSESSMENT',
+    'REASONS FOR HIV TESTING',
+    'PREVIOUS HIV TEST',
+    'MEDICAL HISTORY & CLINICAL PICTURE',
+    'TESTING DETAILS',
+    'INVENTORY INFORMATION',
+    'HTS PROVIDER DETAILS'
   ]
 };
 
@@ -353,11 +323,10 @@ const EditableOCRField = ({ field, value, label, onEdit, isEditing, onSave, onCa
 };
 
 /**
- * Section Component
+ * Section Component - Dynamically renders fields in a category
  */
 const FieldSection = ({ title, fields, extractedData, editingField, onEdit, onSave, onCancel, validationWarnings }) => {
-  // Always show section - don't hide if no fields detected
-  // This allows users to see all expected fields and enter data manually
+  if (!fields || fields.length === 0) return null;
   
   return (
     <section className="mb-8">
@@ -369,16 +338,16 @@ const FieldSection = ({ title, fields, extractedData, editingField, onEdit, onSa
       </div>
       <div className="space-y-4">
         {fields.map((field) => {
-          // Always render field, even if not detected
           const fieldData = extractedData[field] || { value: null, confidence: 0, requiresReview: true };
           const warning = validationWarnings.find(w => w.field === field);
+          const metadata = FIELD_METADATA[field] || { label: field, priority: 3 };
           
           return (
             <EditableOCRField
               key={field}
               field={field}
               value={fieldData}
-              label={TEMPLATE_FIELD_LABELS[field] || field}
+              label={metadata.label}
               onEdit={onEdit}
               isEditing={editingField === field}
               onSave={onSave}
@@ -475,6 +444,43 @@ const TemplateBasedOCRReview = ({ extractedData, onUpdate, onAccept, onReanalyze
   const [modifiedData, setModifiedData] = useState({ ...extractedData });
   const [validationWarnings, setValidationWarnings] = useState([]);
 
+  // Dynamically organize fields by category
+  const organizedFields = useMemo(() => {
+    const categories = { front: {}, back: {} };
+    
+    // Get all fields from extracted data
+    const allFields = Object.keys(extractedData).filter(key => 
+      !['stats', 'confidence', 'extractionMethod', 'templateId', 'fields'].includes(key)
+    );
+    
+    // Categorize each field
+    allFields.forEach(fieldName => {
+      const metadata = FIELD_METADATA[fieldName];
+      if (metadata) {
+        const page = metadata.page;
+        const category = metadata.category;
+        
+        if (!categories[page][category]) {
+          categories[page][category] = [];
+        }
+        categories[page][category].push(fieldName);
+      }
+    });
+    
+    // Sort fields within each category by priority
+    Object.keys(categories).forEach(page => {
+      Object.keys(categories[page]).forEach(category => {
+        categories[page][category].sort((a, b) => {
+          const priorityA = FIELD_METADATA[a]?.priority || 3;
+          const priorityB = FIELD_METADATA[b]?.priority || 3;
+          return priorityA - priorityB;
+        });
+      });
+    });
+    
+    return categories;
+  }, [extractedData]);
+
   // Run cross-field validation whenever data changes
   React.useEffect(() => {
     const warnings = validateCrossFields(modifiedData);
@@ -483,7 +489,6 @@ const TemplateBasedOCRReview = ({ extractedData, onUpdate, onAccept, onReanalyze
 
   if (!extractedData) return null;
 
-  const fields = extractedData.fields || extractedData;
   const stats = extractedData.stats || {};
   const confidence = extractedData.confidence || 0;
   
@@ -579,12 +584,15 @@ const TemplateBasedOCRReview = ({ extractedData, onUpdate, onAccept, onReanalyze
                   Data Consistency Warnings
                 </h4>
                 <ul className="space-y-2">
-                  {validationWarnings.map((warning, index) => (
-                    <li key={index} className="text-sm text-yellow-700 dark:text-yellow-300 flex items-start gap-2">
-                      <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></span>
-                      <span><strong>{TEMPLATE_FIELD_LABELS[warning.field] || warning.field}:</strong> {warning.message}</span>
-                    </li>
-                  ))}
+                  {validationWarnings.map((warning, index) => {
+                    const fieldLabel = FIELD_METADATA[warning.field]?.label || warning.field;
+                    return (
+                      <li key={index} className="text-sm text-yellow-700 dark:text-yellow-300 flex items-start gap-2">
+                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-yellow-500 mt-1.5 flex-shrink-0"></span>
+                        <span><strong>{fieldLabel}:</strong> {warning.message}</span>
+                      </li>
+                    );
+                  })}
                 </ul>
                 <p className="text-xs text-yellow-600 dark:text-yellow-400 mt-3 italic">
                   Please review and correct these fields before submitting.
@@ -603,18 +611,20 @@ const TemplateBasedOCRReview = ({ extractedData, onUpdate, onAccept, onReanalyze
                 Front Page - Personal Information Sheet
               </h4>
             </div>
-            {Object.entries(FRONT_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
-              <FieldSection
-                key={sectionTitle}
-                title={sectionTitle}
-                fields={sectionFields}
-                extractedData={modifiedData}
-                editingField={editingField}
-                onEdit={handleEdit}
-                onSave={handleSave}
-                onCancel={handleCancel}
-                validationWarnings={validationWarnings}
-              />
+            {CATEGORY_ORDER.front.map(category => (
+              organizedFields.front[category] && (
+                <FieldSection
+                  key={category}
+                  title={category}
+                  fields={organizedFields.front[category]}
+                  extractedData={modifiedData}
+                  editingField={editingField}
+                  onEdit={handleEdit}
+                  onSave={handleSave}
+                  onCancel={handleCancel}
+                  validationWarnings={validationWarnings}
+                />
+              )
             ))}
           </div>
         </section>
@@ -628,18 +638,20 @@ const TemplateBasedOCRReview = ({ extractedData, onUpdate, onAccept, onReanalyze
                 Back Page - Testing & Medical History
               </h4>
             </div>
-            {Object.entries(BACK_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
-              <FieldSection
-                key={sectionTitle}
-                title={sectionTitle}
-                fields={sectionFields}
-                extractedData={modifiedData}
-                editingField={editingField}
-                onEdit={handleEdit}
-                onSave={handleSave}
-                onCancel={handleCancel}
-                validationWarnings={validationWarnings}
-              />
+            {CATEGORY_ORDER.back.map(category => (
+              organizedFields.back[category] && (
+                <FieldSection
+                  key={category}
+                  title={category}
+                  fields={organizedFields.back[category]}
+                  extractedData={modifiedData}
+                  editingField={editingField}
+                  onEdit={handleEdit}
+                  onSave={handleSave}
+                  onCancel={handleCancel}
+                  validationWarnings={validationWarnings}
+                />
+              )
             ))}
           </div>
         </section>
