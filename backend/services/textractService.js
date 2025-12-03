@@ -440,7 +440,7 @@ function generateHTSFormQueries(page = 'front') {
       { text: 'If yes to occupational exposure, what is the date in MM/YYYY format?', alias: 'risk_occupational_exposure_date' },
       
       // REASONS FOR HIV TESTING
-      { text: 'What are the reasons the patient is seeking HIV testing? - Possible exposure to HIV, Recommended by a physician/nurse/midwife, Referred by a peer educator, Employment - Overseas/Abroad, Employment - Local/Philippines, Received a text message/email encouraging me to get an HIV test, Requirement for insurance, Other (please specify):', alias: 'reasons_for_testing' },
+      { text: 'What are the reasons the patient is seeking HIV testing?', alias: 'reasons_for_testing' },
       
       // PREVIOUS HIV TEST
       { text: 'Has the patient been tested for HIV before?', alias: 'previously_tested' },
