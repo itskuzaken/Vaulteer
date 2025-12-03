@@ -28,6 +28,11 @@ class OCRFieldExtractor {
       );
       this.templateMetadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
       console.log(`✅ [OCRFieldExtractor] Loaded template: ${this.templateMetadata.name}`);
+      console.log(`✅ [OCRFieldExtractor] Template has ocrMapping: ${!!this.templateMetadata.ocrMapping}`);
+      console.log(`✅ [OCRFieldExtractor] Template has front fields: ${!!this.templateMetadata.ocrMapping?.front?.fields}`);
+      console.log(`✅ [OCRFieldExtractor] Template has back fields: ${!!this.templateMetadata.ocrMapping?.back?.fields}`);
+      console.log(`✅ [OCRFieldExtractor] Front fields count: ${Object.keys(this.templateMetadata.ocrMapping?.front?.fields || {}).length}`);
+      console.log(`✅ [OCRFieldExtractor] Back fields count: ${Object.keys(this.templateMetadata.ocrMapping?.back?.fields || {}).length}`);
     } catch (error) {
       console.error('❌ [OCRFieldExtractor] Failed to load template metadata:', error.message);
       throw new Error('Template metadata not available');
