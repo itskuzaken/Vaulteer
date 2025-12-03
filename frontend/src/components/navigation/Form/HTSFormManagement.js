@@ -4,6 +4,9 @@ import { IoCamera, IoClose, IoCheckmark, IoCloudUploadOutline, IoDocumentText, I
 import { getAuth } from "firebase/auth";
 import Button from "../../ui/Button";
 import ImageLightbox from "../../ui/ImageLightbox";
+import CameraQualityIndicator from "../../ui/CameraQualityIndicator";
+import OCRFieldWarnings from "../../ui/OCRFieldWarnings";
+import NextImage from 'next/image';
 import { API_BASE } from "../../../config/config";
 import { encryptFormImages, encryptJSON, generateEncryptionKey, exportKey, encryptFormSubmission } from "../../../utils/imageEncryption";
 import {
@@ -13,6 +16,8 @@ import {
   stopCameraStream,
   isCameraPermissionDenied,
 } from "../../../services/cameraPermissionService";
+import { validateImageQuality } from "../../../utils/imageQualityValidator";
+import { preprocessImage, dataURLtoBlob as preprocessDataURLtoBlob } from "../../../utils/imagePreprocessor";
 
 export default function HTSFormManagement() {
   const [activeTab, setActiveTab] = useState("submit"); // 'submit' or 'history'
@@ -180,7 +185,7 @@ export default function HTSFormManagement() {
     setIsVideoReady(false);
   };
 
-  const captureImage = () => {
+  const captureImage = async () => {
     if (videoRef.current && canvasRef.current) {
       const video = videoRef.current;
       
@@ -198,6 +203,33 @@ export default function HTSFormManagement() {
       const ctx = canvas.getContext("2d");
       ctx.drawImage(video, 0, 0);
       const imageData = canvas.toDataURL("image/jpeg");
+      
+      // Validate image quality before saving
+      try {
+        console.log('[Quality Check] Validating image quality...');
+        const quality = await validateImageQuality(imageData);
+        console.log(`[Quality Check] Score: ${quality.score}/100`);
+        
+        if (quality.score < 70) {
+          const shouldRetry = confirm(
+            `⚠️ Image Quality: ${quality.score}/100\n\n` +
+            `${quality.feedback}\n\n` +
+            `Recommendation: Retake image for better OCR accuracy.\n\n` +
+            `Continue anyway?`
+          );
+          
+          if (!shouldRetry) {
+            console.log('[Quality Check] User chose to retake image');
+            return; // Let user retake
+          }
+          console.log('[Quality Check] User chose to continue with low quality image');
+        } else {
+          console.log('[Quality Check] ✅ Image quality is good');
+        }
+      } catch (error) {
+        console.error('[Quality Check] Error validating image:', error);
+        // Continue with capture even if validation fails
+      }
       
       if (currentStep === "front") {
         setFrontImage(imageData);
@@ -519,10 +551,37 @@ export default function HTSFormManagement() {
         return;
       }
 
-      // Convert base64 to blob with explicit MIME type for multipart upload
-      console.log("[OCR] Converting images to blobs with MIME type image/jpeg");
-      const frontBlob = dataURLtoBlob(frontImage, 'image/jpeg');
-      const backBlob = dataURLtoBlob(backImage, 'image/jpeg');
+      // Preprocess images before sending to OCR
+      console.log('[OCR] Preprocessing images for optimal OCR accuracy...');
+      
+      const [processedFront, processedBack] = await Promise.all([
+        preprocessImage(frontImage, {
+          targetResolution: { width: 1600, height: 2133 },
+          enableDeskew: true,
+          enableDenoising: true,
+          enableContrast: true,
+          enableBinarization: false,
+          quality: 0.95
+        }),
+        preprocessImage(backImage, {
+          targetResolution: { width: 1600, height: 2133 },
+          enableDeskew: true,
+          enableDenoising: true,
+          enableContrast: true,
+          enableBinarization: false,
+          quality: 0.95
+        })
+      ]);
+      
+      console.log('[OCR] Preprocessing complete:', {
+        front: processedFront.metadata,
+        back: processedBack.metadata
+      });
+
+      // Convert preprocessed images to blob
+      console.log("[OCR] Converting preprocessed images to blobs");
+      const frontBlob = preprocessDataURLtoBlob(processedFront.processedImage);
+      const backBlob = preprocessDataURLtoBlob(processedBack.processedImage);
 
       console.log(`[OCR] Front blob: ${frontBlob.size} bytes, type: ${frontBlob.type}`);
       console.log(`[OCR] Back blob: ${backBlob.size} bytes, type: ${backBlob.type}`);
@@ -819,6 +878,8 @@ export default function HTSFormManagement() {
                   className="w-full object-cover rounded-lg"
                   style={{ aspectRatio: '3/4', maxHeight: '60vh' }}
                 />
+                {/* Real-time quality indicator */}
+                <CameraQualityIndicator videoRef={videoRef} isActive={isVideoReady} />
                 {!isVideoReady && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="text-center text-white">
@@ -928,12 +989,15 @@ export default function HTSFormManagement() {
               <div>
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Front Side (Captured)</h3>
                 <div className="relative rounded-lg overflow-hidden border border-green-500 group">
-                  <img 
-                    src={frontImage} 
-                    alt="Front of form" 
-                    className="w-full h-auto object-cover select-none cursor-pointer transition-opacity hover:opacity-90" 
-                    style={{ aspectRatio: '3/4' }} 
-                    onContextMenu={(e) => e.preventDefault()} 
+                  <NextImage
+                    src={frontImage}
+                    alt="Front of form"
+                    width={900}
+                    height={1200}
+                    unoptimized
+                    className="w-full h-auto object-cover select-none cursor-pointer transition-opacity hover:opacity-90"
+                    style={{ aspectRatio: '3/4' }}
+                    onContextMenu={(e) => e.preventDefault()}
                     draggable={false}
                     onClick={() => {
                       setLightboxImages([{url: frontImage, name: 'Front Side', preventDownload: true}]);
@@ -1007,12 +1071,15 @@ export default function HTSFormManagement() {
               <div>
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Front Side</h3>
                 <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group">
-                  <img 
-                    src={frontImage} 
-                    alt="Front" 
-                    className="w-full h-auto object-cover select-none cursor-pointer transition-opacity hover:opacity-90" 
-                    style={{ aspectRatio: '3/4' }} 
-                    onContextMenu={(e) => e.preventDefault()} 
+                  <NextImage
+                    src={frontImage}
+                    alt="Front"
+                    width={900}
+                    height={1200}
+                    unoptimized
+                    className="w-full h-auto object-cover select-none cursor-pointer transition-opacity hover:opacity-90"
+                    style={{ aspectRatio: '3/4' }}
+                    onContextMenu={(e) => e.preventDefault()}
                     draggable={false}
                     onClick={() => {
                       setLightboxImages([{url: frontImage, name: 'Front Side', preventDownload: true}, {url: backImage, name: 'Back Side', preventDownload: true}]);
@@ -1039,12 +1106,15 @@ export default function HTSFormManagement() {
               <div>
                 <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Back Side</h3>
                 <div className="relative rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 group">
-                  <img 
-                    src={backImage} 
-                    alt="Back" 
-                    className="w-full h-auto object-cover select-none cursor-pointer transition-opacity hover:opacity-90" 
-                    style={{ aspectRatio: '3/4' }} 
-                    onContextMenu={(e) => e.preventDefault()} 
+                  <NextImage
+                    src={backImage}
+                    alt="Back"
+                    width={900}
+                    height={1200}
+                    unoptimized
+                    className="w-full h-auto object-cover select-none cursor-pointer transition-opacity hover:opacity-90"
+                    style={{ aspectRatio: '3/4' }}
+                    onContextMenu={(e) => e.preventDefault()}
                     draggable={false}
                     onClick={() => {
                       setLightboxImages([{url: frontImage, name: 'Front Side', preventDownload: true}, {url: backImage, name: 'Back Side', preventDownload: true}]);
@@ -1395,6 +1465,9 @@ export default function HTSFormManagement() {
                   ></div>
                 </div>
               </div>
+
+              {/* Low Confidence Field Warnings */}
+              <OCRFieldWarnings extractedData={extractedData} />
 
               {/* View Mode: Read-only Fields */}
               {!isEditMode && (

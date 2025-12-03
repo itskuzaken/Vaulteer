@@ -2,6 +2,7 @@ const htsFormsRepository = require('../repositories/htsFormsRepository');
 const asyncHandler = require('../middleware/asyncHandler');
 const { enqueueOCRJob } = require('../jobs/textractQueue');
 const textractService = require('../services/textractService');
+const imageProcessor = require('../services/imageProcessor');
 
 const htsFormsController = {
   /**
@@ -33,13 +34,38 @@ const htsFormsController = {
       });
     }
 
-    console.log(`[OCR Analysis] Processing images: front=${frontImage.size} bytes, back=${backImage.size} bytes`);
+    console.log(`[OCR Analysis] Processing images with server-side enhancement...`);
+    console.log(`[OCR Analysis] Original sizes: front=${frontImage.size} bytes, back=${backImage.size} bytes`);
 
     try {
-      // Process raw images with Textract (OCR-first workflow)
+      // Validate images
+      const [frontValidation, backValidation] = await Promise.all([
+        imageProcessor.validateImage(frontImage.buffer),
+        imageProcessor.validateImage(backImage.buffer)
+      ]);
+
+      if (!frontValidation.valid || !backValidation.valid) {
+        return res.status(400).json({
+          error: 'Invalid images',
+          details: {
+            front: frontValidation.issues,
+            back: backValidation.issues
+          }
+        });
+      }
+
+      // Process images for optimal OCR
+      const [processedFront, processedBack] = await Promise.all([
+        imageProcessor.processForOCR(frontImage.buffer),
+        imageProcessor.processForOCR(backImage.buffer)
+      ]);
+
+      console.log(`[OCR Analysis] Processed sizes: front=${processedFront.length} bytes, back=${processedBack.length} bytes`);
+
+      // Send processed images to Textract
       const extractedData = await textractService.analyzeHTSForm(
-        frontImage.buffer,
-        backImage.buffer
+        processedFront,
+        processedBack
       );
 
       console.log(`[OCR Analysis] Extraction completed with ${extractedData.confidence}% confidence`);
@@ -51,7 +77,7 @@ const htsFormsController = {
       });
 
     } catch (error) {
-      console.error('[OCR Analysis] Textract error:', error);
+      console.error('[OCR Analysis] Error:', error);
 
       // Return user-friendly error message
       res.status(500).json({

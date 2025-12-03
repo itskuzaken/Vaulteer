@@ -4,6 +4,7 @@ const { decryptFormImages } = require('../utils/imageDecryption');
 const { getPool } = require('../db/pool');
 const fs = require('fs');
 const path = require('path');
+const templateMatcher = require('./templateMatcher');
 
 // Load DOH HTS Form 2021 metadata for field extraction
 const metadataPath = path.join(__dirname, '../assets/form-templates/hts/template-metadata.json');
@@ -14,6 +15,130 @@ try {
   console.log('✅ Loaded HTS Form metadata:', formMetadata.name);
 } catch (error) {
   console.warn('⚠️ Could not load form metadata:', error.message);
+}
+
+/**
+ * Multi-strategy field extraction with fallbacks
+ * Tries multiple extraction methods in priority order
+ * @param {Array} blocks - Textract blocks
+ * @param {Array} kvPairs - Key-value pairs from Textract
+ * @param {string} fieldName - Name of field to extract
+ * @param {Array} strategies - Array of strategy objects with type, priority, minConfidence
+ * @returns {Object} Extracted field data with highest confidence
+ */
+function extractFieldWithFallback(blocks, kvPairs, fieldName, strategies) {
+  const results = [];
+
+  // Try each strategy
+  for (const strategy of strategies) {
+    let result = null;
+
+    try {
+      switch (strategy.type) {
+        case 'template':
+          result = templateMatcher.extractFieldByTemplate(blocks, strategy.template, fieldName);
+          break;
+
+        case 'keyword':
+          result = extractByKeyword(blocks, strategy.keywords);
+          break;
+
+        case 'pattern':
+          result = extractByPattern(blocks, strategy.pattern);
+          break;
+
+        case 'kvpair':
+          result = extractFromKVPairs(kvPairs, strategy.keys);
+          break;
+
+        default:
+          console.warn(`[Fallback] Unknown strategy type: ${strategy.type}`);
+      }
+
+      if (result && result.confidence >= strategy.minConfidence) {
+        results.push({
+          ...result,
+          strategy: strategy.type,
+          priority: strategy.priority
+        });
+      }
+    } catch (error) {
+      console.error(`[Fallback] Error in ${strategy.type} strategy for ${fieldName}:`, error.message);
+    }
+  }
+
+  // Return highest confidence result
+  if (results.length > 0) {
+    results.sort((a, b) => b.confidence - a.confidence);
+    return results[0];
+  }
+
+  return {
+    text: null,
+    confidence: 0,
+    strategy: 'none'
+  };
+}
+
+/**
+ * Extract field by searching for keywords
+ */
+function extractByKeyword(blocks, keywords) {
+  const lines = extractTextLines(blocks);
+  
+  for (const line of lines) {
+    const lowerText = line.text.toLowerCase();
+    for (const keyword of keywords) {
+      if (lowerText.includes(keyword.toLowerCase())) {
+        return {
+          text: line.text,
+          confidence: line.confidence,
+          method: 'keyword'
+        };
+      }
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract field by pattern matching (regex)
+ */
+function extractByPattern(blocks, pattern) {
+  const lines = extractTextLines(blocks);
+  
+  for (const line of lines) {
+    const match = line.text.match(pattern);
+    if (match) {
+      return {
+        text: match[0],
+        confidence: line.confidence,
+        method: 'pattern'
+      };
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Extract field from key-value pairs
+ */
+function extractFromKVPairs(kvPairs, keys) {
+  for (const key of keys) {
+    for (const pair of kvPairs) {
+      if (pair.key.toLowerCase().includes(key.toLowerCase())) {
+        return {
+          text: pair.value,
+          confidence: pair.confidence,
+          method: 'kvpair'
+        };
+      }
+    }
+  }
+  
+  return null;
 }
 
 /**
