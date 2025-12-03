@@ -92,7 +92,7 @@ export default function HTSFormManagement() {
   });
 
   // Helper functions for modals
-  const showAlert = (title, message, type = "info", onConfirm = null) => {
+  const showAlert = useCallback((title, message, type = "info", onConfirm = null) => {
     setAlertModal({
       isOpen: true,
       title,
@@ -100,9 +100,9 @@ export default function HTSFormManagement() {
       type,
       onConfirm,
     });
-  };
+  }, []);
 
-  const closeAlert = () => {
+  const closeAlert = useCallback(() => {
     setAlertModal({
       isOpen: false,
       title: "",
@@ -110,9 +110,9 @@ export default function HTSFormManagement() {
       type: "info",
       onConfirm: null,
     });
-  };
+  }, []);
 
-  const showConfirm = (title, message, onConfirm, confirmText = "Confirm", cancelText = "Cancel") => {
+  const showConfirm = useCallback((title, message, onConfirm, confirmText = "Confirm", cancelText = "Cancel") => {
     setConfirmModal({
       isOpen: true,
       title,
@@ -121,9 +121,9 @@ export default function HTSFormManagement() {
       confirmText,
       cancelText,
     });
-  };
+  }, []);
 
-  const closeConfirm = () => {
+  const closeConfirm = useCallback(() => {
     setConfirmModal({
       isOpen: false,
       title: "",
@@ -132,7 +132,7 @@ export default function HTSFormManagement() {
       confirmText: "Confirm",
       cancelText: "Cancel",
     });
-  };
+  }, []);
 
   // Helper function to extract meaningful error messages
   const getErrorMessage = useCallback((error) => {
@@ -1127,7 +1127,7 @@ export default function HTSFormManagement() {
     return () => {
       stopCamera();
     };
-  }, []);
+  }, [stopCamera]);
 
   if (submitSuccess) {
     return (
