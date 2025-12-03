@@ -254,14 +254,35 @@ class OCRFieldExtractor {
    * @returns {Object|null} Extracted field data or null
    */
   extractFromQuery(queryResults, fieldName, fieldConfig) {
-    // Convert fieldName to query alias (e.g., firstName -> first_name)
-    const alias = fieldName.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
-    
-    const queryResult = queryResults[alias];
-    
-    if (!queryResult || !queryResult.text) {
+    if (!queryResults) {
       return null;
     }
+
+    // Try multiple alias formats to match query results
+    const aliases = [
+      fieldName.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, ''), // firstName -> first_name
+      fieldName.toLowerCase().replace(/([a-z])([A-Z])/g, '$1_$2'), // firstName -> first_name
+      fieldName.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase(), // testDate -> test_date
+      fieldName // Try exact match
+    ];
+    
+    let queryResult = null;
+    let matchedAlias = null;
+    
+    for (const alias of aliases) {
+      if (queryResults[alias] && queryResults[alias].text) {
+        queryResult = queryResults[alias];
+        matchedAlias = alias;
+        break;
+      }
+    }
+    
+    if (!queryResult || !queryResult.text) {
+      console.log(`[Query] No result for ${fieldName} (tried: ${aliases.join(', ')}) in ${Object.keys(queryResults).length} results`);
+      return null;
+    }
+
+    console.log(`[Query] ✓ Matched ${fieldName} → ${matchedAlias}: "${queryResult.text.substring(0, 50)}" (${queryResult.confidence}%)`);
 
     return {
       value: queryResult.text,
@@ -326,25 +347,42 @@ class OCRFieldExtractor {
   extractTextField(textractResult, fieldConfig, imageDimensions) {
     const region = fieldConfig.region;
     const blocks = textractResult.Blocks || [];
+    const lineBlocks = blocks.filter(b => b.BlockType === 'LINE' && b.Geometry);
+
+    console.log(`[TextField] Field: ${fieldConfig.label}, Total blocks: ${blocks.length}, LINE blocks: ${lineBlocks.length}, Region: x=${region.x.toFixed(3)}, y=${region.y.toFixed(3)}, w=${region.width.toFixed(3)}, h=${region.height.toFixed(3)}`);
+
+    // Add tolerance for region matching (5% of image)
+    const tolerance = 0.05;
 
     // Find blocks within the region
-    const blocksInRegion = blocks.filter(block => {
-      if (block.BlockType !== 'LINE' || !block.Geometry) return false;
-
+    const blocksInRegion = lineBlocks.filter(block => {
       const bbox = block.Geometry.BoundingBox;
       const blockCenterX = bbox.Left + bbox.Width / 2;
       const blockCenterY = bbox.Top + bbox.Height / 2;
 
-      // Check if block center is within region
-      return (
-        blockCenterX >= region.x &&
-        blockCenterX <= region.x + region.width &&
-        blockCenterY >= region.y &&
-        blockCenterY <= region.y + region.height
+      // Region uses normalized coordinates (0-1)
+      const regionLeft = region.x;
+      const regionRight = region.x + region.width;
+      const regionTop = region.y;
+      const regionBottom = region.y + region.height;
+
+      // Check if block center is within region (with tolerance)
+      const inRegion = (
+        blockCenterX >= (regionLeft - tolerance) &&
+        blockCenterX <= (regionRight + tolerance) &&
+        blockCenterY >= (regionTop - tolerance) &&
+        blockCenterY <= (regionBottom + tolerance)
       );
+
+      if (inRegion) {
+        console.log(`[TextField Match] "${block.Text}" at (${blockCenterX.toFixed(3)}, ${blockCenterY.toFixed(3)})`);
+      }
+
+      return inRegion;
     });
 
     if (blocksInRegion.length === 0) {
+      console.log(`[TextField] No blocks found for ${fieldConfig.label}`);
       return {
         value: null,
         confidence: 0,
@@ -389,12 +427,22 @@ class OCRFieldExtractor {
     const options = fieldConfig.options || [];
     const results = [];
 
+    console.log(`[Checkbox] Field: ${fieldConfig.label}, Options: ${options.length}, Image: ${imageDimensions.width}x${imageDimensions.height}`);
+
     for (const option of options) {
+      console.log(`[Checkbox] Checking option "${option.value}" at region: x=${option.checkbox.x}, y=${option.checkbox.y}, w=${option.checkbox.width}, h=${option.checkbox.height}`);
+      
       const detection = await this.checkboxDetector.detectCheckbox(
         imageBuffer,
         option.checkbox,
         imageDimensions
       );
+
+      if (detection.error) {
+        console.warn(`[Checkbox] Error for option "${option.value}": ${detection.error}`);
+      } else {
+        console.log(`[Checkbox] Option "${option.value}": checked=${detection.checked}, confidence=${detection.confidence.toFixed(2)}, density=${detection.pixelDensity.toFixed(3)}`);
+      }
 
       results.push({
         value: option.value,
@@ -783,6 +831,27 @@ class OCRFieldExtractor {
       });
 
       const response = await textractClient.send(command);
+      
+      // Debug logging
+      console.log(`[Textract Response] Blocks: ${response.Blocks?.length || 0}`);
+      console.log(`[Textract Response] Pages: ${response.DocumentMetadata?.Pages || 0}`);
+      
+      if (!response.Blocks || response.Blocks.length === 0) {
+        console.error('[Textract Response] ❌ No blocks returned!');
+      } else {
+        const blockTypes = {};
+        response.Blocks.forEach(b => {
+          blockTypes[b.BlockType] = (blockTypes[b.BlockType] || 0) + 1;
+        });
+        console.log(`[Textract Response] Block types: ${JSON.stringify(blockTypes)}`);
+        
+        // Sample first few LINE blocks
+        const lineBlocks = response.Blocks.filter(b => b.BlockType === 'LINE').slice(0, 3);
+        lineBlocks.forEach(b => {
+          console.log(`[Textract Sample] "${b.Text}" at (${b.Geometry?.BoundingBox?.Left?.toFixed(3)}, ${b.Geometry?.BoundingBox?.Top?.toFixed(3)})`);
+        });
+      }
+      
       return response;
     } catch (error) {
       console.error('[OCRFieldExtractor] Textract error:', error.message);

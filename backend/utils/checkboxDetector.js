@@ -85,11 +85,27 @@ class CheckboxDetector {
    * @returns {Object} Pixel coordinates
    */
   transformCoordinates(relativeBox, imageWidth, imageHeight) {
+    // Calculate pixel coordinates
+    const left = Math.floor(relativeBox.x * imageWidth);
+    const top = Math.floor(relativeBox.y * imageHeight);
+    const width = Math.floor(relativeBox.width * imageWidth);
+    const height = Math.floor(relativeBox.height * imageHeight);
+    
+    // Bounds checking - ensure coordinates are within image bounds
+    const boundedLeft = Math.max(0, Math.min(left, imageWidth - 1));
+    const boundedTop = Math.max(0, Math.min(top, imageHeight - 1));
+    const boundedWidth = Math.max(1, Math.min(width, imageWidth - boundedLeft));
+    const boundedHeight = Math.max(1, Math.min(height, imageHeight - boundedTop));
+    
+    // Log if coordinates were adjusted
+    if (boundedLeft !== left || boundedTop !== top || boundedWidth !== width || boundedHeight !== height) {
+      console.warn(`[CheckboxDetector] Bounds adjusted: (${left},${top},${width}x${height}) \u2192 (${boundedLeft},${boundedTop},${boundedWidth}x${boundedHeight}) for image ${imageWidth}x${imageHeight}`);\n    }
+    
     return {
-      left: Math.floor(relativeBox.x * imageWidth),
-      top: Math.floor(relativeBox.y * imageHeight),
-      width: Math.floor(relativeBox.width * imageWidth),
-      height: Math.floor(relativeBox.height * imageHeight)
+      left: boundedLeft,
+      top: boundedTop,
+      width: boundedWidth,
+      height: boundedHeight
     };
   }
 
