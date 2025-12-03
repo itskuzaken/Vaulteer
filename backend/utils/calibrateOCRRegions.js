@@ -199,6 +199,92 @@ class OCRRegionCalibrator {
   }
 
   /**
+   * Apply calibration automatically based on query results
+   * Updates template metadata with improved coordinates
+   * @param {Object} queryResults - Query results from Textract
+   * @param {number} confidenceThreshold - Minimum confidence to apply (default: 85%)
+   * @returns {Object} Update statistics
+   */
+  autoCalibrate(queryResults, confidenceThreshold = 85) {
+    const updates = { front: {}, back: {} };
+    const stats = { front: 0, back: 0, skipped: 0 };
+
+    for (const pageName of ['front', 'back']) {
+      const pageResults = queryResults[pageName] || {};
+      const fieldConfigs = this.template.ocrMapping[pageName].fields;
+
+      for (const [fieldName, fieldConfig] of Object.entries(fieldConfigs)) {
+        const queryAlias = this.getQueryAlias(fieldName, pageResults);
+        
+        if (queryAlias && pageResults[queryAlias]) {
+          const queryResult = pageResults[queryAlias];
+          
+          // Only auto-calibrate high-confidence results
+          if (queryResult.confidence >= confidenceThreshold && queryResult.boundingBox) {
+            const bbox = queryResult.boundingBox;
+            const newRegion = {
+              x: parseFloat(bbox.Left.toFixed(3)),
+              y: parseFloat(bbox.Top.toFixed(3)),
+              width: parseFloat(bbox.Width.toFixed(3)),
+              height: parseFloat(bbox.Height.toFixed(3))
+            };
+
+            // Calculate distance from current region
+            const currentRegion = fieldConfig.region || {};
+            const distance = this.calculateDistance(currentRegion, newRegion);
+
+            // Only update if distance is significant (> 2%)
+            if (distance > 0.02) {
+              updates[pageName][fieldName] = newRegion;
+              stats[pageName]++;
+            }
+          } else {
+            stats.skipped++;
+          }
+        }
+      }
+    }
+
+    return { updates, stats };
+  }
+
+  /**
+   * Calculate distance between two regions
+   */
+  calculateDistance(region1, region2) {
+    if (!region1.x || !region2.x) return 1; // Max distance if missing
+
+    const centerX1 = region1.x + (region1.width || 0) / 2;
+    const centerY1 = region1.y + (region1.height || 0) / 2;
+    const centerX2 = region2.x + region2.width / 2;
+    const centerY2 = region2.y + region2.height / 2;
+
+    const distanceX = Math.abs(centerX1 - centerX2);
+    const distanceY = Math.abs(centerY1 - centerY2);
+
+    return Math.sqrt(distanceX * distanceX + distanceY * distanceY);
+  }
+
+  /**
+   * Apply calibration updates to template (in-memory only, does not save)
+   */
+  applyUpdates(updates) {
+    let totalUpdated = 0;
+
+    for (const [pageName, pageUpdates] of Object.entries(updates)) {
+      for (const [fieldName, newRegion] of Object.entries(pageUpdates)) {
+        if (this.template.ocrMapping[pageName].fields[fieldName]) {
+          this.template.ocrMapping[pageName].fields[fieldName].region = newRegion;
+          totalUpdated++;
+        }
+      }
+    }
+
+    console.log(`✅ Applied ${totalUpdated} calibration updates to template (in-memory)`);
+    return totalUpdated;
+  }
+
+  /**
    * Apply suggested coordinate updates to template metadata
    */
   applyCalibration(suggestions, outputPath = null) {

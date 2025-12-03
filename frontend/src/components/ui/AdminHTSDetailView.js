@@ -236,13 +236,16 @@ const AdminFieldSection = ({ title, fields, extractedData }) => {
   }
   
   return (
-    <div className="mb-6">
-      <h5 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1 flex items-center gap-2">
-        <span>{title}</span>
-        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">
+    <section className="mb-8">
+      <div className="flex items-center gap-3 mb-4">
+        <h5 className="text-base font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+          {title}
+        </h5>
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
           {fields.filter(f => extractedData[f]).length} / {fields.length} fields
         </span>
-      </h5>
+        <div className="flex-1 h-px bg-gradient-to-r from-gray-300 dark:from-gray-700 to-transparent"></div>
+      </div>
       <div className="space-y-4">
         {fields.map((field) => {
           if (!extractedData[field]) return null;
@@ -257,7 +260,7 @@ const AdminFieldSection = ({ title, fields, extractedData }) => {
           );
         })}
       </div>
-    </div>
+    </section>
   );
 };
 

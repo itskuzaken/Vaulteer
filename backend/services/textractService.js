@@ -270,13 +270,39 @@ async function processBatchQueries(imageBuffer, batches) {
   for (let i = 0; i < batches.length; i++) {
     console.log(`  📋 Processing batch ${i + 1}/${batches.length} (${batches[i].length} queries)...`);
     
-    const textractResult = await analyzeDocumentWithQueries(imageBuffer, batches[i]);
-    const batchResults = extractFromQueryResults(textractResult.Blocks || []);
+    try {
+      const textractResult = await analyzeDocumentWithQueries(imageBuffer, batches[i]);
+      const batchResults = extractFromQueryResults(textractResult.Blocks || []);
+      
+      // Merge results
+      Object.assign(allResults, batchResults);
+      
+      console.log(`  ✅ Batch ${i + 1} complete: ${Object.keys(batchResults).length} fields extracted`);
+    } catch (error) {
+      if (error.name === 'ProvisionedThroughputExceededException') {
+        console.warn(`  ⚠️ Rate limit hit on batch ${i + 1}, retrying after delay...`);
+        
+        // Exponential backoff: wait longer for each retry
+        const delay = Math.min(5000 * Math.pow(2, i), 30000); // Max 30s
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Retry this batch
+        const textractResult = await analyzeDocumentWithQueries(imageBuffer, batches[i]);
+        const batchResults = extractFromQueryResults(textractResult.Blocks || []);
+        Object.assign(allResults, batchResults);
+        
+        console.log(`  ✅ Batch ${i + 1} complete after retry: ${Object.keys(batchResults).length} fields extracted`);
+      } else {
+        throw error;
+      }
+    }
     
-    // Merge results
-    Object.assign(allResults, batchResults);
-    
-    console.log(`  ✅ Batch ${i + 1} complete: ${Object.keys(batchResults).length} fields extracted`);
+    // Add delay between batches to avoid rate limiting (only if more batches remain)
+    if (i < batches.length - 1) {
+      const delayMs = 2000; // 2 second delay between batches
+      console.log(`  ⏳ Waiting ${delayMs}ms before next batch...`);
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
   }
   
   return allResults;
@@ -1053,11 +1079,19 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
       console.log(`📊 Front page: ${frontQueries.length} queries in ${frontBatches.length} batch(es)`);
       console.log(`📊 Back page: ${backQueries.length} queries in ${backBatches.length} batch(es)`);
       
-      // Process all batches in parallel
-      const [frontResults, backResults] = await Promise.all([
-        processBatchQueries(frontImageBuffer, frontBatches),
-        processBatchQueries(backImageBuffer, backBatches)
-      ]);
+      // Process batches SEQUENTIALLY to avoid rate limiting
+      // First process front page, then back page with delay between them
+      console.log('🔄 Processing front page batches...');
+      const frontResults = await processBatchQueries(frontImageBuffer, frontBatches);
+      
+      // Add delay between front and back processing
+      if (backBatches.length > 0) {
+        console.log('⏳ Waiting 2s before processing back page...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+      
+      console.log('🔄 Processing back page batches...');
+      const backResults = await processBatchQueries(backImageBuffer, backBatches);
 
       // Merge results from all batches
       queryResults = {
@@ -1067,6 +1101,21 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
 
       const totalFields = Object.keys(queryResults.front).length + Object.keys(queryResults.back).length;
       console.log(`✅ Query extraction complete: Front=${Object.keys(queryResults.front).length}, Back=${Object.keys(queryResults.back).length}, Total=${totalFields}`);
+      
+      // Auto-calibrate template coordinates based on high-confidence query results
+      try {
+        const calibrator = new OCRRegionCalibrator();
+        const calibrationResult = calibrator.autoCalibrate(queryResults, 85);
+        
+        if (calibrationResult.stats.front > 0 || calibrationResult.stats.back > 0) {
+          console.log(`🎯 [Auto-Calibration] Front: ${calibrationResult.stats.front} fields, Back: ${calibrationResult.stats.back} fields, Skipped: ${calibrationResult.stats.skipped}`);
+          
+          // Apply updates to in-memory template for this request
+          calibrator.applyUpdates(calibrationResult.updates);
+        }
+      } catch (calibError) {
+        console.warn('⚠️ [Auto-Calibration] Failed:', calibError.message);
+      }
       
       // Generate calibration report if in development/debug mode
       if (process.env.OCR_DEBUG === 'true' || process.env.NODE_ENV === 'development') {
