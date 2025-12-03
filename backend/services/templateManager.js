@@ -116,7 +116,8 @@ class TemplateManager {
     try {
       // Increment version patch number
       const versionParts = this.version.split('.');
-      versionParts[2] = parseInt(versionParts[2]) + 1;
+      const patchNumber = parseInt(versionParts[2]) || 0;
+      versionParts[2] = patchNumber + 1;
       this.version = versionParts.join('.');
       this.template.version = this.version;
       this.template.lastCalibrated = new Date().toISOString();

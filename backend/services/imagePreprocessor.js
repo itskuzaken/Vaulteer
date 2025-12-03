@@ -151,7 +151,11 @@ class ImagePreprocessor {
     const brightness = stats.channels.reduce((sum, ch) => sum + ch.mean, 0) / stats.channels.length;
     
     // Calculate contrast (average of channel standard deviations)
-    const contrast = stats.channels.reduce((sum, ch) => sum + Math.sqrt(ch.variance), 0) / stats.channels.length;
+    // Handle NaN by checking if variance exists and is valid
+    const contrast = stats.channels.reduce((sum, ch) => {
+      const variance = ch.variance || 0;
+      return sum + (variance >= 0 ? Math.sqrt(variance) : 0);
+    }, 0) / stats.channels.length;
 
     // Estimate blur using Laplacian variance
     const blurScore = await this.estimateBlur(imageBuffer);

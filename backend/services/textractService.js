@@ -330,12 +330,14 @@ function generateHTSFormQueries(page = 'front') {
       { text: "What is the patient's name suffix such as Jr, Sr, III, or IV?", alias: 'suffix' },
       { text: "What is the patient's date of birth in MM/DD/YYYY format?", alias: 'birth_date' },
       { text: "What is the patient's age in years as a number?", alias: 'age' },
+      { text: "What is the age in months for infants less than 1 year old?", alias: 'age_months' },
       { text: 'What is the patient\'s sex - Male or Female?', alias: 'sex' },
       { text: "What is the patient's civil status - Single, Married, Separated, Widowed, or Divorced?", alias: 'civil_status' },
       
       // Complex fields that benefit from NLP
       { text: "What are the first 2 letters of mother's first name?", alias: 'parental_code_mother' },
       { text: "What are the first 2 letters of father's first name?", alias: 'parental_code_father' },
+      { text: "What is the birth order number among mother's children?", alias: 'birth_order' },
       { text: "What is the patient's nationality?", alias: 'nationality' }
       // Note: Other fields will use coordinate-based extraction as fallback
     ],
@@ -355,6 +357,8 @@ function generateHTSFormQueries(page = 'front') {
       { text: 'Has the patient been tested for HIV before?', alias: 'previously_tested' },
       { text: 'What was the previous HIV test result?', alias: 'previous_test_result' },
       { text: 'When was the previous HIV test date?', alias: 'previous_test_date' },
+      { text: 'Where was the previous HIV test conducted - what facility or provider?', alias: 'previous_test_provider' },
+      { text: 'In what city or municipality was the previous HIV test conducted?', alias: 'previous_test_city' },
       
       // Facility information
       { text: 'What is the name of the testing facility at the bottom?', alias: 'testing_facility' },
