@@ -20,6 +20,7 @@ import {
 } from "../../../services/cameraPermissionService";
 import { validateImageQuality, validateQuality, captureMultipleFrames } from "../../../utils/imageQualityValidator";
 import { preprocessImage, dataURLtoBlob as preprocessDataURLtoBlob } from "../../../utils/imagePreprocessor";
+import { detectFormPosition, quickFormCheck, checkLightingConditions } from "../../../utils/formDetector";
 
 export default function HTSFormManagement() {
   const [activeTab, setActiveTab] = useState("submit"); // 'submit' or 'history'
@@ -40,6 +41,17 @@ export default function HTSFormManagement() {
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const metadataTimeoutRef = useRef(null);
+  const autoCaptureIntervalRef = useRef(null);
+  const autoCaptureCountdownRef = useRef(null);
+
+  // Auto-capture state
+  const [autoCapture, setAutoCapture] = useState(true); // Enable by default
+  const [formDetection, setFormDetection] = useState({
+    detected: false,
+    confidence: 0,
+    feedback: 'Position form in frame',
+    countdown: null
+  });
 
   // OCR-first workflow state
   const [extractedData, setExtractedData] = useState(null);
@@ -159,6 +171,17 @@ export default function HTSFormManagement() {
         metadataTimeoutRef.current = null;
       }
       
+      // Stop auto-capture detection
+      if (autoCaptureIntervalRef.current) {
+        clearInterval(autoCaptureIntervalRef.current);
+        autoCaptureIntervalRef.current = null;
+      }
+      
+      if (autoCaptureCountdownRef.current) {
+        clearTimeout(autoCaptureCountdownRef.current);
+        autoCaptureCountdownRef.current = null;
+      }
+      
       // Stop camera on unmount
       if (streamRef.current) {
         stopCameraStream(streamRef.current);
@@ -166,6 +189,106 @@ export default function HTSFormManagement() {
       }
     };
   }, []);
+
+  // Auto-capture form detection loop
+  useEffect(() => {
+    if (!autoCapture || !isVideoReady || !videoRef.current || !isCameraOpen) {
+      // Reset detection state when auto-capture is disabled or camera not ready
+      setFormDetection({
+        detected: false,
+        confidence: 0,
+        feedback: 'Position form in frame',
+        countdown: null
+      });
+      
+      // Clear any existing intervals
+      if (autoCaptureIntervalRef.current) {
+        clearInterval(autoCaptureIntervalRef.current);
+        autoCaptureIntervalRef.current = null;
+      }
+      return;
+    }
+
+    console.log('🤖 Auto-capture enabled, starting form detection...');
+
+    // Check form position every 500ms
+    autoCaptureIntervalRef.current = setInterval(() => {
+      if (!videoRef.current || !isVideoReady) return;
+
+      const video = videoRef.current;
+      
+      // Create canvas for detection
+      const detectionCanvas = document.createElement('canvas');
+      detectionCanvas.width = video.videoWidth;
+      detectionCanvas.height = video.videoHeight;
+      const ctx = detectionCanvas.getContext('2d');
+      ctx.drawImage(video, 0, 0);
+
+      // Quick form check first (faster)
+      const quickCheck = quickFormCheck(detectionCanvas);
+      
+      if (quickCheck.likelyDocument && quickCheck.confidence > 30) {
+        // Do full detection
+        const detection = detectFormPosition(detectionCanvas);
+        
+        setFormDetection({
+          detected: detection.detected,
+          confidence: detection.confidence,
+          feedback: detection.feedback,
+          countdown: null
+        });
+
+        // If form is well-positioned, start countdown
+        if (detection.detected && detection.confidence >= 85) {
+          console.log('✨ Form detected! Starting auto-capture countdown...');
+          triggerAutoCaptureCountdown();
+        }
+      } else {
+        setFormDetection({
+          detected: false,
+          confidence: quickCheck.confidence,
+          feedback: 'Position HTS form in frame',
+          countdown: null
+        });
+      }
+    }, 500);
+
+    return () => {
+      if (autoCaptureIntervalRef.current) {
+        clearInterval(autoCaptureIntervalRef.current);
+        autoCaptureIntervalRef.current = null;
+      }
+    };
+  }, [autoCapture, isVideoReady, isCameraOpen]);
+
+  const triggerAutoCaptureCountdown = () => {
+    // Prevent multiple countdowns
+    if (autoCaptureCountdownRef.current || formDetection.countdown) {
+      return;
+    }
+
+    let countdown = 3;
+    setFormDetection(prev => ({ ...prev, countdown }));
+
+    const countdownInterval = setInterval(() => {
+      countdown--;
+      
+      if (countdown === 0) {
+        clearInterval(countdownInterval);
+        autoCaptureCountdownRef.current = null;
+        
+        // Trigger capture
+        console.log('📸 Auto-capturing image...');
+        captureImage();
+        
+        setFormDetection(prev => ({ ...prev, countdown: null }));
+      } else {
+        setFormDetection(prev => ({ ...prev, countdown }));
+      }
+    }, 1000);
+
+    autoCaptureCountdownRef.current = countdownInterval;
+  };
 
   const startCamera = async (side) => {
     // Check if image already exists for this side
@@ -1166,6 +1289,62 @@ export default function HTSFormManagement() {
                   className="w-full object-cover rounded-lg"
                   style={{ aspectRatio: '3/4', maxHeight: '60vh' }}
                 />
+                
+                {/* Auto-capture detection overlay */}
+                {autoCapture && isVideoReady && (
+                  <div className="absolute inset-0 pointer-events-none">
+                    {/* Detection frame guide */}
+                    <div className={`absolute inset-8 border-4 rounded-lg transition-all duration-300 ${
+                      formDetection.detected 
+                        ? 'border-green-500 shadow-lg shadow-green-500/50' 
+                        : 'border-yellow-500/50'
+                    }`}>
+                      {/* Corner markers */}
+                      <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-white -mt-1 -ml-1" />
+                      <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-white -mt-1 -mr-1" />
+                      <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-white -mb-1 -ml-1" />
+                      <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-white -mb-1 -mr-1" />
+                    </div>
+
+                    {/* Detection feedback */}
+                    <div className="absolute top-4 left-4 right-4 bg-black/70 backdrop-blur-sm rounded-lg px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${
+                          formDetection.detected ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'
+                        }`} />
+                        <div className="flex-1">
+                          <p className="text-white text-sm font-medium">
+                            {formDetection.feedback}
+                          </p>
+                          {formDetection.confidence > 0 && (
+                            <div className="mt-1 h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                              <div 
+                                className={`h-full transition-all duration-300 ${
+                                  formDetection.confidence >= 85 ? 'bg-green-500' : 
+                                  formDetection.confidence >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${formDetection.confidence}%` }}
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Countdown overlay */}
+                    {formDetection.countdown && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <div className="text-center">
+                          <div className="text-8xl font-bold text-white animate-ping-once">
+                            {formDetection.countdown}
+                          </div>
+                          <p className="text-white text-lg mt-4">Capturing...</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
                 {/* Real-time quality indicator */}
                 <CameraQualityIndicator videoRef={videoRef} isActive={isVideoReady} />
                 {!isVideoReady && (
@@ -1178,6 +1357,31 @@ export default function HTSFormManagement() {
                 )}
               </div>
               <canvas ref={canvasRef} style={{ display: "none" }} />
+              
+              {/* Auto-capture toggle */}
+              <div className="w-full mb-3 flex items-center justify-between bg-gray-50 dark:bg-gray-900/50 rounded-lg px-4 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    🤖 Auto-Capture
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    {autoCapture ? 'Enabled' : 'Disabled'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setAutoCapture(!autoCapture)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    autoCapture ? 'bg-primary-red' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      autoCapture ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
+
               <div className="flex gap-3 sm:gap-4 w-full flex-shrink-0">
                 <Button 
                   onClick={captureImage} 
