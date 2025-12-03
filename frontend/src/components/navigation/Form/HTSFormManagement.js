@@ -259,7 +259,7 @@ export default function HTSFormManagement() {
         autoCaptureIntervalRef.current = null;
       }
     };
-  }, [autoCapture, isVideoReady, isCameraOpen]);
+  }, [autoCapture, isVideoReady, isCameraOpen, triggerAutoCaptureCountdown]);
 
   const triggerAutoCaptureCountdown = () => {
     // Prevent multiple countdowns
