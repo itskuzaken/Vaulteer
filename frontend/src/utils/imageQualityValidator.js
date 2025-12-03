@@ -77,13 +77,13 @@ function checkBrightness(imageData) {
   
   const avgBrightness = totalBrightness / (data.length / 4);
   
-  // Ideal range: 120-200
-  const pass = avgBrightness >= 100 && avgBrightness <= 220;
+  // Ideal range: 120-200 (stricter thresholds)
+  const pass = avgBrightness >= 110 && avgBrightness <= 210;
   const score = pass ? 100 : Math.max(0, 100 - Math.abs(160 - avgBrightness));
   
   let message = 'Lighting OK';
-  if (avgBrightness < 100) message = 'Too dark - increase lighting';
-  if (avgBrightness > 220) message = 'Too bright - reduce lighting/glare';
+  if (avgBrightness < 110) message = 'Too dark - increase lighting';
+  if (avgBrightness > 210) message = 'Too bright - reduce lighting/glare';
   
   return { pass, score, value: avgBrightness, message };
 }
@@ -106,15 +106,15 @@ function checkContrast(imageData) {
   const variance = grayscale.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / grayscale.length;
   const stdDev = Math.sqrt(variance);
   
-  // Good contrast: stdDev > 40
-  const pass = stdDev > 30;
+  // Good contrast: stdDev > 35 (stricter threshold)
+  const pass = stdDev > 35;
   const score = Math.min(100, (stdDev / 60) * 100);
   
   return {
     pass,
     score,
     value: stdDev,
-    message: stdDev < 30 ? 'Low contrast - adjust lighting' : 'Contrast OK'
+    message: stdDev < 35 ? 'Low contrast - adjust lighting' : 'Contrast OK'
   };
 }
 
@@ -149,15 +149,15 @@ function checkBlur(imageData) {
   const avgVariance = variance / count;
   
   // Higher variance = sharper image
-  // Threshold: > 10 for acceptable sharpness
-  const pass = avgVariance > 8;
+  // Threshold: > 10 for acceptable sharpness (stricter)
+  const pass = avgVariance > 10;
   const score = Math.min(100, (avgVariance / 15) * 100);
   
   return {
     pass,
     score,
     value: avgVariance,
-    message: avgVariance < 8 ? 'Image too blurry - hold camera steady' : 'Sharpness OK'
+    message: avgVariance < 10 ? 'Image too blurry - hold camera steady' : 'Sharpness OK'
   };
 }
 
@@ -223,4 +223,98 @@ function loadImage(dataURL) {
     img.onerror = reject;
     img.src = dataURL;
   });
+}
+
+/**
+ * Validate quality directly from canvas element
+ * @param {HTMLCanvasElement} canvas - Canvas element containing the image
+ * @returns {Promise<Object>} Quality validation result
+ */
+export async function validateQuality(canvas) {
+  const ctx = canvas.getContext('2d');
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  
+  // Quality checks
+  const checks = {
+    resolution: checkResolution(canvas.width, canvas.height),
+    brightness: checkBrightness(imageData),
+    contrast: checkContrast(imageData),
+    blur: checkBlur(imageData)
+  };
+  
+  const isValid = Object.values(checks).every(check => check.pass);
+  const failedChecks = Object.values(checks).filter(check => !check.pass);
+  
+  return {
+    isValid,
+    checks,
+    brightness: checks.brightness.value,
+    contrast: checks.contrast.value,
+    blurScore: checks.blur.value,
+    message: isValid ? 'Quality OK' : failedChecks[0].message
+  };
+}
+
+/**
+ * Capture multiple frames and select the best quality one
+ * @param {HTMLVideoElement} videoElement - The video element
+ * @param {number} frameCount - Number of frames to capture (default: 3)
+ * @param {number} delayMs - Delay between captures in ms (default: 300)
+ * @returns {Promise<{canvas, quality}>} Best frame and its quality metrics
+ */
+export async function captureMultipleFrames(videoElement, frameCount = 3, delayMs = 300) {
+  const frames = [];
+  
+  for (let i = 0; i < frameCount; i++) {
+    if (i > 0) {
+      await new Promise(resolve => setTimeout(resolve, delayMs));
+    }
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = videoElement.videoWidth;
+    canvas.height = videoElement.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(videoElement, 0, 0);
+    
+    const quality = await validateQuality(canvas);
+    
+    if (quality.isValid) {
+      frames.push({ 
+        canvas, 
+        quality,
+        score: calculateFrameQualityScore(quality)
+      });
+    }
+  }
+  
+  if (frames.length === 0) {
+    return null;
+  }
+  
+  // Return frame with highest quality score
+  frames.sort((a, b) => b.score - a.score);
+  return frames[0];
+}
+
+/**
+ * Calculate overall quality score for frame selection
+ * @param {Object} quality - Quality validation result
+ * @returns {number} Quality score (higher is better)
+ */
+function calculateFrameQualityScore(quality) {
+  let score = 100;
+  
+  // Penalize based on distance from ideal values
+  const idealBrightness = 160;
+  const brightnessPenalty = Math.abs(quality.brightness - idealBrightness) / 2;
+  score -= brightnessPenalty;
+  
+  // Reward high contrast (ideal ~50)
+  const contrastBonus = Math.min(quality.contrast, 50);
+  score += contrastBonus / 2;
+  
+  // Reward sharp images (higher blur score)
+  score += Math.min(quality.blurScore, 30);
+  
+  return score;
 }
