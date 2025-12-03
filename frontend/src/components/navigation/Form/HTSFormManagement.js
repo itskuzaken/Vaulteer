@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { IoCamera, IoClose, IoCheckmark, IoCloudUploadOutline, IoDocumentText, IoTime, IoCheckmarkCircle, IoAlertCircle, IoHourglassOutline, IoAddCircle, IoListOutline, IoEyeOutline } from "react-icons/io5";
+import { IoCamera, IoClose, IoCheckmark, IoCloudUploadOutline, IoDocumentText, IoTime, IoCheckmarkCircle, IoAlertCircle, IoHourglassOutline, IoAddCircle, IoListOutline, IoEyeOutline, IoFlashlight } from "react-icons/io5";
 import { getAuth } from "firebase/auth";
 import Button from "../../ui/Button";
 import ImageLightbox from "../../ui/ImageLightbox";
@@ -37,6 +37,8 @@ export default function HTSFormManagement() {
   const [hasAttemptedCameraRequest, setHasAttemptedCameraRequest] = useState(false);
   const [isRequestingCameraPermission, setIsRequestingCameraPermission] = useState(false);
   const [isVideoReady, setIsVideoReady] = useState(false);
+  const [isFlashlightOn, setIsFlashlightOn] = useState(false);
+  const [isFlashlightSupported, setIsFlashlightSupported] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -258,6 +260,16 @@ export default function HTSFormManagement() {
             setIsVideoReady(true);
             clearInterval(checkInterval);
             
+            // Check if flashlight/torch is supported
+            const track = stream.getVideoTracks()[0];
+            if (track) {
+              const capabilities = track.getCapabilities();
+              if (capabilities.torch) {
+                setIsFlashlightSupported(true);
+                console.log('💡 Flashlight supported on this device');
+              }
+            }
+            
             // Ensure video is playing
             if (video.paused) {
               video.play().catch(err => console.warn("Play error:", err));
@@ -317,11 +329,56 @@ export default function HTSFormManagement() {
       
       setIsCameraOpen(false);
       setIsVideoReady(false);
+      setIsFlashlightOn(false);
+      setIsFlashlightSupported(false);
       console.log('✅ Camera stopped successfully');
     } catch (error) {
       console.error('❌ Error stopping camera:', error);
     }
   }, []);
+
+  const toggleFlashlight = useCallback(async () => {
+    try {
+      if (!streamRef.current) {
+        console.warn('⚠️ No camera stream available for flashlight');
+        return;
+      }
+
+      const track = streamRef.current.getVideoTracks()[0];
+      if (!track) {
+        console.warn('⚠️ No video track found');
+        return;
+      }
+
+      // Check if torch is supported
+      const capabilities = track.getCapabilities();
+      if (!capabilities.torch) {
+        console.warn('⚠️ Flashlight not supported on this device');
+        showAlert(
+          "Flashlight Not Supported",
+          "Your device does not support flashlight control.",
+          "warning"
+        );
+        return;
+      }
+
+      // Toggle torch
+      const newState = !isFlashlightOn;
+      await track.applyConstraints({
+        advanced: [{ torch: newState }]
+      });
+      
+      setIsFlashlightOn(newState);
+      console.log(`💡 Flashlight ${newState ? 'ON' : 'OFF'}`);
+    } catch (error) {
+      console.error('❌ Error toggling flashlight:', error);
+      showAlert(
+        "Flashlight Error",
+        "Failed to toggle flashlight. This feature may not be supported on your device.",
+        "error"
+      );
+    }
+  }, [isFlashlightOn, showAlert]);
 
   const finalizeCaptureImage = async (step, imageData) => {
     try {
@@ -1188,34 +1245,50 @@ export default function HTSFormManagement() {
               </div>
               <canvas ref={canvasRef} style={{ display: "none" }} />
 
-              <div className="flex gap-3 sm:gap-4 w-full flex-shrink-0">
-                <Button 
-                  onClick={captureImage} 
-                  variant="primary" 
-                  className="gap-2 px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg flex-1"
-                  disabled={isRequestingCameraPermission || !isVideoReady}
-                >
-                  {!isVideoReady ? (
-                    <>
-                      <span className="animate-spin h-5 w-5 border-b-2 border-white rounded-full" />
-                      <span className="hidden sm:inline">Initializing...</span>
-                    </>
-                  ) : (
-                    <>
-                      <IoCamera className="w-5 h-5 sm:w-6 sm:h-6" />
-                      <span className="hidden xs:inline">Capture</span>
-                      <span className="xs:hidden">Take Photo</span>
-                    </>
-                  )}
-                </Button>
-                <Button 
-                  onClick={stopCamera} 
-                  variant="secondary" 
-                  className="gap-2 px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg flex-1"
-                >
-                  <IoClose className="w-5 h-5 sm:w-6 sm:h-6" />
-                  Cancel
-                </Button>
+              <div className="flex flex-col gap-3 w-full flex-shrink-0">
+                {/* Flashlight Button - Only show if supported */}
+                {isFlashlightSupported && (
+                  <Button 
+                    onClick={toggleFlashlight} 
+                    variant={isFlashlightOn ? "primary" : "secondary"}
+                    className="gap-2 px-4 py-2 text-sm w-full"
+                    disabled={!isVideoReady}
+                  >
+                    <IoFlashlight className={`w-5 h-5 ${isFlashlightOn ? 'text-yellow-300' : ''}`} />
+                    {isFlashlightOn ? 'Flashlight On' : 'Flashlight Off'}
+                  </Button>
+                )}
+                
+                {/* Main Controls */}
+                <div className="flex gap-3 sm:gap-4 w-full">
+                  <Button 
+                    onClick={captureImage} 
+                    variant="primary" 
+                    className="gap-2 px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg flex-1"
+                    disabled={isRequestingCameraPermission || !isVideoReady}
+                  >
+                    {!isVideoReady ? (
+                      <>
+                        <span className="animate-spin h-5 w-5 border-b-2 border-white rounded-full" />
+                        <span className="hidden sm:inline">Initializing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <IoCamera className="w-5 h-5 sm:w-6 sm:h-6" />
+                        <span className="hidden xs:inline">Capture</span>
+                        <span className="xs:hidden">Take Photo</span>
+                      </>
+                    )}
+                  </Button>
+                  <Button 
+                    onClick={stopCamera} 
+                    variant="secondary" 
+                    className="gap-2 px-4 sm:px-6 py-2 sm:py-3 text-base sm:text-lg flex-1"
+                  >
+                    <IoClose className="w-5 h-5 sm:w-6 sm:h-6" />
+                    Cancel
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
