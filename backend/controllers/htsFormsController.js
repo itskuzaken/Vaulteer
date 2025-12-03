@@ -3,6 +3,7 @@ const asyncHandler = require('../middleware/asyncHandler');
 const { enqueueOCRJob } = require('../jobs/textractQueue');
 const textractService = require('../services/textractService');
 const imageProcessor = require('../services/imageProcessor');
+const { getExtractionOptions } = require('../config/ocrConfig');
 
 const htsFormsController = {
   /**
@@ -62,19 +63,27 @@ const htsFormsController = {
 
       console.log(`[OCR Analysis] Processed sizes: front=${processedFront.length} bytes, back=${processedBack.length} bytes`);
 
-      // Send processed images to Textract with Enhanced OCR (coordinate-based extraction)
+      // Get extraction options from config (supports A/B testing)
+      const extractionOptions = getExtractionOptions();
+      console.log(`[OCR Analysis] Using extraction mode: ${extractionOptions.extractionMode}, useQueries: ${extractionOptions.useQueries}`);
+
+      // Send processed images to Textract with Enhanced OCR
       const extractedData = await textractService.analyzeHTSForm(
         processedFront,
         processedBack,
-        { useEnhanced: true } // Enable coordinate-based field extraction
+        extractionOptions
       );
 
       console.log(`[OCR Analysis] Extraction completed with ${extractedData.confidence.toFixed(1)}% confidence`);
-      console.log(`[OCR Analysis] Method: ${extractedData.extractionMethod}, Template: ${extractedData.templateId || 'N/A'}`);
+      console.log(`[OCR Analysis] Method: ${extractedData.extractionMethod}, Mode: ${extractedData.extractionMode || 'N/A'}, Template: ${extractedData.templateId || 'N/A'}`);
       
       // Log stats if available
       if (extractedData.stats) {
         console.log(`[OCR Analysis] Stats: ${extractedData.stats.highConfidence} high, ${extractedData.stats.mediumConfidence} medium, ${extractedData.stats.lowConfidence} low confidence fields`);
+        
+        if (extractedData.stats.extractionMethods) {
+          console.log(`[OCR Analysis] Extraction methods: ${extractedData.stats.extractionMethods.query} query, ${extractedData.stats.extractionMethods.coordinate} coordinate, ${extractedData.stats.extractionMethods.failed} failed`);
+        }
       }
 
       res.json({

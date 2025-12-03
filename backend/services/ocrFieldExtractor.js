@@ -43,11 +43,15 @@ class OCRFieldExtractor {
    * Extract all fields from HTS form images
    * @param {Buffer} frontImageBuffer - Front page image
    * @param {Buffer} backImageBuffer - Back page image
+   * @param {Object} options - Extraction options
+   * @param {Object} options.queryResults - Query results from Textract Queries API
+   * @param {string} options.extractionMode - 'hybrid' (default), 'queries', or 'coordinate'
    * @returns {Promise<Object>} Extracted fields with confidence scores
    */
-  async extractAllFields(frontImageBuffer, backImageBuffer) {
+  async extractAllFields(frontImageBuffer, backImageBuffer, options = {}) {
     try {
-      console.log('[OCRFieldExtractor] Starting field extraction...');
+      const { queryResults = null, extractionMode = 'hybrid' } = options;
+      console.log(`[OCRFieldExtractor] Starting field extraction (mode: ${extractionMode})...`);
 
       // Validate template metadata
       if (!this.templateMetadata) {
@@ -77,12 +81,18 @@ class OCRFieldExtractor {
         this.analyzeDocument(backImageBuffer)
       ]);
 
+      // Extract query results if provided
+      const frontQueryResults = queryResults?.front || null;
+      const backQueryResults = queryResults?.back || null;
+
       // Extract fields from front page
       const frontFields = await this.extractPageFields(
         frontImageBuffer,
         frontTextract,
         this.templateMetadata.ocrMapping.front.fields,
-        { width: frontMeta.width, height: frontMeta.height }
+        { width: frontMeta.width, height: frontMeta.height },
+        frontQueryResults,
+        extractionMode
       );
 
       // Extract fields from back page
@@ -90,7 +100,9 @@ class OCRFieldExtractor {
         backImageBuffer,
         backTextract,
         this.templateMetadata.ocrMapping.back.fields,
-        { width: backMeta.width, height: backMeta.height }
+        { width: backMeta.width, height: backMeta.height },
+        backQueryResults,
+        extractionMode
       );
 
       // Combine results
@@ -99,17 +111,27 @@ class OCRFieldExtractor {
       // Calculate overall confidence
       const overallConfidence = this.calculateOverallConfidence(allFields);
 
+      // Calculate extraction method stats
+      const extractionMethodStats = {
+        query: Object.values(allFields).filter(f => f.extractionMethod === 'query').length,
+        coordinate: Object.values(allFields).filter(f => f.extractionMethod && f.extractionMethod.includes('coordinate')).length,
+        failed: Object.values(allFields).filter(f => f.extractionMethod === 'failed' || f.extractionMethod === 'error').length
+      };
+
       console.log(`[OCRFieldExtractor] Extraction completed: ${Object.keys(allFields).length} fields, ${overallConfidence.toFixed(1)}% confidence`);
+      console.log(`[OCRFieldExtractor] Extraction methods: Query=${extractionMethodStats.query}, Coordinate=${extractionMethodStats.coordinate}, Failed=${extractionMethodStats.failed}`);
 
       return {
         fields: allFields,
         overallConfidence,
+        extractionMode,
         stats: {
           totalFields: Object.keys(allFields).length,
           highConfidence: Object.values(allFields).filter(f => f.confidence > 0.90).length,
           mediumConfidence: Object.values(allFields).filter(f => f.confidence >= 0.70 && f.confidence <= 0.90).length,
           lowConfidence: Object.values(allFields).filter(f => f.confidence < 0.70).length,
-          requiresReview: Object.values(allFields).filter(f => f.requiresReview).length
+          requiresReview: Object.values(allFields).filter(f => f.requiresReview).length,
+          extractionMethods: extractionMethodStats
         }
       };
     } catch (error) {
@@ -124,9 +146,11 @@ class OCRFieldExtractor {
    * @param {Object} textractResult - Textract analysis result
    * @param {Object} fieldConfigs - Field configurations from template
    * @param {Object} imageDimensions - { width, height }
+   * @param {Object} queryResults - Query results from Textract Queries API
+   * @param {string} extractionMode - 'hybrid', 'queries', or 'coordinate'
    * @returns {Promise<Object>} Extracted fields
    */
-  async extractPageFields(imageBuffer, textractResult, fieldConfigs, imageDimensions) {
+  async extractPageFields(imageBuffer, textractResult, fieldConfigs, imageDimensions, queryResults = null, extractionMode = 'hybrid') {
     const extractedFields = {};
 
     for (const [fieldName, fieldConfig] of Object.entries(fieldConfigs)) {
@@ -136,7 +160,9 @@ class OCRFieldExtractor {
           textractResult,
           fieldName,
           fieldConfig,
-          imageDimensions
+          imageDimensions,
+          queryResults,
+          extractionMode
         );
 
         extractedFields[fieldName] = fieldResult;
@@ -146,7 +172,8 @@ class OCRFieldExtractor {
           value: null,
           confidence: 0,
           requiresReview: true,
-          error: error.message
+          error: error.message,
+          extractionMethod: 'error'
         };
       }
     }
@@ -155,7 +182,99 @@ class OCRFieldExtractor {
   }
 
   /**
-   * Extract a single field based on its configuration
+   * Extract a single field based on its configuration with hybrid strategy
+   * @param {Buffer} imageBuffer - Page image buffer
+   * @param {Object} textractResult - Textract analysis result
+   * @param {string} fieldName - Field name
+   * @param {Object} fieldConfig - Field configuration
+   * @param {Object} imageDimensions - { width, height }
+   * @param {Object} queryResults - Query results from Textract Queries API
+   * @param {string} extractionMode - 'hybrid', 'queries', or 'coordinate'
+   * @returns {Promise<Object>} Extracted field data
+   */
+  async extractField(imageBuffer, textractResult, fieldName, fieldConfig, imageDimensions, queryResults = null, extractionMode = 'hybrid') {
+    // Multi-strategy extraction with priority: Queries → Coordinate → FORMS
+    const strategies = [];
+
+    // Build strategy list based on extraction mode
+    if (extractionMode === 'queries' || extractionMode === 'hybrid') {
+      strategies.push({ type: 'query', priority: 1, minConfidence: 75 });
+    }
+
+    if (extractionMode === 'coordinate' || extractionMode === 'hybrid') {
+      strategies.push({ type: 'coordinate', priority: 2, minConfidence: 70 });
+    }
+
+    // Try each strategy in priority order
+    for (const strategy of strategies) {
+      let result = null;
+
+      try {
+        if (strategy.type === 'query' && queryResults && fieldConfig.query) {
+          // Try query-based extraction first
+          result = this.extractFromQuery(queryResults, fieldName, fieldConfig);
+          
+          if (result && result.confidence >= strategy.minConfidence) {
+            result.extractionMethod = 'query';
+            result.extractionPriority = strategy.priority;
+            return result;
+          }
+        }
+
+        if (strategy.type === 'coordinate') {
+          // Fallback to coordinate-based extraction
+          result = await this.extractByCoordinate(imageBuffer, textractResult, fieldName, fieldConfig, imageDimensions);
+          
+          if (result && result.confidence >= strategy.minConfidence) {
+            result.extractionMethod = result.extractionMethod || 'coordinate';
+            result.extractionPriority = strategy.priority;
+            return result;
+          }
+        }
+      } catch (error) {
+        console.warn(`[OCRFieldExtractor] ${strategy.type} extraction failed for ${fieldName}:`, error.message);
+      }
+    }
+
+    // If all strategies fail, return low-confidence result requiring review
+    return {
+      value: null,
+      confidence: 0,
+      requiresReview: true,
+      extractionMethod: 'failed',
+      label: fieldConfig.label
+    };
+  }
+
+  /**
+   * Extract field value from query results
+   * @param {Object} queryResults - Query results map (alias -> result)
+   * @param {string} fieldName - Field name
+   * @param {Object} fieldConfig - Field configuration
+   * @returns {Object|null} Extracted field data or null
+   */
+  extractFromQuery(queryResults, fieldName, fieldConfig) {
+    // Convert fieldName to query alias (e.g., firstName -> first_name)
+    const alias = fieldName.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+    
+    const queryResult = queryResults[alias];
+    
+    if (!queryResult || !queryResult.text) {
+      return null;
+    }
+
+    return {
+      value: queryResult.text,
+      confidence: queryResult.confidence / 100, // Normalize to 0-1
+      requiresReview: queryResult.confidence < 75,
+      boundingBox: queryResult.boundingBox,
+      queryText: queryResult.queryText,
+      label: fieldConfig.label
+    };
+  }
+
+  /**
+   * Extract field by coordinate-based methods
    * @param {Buffer} imageBuffer - Page image buffer
    * @param {Object} textractResult - Textract analysis result
    * @param {string} fieldName - Field name
@@ -163,7 +282,7 @@ class OCRFieldExtractor {
    * @param {Object} imageDimensions - { width, height }
    * @returns {Promise<Object>} Extracted field data
    */
-  async extractField(imageBuffer, textractResult, fieldName, fieldConfig, imageDimensions) {
+  async extractByCoordinate(imageBuffer, textractResult, fieldName, fieldConfig, imageDimensions) {
     const extractionMethod = fieldConfig.extractionMethod || 'form-field';
 
     switch (extractionMethod) {
