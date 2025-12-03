@@ -159,6 +159,157 @@ async function analyzeDocument(imageBuffer, featureTypes = ['FORMS']) {
 }
 
 /**
+ * Analyze document with AWS Textract Queries API
+ * @param {Buffer} imageBuffer - Image buffer
+ * @param {Array} queries - Array of query objects with {text, alias, pages}
+ * @param {Array} featureTypes - Additional feature types (e.g., ['FORMS', 'TABLES'])
+ * @returns {Promise<Object>} Textract response with QUERY and QUERY_RESULT blocks
+ */
+async function analyzeDocumentWithQueries(imageBuffer, queries = [], featureTypes = []) {
+  if (queries.length === 0) {
+    console.warn('[Textract] No queries provided, falling back to standard analysis');
+    return analyzeDocument(imageBuffer, featureTypes.length > 0 ? featureTypes : ['FORMS']);
+  }
+
+  // Build Textract command with Queries
+  const params = {
+    Document: {
+      Bytes: imageBuffer
+    },
+    FeatureTypes: [...featureTypes, 'QUERIES']
+  };
+
+  // Add queries configuration
+  params.QueriesConfig = {
+    Queries: queries.map(q => ({
+      Text: q.text,
+      Alias: q.alias || q.text.substring(0, 50), // Use first 50 chars if no alias
+      ...(q.pages && { Pages: q.pages }) // Optional page targeting
+    }))
+  };
+
+  console.log(`[Textract] Analyzing with ${queries.length} queries and features: ${params.FeatureTypes.join(', ')}`);
+
+  const command = new AnalyzeDocumentCommand(params);
+  const response = await textractClient.send(command);
+  
+  return response;
+}
+
+/**
+ * Extract results from Textract QUERY_RESULT blocks
+ * @param {Array} blocks - Textract blocks from response
+ * @returns {Object} Map of alias -> {text, confidence, boundingBox}
+ */
+function extractFromQueryResults(blocks) {
+  const queryResults = {};
+  const blockMap = {};
+
+  // Build block map for lookups
+  blocks.forEach(block => {
+    blockMap[block.Id] = block;
+  });
+
+  // Find QUERY blocks and their results
+  blocks.forEach(block => {
+    if (block.BlockType === 'QUERY') {
+      const alias = block.Query?.Alias || block.Query?.Text;
+      
+      // Find associated QUERY_RESULT
+      const resultRelationship = block.Relationships?.find(rel => rel.Type === 'ANSWER');
+      if (resultRelationship && resultRelationship.Ids && resultRelationship.Ids.length > 0) {
+        const resultBlock = blockMap[resultRelationship.Ids[0]];
+        
+        if (resultBlock && resultBlock.BlockType === 'QUERY_RESULT') {
+          queryResults[alias] = {
+            text: resultBlock.Text || null,
+            confidence: resultBlock.Confidence || 0,
+            boundingBox: resultBlock.Geometry?.BoundingBox || null,
+            queryText: block.Query?.Text || null
+          };
+        }
+      } else {
+        // No result found for this query
+        queryResults[alias] = {
+          text: null,
+          confidence: 0,
+          boundingBox: null,
+          queryText: block.Query?.Text || null
+        };
+      }
+    }
+  });
+
+  return queryResults;
+}
+
+/**
+ * Generate HTS Form queries for Textract Queries API
+ * @param {string} page - 'front' or 'back'
+ * @returns {Array} Array of query objects
+ */
+function generateHTSFormQueries(page = 'front') {
+  const queries = {
+    front: [
+      { text: 'What is the HIV test date at the top of the form?', alias: 'test_date', pages: ['1'] },
+      { text: 'What is the PhilHealth Identification Number?', alias: 'philhealth_number', pages: ['1'] },
+      { text: 'What is the PhilSys Number?', alias: 'philsys_number', pages: ['1'] },
+      { text: "What is the patient's first name?", alias: 'first_name', pages: ['1'] },
+      { text: "What is the patient's middle name?", alias: 'middle_name', pages: ['1'] },
+      { text: "What is the patient's last name?", alias: 'last_name', pages: ['1'] },
+      { text: "What is the patient's name suffix?", alias: 'suffix', pages: ['1'] },
+      { text: "What are the first 2 letters of mother's first name?", alias: 'parental_code_mother', pages: ['1'] },
+      { text: "What are the first 2 letters of father's first name?", alias: 'parental_code_father', pages: ['1'] },
+      { text: "What is the birth order among mother's children?", alias: 'birth_order', pages: ['1'] },
+      { text: "What is the patient's date of birth?", alias: 'birth_date', pages: ['1'] },
+      { text: "What is the patient's age in years?", alias: 'age', pages: ['1'] },
+      { text: "What is the patient's age in months?", alias: 'age_months', pages: ['1'] },
+      { text: 'What is the patient\'s sex assigned at birth - Male or Female?', alias: 'sex', pages: ['1'] },
+      { text: 'What is the current residence city or municipality?', alias: 'current_residence_city', pages: ['1'] },
+      { text: 'What is the current residence province?', alias: 'current_residence_province', pages: ['1'] },
+      { text: 'What is the permanent residence city or municipality?', alias: 'permanent_residence_city', pages: ['1'] },
+      { text: 'What is the permanent residence province?', alias: 'permanent_residence_province', pages: ['1'] },
+      { text: 'What is the place of birth city or municipality?', alias: 'place_of_birth_city', pages: ['1'] },
+      { text: 'What is the place of birth province?', alias: 'place_of_birth_province', pages: ['1'] },
+      { text: "What is the patient's nationality?", alias: 'nationality', pages: ['1'] },
+      { text: 'What is the patient\'s nationality if not Filipino?', alias: 'nationality_other', pages: ['1'] },
+      { text: "What is the patient's civil status?", alias: 'civil_status', pages: ['1'] },
+      { text: 'Is the patient currently living with a partner?', alias: 'living_with_partner', pages: ['1'] },
+      { text: 'How many children does the patient have?', alias: 'number_of_children', pages: ['1'] },
+      { text: 'Is the patient currently pregnant?', alias: 'is_pregnant', pages: ['1'] },
+      { text: 'What is the highest educational attainment?', alias: 'educational_attainment', pages: ['1'] },
+      { text: 'Is the patient currently in school?', alias: 'currently_in_school', pages: ['1'] },
+      { text: 'Is the patient currently working?', alias: 'currently_working', pages: ['1'] },
+      { text: 'Did the patient work overseas in the past 5 years?', alias: 'worked_overseas', pages: ['1'] }
+    ],
+    back: [
+      { text: 'What are the reasons for HIV testing?', alias: 'reasons_for_testing', pages: ['2'] },
+      { text: 'Has the patient been tested for HIV before?', alias: 'previously_tested', pages: ['2'] },
+      { text: 'What was the previous HIV test result?', alias: 'previous_test_result', pages: ['2'] },
+      { text: 'When was the previous HIV test date?', alias: 'previous_test_date', pages: ['2'] },
+      { text: 'What is the medical history?', alias: 'medical_history', pages: ['2'] },
+      { text: 'What is the clinical picture - Asymptomatic or Symptomatic?', alias: 'clinical_picture', pages: ['2'] },
+      { text: 'What are the signs and symptoms?', alias: 'symptoms', pages: ['2'] },
+      { text: 'What is the WHO staging?', alias: 'who_staging', pages: ['2'] },
+      { text: 'What is the client type?', alias: 'client_type', pages: ['2'] },
+      { text: 'What is the mode of reach?', alias: 'mode_of_reach', pages: ['2'] },
+      { text: 'Was HIV testing accepted or declined?', alias: 'testing_accepted', pages: ['2'] },
+      { text: 'What is the brand of test kit used?', alias: 'test_kit_brand', pages: ['2'] },
+      { text: 'What is the test kit lot number?', alias: 'test_kit_lot_number', pages: ['2'] },
+      { text: 'What is the test kit expiration date?', alias: 'test_kit_expiration', pages: ['2'] },
+      { text: 'What is the name of the testing facility at the bottom?', alias: 'testing_facility', pages: ['2'] },
+      { text: 'What is the facility complete mailing address?', alias: 'facility_address', pages: ['2'] },
+      { text: 'What are the contact numbers?', alias: 'contact_number', pages: ['2'] },
+      { text: 'What is the email address?', alias: 'email_address', pages: ['2'] },
+      { text: 'What is the name of the HTS service provider at the bottom?', alias: 'counselor_name', pages: ['2'] },
+      { text: 'What is the role of the service provider?', alias: 'counselor_role', pages: ['2'] }
+    ]
+  };
+
+  return queries[page] || [];
+}
+
+/**
  * Extract text lines from Textract blocks
  */
 function extractTextLines(blocks) {
@@ -843,13 +994,42 @@ function parseHTSFormData(frontResult, backResult) {
  * @returns {Promise<Object>} Extracted data with field-level confidence
  */
 async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options = {}) {
-  console.log('📤 [Enhanced OCR] Starting coordinate-based field extraction...');
+  const { useQueries = false, extractionMode = 'hybrid' } = options;
+  
+  console.log(`📤 [Enhanced OCR] Starting field extraction (mode: ${extractionMode}, queries: ${useQueries})...`);
   
   try {
-    // Use new OCR Field Extractor for coordinate-based extraction
+    let queryResults = null;
+
+    // Step 1: Run Textract with Queries API if enabled
+    if (useQueries && extractionMode !== 'coordinate') {
+      console.log('🔍 Running Textract Queries API...');
+      
+      const frontQueries = generateHTSFormQueries('front');
+      const backQueries = generateHTSFormQueries('back');
+      
+      const [frontTextractResult, backTextractResult] = await Promise.all([
+        analyzeDocumentWithQueries(frontImageBuffer, frontQueries),
+        analyzeDocumentWithQueries(backImageBuffer, backQueries)
+      ]);
+
+      // Extract query results
+      queryResults = {
+        front: extractFromQueryResults(frontTextractResult.Blocks || []),
+        back: extractFromQueryResults(backTextractResult.Blocks || [])
+      };
+
+      console.log(`✅ Query extraction complete: Front=${Object.keys(queryResults.front).length}, Back=${Object.keys(queryResults.back).length}`);
+    }
+
+    // Step 2: Use OCR Field Extractor with hybrid strategy
     const extractionResult = await ocrFieldExtractor.extractAllFields(
       frontImageBuffer,
-      backImageBuffer
+      backImageBuffer,
+      {
+        queryResults,
+        extractionMode
+      }
     );
 
     console.log(`✅ [Enhanced OCR] Extracted ${Object.keys(extractionResult.fields).length} fields`);
@@ -857,8 +1037,14 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
     console.log(`   - Medium confidence: ${extractionResult.stats.mediumConfidence}`);
     console.log(`   - Low confidence: ${extractionResult.stats.lowConfidence}`);
     console.log(`   - Requires review: ${extractionResult.stats.requiresReview}`);
+    
+    if (extractionResult.stats.extractionMethods) {
+      console.log(`   - Query-extracted: ${extractionResult.stats.extractionMethods.query}`);
+      console.log(`   - Coordinate-extracted: ${extractionResult.stats.extractionMethods.coordinate}`);
+      console.log(`   - Failed: ${extractionResult.stats.extractionMethods.failed}`);
+    }
 
-    // Apply validation
+    // Step 3: Apply validation
     console.log('🔍 Applying validation rules...');
     const validations = validateAndCorrectFields(extractionResult.fields);
     const correctedData = applyValidationCorrections(extractionResult.fields, validations);
@@ -872,7 +1058,8 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
       stats: extractionResult.stats,
       validationSummary,
       validations,
-      extractionMethod: 'coordinate-based',
+      extractionMethod: extractionMode,
+      extractionMode: extractionResult.extractionMode,
       templateId: 'doh-hts-2021-v2'
     };
   } catch (error) {
@@ -1027,6 +1214,9 @@ async function processEncryptedHTSForm(formId) {
 
 module.exports = {
   analyzeDocument,
+  analyzeDocumentWithQueries,
+  extractFromQueryResults,
+  generateHTSFormQueries,
   analyzeHTSForm,
   analyzeHTSFormEnhanced,
   extractTextLines,
