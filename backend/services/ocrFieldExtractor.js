@@ -282,7 +282,7 @@ class OCRFieldExtractor {
       return null;
     }
 
-    console.log(`[Query] ✓ Matched ${fieldName} → ${matchedAlias}: "${queryResult.text.substring(0, 50)}" (${queryResult.confidence}%)`);
+    console.log(`[Query] [OK] Matched ${fieldName} -> ${matchedAlias}: "${queryResult.text.substring(0, 50)}" (${queryResult.confidence}%)`);
 
     return {
       value: queryResult.text,
