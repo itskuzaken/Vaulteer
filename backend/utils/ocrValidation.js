@@ -124,7 +124,10 @@ function findClosestMatch(value, validOptions, threshold = 0.3) {
 function validateControlNumber(value) {
   if (!value) return { isValid: false, corrected: null };
   
-  let cleaned = value.replace(/\s/g, '')
+  // Ensure value is a string
+  const strValue = String(value);
+  
+  let cleaned = strValue.replace(/\s/g, '')
     .replace(/O/g, '0')
     .replace(/I/g, '1');
   
@@ -143,7 +146,10 @@ function validateControlNumber(value) {
 function validateDate(value) {
   if (!value) return { isValid: false, corrected: null };
   
-  let cleaned = value.replace(/\s/g, '');
+  // Ensure value is a string
+  const strValue = String(value);
+  
+  let cleaned = strValue.replace(/\s/g, '');
   
   cleaned = cleaned.replace(/O/g, '0')
     .replace(/I/g, '1')
@@ -177,7 +183,10 @@ function validateDate(value) {
 function validatePhone(value) {
   if (!value) return { isValid: false, corrected: null };
   
-  let cleaned = value.replace(/[\s\-()]/g, '')
+  // Ensure value is a string
+  const strValue = String(value);
+  
+  let cleaned = strValue.replace(/[\s\-()]/g, '')
     .replace(/O/g, '0')
     .replace(/I/g, '1');
   
@@ -215,7 +224,10 @@ function validatePhone(value) {
 function validatePhilHealth(value) {
   if (!value) return { isValid: false, corrected: null };
   
-  let cleaned = value.replace(/\s/g, '')
+  // Ensure value is a string
+  const strValue = String(value);
+  
+  let cleaned = strValue.replace(/\s/g, '')
     .replace(/O/g, '0')
     .replace(/I/g, '1');
   
@@ -237,7 +249,12 @@ function validatePhilHealth(value) {
  * Validate address using fuzzy matching
  */
 function validateAddress(value) {
-  if (!value || value.length < 3) {
+  if (!value) return { isValid: false, corrected: null, confidence: 0.1 };
+  
+  // Ensure value is a string
+  const strValue = String(value);
+  
+  if (strValue.length < 3) {
     return { isValid: false, corrected: null, confidence: 0.1 };
   }
   
@@ -259,11 +276,16 @@ function validateAddress(value) {
  * Validate testing facility
  */
 function validateTestingFacility(value) {
-  if (!value || value.length < 5) {
+  if (!value) return { isValid: false, corrected: null, confidence: 0.1 };
+  
+  // Ensure value is a string
+  const strValue = String(value);
+  
+  if (strValue.length < 5) {
     return { isValid: false, corrected: null, confidence: 0.1 };
   }
   
-  const closestMatch = findClosestMatch(value, TESTING_FACILITIES, 0.3);
+  const closestMatch = findClosestMatch(strValue, TESTING_FACILITIES, 0.3);
   
   if (closestMatch) {
     return {
@@ -274,7 +296,7 @@ function validateTestingFacility(value) {
     };
   }
   
-  return { isValid: false, corrected: value, confidence: 0.4 };
+  return { isValid: false, corrected: strValue, confidence: 0.4 };
 }
 
 /**
@@ -283,8 +305,11 @@ function validateTestingFacility(value) {
 function validateTestResult(value) {
   if (!value) return { isValid: false, corrected: null };
   
+  // Ensure value is a string
+  const strValue = String(value);
+  
   const validResults = ['Positive', 'Negative', 'Pending', 'Inconclusive'];
-  const closestMatch = findClosestMatch(value, validResults, 0.25);
+  const closestMatch = findClosestMatch(strValue, validResults, 0.25);
   
   if (closestMatch) {
     return {
@@ -303,7 +328,10 @@ function validateTestResult(value) {
 function validateAge(value) {
   if (!value) return { isValid: false, corrected: null };
   
-  let cleaned = value.replace(/O/g, '0')
+  // Ensure value is a string
+  const strValue = String(value);
+  
+  let cleaned = strValue.replace(/O/g, '0')
     .replace(/I/g, '1')
     .replace(/[^\d]/g, '');
   
@@ -326,7 +354,10 @@ function validateAge(value) {
 function validateSex(value) {
   if (!value) return { isValid: false, corrected: null };
   
-  const cleaned = value.trim().toUpperCase();
+  // Ensure value is a string
+  const strValue = String(value);
+  
+  const cleaned = strValue.trim().toUpperCase();
   
   if (cleaned === 'M' || cleaned === 'MALE') {
     return { isValid: true, corrected: 'M', confidence: 0.95 };
