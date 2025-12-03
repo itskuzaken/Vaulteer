@@ -6,6 +6,7 @@ import Button from "../../ui/Button";
 import ImageLightbox from "../../ui/ImageLightbox";
 import CameraQualityIndicator from "../../ui/CameraQualityIndicator";
 import OCRFieldWarnings from "../../ui/OCRFieldWarnings";
+import EnhancedOCRReview from "../../ui/EnhancedOCRReview";
 import AlertModal from "../../ui/AlertModal";
 import ConfirmModal from "../../ui/ConfirmModal";
 import NextImage from 'next/image';
@@ -19,6 +20,7 @@ import {
   isCameraPermissionDenied,
 } from "../../../services/cameraPermissionService";
 import { validateImageQuality, validateQuality, captureMultipleFrames } from "../../../utils/imageQualityValidator";
+import { preprocessImage, dataURLtoBlob as preprocessDataURLtoBlob } from "../../../utils/imagePreprocessor";
 
 export default function HTSFormManagement() {
   const [activeTab, setActiveTab] = useState("submit"); // 'submit' or 'history'
@@ -404,8 +406,19 @@ export default function HTSFormManagement() {
       
       console.log(`[Multi-Frame] Best frame selected with score: ${bestFrame.score.toFixed(2)}`);
       
-      // Convert canvas to data URL
-      const imageData = bestFrame.canvas.toDataURL("image/jpeg", 0.95);
+      // Preprocess image for better OCR (color enhancement, no black & white)
+      console.log('[Preprocessing] Enhancing image quality for OCR...');
+      const frameDataURL = bestFrame.canvas.toDataURL("image/jpeg", 0.95);
+      const processedResult = await preprocessImage(frameDataURL, {
+        targetResolution: { width: 1600, height: 2133 },
+        enableDeskew: true,
+        enableDenoising: true,
+        enableContrast: true,
+        enableBinarization: false, // Keep in color, no black & white
+        quality: 0.95
+      });
+      const imageData = processedResult.processedImage;
+      console.log('[Preprocessing] Enhancement complete:', processedResult.metadata);
       
       // Final quality check with feedback
       const finalQuality = await validateImageQuality(imageData);
@@ -825,10 +838,37 @@ export default function HTSFormManagement() {
         return;
       }
 
-      // Convert images to blob
-      console.log("[OCR] Converting images to blobs");
-      const frontBlob = dataURLtoBlob(frontImage);
-      const backBlob = dataURLtoBlob(backImage);
+      // Preprocess images before OCR for better accuracy
+      console.log('[OCR] Preprocessing images for optimal OCR accuracy...');
+      
+      const [processedFront, processedBack] = await Promise.all([
+        preprocessImage(frontImage, {
+          targetResolution: { width: 1600, height: 2133 },
+          enableDeskew: true,
+          enableDenoising: true,
+          enableContrast: true,
+          enableBinarization: false, // Keep in color
+          quality: 0.95
+        }),
+        preprocessImage(backImage, {
+          targetResolution: { width: 1600, height: 2133 },
+          enableDeskew: true,
+          enableDenoising: true,
+          enableContrast: true,
+          enableBinarization: false, // Keep in color
+          quality: 0.95
+        })
+      ]);
+      
+      console.log('[OCR] Preprocessing complete:', {
+        front: processedFront.metadata,
+        back: processedBack.metadata
+      });
+
+      // Convert preprocessed images to blob
+      console.log("[OCR] Converting preprocessed images to blobs");
+      const frontBlob = preprocessDataURLtoBlob(processedFront.processedImage);
+      const backBlob = preprocessDataURLtoBlob(processedBack.processedImage);
 
       console.log(`[OCR] Front blob: ${frontBlob.size} bytes, type: ${frontBlob.type}`);
       console.log(`[OCR] Back blob: ${backBlob.size} bytes, type: ${backBlob.type}`);
@@ -1684,14 +1724,14 @@ export default function HTSFormManagement() {
         {activeTab === "submit" ? renderSubmitForm() : renderSubmissionsHistory()}
       </div>
 
-      {/* OCR Review Modal */}
+      {/* Enhanced OCR Review Modal */}
       {showOCRReview && extractedData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-2 sm:p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
               <h2 className="text-base sm:text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <IoDocumentText className="w-6 h-6 text-primary-red" />
-                {isEditMode ? 'Edit OCR Data' : 'Extracted OCR Data'}
+                Enhanced OCR Analysis Results
               </h2>
               <button
                 onClick={() => {
@@ -1703,6 +1743,21 @@ export default function HTSFormManagement() {
               >
                 <IoClose className="w-6 h-6 text-gray-600 dark:text-gray-400" />
               </button>
+            </div>
+
+            <div className="p-3 sm:p-6">
+              <EnhancedOCRReview
+                extractedData={extractedData}
+                onEdit={(field, value) => {
+                  console.log('Edit field:', field, value);
+                  // TODO: Implement field editing
+                }}
+                onAccept={() => {
+                  setShowOCRReview(false);
+                  setCurrentStep('result');
+                }}
+                onReanalyze={handleAnalyzeImages}
+              />
             </div>
 
             <div className="p-3 sm:p-6 space-y-4">
