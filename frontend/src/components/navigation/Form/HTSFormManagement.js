@@ -259,7 +259,7 @@ export default function HTSFormManagement() {
         autoCaptureIntervalRef.current = null;
       }
     };
-  }, [autoCapture, isVideoReady, isCameraOpen, triggerAutoCaptureCountdown]);
+  }, [autoCapture, isVideoReady, isCameraOpen]);
 
   const startCamera = async (side) => {
     // Check if image already exists for this side
@@ -416,6 +416,28 @@ export default function HTSFormManagement() {
     }
   }, []);
 
+  const finalizeCaptureImage = async (step, imageData) => {
+    try {
+      if (step === "front") {
+        setFrontImage(imageData);
+        await stopCamera();
+        setCurrentStep("back");
+      } else if (step === "back") {
+        setBackImage(imageData);
+        await stopCamera();
+        setCurrentStep("result");
+      }
+    } catch (error) {
+      console.error('❌ Finalize capture error:', error);
+      const errorMessage = getErrorMessage(error);
+      showAlert(
+        "Save Failed",
+        `Failed to save image: ${errorMessage}\n\nPlease try again.`,
+        "error"
+      );
+    }
+  };
+
   const captureImage = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || !isVideoReady) {
       showAlert(
@@ -534,31 +556,9 @@ export default function HTSFormManagement() {
         "error"
       );
     }
-  }, [isVideoReady, currentStep, showAlert, showConfirm, closeConfirm, finalizeCaptureImage]);
+  }, [isVideoReady, currentStep, showAlert, showConfirm, closeConfirm]);
 
-  const finalizeCaptureImage = useCallback(async (step, imageData) => {
-    try {
-      if (step === "front") {
-        setFrontImage(imageData);
-        await stopCamera();
-        setCurrentStep("back");
-      } else if (step === "back") {
-        setBackImage(imageData);
-        await stopCamera();
-        setCurrentStep("result");
-      }
-    } catch (error) {
-      console.error('❌ Finalize capture error:', error);
-      const errorMessage = getErrorMessage(error);
-      showAlert(
-        "Save Failed",
-        `Failed to save image: ${errorMessage}\n\nPlease try again.`,
-        "error"
-      );
-    }
-  }, [stopCamera, showAlert, getErrorMessage]);
-
-  const triggerAutoCaptureCountdown = useCallback(() => {
+  const triggerAutoCaptureCountdown = () => {
     // Prevent multiple countdowns
     if (autoCaptureCountdownRef.current || formDetection.countdown) {
       return;
@@ -585,7 +585,7 @@ export default function HTSFormManagement() {
     }, 1000);
 
     autoCaptureCountdownRef.current = countdownInterval;
-  }, [formDetection.countdown, captureImage]);
+  };
 
   const retakeImage = async (side) => {
     try {
