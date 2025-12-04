@@ -71,7 +71,7 @@
           "format": "MM/DD/YYYY",
           "required": true,
           "priority": 1,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.02,
             "y": 0.13,
@@ -91,7 +91,7 @@
           "pattern": "^\\d{2}-\\d{9}-\\d$",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.02,
             "y": 0.165,
@@ -117,7 +117,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.02,
             "y": 0.195,
@@ -143,7 +143,7 @@
           "type": "text",
           "required": true,
           "priority": 1,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.05,
             "y": 0.225,
@@ -162,7 +162,7 @@
           "type": "text",
           "required": false,
           "priority": 2,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.32,
             "y": 0.225,
@@ -181,7 +181,7 @@
           "type": "text",
           "required": true,
           "priority": 1,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.59,
             "y": 0.225,
@@ -200,7 +200,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.89,
             "y": 0.225,
@@ -219,7 +219,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.02,
             "y": 0.275,
@@ -238,7 +238,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.45,
             "y": 0.275,
@@ -257,7 +257,7 @@
           "type": "number",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.65,
             "y": 0.275,
@@ -297,7 +297,7 @@
           "format": "MM/DD/YYYY",
           "required": true,
           "priority": 1,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.02,
             "y": 0.305,
@@ -316,7 +316,7 @@
           "type": "number",
           "required": true,
           "priority": 2,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.3,
             "y": 0.305,
@@ -340,7 +340,7 @@
           "type": "number",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.42,
             "y": 0.305,
@@ -403,8 +403,8 @@
         "genderIdentity": {
           "region": {
             "x": 0.623,
-            "y": 0.625,
-            "width": 0.15,
+            "y": 0.609,
+            "width": 0.012,
             "height": 0.009
           },
           "label": "Gender Identity",
@@ -469,7 +469,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.05,
             "y": 0.365,
@@ -487,7 +487,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.62,
             "y": 0.365,
@@ -505,7 +505,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.05,
             "y": 0.395,
@@ -523,7 +523,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field"
+          "extractionMethod": "query"
         },
         "placeOfBirthCity": {
           "region": {
@@ -536,7 +536,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "query",
           "nearbyLabel": {
             "x": 0.05,
             "y": 0.425,
@@ -554,7 +554,7 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field"
+          "extractionMethod": "query"
         },
         "nationality": {
           "region": {
@@ -603,21 +603,21 @@
           ],
           "required": false,
           "priority": 3,
-          "extractionMethod": "checkbox-with-text",
+          "extractionMethod": "checkbox-detection",
           "query": "What is the patient's nationality?"
         },
         "nationalityOther": {
           "region": {
-            "x": 0.45,
-            "y": 0.455,
-            "width": 0.3,
-            "height": 0.025
+            "x": 0.489,
+            "y": 0.673,
+            "width": 0.06,
+            "height": 0.01
           },
           "label": "Nationality - Other (specify)",
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "form-field",
+          "extractionMethod": "text-after-checkbox",
           "conditionalOn": {
             "field": "nationality",
             "value": "Other"
@@ -820,8 +820,8 @@
         },
         "educationalAttainment": {
           "region": {
-            "x": 0.647,
-            "y": 0.777,
+            "x": 0.316,
+            "y": 0.79,
             "width": 0.012,
             "height": 0.009
           },
@@ -983,7 +983,7 @@
           ],
           "required": false,
           "priority": 3,
-          "extractionMethod": "checkbox-with-text"
+          "extractionMethod": "query"
         },
         "workedOverseas": {
           "region": {
@@ -1055,7 +1055,7 @@
           ],
           "required": false,
           "priority": 3,
-          "extractionMethod": "checkbox-with-nested-fields"
+          "extractionMethod": "query"
         },
         "contactNumber": {
           "label": "Contact Number",
@@ -1078,8 +1078,14 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "query-only",
-          "query": "What are the first 2 letters of mother's first name?"
+          "extractionMethod": "query",
+          "query": "What are the first 2 letters of mother's first name?",
+          "region": {
+            "x": 0.22,
+            "y": 0.55,
+            "width": 0.031,
+            "height": 0.009
+          }
         },
         "occupation": {
           "label": "Occupation",
@@ -1094,8 +1100,14 @@
           "type": "text",
           "required": false,
           "priority": 3,
-          "extractionMethod": "query-only",
-          "query": "If the patient worked overseas, what year did they return from their last contract?"
+          "extractionMethod": "form-field",
+          "query": "If the patient worked overseas, what year did they return from their last contract?",
+          "region": {
+            "x": 0.336,
+            "y": 0.418,
+            "width": 0.071,
+            "height": 0.009
+          }
         },
         "overseasLocation": {
           "label": "Overseas Location",
@@ -1751,10 +1763,10 @@
         },
         "testingAccepted": {
           "region": {
-            "x": 0.084,
-            "y": 0.67,
-            "width": 0.74,
-            "height": 0.02
+            "x": 0.349,
+            "y": 0.166,
+            "width": 0.019,
+            "height": 0.007
           },
           "label": "HIV Testing Status",
           "type": "mixed",
@@ -1834,10 +1846,10 @@
         },
         "testingModality": {
           "region": {
-            "x": 0.28,
-            "y": 0.865,
-            "width": 0.65,
-            "height": 0.015
+            "x": 0.687,
+            "y": 0.689,
+            "width": 0.097,
+            "height": 0.009
           },
           "label": "HIV Testing Modality",
           "type": "checkbox",
@@ -2007,7 +2019,7 @@
           "region": {
             "x": 0.686,
             "y": 0.851,
-            "width": 0.124,
+            "width": 0.123,
             "height": 0.011
           },
           "label": "Facility Email Address",
@@ -2042,10 +2054,10 @@
         },
         "counselorRole": {
           "region": {
-            "x": 0.3,
-            "y": 0.815,
-            "width": 0.6,
-            "height": 0.015
+            "x": 0.334,
+            "y": 0.874,
+            "width": 0.011,
+            "height": 0.008
           },
           "label": "Role",
           "type": "checkbox",
@@ -2110,7 +2122,13 @@
           "required": false,
           "priority": 2,
           "extractionMethod": "query-only",
-          "query": "Is the mother of the patient known to have HIV?"
+          "query": "Is the mother of the patient known to have HIV?",
+          "region": {
+            "x": 0.31,
+            "y": 0.166,
+            "width": 0.015,
+            "height": 0.007
+          }
         },
         "riskSexMaleStatus": {
           "label": "Sex with Male - Status",
@@ -2118,7 +2136,13 @@
           "required": false,
           "priority": 2,
           "extractionMethod": "query-only",
-          "query": "Has the patient had sex with a male partner? Answer Yes or No"
+          "query": "Has the patient had sex with a male partner? Answer Yes or No",
+          "region": {
+            "x": 0.31,
+            "y": 0.166,
+            "width": 0.015,
+            "height": 0.007
+          }
         },
         "riskSexMaleTotal": {
           "label": "Sex with Male - Total",
@@ -2126,7 +2150,13 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "query-only",
-          "query": "If yes to sex with male, what is the total number?"
+          "query": "If yes to sex with male, what is the total number?",
+          "region": {
+            "x": 0.409,
+            "y": 0.193,
+            "width": 0.016,
+            "height": 0.01
+          }
         },
         "riskSexMaleDate1": {
           "label": "Sex with Male - Date 1",
@@ -2134,7 +2164,13 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "query-only",
-          "query": "If yes to sex with male, what is the first date in MM/YYYY format?"
+          "query": "If yes to sex with male, what is the first date in MM/YYYY format?",
+          "region": {
+            "x": 0.513,
+            "y": 0.177,
+            "width": 0.074,
+            "height": 0.014
+          }
         },
         "riskSexMaleDate2": {
           "label": "Sex with Male - Date 2",
@@ -2150,7 +2186,13 @@
           "required": false,
           "priority": 2,
           "extractionMethod": "query-only",
-          "query": "Has the patient had sex with a female partner? Answer Yes or No"
+          "query": "Has the patient had sex with a female partner? Answer Yes or No",
+          "region": {
+            "x": 0.31,
+            "y": 0.166,
+            "width": 0.015,
+            "height": 0.007
+          }
         },
         "riskSexFemaleTotal": {
           "label": "Sex with Female - Total",
@@ -2158,7 +2200,13 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "query-only",
-          "query": "If yes to sex with female, what is the total number?"
+          "query": "If yes to sex with female, what is the total number?",
+          "region": {
+            "x": 0.409,
+            "y": 0.193,
+            "width": 0.016,
+            "height": 0.01
+          }
         },
         "riskSexFemaleDate1": {
           "label": "Sex with Female - Date 1",
@@ -2166,7 +2214,13 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "query-only",
-          "query": "If yes to sex with female, what is the first date in MM/YYYY format?"
+          "query": "If yes to sex with female, what is the first date in MM/YYYY format?",
+          "region": {
+            "x": 0.514,
+            "y": 0.193,
+            "width": 0.08,
+            "height": 0.012
+          }
         },
         "riskSexFemaleDate2": {
           "label": "Sex with Female - Date 2",
@@ -2182,7 +2236,13 @@
           "required": false,
           "priority": 2,
           "extractionMethod": "query-only",
-          "query": "Has the patient paid for sex in cash or kind? Answer Yes or No"
+          "query": "Has the patient paid for sex in cash or kind? Answer Yes or No",
+          "region": {
+            "x": 0.31,
+            "y": 0.166,
+            "width": 0.015,
+            "height": 0.007
+          }
         },
         "riskPaidForSexDate": {
           "label": "Paid for Sex - Date",
@@ -2198,7 +2258,13 @@
           "required": false,
           "priority": 2,
           "extractionMethod": "query-only",
-          "query": "Has the patient received payment for sex? Answer Yes or No"
+          "query": "Has the patient received payment for sex? Answer Yes or No",
+          "region": {
+            "x": 0.31,
+            "y": 0.166,
+            "width": 0.015,
+            "height": 0.007
+          }
         },
         "riskReceivedPaymentDate": {
           "label": "Received Payment - Date",
@@ -2214,7 +2280,13 @@
           "required": false,
           "priority": 2,
           "extractionMethod": "query-only",
-          "query": "Has the patient had sex under the influence of drugs? Answer Yes or No"
+          "query": "Has the patient had sex under the influence of drugs? Answer Yes or No",
+          "region": {
+            "x": 0.31,
+            "y": 0.166,
+            "width": 0.015,
+            "height": 0.007
+          }
         },
         "riskSexUnderDrugsDate": {
           "label": "Sex Under Drugs - Date",
@@ -2230,7 +2302,13 @@
           "required": false,
           "priority": 2,
           "extractionMethod": "query-only",
-          "query": "Has the patient shared needles for drug injection? Answer Yes or No"
+          "query": "Has the patient shared needles for drug injection? Answer Yes or No",
+          "region": {
+            "x": 0.31,
+            "y": 0.166,
+            "width": 0.015,
+            "height": 0.007
+          }
         },
         "riskSharedNeedlesDate": {
           "label": "Shared Needles - Date",
@@ -2246,7 +2324,13 @@
           "required": false,
           "priority": 2,
           "extractionMethod": "query-only",
-          "query": "Has the patient received blood transfusion? Answer Yes or No"
+          "query": "Has the patient received blood transfusion? Answer Yes or No",
+          "region": {
+            "x": 0.349,
+            "y": 0.166,
+            "width": 0.019,
+            "height": 0.007
+          }
         },
         "riskBloodTransfusionDate": {
           "label": "Blood Transfusion - Date",
@@ -2254,7 +2338,13 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "query-only",
-          "query": "If yes to blood transfusion, what is the date in MM/YYYY format?"
+          "query": "If yes to blood transfusion, what is the date in MM/YYYY format?",
+          "region": {
+            "x": 0.727,
+            "y": 0.255,
+            "width": 0.07,
+            "height": 0.014
+          }
         },
         "riskOccupationalExposureStatus": {
           "label": "Occupational Exposure - Status",
@@ -2278,7 +2368,13 @@
           "required": false,
           "priority": 2,
           "extractionMethod": "query-only",
-          "query": "If yes, when was the previous HIV test date?"
+          "query": "If yes, when was the previous HIV test date?",
+          "region": {
+            "x": 0.685,
+            "y": 0.426,
+            "width": 0.116,
+            "height": 0.012
+          }
         },
         "previousTestProvider": {
           "label": "Previous Test Provider",
@@ -2294,7 +2390,13 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "query-only",
-          "query": "In what city or municipality was the previous test conducted?"
+          "query": "In what city or municipality was the previous test conducted?",
+          "region": {
+            "x": 0.729,
+            "y": 0.448,
+            "width": 0.069,
+            "height": 0.011
+          }
         },
         "medicalTB": {
           "label": "Current TB Patient",
@@ -2390,7 +2492,13 @@
           "required": false,
           "priority": 3,
           "extractionMethod": "query-only",
-          "query": "What is the date when the form was completed?"
+          "query": "What is the date when the form was completed?",
+          "region": {
+            "x": 0.648,
+            "y": 0.929,
+            "width": 0.039,
+            "height": 0.011
+          }
         },
         "counselorLicense": {
           "label": "Counselor License",

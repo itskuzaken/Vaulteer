@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getAuth } from "firebase/auth";
 import Image from "next/image";
-import { IoSearchOutline, IoPersonOutline, IoCalendarOutline, IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
+import { IoSearchOutline, IoClose, IoPersonOutline, IoCalendarOutline, IoCheckmarkCircle, IoCloseCircle } from "react-icons/io5";
 import Button from "../../ui/Button";
 import AdminHTSDetailView from "../../ui/AdminHTSDetailView";
 import * as imageEncryption from "../../../utils/imageEncryption";
@@ -308,7 +308,7 @@ export default function AdminFormReview() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       {/* Filters */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -424,18 +424,29 @@ export default function AdminFormReview() {
 
       {/* Detail Modal */}
       {selectedSubmission && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4" 
           onClick={() => setSelectedSubmission(null)}
         >
           <div
-            className="bg-white dark:bg-gray-800 rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+            className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="p-6">
-              <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
-                Form Details
-              </h2>
+            <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
+                  Form Submission Details
+                </h2>
+                <button
+                  onClick={() => setSelectedSubmission(null)}
+                  className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <IoClose className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
 
               {/* Images Section */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
@@ -736,8 +747,10 @@ export default function AdminFormReview() {
                   </div>
                 </div>
               )}
+            </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
+              <div className="flex justify-end gap-3">
                 <Button onClick={() => setSelectedSubmission(null)} variant="secondary">
                   Close
                 </Button>

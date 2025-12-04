@@ -298,129 +298,118 @@ function extractCheckboxes(blocks) {
 }
 
 /**
- * Find region for complex checkbox group fields
+ * Create expanded field-to-query alias mapping for all individual fields
  */
-function findCheckboxGroupRegion(fieldName, checkboxes, queryResults, fieldToQueryMap) {
-  const checkboxGroupFields = {
-    'riskAssessment': {
-      // Risk assessment section: sex-related checkboxes
-      keywords: ['male', 'female', 'paid', 'payment', 'drugs', 'needles', 'transgender'],
-      yRange: [0.15, 0.35],
-      queries: ['sexWithMale', 'sexWithFemale', 'paidForSex', 'receivedPaymentSex', 'sexUnderDrugs', 'sharedNeedles']
-    },
-    'reasonsForTesting': {
-      // Reasons for testing section
-      keywords: ['exposure', 'pregnancy', 'symptoms', 'partner', 'referred', 'employment', 'insurance'],
-      yRange: [0.35, 0.42],
-      queries: ['testReasonExposure', 'testReasonPregnancy', 'testReasonSymptoms', 'testReasonPartner', 'testReasonReferred', 'testReasonEmployment', 'testReasonInsurance']
-    },
-    'medicalHistory': {
-      // Medical history section
-      keywords: ['tb', 'sti', 'hepatitis b', 'hepatitis c', 'pep', 'prep'],
-      yRange: [0.51, 0.54],
-      queries: ['medicalHistoryTB', 'medicalHistorySTI', 'medicalHistoryHepB', 'medicalHistoryHepC', 'medicalHistoryPEP', 'medicalHistoryPrEP']
-    },
-    'testingAccepted': {
-      // HIV testing status
-      keywords: ['accepted', 'refused'],
-      yRange: [0.67, 0.69],
-      queries: ['testingAccepted']
-    },
-    'otherServices': {
-      // Other services provided to client (Section 25)
-      keywords: ['iec', 'condoms', 'pep', 'prep', 'sti', 'tb', 'hepatitis', 'art'],
-      yRange: [0.73, 0.79],
-      queries: ['servicesIEC', 'servicesCondoms', 'servicesPEP', 'servicesPrEP', 'servicesSTI', 'servicesTB', 'servicesHepB', 'servicesART']
-    }
-  };
-
-  const groupConfig = checkboxGroupFields[fieldName];
-  if (!groupConfig) return null;
-
-  // Find all checkboxes in the Y range
-  const groupCheckboxes = checkboxes.filter(cb => {
-    const y = cb.bbox.Top;
-    return y >= groupConfig.yRange[0] && y <= groupConfig.yRange[1];
-  });
-
-  // Also check if any of the queries for this group returned results
-  const hasQueryResults = groupConfig.queries.some(q => queryResults[q]);
-
-  if (groupCheckboxes.length > 0 || hasQueryResults) {
-    // Calculate bounding box that encompasses all checkboxes in this group
-    let minX = 1, minY = 1, maxX = 0, maxY = 0;
-    
-    for (const cb of groupCheckboxes) {
-      minX = Math.min(minX, cb.bbox.Left);
-      minY = Math.min(minY, cb.bbox.Top);
-      maxX = Math.max(maxX, cb.bbox.Left + cb.bbox.Width);
-      maxY = Math.max(maxY, cb.bbox.Top + cb.bbox.Height);
-    }
-
-    // Expand the region to include labels and the full section
-    return {
-      text: 'Multiple checkboxes detected',
-      confidence: 95,
-      bbox: {
-        Left: Math.max(0.05, minX - 0.05),
-        Top: groupConfig.yRange[0],
-        Width: Math.min(0.9, maxX - minX + 0.2),
-        Height: groupConfig.yRange[1] - groupConfig.yRange[0]
-      },
-      method: 'checkbox-group'
-    };
-  }
-
-  return null;
-}
-
-/**
- * Match field to detection results
- */
-function findBestMatch(fieldName, fieldConfig, queryResults, kvPairs, checkboxes) {
-  // Special handling for complex checkbox group fields
-  const complexFields = ['riskAssessment', 'reasonsForTesting', 'medicalHistory', 'testingAccepted', 'otherServices'];
-  if (complexFields.includes(fieldName)) {
-    const groupRegion = findCheckboxGroupRegion(fieldName, checkboxes, queryResults, {});
-    if (groupRegion) {
-      return groupRegion;
-    }
-  }
-
-  // Priority 1: Query results with alias mapping
-  let queryAlias = fieldName;
-  
-  // Map back page field names to query aliases
-  const fieldToQueryMap = {
+function getFieldToQueryMap() {
+  return {
+    // Mother HIV
     'motherHIV': 'motherHIV',
-    'riskAssessment': 'sexWithMale', // Complex field, will try first query
-    'reasonsForTesting': 'testReasonExposure', // Complex field, will try first query
+    
+    // Risk Assessment - Sex partners (individual fields, not grouped)
+    'riskSexMaleStatus': 'sexWithMale',
+    'riskSexMaleTotal': 'sexWithMaleTotal',
+    'riskSexMaleDate1': 'sexWithMaleDate',
+    'riskSexFemaleStatus': 'sexWithFemale',
+    'riskSexFemaleTotal': 'sexWithFemaleTotal',
+    'riskSexFemaleDate1': 'sexWithFemaleDate',
+    
+    // Risk Assessment - Payment for sex
+    'riskPaidForSexStatus': 'paidForSex',
+    'riskPaidForSexDate': 'paidForSexDate',
+    'riskReceivedPaymentStatus': 'receivedPaymentSex',
+    'riskReceivedPaymentDate': 'receivedPaymentDate',
+    
+    // Risk Assessment - Drugs and needles
+    'riskSexUnderDrugsStatus': 'sexUnderDrugs',
+    'riskSexUnderDrugsDate': 'sexUnderDrugsDate',
+    'riskSharedNeedlesStatus': 'sharedNeedles',
+    'riskSharedNeedlesDate': 'sharedNeedlesDate',
+    
+    // Risk Assessment - Blood and occupational
+    'riskBloodTransfusionStatus': 'bloodTransfusion',
+    'riskBloodTransfusionDate': 'bloodTransfusionDate',
+    'riskOccupationalStatus': 'occupationalExposure',
+    'riskOccupationalDate': 'occupationalDate',
+    
+    // Reasons for Testing (individual fields, not grouped)
+    'testReasonExposure': 'testReasonExposure',
+    'testReasonPregnancy': 'testReasonPregnancy',
+    'testReasonSymptoms': 'testReasonSymptoms',
+    'testReasonPartner': 'testReasonPartner',
+    'testReasonReferred': 'testReasonReferred',
+    'testReasonEmployment': 'testReasonEmployment',
+    'testReasonInsurance': 'testReasonInsurance',
+    'testReasonOther': 'testReasonOther',
+    'testReasonMessage': 'testReasonMessage',
+    
+    // Previous HIV Test
     'previouslyTested': 'previouslyTested',
+    'previousTestDate': 'previousTestDate',
+    'previousTestFacility': 'previousTestFacility',
+    'previousTestCity': 'previousTestCity',
     'previousTestResult': 'previousTestResult',
-    'medicalHistory': 'medicalHistoryTB',
+    
+    // Medical History (individual fields, not grouped)
+    'medicalHistoryTB': 'medicalHistoryTB',
+    'medicalHistorySTI': 'medicalHistorySTI',
+    'medicalHistoryHepB': 'medicalHistoryHepB',
+    'medicalHistoryHepC': 'medicalHistoryHepC',
+    'medicalHistoryPEP': 'medicalHistoryPEP',
+    'medicalHistoryPrEP': 'medicalHistoryPrEP',
+    
+    // Clinical Picture & WHO Staging
     'clinicalPicture': 'clinicalPicture',
     'symptoms': 'symptoms',
     'whoStaging': 'whoStaging',
+    
+    // Client Type & Venue
     'clientType': 'clientType',
+    'testingVenue': 'testingVenue',
     'modeOfReach': 'modeOfReach',
+    
+    // HIV Testing Status (individual field, not grouped)
     'testingAccepted': 'testingAccepted',
+    'refusalReason': 'refusalReason',
+    'testingModality': 'testingModality',
+    
+    // Test Kit Information
     'testKitBrand': 'testKitBrand',
     'testKitLotNumber': 'testKitLotNumber',
     'testKitExpiration': 'testKitExpiration',
+    
+    // Testing Facility
     'testingFacility': 'testingFacility',
     'facilityAddress': 'facilityAddress',
     'facilityContact': 'facilityContact',
     'facilityEmail': 'facilityEmail',
+    
+    // Service Provider
     'counselorName': 'counselorName',
     'counselorRole': 'counselorRole',
     'counselorSignature': 'counselorSignatureDate',
-    'otherServices': 'servicesIEC'
+    
+    // Other Services (individual fields, not grouped)
+    'servicesIEC': 'servicesIEC',
+    'servicesCondoms': 'servicesCondoms',
+    'servicesPEP': 'servicesPEP',
+    'servicesPrEP': 'servicesPrEP',
+    'servicesSTI': 'servicesSTI',
+    'servicesTB': 'servicesTB',
+    'servicesHepB': 'servicesHepB',
+    'servicesART': 'servicesART',
+    'servicesOther': 'servicesOther'
   };
+}
+
+/**
+ * Match field to detection results - individual fields only
+ */
+function findBestMatch(fieldName, fieldConfig, queryResults, kvPairs, checkboxes) {
+  // Get field-to-query mapping
+  const fieldToQueryMap = getFieldToQueryMap();
   
-  // Use mapped alias if available
-  if (fieldToQueryMap[fieldName]) {
-    queryAlias = fieldToQueryMap[fieldName];
-  }
+  // Priority 1: Query results with alias mapping
+  const queryAlias = fieldToQueryMap[fieldName] || fieldName;
   
   if (queryResults[queryAlias]) {
     return queryResults[queryAlias];

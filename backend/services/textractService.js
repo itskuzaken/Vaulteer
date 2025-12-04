@@ -1414,7 +1414,12 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
       const totalFields = Object.keys(queryResults.front).length + Object.keys(queryResults.back).length;
       console.log(`✅ Query extraction complete: Front=${Object.keys(queryResults.front).length}, Back=${Object.keys(queryResults.back).length}, Total=${totalFields}`);
       
-      // Auto-calibrate template coordinates based on high-confidence query results
+      // Auto-calibration DISABLED - Use manual calibration scripts instead
+      // To manually calibrate:
+      // - Run: node backend/scripts/recalibrate-front-all-fields.js
+      // - Run: node backend/scripts/recalibrate-back-all-fields.js
+      // - Apply: node backend/scripts/apply-front-calibration.js
+      /*
       try {
         const calibrator = new OCRRegionCalibrator();
         const calibrationResult = calibrator.autoCalibrate(queryResults, 85);
@@ -1428,6 +1433,7 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
       } catch (calibError) {
         console.warn('⚠️ [Auto-Calibration] Failed:', calibError.message);
       }
+      */
       
       // Generate calibration report if in development/debug mode
       if (process.env.OCR_DEBUG === 'true' || process.env.NODE_ENV === 'development') {

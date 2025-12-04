@@ -167,81 +167,93 @@ const TEMPLATE_FIELD_LABELS = {
   formCompletionDate: 'Form Completion Date'
 };
 
-// Group fields by section (101 fields organized by category)
+// Group fields by section following DOH HTS Form 2021 structure
 const FRONT_PAGE_SECTIONS = {
-  'Personal Information & Identification': [
-    'philHealthNumber', 'philSysNumber', 'firstName', 'middleName', 'lastName', 'suffix',
-    'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder'
+  'INFORMED CONSENT - Contact Number and Email Address': [
+    'contactNumber', 'emailAddress'
   ],
-  'Demographic Data': [
-    'birthDate', 'age', 'ageMonths', 'sex', 'genderIdentity'
+  'Q1-3: Test Date, PhilHealth Number, and PhilSys Number': [
+    'testDate', 'philHealthNumber', 'philSysNumber'
   ],
-  'Residence Information': [
+  'Q4: First Name, Middle Name, Last Name, and Suffix': [
+    'firstName', 'middleName', 'lastName', 'suffix'
+  ],
+  'Q5: First 2 Letters of Mother\'s First Name, First 2 Letters of Father\'s First Name, and Birth Order': [
+    'parentalCodeMother', 'parentalCodeFather', 'birthOrder'
+  ],
+  'Q6: Birth Date, Age, and Age in Months': [
+    'birthDate', 'age', 'ageMonths'
+  ],
+  'Q7: Sex & Gender Identity': [
+    'sex', 'genderIdentity'
+  ],
+  'Q8: Current Place of Residence, Permanent Residence, Place of Birth': [
     'currentResidenceCity', 'currentResidenceProvince',
     'permanentResidenceCity', 'permanentResidenceProvince',
     'placeOfBirthCity', 'placeOfBirthProvince'
   ],
-  'Personal Status': [
-    'nationality', 'nationalityOther', 'civilStatus', 'livingWithPartner',
-    'numberOfChildren', 'isPregnant'
+  'Q9: Nationality': [
+    'nationality', 'nationalityOther'
   ],
-  'Education & Occupation': [
-    'educationalAttainment', 'currentlyInSchool', 'occupation', 'currentlyWorking',
-    'workedOverseas', 'overseasReturnYear', 'overseasLocation', 'overseasCountry'
+  'Q10: Civil Status': [
+    'civilStatus', 'numberOfChildren'
   ],
-  'Contact Information': [
-    'contactNumber', 'emailAddress'
+  'Q11: Are You Currently Living with a Partner?': [
+    'livingWithPartner'
+  ],
+  'Q12: Are You Currently Pregnant?': [
+    'isPregnant'
+  ],
+  'Q13-14: Educational Attainment': [
+    'educationalAttainment', 'currentlyInSchool'
+  ],
+  'Q15-16: Occupation & Overseas Work': [
+    'occupation', 'currentlyWorking', 'workedOverseas', 
+    'overseasReturnYear', 'overseasLocation', 'overseasCountry'
   ]
 };
 
 const BACK_PAGE_SECTIONS = {
-  'Mother HIV Status': [
-    'motherHIV'
-  ],
-  'Risk Assessment - Sexual Exposure': [
+  'Q17: History of Exposure / Risk Assessment': [
+    'motherHIV',
     'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1', 'riskSexMaleDate2',
     'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1', 'riskSexFemaleDate2',
     'riskPaidForSexStatus', 'riskPaidForSexDate',
     'riskReceivedPaymentStatus', 'riskReceivedPaymentDate',
-    'riskSexUnderDrugsStatus', 'riskSexUnderDrugsDate'
-  ],
-  'Risk Assessment - Other Exposures': [
+    'riskSexUnderDrugsStatus', 'riskSexUnderDrugsDate',
     'riskSharedNeedlesStatus', 'riskSharedNeedlesDate',
     'riskBloodTransfusionStatus', 'riskBloodTransfusionDate',
     'riskOccupationalExposureStatus', 'riskOccupationalExposureDate',
     'riskAssessment'
   ],
-  'Reasons for Testing': [
+  'Q18: Reasons for HIV Testing': [
     'reasonsForTesting', 'testingRefusedReason'
   ],
-  'Previous HIV Test': [
+  'Q19: Previous HIV Test': [
     'previouslyTested', 'previousTestDate', 'previousTestProvider',
     'previousTestCity', 'previousTestResult'
   ],
-  'Medical History': [
+  'Q20-21: Medical History & Clinical Picture': [
     'medicalHistory', 'medicalTB', 'medicalSTI', 'medicalPEP',
-    'medicalPrEP', 'medicalHepatitisB', 'medicalHepatitisC'
-  ],
-  'Clinical Picture': [
+    'medicalPrEP', 'medicalHepatitisB', 'medicalHepatitisC',
     'clinicalPicture', 'symptoms', 'whoStaging'
   ],
-  'Testing Details': [
+  'Q22-24: Testing Details': [
     'clientType', 'modeOfReach', 'testingAccepted', 'testingModality',
-    'linkageToCare', 'otherServices'
+    'linkageToCare', 'testResult'
   ],
-  'Test Kit Information': [
+  'Q25: Other Services Provided to Client, and Inventory Information': [
+    'otherServices',
     'testKitBrand', 'testKitLotNumber', 'testKitExpiration'
   ],
-  'Facility Information': [
+  'Q26-27: HTS Provider Details - Facility': [
     'testingFacility', 'facilityAddress', 'facilityCode',
     'facilityRegion', 'facilityProvince', 'facilityCity',
     'facilityContactNumber', 'facilityEmail'
   ],
-  'Counselor Information': [
+  'Q26-27: HTS Provider Details - Counselor': [
     'counselorName', 'counselorRole', 'counselorLicense',
-    'counselorDesignation', 'counselorContact', 'counselorSignature'
-  ],
-  'Form Completion': [
+    'counselorDesignation', 'counselorContact', 'counselorSignature',
     'formCompletionDate'
   ]
 };
