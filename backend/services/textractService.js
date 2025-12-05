@@ -1875,6 +1875,17 @@ const FORMS_FIELD_MAPPING = {
   'facility contact number': 'facilityContactNumber',
   'facility contact': 'facilityContactNumber',
   'facility phone': 'facilityContactNumber',
+  'facility address': 'facilityAddress',
+  'complete mailing address': 'facilityAddress',
+  'mailing address': 'facilityAddress',
+  
+  // Sex and Gender Identity (Q7, Q8)
+  'male': 'sexMale',
+  'female': 'sexFemale',
+  'man': 'genderIdentityMan',
+  'woman': 'genderIdentityWoman',
+  'transgender woman': 'genderIdentityTransWoman',
+  'transgender man': 'genderIdentityTransMan',
   
   // ========== FRONT PAGE: TESTING INFORMATION (Q12-Q18) ==========
   'previously tested': 'previouslyTested',
@@ -2240,6 +2251,8 @@ function applyMappingStrategy(kvPair, context, strategy) {
         fieldName = 'facilityEmailAddress';
       } else if (fieldName === 'contactNumber' && pageType === 'back') {
         fieldName = 'facilityContactNumber';
+      } else if (fieldName === 'address' && pageType === 'back') {
+        fieldName = 'facilityAddress';
       }
       
       if (fieldName) {
@@ -2256,6 +2269,8 @@ function applyMappingStrategy(kvPair, context, strategy) {
           fieldName = 'facilityEmailAddress';
         } else if (fieldName === 'contactNumber' && pageType === 'back') {
           fieldName = 'facilityContactNumber';
+        } else if (fieldName === 'address' && pageType === 'back') {
+          fieldName = 'facilityAddress';
         }
         return { ...fuzzyMatch, fieldName };
       }
@@ -2370,11 +2385,11 @@ function tryPartialMatching(normalizedKey) {
     'phone': 'contactNumber',
     'mobile': 'contactNumber',
     'email': 'emailAddress',
-    'address': 'address',
-    'age': 'age',
-    'sex': 'sex'
-    // NOTE: Removed generic 'name', 'contact', 'date', 'test' - too ambiguous
+    'age': 'age'
+    // NOTE: Removed generic 'name', 'contact', 'date', 'test', 'sex', 'address' - too ambiguous
   };
+  
+  // Don't use partial match for address - it matches too many facility-related fields
   
   for (const [pattern, fieldName] of Object.entries(partialMatches)) {
     if (normalizedKey.includes(pattern)) {
@@ -2508,6 +2523,67 @@ function buildCompositeFields(mappedFields, frontKVPairs, backKVPairs) {
         extractionMethod: 'forms+layout'
       };
       console.log(`  ✓ Built fullName: "${fullName}" (composite from ${nameParts.length} parts)`);
+    }
+  }
+  
+  // ========== Build sex from Male/Female SELECTED values ==========
+  if (mappedFields.sexMale || mappedFields.sexFemale) {
+    let sexValue = null;
+    let sexConf = 0;
+    
+    if (mappedFields.sexMale?.value === 'SELECTED' || mappedFields.sexMale?.value === '/') {
+      sexValue = 'Male';
+      sexConf = mappedFields.sexMale.confidence;
+    } else if (mappedFields.sexFemale?.value === 'SELECTED' || mappedFields.sexFemale?.value === '/') {
+      sexValue = 'Female';
+      sexConf = mappedFields.sexFemale.confidence;
+    }
+    
+    if (sexValue) {
+      mappedFields.sex = {
+        value: sexValue,
+        confidence: Math.round(sexConf),
+        rawKey: 'composite',
+        normalizedKey: 'sex',
+        mappingStrategy: 'composite',
+        page: 'front',
+        extractionMethod: 'forms+layout'
+      };
+      console.log(`  ✓ Built sex: "${sexValue}" (from checkbox selection)`);
+    }
+  }
+  
+  // ========== Build genderIdentity from Man/Woman/Trans SELECTED values ==========
+  if (mappedFields.genderIdentityMan || mappedFields.genderIdentityWoman || 
+      mappedFields.genderIdentityTransWoman || mappedFields.genderIdentityTransMan) {
+    let genderValue = null;
+    let genderConf = 0;
+    
+    if (mappedFields.genderIdentityTransWoman?.value === 'SELECTED' || mappedFields.genderIdentityTransWoman?.value === '/') {
+      genderValue = 'Transgender Woman';
+      genderConf = mappedFields.genderIdentityTransWoman.confidence;
+    } else if (mappedFields.genderIdentityTransMan?.value === 'SELECTED' || mappedFields.genderIdentityTransMan?.value === '/') {
+      genderValue = 'Transgender Man';
+      genderConf = mappedFields.genderIdentityTransMan.confidence;
+    } else if (mappedFields.genderIdentityMan?.value === 'SELECTED' || mappedFields.genderIdentityMan?.value === '/') {
+      genderValue = 'Man';
+      genderConf = mappedFields.genderIdentityMan.confidence;
+    } else if (mappedFields.genderIdentityWoman?.value === 'SELECTED' || mappedFields.genderIdentityWoman?.value === '/') {
+      genderValue = 'Woman';
+      genderConf = mappedFields.genderIdentityWoman.confidence;
+    }
+    
+    if (genderValue) {
+      mappedFields.genderIdentity = {
+        value: genderValue,
+        confidence: Math.round(genderConf),
+        rawKey: 'composite',
+        normalizedKey: 'gender identity',
+        mappingStrategy: 'composite',
+        page: 'front',
+        extractionMethod: 'forms+layout'
+      };
+      console.log(`  ✓ Built genderIdentity: "${genderValue}" (from checkbox selection)`);
     }
   }
   

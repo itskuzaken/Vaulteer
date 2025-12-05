@@ -56,10 +56,10 @@ async function testCachedOCR() {
     console.log();
 
     console.log('=' .repeat(60));
-    console.log('📋 EXTRACTED FIELDS SAMPLE (First 15)');
+    console.log('📋 ALL EXTRACTED FIELDS');
     console.log('=' .repeat(60));
     
-    const fieldEntries = Object.entries(result.fields).slice(0, 15);
+    const fieldEntries = Object.entries(result.fields);
     fieldEntries.forEach(([key, value]) => {
       const displayValue = typeof value === 'string' && value.length > 50 
         ? value.substring(0, 50) + '...' 
@@ -67,9 +67,7 @@ async function testCachedOCR() {
       console.log(`  ${key}: ${JSON.stringify(displayValue)}`);
     });
     
-    if (Object.keys(result.fields).length > 15) {
-      console.log(`  ... and ${Object.keys(result.fields).length - 15} more fields`);
-    }
+    console.log(`\nTotal: ${Object.keys(result.fields).length} fields extracted`);
     console.log();
 
     if (result.validationSummary) {
