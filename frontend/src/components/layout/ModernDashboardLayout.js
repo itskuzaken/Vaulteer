@@ -278,7 +278,8 @@ export default function ModernDashboardLayout({
       >
         {/* Top Header - Responsive and Adaptive */}
         <header className="sticky top-0 z-30 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm transition-all duration-300 ease-in-out">
-          <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8 transition-all duration-300">
+          <div className="flex items-center justify-between h-19
+           px-4 sm:px-6 lg:px-8 transition-all duration-300">
             {/* Left Section */}
             <div className="flex items-center gap-4">
               {/* Mobile Burger Menu - Only Visible on Mobile */}

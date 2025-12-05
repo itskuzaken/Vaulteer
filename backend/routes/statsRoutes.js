@@ -46,7 +46,10 @@ router.get("/dashboard", authenticate, async (req, res) => {
     );
 
     const [totalApplicants] = await pool.query(
-      "SELECT COUNT(*) as count FROM users u JOIN roles r ON u.role_id = r.role_id WHERE r.role = 'applicant' AND u.status = 'pending'"
+      `SELECT COUNT(DISTINCT a.applicant_id) as count 
+       FROM applicants a 
+       JOIN application_statuses s ON a.status_id = s.status_id 
+       WHERE s.status_name = 'pending'`
     );
 
     const [recentLogs] = await pool.query(

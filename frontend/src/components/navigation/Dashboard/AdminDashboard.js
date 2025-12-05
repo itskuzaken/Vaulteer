@@ -36,6 +36,7 @@ export default function AdminDashboard({ onNavigate }) {
       icon: IoPeopleOutline,
       color: "blue",
       subtitle: "Active members",
+      onClick: () => handleQuickAction("manage-users", "volunteers"),
     },
     {
       key: "total_staff",
@@ -43,6 +44,7 @@ export default function AdminDashboard({ onNavigate }) {
       icon: IoPersonOutline,
       color: "green",
       subtitle: "Active staff",
+      onClick: () => handleQuickAction("manage-users", "staff"),
     },
     {
       key: "total_applicants",
@@ -50,6 +52,7 @@ export default function AdminDashboard({ onNavigate }) {
       icon: IoDocumentTextOutline,
       color: "amber",
       subtitle: "Awaiting approval",
+      onClick: () => handleQuickAction("manage-users", "applicants"),
     },
     {
       key: "recent_activity",

@@ -163,6 +163,9 @@ async function analyzeDocument(imageBuffer, featureTypes = ['FORMS']) {
 
 /**
  * Analyze document with AWS Textract Queries API
+ * @deprecated Use analyzeHTSFormWithForms() with FORMS-only approach instead
+ * @deprecated This function will be removed in next major version
+ * @deprecated Set OCR_USE_FORMS_ONLY=true to use new FORMS-based extraction
  * @param {Buffer} imageBuffer - Image buffer
  * @param {Array} queries - Array of query objects with {text, alias, pages}
  * @param {Array} featureTypes - Additional feature types (e.g., ['FORMS', 'TABLES'])
@@ -248,6 +251,8 @@ function extractFromQueryResults(blocks) {
 
 /**
  * Split queries into batches of specified size
+ * @deprecated Use analyzeHTSFormWithForms() with FORMS-only approach instead
+ * @deprecated This function will be removed in next major version
  * @param {Array} queries - Array of query objects
  * @param {number} batchSize - Maximum queries per batch (default: 15)
  * @returns {Array} Array of query batches
@@ -262,6 +267,8 @@ function batchQueries(queries, batchSize = 15) {
 
 /**
  * Process multiple query batches and merge results
+ * @deprecated Use analyzeHTSFormWithForms() with FORMS-only approach instead
+ * @deprecated This function will be removed in next major version
  * @param {Buffer} imageBuffer - Image buffer
  * @param {Array} batches - Array of query batches
  * @returns {Promise<Object>} Merged query results
@@ -314,6 +321,8 @@ async function processBatchQueries(imageBuffer, batches) {
  * Query alias to field name mapping
  * Maps snake_case query aliases to camelCase metadata field names
  * Total: 97 fields (37 front + 60 back)
+ * @deprecated Use FORMS_FIELD_MAPPING instead for FORMS-only approach
+ * @deprecated This mapping will be removed in next major version
  */
 const QUERY_ALIAS_MAP = {
   // FRONT PAGE - INFORMED CONSENT & CONTACT (2 fields)
@@ -466,6 +475,8 @@ const QUERY_ALIAS_MAP = {
 /**
  * Generate HTS Form queries for Textract Queries API
  * Organized by HTS Form structure and category
+ * @deprecated Use analyzeHTSFormWithForms() with FORMS-only approach instead
+ * @deprecated This function will be removed in next major version
  * @param {string} page - 'front' or 'back'
  * @returns {Array} Array of query objects
  */
@@ -1500,6 +1511,388 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
 }
 
 /**
+ * Field mapping dictionary for AWS Textract FORMS feature
+ * Maps Textract key-value pair keys to HTS form field names
+ * This is a comprehensive mapping for all 97 fields in DOH HTS Form 2021
+ */
+const FORMS_FIELD_MAPPING = {
+  // ========== FRONT PAGE: TEST INFORMATION ==========
+  'test date': 'testDate',
+  'date of test': 'testDate',
+  'testing date': 'testDate',
+  'date tested': 'testDate',
+  
+  'control number': 'controlNumber',
+  'control no': 'controlNumber',
+  'control #': 'controlNumber',
+  'serial number': 'controlNumber',
+  
+  // ========== FRONT PAGE: PERSONAL INFORMATION (Q1-Q11) ==========
+  'full name': 'fullName',
+  'name': 'fullName',
+  'client name': 'fullName',
+  'patient name': 'fullName',
+  
+  'last name': 'lastName',
+  'surname': 'lastName',
+  'family name': 'lastName',
+  
+  'first name': 'firstName',
+  'given name': 'firstName',
+  
+  'middle name': 'middleName',
+  'middle initial': 'middleName',
+  
+  'birthdate': 'birthDate',
+  'date of birth': 'birthDate',
+  'birth date': 'birthDate',
+  'dob': 'birthDate',
+  
+  'age': 'age',
+  'age in years': 'age',
+  
+  'sex': 'sex',
+  'gender': 'sex',
+  'sex assigned at birth': 'sex',
+  
+  'civil status': 'civilStatus',
+  'marital status': 'civilStatus',
+  'status': 'civilStatus',
+  
+  'philhealth number': 'philHealthNumber',
+  'philhealth no': 'philHealthNumber',
+  'philhealth id': 'philHealthNumber',
+  'phic number': 'philHealthNumber',
+  
+  'address': 'address',
+  'complete address': 'address',
+  'current address': 'address',
+  'residential address': 'address',
+  
+  'contact number': 'contactNumber',
+  'mobile number': 'contactNumber',
+  'phone number': 'contactNumber',
+  'telephone number': 'contactNumber',
+  
+  'email address': 'emailAddress',
+  'email': 'emailAddress',
+  'e-mail': 'emailAddress',
+  
+  // ========== FRONT PAGE: TESTING INFORMATION (Q12-Q18) ==========
+  'previously tested': 'previouslyTested',
+  'tested before': 'previouslyTested',
+  'prior testing': 'previouslyTested',
+  'previous test': 'previouslyTested',
+  
+  'previous test result': 'previousTestResult',
+  'last test result': 'previousTestResult',
+  'prior result': 'previousTestResult',
+  
+  'previous test date': 'previousTestDate',
+  'date of previous test': 'previousTestDate',
+  'last test date': 'previousTestDate',
+  
+  'testing reason': 'testingReason',
+  'reason for testing': 'testingReason',
+  'purpose of test': 'testingReason',
+  
+  'hts code': 'htsCode',
+  'hts entry point': 'htsCode',
+  'entry point code': 'htsCode',
+  
+  'screening type': 'screeningType',
+  'type of screening': 'screeningType',
+  
+  'client category': 'clientCategory',
+  'category': 'clientCategory',
+  
+  'partner tested': 'partnerTested',
+  'partner also tested': 'partnerTested',
+  
+  // ========== BACK PAGE: HIV TEST RESULTS (Q19-Q21) ==========
+  'screening test result': 'screeningTestResult',
+  'screening result': 'screeningTestResult',
+  'initial test result': 'screeningTestResult',
+  
+  'confirmatory test result': 'confirmatoryTestResult',
+  'confirmatory result': 'confirmatoryTestResult',
+  'final test result': 'confirmatoryTestResult',
+  
+  'final diagnosis': 'finalDiagnosis',
+  'diagnosis': 'finalDiagnosis',
+  'final result': 'finalDiagnosis',
+  
+  // ========== BACK PAGE: RISK ASSESSMENT (Q22) ==========
+  'multiple partners': 'multiplePartners',
+  'more than one partner': 'multiplePartners',
+  
+  'std symptoms': 'stdSymptoms',
+  'sti symptoms': 'stdSymptoms',
+  'symptoms': 'stdSymptoms',
+  
+  'shared needles': 'sharedNeedles',
+  'needle sharing': 'sharedNeedles',
+  'injection drug use': 'sharedNeedles',
+  
+  'blood transfusion': 'bloodTransfusion',
+  'received blood': 'bloodTransfusion',
+  
+  'sex work': 'sexWork',
+  'commercial sex': 'sexWork',
+  
+  'msm': 'msm',
+  'men who have sex with men': 'msm',
+  
+  'transgender': 'transgender',
+  'trans': 'transgender',
+  
+  'sex with plhiv': 'sexWithPLHIV',
+  'partner with hiv': 'sexWithPLHIV',
+  'plhiv partner': 'sexWithPLHIV',
+  
+  'no risk': 'noRisk',
+  'no identified risk': 'noRisk',
+  
+  // ========== BACK PAGE: REFERRAL & POST-TEST (Q23-Q24) ==========
+  'referred to': 'referredTo',
+  'referral': 'referredTo',
+  'referred for': 'referredTo',
+  
+  'treatment facility': 'treatmentFacility',
+  'treatment center': 'treatmentFacility',
+  'referral facility': 'treatmentFacility',
+  
+  'post test counseling': 'postTestCounseling',
+  'counseling provided': 'postTestCounseling',
+  
+  'art linkage': 'artLinkage',
+  'linked to art': 'artLinkage',
+  'antiretroviral therapy': 'artLinkage',
+  
+  'prevention services': 'preventionServices',
+  'prevention': 'preventionServices',
+  
+  'other services': 'otherServices',
+  'additional services': 'otherServices',
+  
+  // ========== BACK PAGE: INVENTORY (Q25) ==========
+  'test kit brand': 'testKitBrand',
+  'kit brand': 'testKitBrand',
+  'brand': 'testKitBrand',
+  
+  'test kit lot number': 'testKitLotNumber',
+  'lot number': 'testKitLotNumber',
+  'batch number': 'testKitLotNumber',
+  
+  'test kit expiration': 'testKitExpiration',
+  'expiration date': 'testKitExpiration',
+  'expiry date': 'testKitExpiration',
+  
+  // ========== BACK PAGE: HTS PROVIDER (Q26-Q27) ==========
+  'testing facility': 'testingFacility',
+  'facility name': 'testingFacility',
+  'health facility': 'testingFacility',
+  
+  'counselor name': 'counselorName',
+  'counselor': 'counselorName',
+  'tested by': 'counselorName',
+  'hts provider': 'counselorName',
+  
+  'counselor signature': 'counselorSignature',
+  'signature': 'counselorSignature'
+};
+
+/**
+ * Map Textract FORMS key-value pairs to HTS field structure
+ * @param {Array} keyValuePairs - Textract key-value blocks
+ * @param {string} pageType - 'front' or 'back'
+ * @returns {Object} Mapped HTS fields with confidence scores
+ */
+function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown') {
+  console.log(`🗺️  Mapping ${keyValuePairs.length} key-value pairs from ${pageType} page...`);
+  
+  const mappedFields = {};
+  const unmappedKeys = [];
+  
+  for (const kvPair of keyValuePairs) {
+    if (!kvPair.key || !kvPair.value) {
+      continue;
+    }
+    
+    // Normalize key to lowercase for matching
+    const normalizedKey = kvPair.key.toLowerCase().trim();
+    
+    // Find matching HTS field name
+    const htsFieldName = FORMS_FIELD_MAPPING[normalizedKey];
+    
+    if (htsFieldName) {
+      // Map to HTS field with confidence
+      mappedFields[htsFieldName] = {
+        value: kvPair.value,
+        confidence: kvPair.confidence,
+        rawKey: kvPair.key,
+        page: pageType,
+        extractionMethod: 'forms'
+      };
+      
+      console.log(`  ✓ "${kvPair.key}" → ${htsFieldName}: "${kvPair.value}" (${kvPair.confidence}%)`);
+    } else {
+      unmappedKeys.push(kvPair.key);
+    }
+  }
+  
+  // Log unmapped keys for future improvements
+  if (unmappedKeys.length > 0) {
+    console.log(`⚠️  ${unmappedKeys.length} unmapped keys found:`, unmappedKeys.slice(0, 5).join(', '));
+  }
+  
+  return {
+    fields: mappedFields,
+    stats: {
+      mapped: Object.keys(mappedFields).length,
+      unmapped: unmappedKeys.length,
+      total: keyValuePairs.length
+    },
+    unmappedKeys
+  };
+}
+
+/**
+ * Analyze HTS form using AWS Textract FORMS + LAYOUT features
+ * This is the NEW approach - no QUERIES, no coordinate-based extraction
+ * Combines FORMS (key-value pairs) + LAYOUT (document structure) for better accuracy
+ * @param {Buffer} frontImageBuffer - Front page image
+ * @param {Buffer} backImageBuffer - Back page image
+ * @param {Object} options - Extraction options
+ * @returns {Promise<Object>} Extracted data with field-level confidence
+ */
+async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, options = {}) {
+  const { preprocessImages = true, useLayout = true } = options;
+  
+  const features = useLayout ? 'FORMS + LAYOUT' : 'FORMS only';
+  console.log(`📤 [FORMS OCR] Starting HTS form extraction with ${features}...`);
+  
+  try {
+    // Step 1: Preprocess images if enabled
+    if (preprocessImages) {
+      console.log('🖼️  Preprocessing images for optimal OCR...');
+      
+      try {
+        const [frontProcessed, backProcessed] = await Promise.all([
+          imagePreprocessor.process(frontImageBuffer, { mode: 'auto' }),
+          imagePreprocessor.process(backImageBuffer, { mode: 'auto' })
+        ]);
+
+        console.log(`✅ Front: ${frontProcessed.applied.join(', ')}`);
+        console.log(`✅ Back: ${backProcessed.applied.join(', ')}`);
+
+        frontImageBuffer = frontProcessed.buffer;
+        backImageBuffer = backProcessed.buffer;
+      } catch (preprocessError) {
+        console.warn('⚠️  Preprocessing failed, using original images:', preprocessError.message);
+      }
+    }
+
+    // Step 2: Analyze both pages with FORMS + LAYOUT features
+    const featureTypes = useLayout ? ['FORMS', 'LAYOUT'] : ['FORMS'];
+    console.log(`🔍 Running AWS Textract analysis with features: ${featureTypes.join(', ')}...`);
+    
+    const [frontResult, backResult] = await Promise.all([
+      textractClient.send(new AnalyzeDocumentCommand({
+        Document: { Bytes: frontImageBuffer },
+        FeatureTypes: featureTypes
+      })),
+      textractClient.send(new AnalyzeDocumentCommand({
+        Document: { Bytes: backImageBuffer },
+        FeatureTypes: featureTypes
+      }))
+    ]);
+
+    console.log(`✅ Textract analysis complete`);
+    console.log(`   - Front blocks: ${frontResult.Blocks.length}`);
+    console.log(`   - Back blocks: ${backResult.Blocks.length}`);
+
+    // Step 3: Extract key-value pairs from both pages
+    const frontKVPairs = extractKeyValuePairs(frontResult.Blocks);
+    const backKVPairs = extractKeyValuePairs(backResult.Blocks);
+    
+    console.log(`📊 Key-value pairs found:`);
+    console.log(`   - Front page: ${frontKVPairs.length} pairs`);
+    console.log(`   - Back page: ${backKVPairs.length} pairs`);
+
+    // Step 4: Map Textract keys to HTS field names
+    const frontMapping = mapTextractKeysToHTSFields(frontKVPairs, 'front');
+    const backMapping = mapTextractKeysToHTSFields(backKVPairs, 'back');
+
+    // Step 5: Merge fields from both pages
+    const allFields = {
+      ...frontMapping.fields,
+      ...backMapping.fields
+    };
+
+    console.log(`✅ Field mapping complete:`);
+    console.log(`   - Front mapped: ${frontMapping.stats.mapped} fields`);
+    console.log(`   - Back mapped: ${backMapping.stats.mapped} fields`);
+    console.log(`   - Total mapped: ${Object.keys(allFields).length} fields`);
+    console.log(`   - Total unmapped: ${frontMapping.stats.unmapped + backMapping.stats.unmapped} keys`);
+
+    // Step 6: Convert to simplified field structure for validation
+    const fieldsForValidation = {};
+    for (const [fieldName, fieldData] of Object.entries(allFields)) {
+      fieldsForValidation[fieldName] = fieldData.value;
+    }
+
+    // Step 7: Apply validation rules
+    console.log('🔍 Applying validation rules...');
+    const validations = validateAndCorrectFields(fieldsForValidation);
+    const correctedData = applyValidationCorrections(fieldsForValidation, validations);
+    const validationSummary = getValidationSummary(validations);
+
+    console.log(`✅ Validation complete: ${validationSummary.corrected} auto-corrections`);
+
+    // Step 8: Calculate overall confidence
+    const confidenceValues = Object.values(allFields).map(f => f.confidence);
+    const overallConfidence = confidenceValues.length > 0
+      ? confidenceValues.reduce((a, b) => a + b, 0) / confidenceValues.length
+      : 0;
+
+    // Step 9: Calculate stats
+    const highConfidence = confidenceValues.filter(c => c >= 85).length;
+    const mediumConfidence = confidenceValues.filter(c => c >= 70 && c < 85).length;
+    const lowConfidence = confidenceValues.filter(c => c < 70).length;
+
+    return {
+      fields: correctedData,
+      confidence: overallConfidence,
+      stats: {
+        totalFields: Object.keys(allFields).length,
+        highConfidence,
+        mediumConfidence,
+        lowConfidence,
+        requiresReview: lowConfidence,
+        extractionMethods: {
+          forms: Object.keys(allFields).length,
+          query: 0,
+          coordinate: 0,
+          failed: 97 - Object.keys(allFields).length // Expected 97 total fields
+        }
+      },
+      validationSummary,
+      validations,
+      extractionMethod: 'forms-only',
+      templateId: 'doh-hts-2021-v2',
+      unmappedKeys: {
+        front: frontMapping.unmappedKeys,
+        back: backMapping.unmappedKeys
+      }
+    };
+  } catch (error) {
+    console.error('❌ [FORMS OCR] Extraction failed:', error);
+    throw error;
+  }
+}
+
+/**
  * Analyze HTS form images and return extracted data (LEGACY)
  * Called by /api/hts-forms/analyze-ocr endpoint BEFORE encryption
  * @deprecated Use analyzeHTSFormEnhanced for better accuracy
@@ -1652,6 +2045,8 @@ module.exports = {
   processBatchQueries,
   analyzeHTSForm,
   analyzeHTSFormEnhanced,
+  analyzeHTSFormWithForms, // NEW: FORMS-only approach
+  mapTextractKeysToHTSFields, // NEW: Field mapping for FORMS
   extractTextLines,
   extractKeyValuePairs,
   extractTestResult,

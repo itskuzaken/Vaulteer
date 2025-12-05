@@ -88,6 +88,7 @@ export default function RealtimeStatsGrid({
                 loading={loading && !data}
                 animationDuration={config.animationDuration || 1000}
                 onClick={config.onClick}
+                showRealtimeIndicator={config.showRealtimeIndicator || false}
               />
             );
           })}

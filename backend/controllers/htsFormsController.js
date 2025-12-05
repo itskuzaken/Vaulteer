@@ -93,12 +93,29 @@ const htsFormsController = {
       const extractionOptions = getExtractionOptions();
       console.log(`[OCR Analysis] Using extraction mode: ${extractionOptions.extractionMode}, useQueries: ${extractionOptions.useQueries}`);
 
-      // Send processed images to Textract with Enhanced OCR
-      const extractedData = await textractService.analyzeHTSForm(
-        processedFront,
-        processedBack,
-        extractionOptions
-      );
+      // Feature flag: Use FORMS-only approach or legacy QUERIES+Hybrid
+      const useFormsOnly = process.env.OCR_USE_FORMS_ONLY === 'true' || false;
+      const useLayout = process.env.OCR_USE_LAYOUT !== 'false'; // Default: true
+      let extractedData;
+
+      if (useFormsOnly) {
+        console.log(`🆕 [OCR Analysis] Using FORMS${useLayout ? '+LAYOUT' : '-only'} approach`);
+        extractedData = await textractService.analyzeHTSFormWithForms(
+          processedFront,
+          processedBack,
+          { 
+            preprocessImages: false, // Already preprocessed above
+            useLayout: useLayout
+          }
+        );
+      } else {
+        console.log('🔧 [OCR Analysis] Using legacy QUERIES+Hybrid approach');
+        extractedData = await textractService.analyzeHTSForm(
+          processedFront,
+          processedBack,
+          extractionOptions
+        );
+      }
 
       console.log(`[OCR Analysis] Extraction completed with ${extractedData.confidence.toFixed(1)}% confidence`);
       console.log(`[OCR Analysis] Method: ${extractedData.extractionMethod}, Mode: ${extractedData.extractionMode || 'N/A'}, Template: ${extractedData.templateId || 'N/A'}`);

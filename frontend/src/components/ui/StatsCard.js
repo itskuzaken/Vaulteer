@@ -18,6 +18,7 @@ export default function StatsCard({
   loading = false,
   animationDuration = 1000,
   onClick = null,
+  showRealtimeIndicator = false,
 }) {
   const animatedValue = useAnimatedCounter(value || 0, animationDuration);
   const [showPulse, setShowPulse] = useState(false);
