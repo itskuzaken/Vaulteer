@@ -143,11 +143,11 @@ export default function ProgramsSection() {
         <div className="bg-gradient-to-r from-bagani-red via-bagani-blue to-bagani-yellow rounded-2xl p-1">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-8 md:p-12 text-center">
             <h3 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              Don't See What You're Looking For?
+              Don&apos;t See What You&apos;re Looking For?
             </h3>
             <p className="text-gray-600 dark:text-gray-300 mb-6 max-w-2xl mx-auto">
-              We're always looking to expand our programs based on community needs. 
-              Let us know what services or programs you'd like to see offered.
+              We&apos;re always looking to expand our programs based on community needs. 
+              Let us know what services or programs you&apos;d like to see offered.
             </p>
             <button className="px-8 py-3 bg-bagani-red text-white rounded-lg font-semibold hover:bg-bagani-red-dark transition-colors shadow-lg hover:shadow-xl transform hover:scale-105">
               Suggest a Program

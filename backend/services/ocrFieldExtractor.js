@@ -3,7 +3,6 @@ const { AnalyzeDocumentCommand } = require('@aws-sdk/client-textract');
 const { textractClient } = require('../config/aws');
 const CheckboxDetector = require('../utils/checkboxDetector');
 const templateManager = require('./templateManager');
-const { QUERY_ALIAS_MAP } = require('./textractService');
 const fs = require('fs');
 const path = require('path');
 
@@ -261,10 +260,7 @@ class OCRFieldExtractor {
       return null;
     }
 
-    // Strategy 1: Use explicit QUERY_ALIAS_MAP for snake_case -> camelCase conversion
-    const explicitAliases = Object.keys(QUERY_ALIAS_MAP).filter(alias => QUERY_ALIAS_MAP[alias] === fieldName);
-    
-    // Strategy 2: Generate possible snake_case aliases from camelCase fieldName (fallback)
+    // Generate possible snake_case aliases from camelCase fieldName
     const generatedAliases = [
       fieldName.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, ''), // firstName -> first_name
       fieldName.toLowerCase().replace(/([a-z])([A-Z])/g, '$1_$2'), // firstName -> first_name
@@ -272,8 +268,8 @@ class OCRFieldExtractor {
       fieldName // Try exact match
     ];
     
-    // Combine strategies: prioritize explicit map
-    const aliases = [...new Set([...explicitAliases, ...generatedAliases])];
+    // Use generated aliases (legacy QUERY_ALIAS_MAP dependency removed)
+    const aliases = [...new Set(generatedAliases)];
     
     let queryResult = null;
     let matchedAlias = null;

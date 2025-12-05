@@ -165,7 +165,7 @@ async function analyzeDocument(imageBuffer, featureTypes = ['FORMS']) {
  * Analyze document with AWS Textract Queries API
  * @deprecated Use analyzeHTSFormWithForms() with FORMS-only approach instead
  * @deprecated This function will be removed in next major version
- * @deprecated Set OCR_USE_FORMS_ONLY=true to use new FORMS-based extraction
+ * @deprecated FORMS+LAYOUT is now the default. Set OCR_USE_LEGACY_QUERIES=true for old method
  * @param {Buffer} imageBuffer - Image buffer
  * @param {Array} queries - Array of query objects with {text, alias, pages}
  * @param {Array} featureTypes - Additional feature types (e.g., ['FORMS', 'TABLES'])
@@ -2066,6 +2066,6 @@ module.exports = {
   normalizeNameField,
   calculateAverageConfidence,
   parseHTSFormData,
-  processEncryptedHTSForm,
-  QUERY_ALIAS_MAP
+  processEncryptedHTSForm 
+  // QUERY_ALIAS_MAP removed - deprecated with FORMS+LAYOUT migration
 };

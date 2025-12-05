@@ -4,14 +4,15 @@
  */
 
 const ocrConfig = {
-  // Extraction mode: 'hybrid', 'queries', or 'coordinate'
-  // - hybrid: Try Queries API first, fallback to coordinate-based (RECOMMENDED)
-  // - queries: Only use Textract Queries API
-  // - coordinate: Only use coordinate-based template extraction
-  extractionMode: process.env.OCR_EXTRACTION_MODE || 'hybrid',
+  // Extraction mode: 'forms', 'forms+layout', or 'legacy'
+  // - forms+layout: Use FORMS and LAYOUT features together (RECOMMENDED - DEFAULT)
+  // - forms: Only use Textract FORMS feature
+  // - legacy: Use old QUERIES+Hybrid approach (fallback only)
+  extractionMode: process.env.OCR_USE_LEGACY_QUERIES === 'true' ? 'legacy' : 
+                  process.env.OCR_USE_LAYOUT === 'false' ? 'forms' : 'forms+layout',
 
-  // Enable AWS Textract Queries API
-  useQueries: process.env.OCR_USE_QUERIES !== 'false', // Default: true
+  // Enable AWS Textract LAYOUT feature (used with FORMS)
+  useLayout: process.env.OCR_USE_LAYOUT !== 'false', // Default: true
 
   // Confidence thresholds
   confidenceThresholds: {
@@ -84,25 +85,11 @@ const ocrConfig = {
 };
 
 /**
- * Get extraction mode based on A/B testing configuration
- * @returns {string} Extraction mode ('hybrid', 'queries', or 'coordinate')
+ * Determine extraction mode based on environment settings
+ * @returns {string} Extraction mode ('forms+layout', 'forms', or 'legacy')
  */
 function getExtractionMode() {
-  // If A/B testing disabled, return configured mode
-  if (!ocrConfig.abTesting.enabled) {
-    return ocrConfig.extractionMode;
-  }
-
-  // Random A/B test assignment
-  const random = Math.random() * 100;
-  
-  if (random < ocrConfig.abTesting.queriesOnlyPercent) {
-    return 'queries';
-  } else if (random < (ocrConfig.abTesting.queriesOnlyPercent + ocrConfig.abTesting.coordinateOnlyPercent)) {
-    return 'coordinate';
-  } else {
-    return 'hybrid';
-  }
+  return ocrConfig.extractionMode;
 }
 
 /**
@@ -112,10 +99,11 @@ function getExtractionMode() {
  */
 function getExtractionOptions(overrides = {}) {
   return {
-    useEnhanced: ocrConfig.features.enhancedExtraction,
-    useQueries: ocrConfig.useQueries && ocrConfig.extractionMode !== 'coordinate',
-    extractionMode: getExtractionMode(),
+    extractionMode: ocrConfig.extractionMode,
+    useLayout: ocrConfig.useLayout,
+    useLegacy: ocrConfig.extractionMode === 'legacy',
     confidenceThresholds: ocrConfig.confidenceThresholds,
+    preprocessImages: true, // Always preprocess for optimal results
     ...overrides
   };
 }

@@ -189,7 +189,7 @@ export default function ContactSection() {
               {/* Submit Status */}
               {submitStatus === 'success' && (
                 <div className="p-4 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg">
-                  Thank you for your message! We'll get back to you soon.
+                  Thank you for your message! We&apos;ll get back to you soon.
                 </div>
               )}
 

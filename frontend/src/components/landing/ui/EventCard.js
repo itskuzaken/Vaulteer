@@ -1,4 +1,5 @@
 "use client";
+import Image from 'next/image';
 import { IoCalendarOutline, IoLocationOutline, IoTimeOutline, IoPeopleOutline } from 'react-icons/io5';
 
 export default function EventCard({ 
@@ -22,10 +23,11 @@ export default function EventCard({
       <div className="relative h-48 bg-gradient-to-br from-bagani-blue to-bagani-red overflow-hidden">
         {image && (
           <div className="absolute inset-0">
-            <img 
+            <Image 
               src={image} 
               alt={title}
-              className="w-full h-full object-cover opacity-80 group-hover:scale-110 transition-transform duration-500"
+              fill
+              className="object-cover opacity-80 group-hover:scale-110 transition-transform duration-500"
             />
           </div>
         )}

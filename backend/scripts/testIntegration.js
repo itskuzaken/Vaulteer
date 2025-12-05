@@ -242,7 +242,7 @@ async function runIntegrationTests() {
   console.log(`${colors.bold}${colors.cyan}╚════════════════════════════════════════════════════╝${colors.reset}\n`);
 
   // Check if FORMS mode is enabled
-  const formsMode = process.env.OCR_USE_FORMS_ONLY === 'true';
+  const formsMode = process.env.OCR_USE_LEGACY_QUERIES !== 'true'; // Default is FORMS+LAYOUT
   console.log(`${colors.bold}Configuration:${colors.reset}`);
   console.log(`   API Base URL: ${API_BASE_URL}`);
   console.log(`   OCR Mode: ${formsMode ? colors.green + 'FORMS-Only ✓' : colors.yellow + 'QUERIES+Hybrid'} ${colors.reset}`);
@@ -322,7 +322,7 @@ async function runIntegrationTests() {
     } else {
       console.log(`\n${colors.yellow}⚠ Running in legacy QUERIES+Hybrid mode${colors.reset}`);
       console.log(`  Consider enabling FORMS-only mode:`);
-      console.log(`  Set OCR_USE_FORMS_ONLY=true in .env`);
+      console.log(`  FORMS+LAYOUT is now enabled by default (remove OCR_USE_LEGACY_QUERIES if set)`);
     }
   } else {
     console.log(`${colors.red}${colors.bold}✗ Some tests failed${colors.reset}`);

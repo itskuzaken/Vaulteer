@@ -561,7 +561,7 @@ export default function HomePage() {
               <div className="p-8 sm:p-10">
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">Register Your Interest</h3>
                 <p className="text-gray-600 mb-6 text-sm">
-                  Fill out this form and we'll contact you about upcoming orientation dates
+                  Fill out this form and we&apos;ll contact you about upcoming orientation dates
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -631,7 +631,7 @@ export default function HomePage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       <p className="text-green-800 font-medium">
-                        Thank you! We'll be in touch soon.
+                        Thank you! We&apos;ll be in touch soon.
                       </p>
                     </div>
                   </div>

@@ -28,10 +28,10 @@ const htsFormsController = {
     }
 
     // Validate file sizes (should be caught by multer, but double-check)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    const maxSize = 20 * 1024 * 1024; // 20MB (increased for high-resolution test images)
     if (frontImage.size > maxSize || backImage.size > maxSize) {
       return res.status(400).json({ 
-        error: 'Image files must be less than 10MB each' 
+        error: 'Image files must be less than 20MB each' 
       });
     }
 
@@ -93,13 +93,21 @@ const htsFormsController = {
       const extractionOptions = getExtractionOptions();
       console.log(`[OCR Analysis] Using extraction mode: ${extractionOptions.extractionMode}, useQueries: ${extractionOptions.useQueries}`);
 
-      // Feature flag: Use FORMS-only approach or legacy QUERIES+Hybrid
-      const useFormsOnly = process.env.OCR_USE_FORMS_ONLY === 'true' || false;
+      // Use FORMS+LAYOUT approach (modern default method)
       const useLayout = process.env.OCR_USE_LAYOUT !== 'false'; // Default: true
+      const useLegacyMode = process.env.OCR_USE_LEGACY_QUERIES === 'true'; // Default: false
+      
       let extractedData;
 
-      if (useFormsOnly) {
-        console.log(`🆕 [OCR Analysis] Using FORMS${useLayout ? '+LAYOUT' : '-only'} approach`);
+      if (useLegacyMode) {
+        console.log('🔧 [OCR Analysis] Using legacy QUERIES+Hybrid approach (fallback mode)');
+        extractedData = await textractService.analyzeHTSForm(
+          processedFront,
+          processedBack,
+          extractionOptions
+        );
+      } else {
+        console.log(`🚀 [OCR Analysis] Using FORMS${useLayout ? '+LAYOUT' : '-only'} approach (production method)`);
         extractedData = await textractService.analyzeHTSFormWithForms(
           processedFront,
           processedBack,
@@ -107,13 +115,6 @@ const htsFormsController = {
             preprocessImages: false, // Already preprocessed above
             useLayout: useLayout
           }
-        );
-      } else {
-        console.log('🔧 [OCR Analysis] Using legacy QUERIES+Hybrid approach');
-        extractedData = await textractService.analyzeHTSForm(
-          processedFront,
-          processedBack,
-          extractionOptions
         );
       }
 
