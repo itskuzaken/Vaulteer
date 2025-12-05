@@ -2022,24 +2022,29 @@ export default function HTSFormManagement() {
         {activeTab === "submit" ? renderSubmitForm() : renderSubmissionsHistory()}
       </div>
 
-      {/* Enhanced OCR Review Modal */}
+      {/* Enhanced OCR Review Modal with Structured Sections */}
       {showOCRReview && extractedData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
-            <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
-                <IoDocumentText className="w-6 h-6 text-primary-red" />
-                HTS Form - Extracted Data Review
-              </h2>
+            <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold text-white flex items-center gap-2">
+                  <IoDocumentText className="w-6 h-6" />
+                  HTS Form - Extracted Data Review
+                </h2>
+                <p className="text-sm text-blue-100 mt-1">
+                  {extractedData.structuredData ? 'Organized by form sections' : 'Review and verify extracted information'}
+                </p>
+              </div>
               <button
                 onClick={() => {
                   setShowOCRReview(false);
                   setIsEditMode(false);
                   setEditableData(null);
                 }}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                className="p-2 rounded-lg hover:bg-white/10 transition-colors"
               >
-                <IoClose className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+                <IoClose className="w-6 h-6 text-white" />
               </button>
             </div>
 
@@ -2057,35 +2062,56 @@ export default function HTSFormManagement() {
                     {extractedData?.extractionMethod?.toUpperCase() || 'FORMS+LAYOUT'}
                   </span>
                 </div>
-                <div className="text-xs text-green-700 dark:text-green-300">
-                  Modern OCR approach • Faster processing • Better accuracy
+                <div className="flex items-center gap-4 text-xs text-green-700 dark:text-green-300">
+                  <span>• Modern OCR approach</span>
+                  <span>• Faster processing</span>
+                  <span>• Better accuracy</span>
+                  {extractedData.structuredData && (
+                    <span>• Organized by sections</span>
+                  )}
                 </div>
               </div>
 
-              {/* Enhanced OCR Field Display with FORMS+LAYOUT support */}
+              {/* Structured OCR Field Display */}
               <OCRFieldDisplay extractedData={extractedData} />
             </div>
 
-            <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
-              <div className="flex justify-end gap-3">
-                <Button
-                  onClick={() => {
-                    setShowOCRReview(false);
-                    setIsEditMode(false);
-                    setEditableData(null);
-                  }}
-                  variant="secondary"
-                >
-                  <IoClose className="w-5 h-5 mr-2" />
-                  Close
-                </Button>
-                <Button
-                  onClick={enterEditMode}
-                  variant="primary"
-                >
-                  <IoDocumentText className="w-5 h-5 mr-2" />
-                  Edit Fields
-                </Button>
+            <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4 bg-gray-50 dark:bg-gray-900/50">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-600 dark:text-gray-400">
+                  {extractedData.structuredData ? (
+                    <>
+                      <span className="font-medium">{extractedData.structuredData.summary?.totalFields || 0}</span> fields extracted
+                      {extractedData.structuredData.summary?.totalSections && (
+                        <> across <span className="font-medium">{extractedData.structuredData.summary.totalSections}</span> sections</>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-medium">{extractedData.stats?.totalFields || 0}</span> fields extracted
+                    </>
+                  )}
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={() => {
+                      setShowOCRReview(false);
+                      setIsEditMode(false);
+                      setEditableData(null);
+                    }}
+                    variant="secondary"
+                  >
+                    <IoClose className="w-5 h-5 mr-2" />
+                    Close
+                  </Button>
+                  <Button
+                    onClick={enterEditMode}
+                    variant="primary"
+                  >
+                    <IoDocumentText className="w-5 h-5 mr-2" />
+                    Edit Fields
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
