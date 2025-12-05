@@ -11,6 +11,13 @@ const OCRRegionCalibrator = require('../utils/calibrateOCRRegions');
 const imagePreprocessor = require('./imagePreprocessor');
 const templateManager = require('./templateManager');
 
+// Fuzzy matching for enhanced field mapping
+const FuzzySet = require('fuzzyset.js');
+
+// Caches for performance optimization
+const keyNormalizationCache = new Map();
+let fieldNameFuzzyMatcher = null;
+
 // Load DOH HTS Form 2021 metadata for field extraction
 const metadataPath = path.join(__dirname, '../assets/form-templates/hts/template-metadata.json');
 let formMetadata = null;
@@ -1521,27 +1528,55 @@ const FORMS_FIELD_MAPPING = {
   'date of test': 'testDate',
   'testing date': 'testDate',
   'date tested': 'testDate',
+  'date of testing': 'testDate',
+  'test performed on': 'testDate',
+  'screening date': 'testDate',
+  'hiv test date': 'testDate',
+  'testing performed': 'testDate',
+  'test dt': 'testDate',
+  'date test': 'testDate',
   
   'control number': 'controlNumber',
   'control no': 'controlNumber',
   'control #': 'controlNumber',
   'serial number': 'controlNumber',
+  'ctrl no': 'controlNumber',
+  'ctrl number': 'controlNumber',
+  'control num': 'controlNumber',
   
   // ========== FRONT PAGE: PERSONAL INFORMATION (Q1-Q11) ==========
   'full name': 'fullName',
   'name': 'fullName',
   'client name': 'fullName',
   'patient name': 'fullName',
+  'full name of client': 'fullName',
+  'patient full name': 'fullName',
+  'complete name': 'fullName',
+  'name of patient': 'fullName',
+  'client full name': 'fullName',
+  'nm': 'fullName',
+  'patient nm': 'fullName',
+  'name of client': 'fullName',
   
   'last name': 'lastName',
   'surname': 'lastName',
   'family name': 'lastName',
+  'last nm': 'lastName',
+  'family nm': 'lastName',
+  'lastname': 'lastName',
   
   'first name': 'firstName',
   'given name': 'firstName',
+  'first nm': 'firstName',
+  'given nm': 'firstName',
+  'firstname': 'firstName',
   
   'middle name': 'middleName',
   'middle initial': 'middleName',
+  'middle nm': 'middleName',
+  'mi': 'middleName',
+  'm.i.': 'middleName',
+  'middlename': 'middleName',
   
   'birthdate': 'birthDate',
   'date of birth': 'birthDate',
@@ -1550,33 +1585,66 @@ const FORMS_FIELD_MAPPING = {
   
   'age': 'age',
   'age in years': 'age',
+  'patient age': 'age',
+  'current age': 'age',
+  'years old': 'age',
+  'client age': 'age',
+  'age (years)': 'age',
   
   'sex': 'sex',
   'gender': 'sex',
   'sex assigned at birth': 'sex',
+  'biological sex': 'sex',
+  'sex at birth': 'sex',
   
   'civil status': 'civilStatus',
   'marital status': 'civilStatus',
   'status': 'civilStatus',
+  'civil stat': 'civilStatus',
+  'marital stat': 'civilStatus',
   
   'philhealth number': 'philHealthNumber',
   'philhealth no': 'philHealthNumber',
   'philhealth id': 'philHealthNumber',
   'phic number': 'philHealthNumber',
+  'philhealth id number': 'philHealthNumber',
+  'philhealth member id': 'philHealthNumber',
+  'phic id': 'philHealthNumber',
+  'phil health id': 'philHealthNumber',
+  'philhealth num': 'philHealthNumber',
+  'phic no': 'philHealthNumber',
   
   'address': 'address',
   'complete address': 'address',
   'current address': 'address',
   'residential address': 'address',
+  'home address': 'address',
+  'residence': 'address',
+  'place of residence': 'address',
+  'current residence': 'address',
+  'present address': 'address',
+  'addr': 'address',
   
   'contact number': 'contactNumber',
   'mobile number': 'contactNumber',
   'phone number': 'contactNumber',
   'telephone number': 'contactNumber',
+  'mobile no': 'contactNumber',
+  'cell phone': 'contactNumber',
+  'contact no': 'contactNumber',
+  'phone no': 'contactNumber',
+  'cellphone number': 'contactNumber',
+  'tel no': 'contactNumber',
+  'cp no': 'contactNumber',
+  'mobile num': 'contactNumber',
+  'cellphone': 'contactNumber',
   
   'email address': 'emailAddress',
   'email': 'emailAddress',
   'e-mail': 'emailAddress',
+  'electronic mail': 'emailAddress',
+  'email add': 'emailAddress',
+  'e mail': 'emailAddress',
   
   // ========== FRONT PAGE: TESTING INFORMATION (Q12-Q18) ==========
   'previously tested': 'previouslyTested',
@@ -1692,68 +1760,498 @@ const FORMS_FIELD_MAPPING = {
   'testing facility': 'testingFacility',
   'facility name': 'testingFacility',
   'health facility': 'testingFacility',
+  'name of testing facility': 'testingFacility',
+  'testing center': 'testingFacility',
+  'facility': 'testingFacility',
+  'health center': 'testingFacility',
+  'testing site': 'testingFacility',
   
   'counselor name': 'counselorName',
   'counselor': 'counselorName',
   'tested by': 'counselorName',
   'hts provider': 'counselorName',
+  'hts counselor': 'counselorName',
+  'test counselor': 'counselorName',
+  'provider name': 'counselorName',
+  'counsellor name': 'counselorName',
   
   'counselor signature': 'counselorSignature',
   'signature': 'counselorSignature'
 };
 
 /**
- * Map Textract FORMS key-value pairs to HTS field structure
+ * Advanced key normalization for better field matching
+ * Handles OCR artifacts, punctuation, and text variations
+ * @param {string} rawKey - Original key from OCR
+ * @returns {string} Normalized key for matching
+ */
+function normalizeOCRKey(rawKey) {
+  if (!rawKey || typeof rawKey !== 'string') return '';
+  
+  // Check cache first for performance
+  if (keyNormalizationCache.has(rawKey)) {
+    return keyNormalizationCache.get(rawKey);
+  }
+  
+  let normalized = rawKey;
+  
+  // Step 1: Basic cleanup
+  normalized = normalized.toLowerCase().trim();
+  
+  // Step 2: Remove common OCR artifacts and punctuation
+  normalized = normalized
+    .replace(/[^\w\s]/g, ' ')           // Replace punctuation with spaces
+    .replace(/\s+/g, ' ')              // Collapse multiple spaces
+    .replace(/\b(of|the|and|or|in|on|at|to|for|with|by|no|number)\b/g, ' ') // Remove common stop words
+    .replace(/\bnumber\b/g, '')        // Remove "number" word
+    .trim();
+  
+  // Step 3: Handle common OCR character substitutions
+  const ocrFixMap = {
+    '0': 'o',    // Zero to O
+    '1': 'l',    // One to L  
+    '5': 's',    // Five to S
+    '8': 'b',    // Eight to B
+    'rn': 'm',   // rn to m
+    'cl': 'd',   // cl to d
+    'ii': 'n',   // ii to n
+  };
+  
+  // Apply OCR fixes
+  Object.entries(ocrFixMap).forEach(([wrong, correct]) => {
+    const regex = new RegExp(wrong, 'gi');
+    normalized = normalized.replace(regex, correct);
+  });
+  
+  // Step 4: Final cleanup
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+  
+  // Cache the result (limit cache size to prevent memory leaks)
+  if (keyNormalizationCache.size > 1000) {
+    const firstKey = keyNormalizationCache.keys().next().value;
+    keyNormalizationCache.delete(firstKey);
+  }
+  keyNormalizationCache.set(rawKey, normalized);
+  
+  return normalized;
+}
+
+/**
+ * Get or create fuzzy matcher for field names
+ * @returns {FuzzySet} Fuzzy matcher instance
+ */
+function getFuzzyMatcher() {
+  if (!fieldNameFuzzyMatcher) {
+    const fieldKeys = Object.keys(FORMS_FIELD_MAPPING);
+    fieldNameFuzzyMatcher = FuzzySet(fieldKeys);
+    console.log(`🔍 Initialized fuzzy matcher with ${fieldKeys.length} field patterns`);
+  }
+  return fieldNameFuzzyMatcher;
+}
+
+/**
+ * Find fuzzy match for field name
+ * @param {string} normalizedKey - Normalized key to match
+ * @param {number} threshold - Minimum similarity threshold (0-1)
+ * @returns {Object|null} Match result or null
+ */
+function findFuzzyFieldMatch(normalizedKey, threshold = 0.7) {
+  try {
+    const fuzzyMatcher = getFuzzyMatcher();
+    const matches = fuzzyMatcher.get(normalizedKey);
+    
+    if (matches && matches.length > 0) {
+      const [score, matchedKey] = matches[0];
+      if (score >= threshold) {
+        return {
+          fieldName: FORMS_FIELD_MAPPING[matchedKey],
+          normalizedKey: matchedKey,
+          confidence: score,
+          matchType: 'fuzzy'
+        };
+      }
+    }
+  } catch (error) {
+    console.error('Fuzzy matching error:', error);
+  }
+  
+  return null;
+}
+
+/**
+ * Try multiple mapping strategies in order of preference
+ * @param {Object} kvPair - Key-value pair from Textract
+ * @param {Object} context - Context information
+ * @returns {Object} Mapping result
+ */
+function tryMultipleMappingStrategies(kvPair, context) {
+  const rawKey = kvPair.key;
+  const strategies = [
+    'exact_match',
+    'normalized_match', 
+    'fuzzy_match',
+    'context_aware',
+    'numbered_question',
+    'partial_match'
+  ];
+  
+  for (const strategy of strategies) {
+    try {
+      const result = applyMappingStrategy(kvPair, context, strategy);
+      if (result.fieldName) {
+        return { ...result, strategy };
+      }
+    } catch (error) {
+      console.error(`Mapping strategy ${strategy} failed for key "${rawKey}":`, error);
+    }
+  }
+  
+  return { 
+    fieldName: null, 
+    normalizedKey: normalizeOCRKey(rawKey),
+    strategy: 'none' 
+  };
+}
+
+/**
+ * Apply specific mapping strategy
+ * @param {Object} kvPair - Key-value pair from Textract
+ * @param {Object} context - Context information
+ * @param {string} strategy - Strategy name
+ * @returns {Object} Mapping result
+ */
+function applyMappingStrategy(kvPair, context, strategy) {
+  const rawKey = kvPair.key;
+  const normalizedKey = normalizeOCRKey(rawKey);
+  
+  switch (strategy) {
+    case 'exact_match':
+      if (FORMS_FIELD_MAPPING[rawKey.toLowerCase().trim()]) {
+        return { fieldName: FORMS_FIELD_MAPPING[rawKey.toLowerCase().trim()], normalizedKey: rawKey };
+      }
+      break;
+      
+    case 'normalized_match':
+      if (FORMS_FIELD_MAPPING[normalizedKey]) {
+        return { fieldName: FORMS_FIELD_MAPPING[normalizedKey], normalizedKey };
+      }
+      break;
+      
+    case 'fuzzy_match':
+      const fuzzyMatch = findFuzzyFieldMatch(normalizedKey, 0.7);
+      if (fuzzyMatch) {
+        return fuzzyMatch;
+      }
+      break;
+      
+    case 'context_aware':
+      return tryContextAwareMapping(kvPair, context);
+      
+    case 'numbered_question':
+      return tryNumberedQuestionMapping(kvPair, context);
+      
+    case 'partial_match':
+      return tryPartialMatching(normalizedKey);
+  }
+  
+  return { fieldName: null, normalizedKey };
+}
+
+/**
+ * Try context-aware mapping based on surrounding fields
+ * @param {Object} kvPair - Key-value pair
+ * @param {Object} context - Context information
+ * @returns {Object} Mapping result
+ */
+function tryContextAwareMapping(kvPair, context) {
+  const normalizedKey = normalizeOCRKey(kvPair.key);
+  
+  // Context patterns for different form sections
+  const contextMappings = {
+    'personal': ['name', 'age', 'sex', 'address', 'contact'],
+    'testing': ['test', 'date', 'result', 'facility', 'counselor'],
+    'risk': ['risk', 'partner', 'needle', 'blood', 'sex'],
+    'health': ['philhealth', 'id', 'number', 'phic']
+  };
+  
+  // Analyze context to determine section
+  let contextSection = null;
+  if (context.previousKey || context.nextKey) {
+    const contextText = `${context.previousKey || ''} ${context.nextKey || ''}`.toLowerCase();
+    
+    for (const [section, keywords] of Object.entries(contextMappings)) {
+      if (keywords.some(keyword => contextText.includes(keyword))) {
+        contextSection = section;
+        break;
+      }
+    }
+  }
+  
+  // Apply context-specific mapping logic
+  if (contextSection === 'personal' && normalizedKey.includes('nm')) {
+    if (normalizedKey.includes('first') || normalizedKey.includes('given')) {
+      return { fieldName: 'firstName', normalizedKey };
+    } else if (normalizedKey.includes('last') || normalizedKey.includes('family')) {
+      return { fieldName: 'lastName', normalizedKey };
+    } else {
+      return { fieldName: 'fullName', normalizedKey };
+    }
+  }
+  
+  return { fieldName: null, normalizedKey };
+}
+
+/**
+ * Try numbered question mapping (Q1, Q2, etc.)
+ * @param {Object} kvPair - Key-value pair
+ * @param {Object} context - Context information
+ * @returns {Object} Mapping result
+ */
+function tryNumberedQuestionMapping(kvPair, context) {
+  const normalizedKey = normalizeOCRKey(kvPair.key);
+  
+  // Map numbered questions to risk assessment fields
+  const numberedQuestions = {
+    'q1': 'riskSexMaleStatus',
+    'q2': 'riskSexFemaleStatus',
+    'q3': 'riskMultiplePartners',
+    'q4': 'riskSTDSymptoms',
+    'q5': 'riskSharedNeedles',
+    'q6': 'riskBloodTransfusion',
+    'question 1': 'riskSexMaleStatus',
+    'question 2': 'riskSexFemaleStatus',
+    '1.': 'riskSexMaleStatus',
+    '2.': 'riskSexFemaleStatus'
+  };
+  
+  for (const [pattern, fieldName] of Object.entries(numberedQuestions)) {
+    if (normalizedKey.includes(pattern)) {
+      return { fieldName, normalizedKey };
+    }
+  }
+  
+  return { fieldName: null, normalizedKey };
+}
+
+/**
+ * Try partial matching for field names
+ * @param {string} normalizedKey - Normalized key
+ * @returns {Object} Mapping result
+ */
+function tryPartialMatching(normalizedKey) {
+  // Partial matching patterns
+  const partialMatches = {
+    'name': 'fullName',
+    'age': 'age',
+    'sex': 'sex',
+    'address': 'address',
+    'contact': 'contactNumber',
+    'email': 'emailAddress',
+    'phone': 'contactNumber',
+    'mobile': 'contactNumber',
+    'philhealth': 'philHealthNumber',
+    'phic': 'philHealthNumber',
+    'date': 'testDate',
+    'test': 'testDate',
+    'facility': 'testingFacility',
+    'counselor': 'counselorName'
+  };
+  
+  for (const [pattern, fieldName] of Object.entries(partialMatches)) {
+    if (normalizedKey.includes(pattern)) {
+      return { fieldName, normalizedKey };
+    }
+  }
+  
+  return { fieldName: null, normalizedKey };
+}
+
+/**
+ * Track unmapped keys in database for analysis
+ * @param {Array} unmappedKeys - Array of unmapped key objects
+ * @param {string} pageType - Page type (front/back)
+ * @param {string} sessionId - Session identifier
+ */
+async function trackUnmappedKeys(unmappedKeys, pageType, sessionId) {
+  if (!unmappedKeys.length) return;
+  
+  try {
+    const pool = getPool();
+    
+    for (const unmappedKey of unmappedKeys) {
+      // Check if key already exists
+      const [existing] = await pool.execute(
+        'SELECT id, frequency_count FROM ocr_unmapped_keys WHERE normalized_key = ? AND page_type = ?',
+        [unmappedKey.normalizedKey, pageType]
+      );
+      
+      if (existing.length > 0) {
+        // Update frequency count
+        await pool.execute(
+          'UPDATE ocr_unmapped_keys SET frequency_count = frequency_count + 1, last_seen = NOW() WHERE id = ?',
+          [existing[0].id]
+        );
+      } else {
+        // Insert new unmapped key
+        await pool.execute(`
+          INSERT INTO ocr_unmapped_keys 
+          (original_key, normalized_key, extracted_value, confidence_score, page_type, context_info) 
+          VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            unmappedKey.originalKey,
+            unmappedKey.normalizedKey, 
+            unmappedKey.value,
+            unmappedKey.confidence,
+            pageType,
+            JSON.stringify(unmappedKey.context || {})
+          ]
+        );
+      }
+    }
+    
+    console.log(`📊 Tracked ${unmappedKeys.length} unmapped keys for session ${sessionId}`);
+  } catch (error) {
+    console.error('Error tracking unmapped keys:', error);
+    // Don't fail OCR processing for tracking issues
+  }
+}
+
+/**
+ * Log OCR processing statistics
+ * @param {string} sessionId - Session identifier
+ * @param {number} totalFields - Total fields processed
+ * @param {number} mappedFields - Successfully mapped fields
+ * @param {number} unmappedFields - Unmapped fields
+ * @param {number} confidence - Overall confidence
+ * @param {string} pageType - Page type
+ */
+async function logOCRProcessingStats(sessionId, totalFields, mappedFields, unmappedFields, confidence, pageType) {
+  try {
+    const pool = getPool();
+    await pool.execute(`
+      INSERT INTO ocr_processing_logs 
+      (session_id, total_fields, mapped_fields, unmapped_fields, overall_confidence, extraction_method, page_type)
+      VALUES (?, ?, ?, ?, ?, 'forms+layout', ?)`,
+      [sessionId, totalFields, mappedFields, unmappedFields, confidence, pageType]
+    );
+  } catch (error) {
+    console.error('Error logging OCR stats:', error);
+  }
+}
+
+/**
+ * Enhanced Map Textract FORMS key-value pairs to HTS field structure
  * @param {Array} keyValuePairs - Textract key-value blocks
  * @param {string} pageType - 'front' or 'back'
- * @returns {Object} Mapped HTS fields with confidence scores
+ * @param {string} sessionId - Session identifier for tracking
+ * @returns {Object} Mapped HTS fields with confidence scores and enhanced analytics
  */
-function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown') {
-  console.log(`🗺️  Mapping ${keyValuePairs.length} key-value pairs from ${pageType} page...`);
+function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', sessionId = null) {
+  console.log(`🗺️  Enhanced mapping of ${keyValuePairs.length} key-value pairs from ${pageType} page...`);
   
   const mappedFields = {};
   const unmappedKeys = [];
+  const processingStartTime = Date.now();
   
-  for (const kvPair of keyValuePairs) {
+  for (let i = 0; i < keyValuePairs.length; i++) {
+    const kvPair = keyValuePairs[i];
+    
     if (!kvPair.key || !kvPair.value) {
       continue;
     }
     
-    // Normalize key to lowercase for matching
-    const normalizedKey = kvPair.key.toLowerCase().trim();
+    // Build context from surrounding fields
+    const context = {
+      previousKey: i > 0 ? keyValuePairs[i-1]?.key : null,
+      nextKey: i < keyValuePairs.length - 1 ? keyValuePairs[i+1]?.key : null,
+      pageType,
+      position: i
+    };
     
-    // Find matching HTS field name
-    const htsFieldName = FORMS_FIELD_MAPPING[normalizedKey];
+    // Try multiple mapping strategies
+    const mappingResult = tryMultipleMappingStrategies(kvPair, context);
     
-    if (htsFieldName) {
-      // Map to HTS field with confidence
-      mappedFields[htsFieldName] = {
+    if (mappingResult.fieldName) {
+      mappedFields[mappingResult.fieldName] = {
         value: kvPair.value,
         confidence: kvPair.confidence,
         rawKey: kvPair.key,
+        normalizedKey: mappingResult.normalizedKey,
+        mappingStrategy: mappingResult.strategy,
         page: pageType,
-        extractionMethod: 'forms'
+        extractionMethod: 'forms+layout'
       };
       
-      console.log(`  ✓ "${kvPair.key}" → ${htsFieldName}: "${kvPair.value}" (${kvPair.confidence}%)`);
+      console.log(`  ✓ "${kvPair.key}" → ${mappingResult.fieldName}: "${kvPair.value}" (${kvPair.confidence}%) [${mappingResult.strategy}]`);
     } else {
-      unmappedKeys.push(kvPair.key);
+      unmappedKeys.push({
+        originalKey: kvPair.key,
+        normalizedKey: mappingResult.normalizedKey,
+        value: kvPair.value,
+        confidence: kvPair.confidence,
+        context
+      });
     }
   }
   
-  // Log unmapped keys for future improvements
+  const processingTime = Date.now() - processingStartTime;
+  const mappedCount = Object.keys(mappedFields).length;
+  const unmappedCount = unmappedKeys.length;
+  const totalCount = keyValuePairs.filter(kv => kv.key && kv.value).length;
+  const mappingRate = totalCount > 0 ? (mappedCount / totalCount * 100) : 0;
+  
+  // Calculate confidence statistics
+  const confidenceScores = Object.values(mappedFields).map(field => field.confidence);
+  const avgConfidence = confidenceScores.length > 0 
+    ? confidenceScores.reduce((sum, conf) => sum + conf, 0) / confidenceScores.length 
+    : 0;
+  
+  const highConfidence = confidenceScores.filter(conf => conf >= 90).length;
+  const mediumConfidence = confidenceScores.filter(conf => conf >= 70 && conf < 90).length;
+  const lowConfidence = confidenceScores.filter(conf => conf < 70).length;
+  
+  console.log(`📊 Mapping Results: ${mappedCount}/${totalCount} fields mapped (${mappingRate.toFixed(1)}%) in ${processingTime}ms`);
+  
+  // Track unmapped keys asynchronously (don't block processing)
+  if (sessionId && unmappedKeys.length > 0) {
+    setImmediate(() => {
+      trackUnmappedKeys(unmappedKeys, pageType, sessionId)
+        .catch(error => console.error('Background unmapped key tracking failed:', error));
+    });
+  }
+  
+  // Log processing statistics asynchronously
+  if (sessionId) {
+    setImmediate(() => {
+      logOCRProcessingStats(sessionId, totalCount, mappedCount, unmappedCount, avgConfidence, pageType)
+        .catch(error => console.error('Background stats logging failed:', error));
+    });
+  }
+  
+  // Log unmapped keys for immediate debugging
   if (unmappedKeys.length > 0) {
-    console.log(`⚠️  ${unmappedKeys.length} unmapped keys found:`, unmappedKeys.slice(0, 5).join(', '));
+    console.log(`⚠️  ${unmappedKeys.length} unmapped keys found:`, 
+      unmappedKeys.slice(0, 5).map(uk => uk.originalKey).join(', '));
   }
   
   return {
     fields: mappedFields,
     stats: {
-      mapped: Object.keys(mappedFields).length,
-      unmapped: unmappedKeys.length,
-      total: keyValuePairs.length
+      totalFields: totalCount,
+      mapped: mappedCount,
+      unmapped: unmappedCount,
+      mappingRate: parseFloat(mappingRate.toFixed(1)),
+      processingTimeMs: processingTime,
+      confidence: {
+        overall: parseFloat(avgConfidence.toFixed(1)),
+        high: highConfidence,        // >= 90%
+        medium: mediumConfidence,    // 70-89%
+        low: lowConfidence          // < 70%
+      }
     },
-    unmappedKeys
+    unmappedKeys: unmappedKeys.map(uk => uk.originalKey), // Keep compatibility
+    unmappedKeysDetailed: unmappedKeys, // Detailed version for analytics
+    extractionMethod: 'forms+layout'
   };
 }
 
@@ -1769,8 +2267,11 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown') {
 async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, options = {}) {
   const { preprocessImages = true, useLayout = true } = options;
   
+  // Generate session ID for tracking and analytics
+  const sessionId = `ocr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  
   const features = useLayout ? 'FORMS + LAYOUT' : 'FORMS only';
-  console.log(`📤 [FORMS OCR] Starting HTS form extraction with ${features}...`);
+  console.log(`📤 [FORMS OCR] Starting HTS form extraction with ${features}... (Session: ${sessionId})`);
   
   try {
     // Step 1: Preprocess images if enabled
@@ -1820,9 +2321,9 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
     console.log(`   - Front page: ${frontKVPairs.length} pairs`);
     console.log(`   - Back page: ${backKVPairs.length} pairs`);
 
-    // Step 4: Map Textract keys to HTS field names
-    const frontMapping = mapTextractKeysToHTSFields(frontKVPairs, 'front');
-    const backMapping = mapTextractKeysToHTSFields(backKVPairs, 'back');
+    // Step 4: Map Textract keys to HTS field names with enhanced tracking
+    const frontMapping = mapTextractKeysToHTSFields(frontKVPairs, 'front', sessionId);
+    const backMapping = mapTextractKeysToHTSFields(backKVPairs, 'back', sessionId);
 
     // Step 5: Merge fields from both pages
     const allFields = {

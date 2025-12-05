@@ -30,6 +30,7 @@ const applicationSettingsRoute = require("./routes/applicationSettingsRoutes");
 const postsRoute = require("./routes/postsRoutes");
 const userSettingsRoute = require("./routes/userSettingsRoutes");
 const htsFormsRoute = require("./routes/htsFormsRoutes");
+const ocrFeedbackRoute = require("./routes/ocrFeedback");
 
 // Middleware for internal-only routes
 const internalOnly = require("./middleware/internalOnly");
@@ -169,6 +170,7 @@ app.use("/api/gamification", gamificationRoute);
 app.use("/api/application", applicationSettingsRoute);
 app.use("/api/posts", postsRoute);
 app.use("/api/hts-forms", htsFormsRoute);
+app.use("/api/ocr-feedback", ocrFeedbackRoute);
 
 app.get("/api", (req, res) => {
   res.json({
