@@ -70,6 +70,44 @@ async function testCachedOCR() {
     console.log(`\nTotal: ${Object.keys(result.fields).length} fields extracted`);
     console.log();
 
+    // Display structured data by sections
+    if (result.structuredData) {
+      console.log('=' .repeat(60));
+      console.log('📂 STRUCTURED DATA BY SECTIONS');
+      console.log('=' .repeat(60));
+      
+      console.log('\n🔹 FRONT PAGE SECTIONS:');
+      for (const [sectionName, sectionData] of Object.entries(result.structuredData.front)) {
+        console.log(`\n  ${sectionName} (${sectionData.totalFields} fields, ${sectionData.avgConfidence}% confidence)`);
+        for (const [fieldName, fieldData] of Object.entries(sectionData.fields)) {
+          const displayValue = typeof fieldData.value === 'string' && fieldData.value.length > 40 
+            ? fieldData.value.substring(0, 40) + '...' 
+            : fieldData.value;
+          console.log(`    • ${fieldName}: ${JSON.stringify(displayValue)} (${fieldData.confidence || 'N/A'}%)`);
+        }
+      }
+      
+      console.log('\n\n🔹 BACK PAGE SECTIONS:');
+      for (const [sectionName, sectionData] of Object.entries(result.structuredData.back)) {
+        console.log(`\n  ${sectionName} (${sectionData.totalFields} fields, ${sectionData.avgConfidence}% confidence)`);
+        for (const [fieldName, fieldData] of Object.entries(sectionData.fields)) {
+          const displayValue = typeof fieldData.value === 'string' && fieldData.value.length > 40 
+            ? fieldData.value.substring(0, 40) + '...' 
+            : fieldData.value;
+          console.log(`    • ${fieldName}: ${JSON.stringify(displayValue)} (${fieldData.confidence || 'N/A'}%)`);
+        }
+      }
+      
+      console.log('\n\n📊 STRUCTURE SUMMARY:');
+      console.log(`  Front sections: ${result.structuredData.summary.frontSections}`);
+      console.log(`  Back sections: ${result.structuredData.summary.backSections}`);
+      console.log(`  Total sections: ${result.structuredData.summary.totalSections}`);
+      console.log(`  Front fields: ${result.structuredData.summary.frontFieldCount}`);
+      console.log(`  Back fields: ${result.structuredData.summary.backFieldCount}`);
+      console.log(`  Total fields: ${result.structuredData.summary.totalFieldCount}`);
+      console.log();
+    }
+
     if (result.validationSummary) {
       console.log('=' .repeat(60));
       console.log('✔️  VALIDATION SUMMARY');

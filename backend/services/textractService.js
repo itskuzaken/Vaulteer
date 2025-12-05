@@ -2590,108 +2590,211 @@ function buildCompositeFields(mappedFields, frontKVPairs, backKVPairs) {
   // ========== Build testDate and birthDate from Month/Day/Year sequences ==========
   // Strategy: Look for consecutive Month/Day/Year fields in the CSV row order
   // First set of Month/Day/Year = testDate (rows 9-11 in sample)
-  // Second set of Month/Day/Year = birthDate (rows 25-27 in sample)
-  
+  // Build composite date fields from Month/Day/Year sequences
   const monthDayYearSets = findMonthDayYearSequences(frontKVPairs);
   
   if (monthDayYearSets.length >= 1) {
-    // First set = testDate
-    const testDateSet = monthDayYearSets[0];
-    const testDateStr = `${testDateSet.month}-${testDateSet.day}-${testDateSet.year}`;
-    mappedFields.testDate = {
-      value: testDateStr,
-      confidence: Math.round((testDateSet.monthConf + testDateSet.dayConf + testDateSet.yearConf) / 3),
-      rawKey: 'composite',
-      normalizedKey: 'test date',
-      mappingStrategy: 'composite',
-      page: 'front',
-      extractionMethod: 'forms+layout'
-    };
-    console.log(`  ✓ Built testDate: "${testDateStr}" (composite from Month/Day/Year sequence)`);
-  }
-  
-  if (monthDayYearSets.length >= 2) {
-    // Second set = birthDate
-    const birthDateSet = monthDayYearSets[1];
-    const birthDateStr = `${birthDateSet.month}-${birthDateSet.day}-${birthDateSet.year}`;
-    mappedFields.birthDate = {
-      value: birthDateStr,
-      confidence: Math.round((birthDateSet.monthConf + birthDateSet.dayConf + birthDateSet.yearConf) / 3),
-      rawKey: 'composite',
-      normalizedKey: 'birth date',
-      mappingStrategy: 'composite',
-      page: 'front',
-      extractionMethod: 'forms+layout'
-    };
-    console.log(`  ✓ Built birthDate: "${birthDateStr}" (composite from Month/Day/Year sequence)`);
+    // Identify which sequence is testDate vs birthDate based on year value
+    // Birth year is typically older (< 2010), test year is recent (>= 2020)
+    for (const dateSet of monthDayYearSets) {
+      const year = parseInt(dateSet.year);
+      const dateStr = `${dateSet.month}-${dateSet.day}-${dateSet.year}`;
+      const avgConf = Math.round((dateSet.monthConf + dateSet.dayConf + dateSet.yearConf) / 3);
+      
+      if (year < 2010) {
+        // This is a birth date
+        mappedFields.birthDate = {
+          value: dateStr,
+          confidence: avgConf,
+          rawKey: 'composite',
+          normalizedKey: 'birth date',
+          mappingStrategy: 'composite',
+          page: 'front',
+          extractionMethod: 'forms+layout'
+        };
+        console.log(`  ✓ Built birthDate: "${dateStr}" (composite from Month/Day/Year sequence)`);
+      } else if (year >= 2020) {
+        // This is a test date
+        mappedFields.testDate = {
+          value: dateStr,
+          confidence: avgConf,
+          rawKey: 'composite',
+          normalizedKey: 'test date',
+          mappingStrategy: 'composite',
+          page: 'front',
+          extractionMethod: 'forms+layout'
+        };
+        console.log(`  ✓ Built testDate: "${dateStr}" (composite from Month/Day/Year sequence)`);
+      }
+    }
   }
 }
 
 /**
- * Find sequences of Month/Day/Year fields in order
- * Requires fields to be within close proximity (window of 5 positions max)
+ * Find sequences of Month/Day/Year fields (handles any order within proximity window)
+ * Collects all Month/Day/Year fields and groups them by proximity
  * @param {Array} kvPairs - Key-value pairs in original extraction order
  * @returns {Array<Object>} Array of {month, day, year, monthConf, dayConf, yearConf} objects
  */
 function findMonthDayYearSequences(kvPairs) {
   const sequences = [];
   
-  // Strategy: Find all Month fields, then look for Day within next 5 positions, then Year within next 5 after Day
+  // First, collect all Month/Day/Year fields with their positions
+  const monthFields = [];
+  const dayFields = [];
+  const yearFields = [];
+  
   for (let i = 0; i < kvPairs.length; i++) {
     const kv = kvPairs[i];
     const keyLower = kv.key.toLowerCase().trim();
     
-    // Check if this is a Month field
     if (keyLower === 'month' || keyLower.includes('month:')) {
-      const monthValue = kv.value;
-      const monthConf = kv.confidence || 85;
-      
-      // Look for Day within next 5 positions
-      let dayValue = null;
-      let dayConf = 0;
-      let dayIndex = -1;
-      
-      for (let j = i + 1; j <= i + 5 && j < kvPairs.length; j++) {
-        const dayKv = kvPairs[j];
-        const dayKeyLower = dayKv.key.toLowerCase().trim();
-        
-        if (dayKeyLower === 'day' || dayKeyLower.includes('day:')) {
-          dayValue = dayKv.value;
-          dayConf = dayKv.confidence || 85;
-          dayIndex = j;
-          break;
-        }
-      }
-      
-      // If found Day, look for Year within next 5 positions after Day
-      if (dayValue && dayIndex > 0) {
-        for (let k = dayIndex + 1; k <= dayIndex + 5 && k < kvPairs.length; k++) {
-          const yearKv = kvPairs[k];
-          const yearKeyLower = yearKv.key.toLowerCase().trim();
-          
-          if (yearKeyLower === 'year' || yearKeyLower.includes('year:')) {
-            const yearValue = yearKv.value;
-            const yearConf = yearKv.confidence || 85;
-            
-            // Found complete sequence!
-            sequences.push({
-              month: monthValue,
-              day: dayValue,
-              year: yearValue,
-              monthConf,
-              dayConf,
-              yearConf,
-              startIndex: i,
-              endIndex: k
-            });
-            
-            console.log(`    📅 Found Month/Day/Year sequence at positions ${i}-${k}: ${monthValue}/${dayValue}/${yearValue}`);
-            break;
-          }
-        }
-      }
+      monthFields.push({ value: kv.value, confidence: kv.confidence || 85, index: i });
+    } else if (keyLower === 'day' || keyLower.includes('day:')) {
+      dayFields.push({ value: kv.value, confidence: kv.confidence || 85, index: i });
+    } else if (keyLower === 'year' || keyLower.includes('year:')) {
+      yearFields.push({ value: kv.value, confidence: kv.confidence || 85, index: i });
     }
   }
+  
+  console.log(`  🔍 Date field search: ${monthFields.length} Month, ${dayFields.length} Day, ${yearFields.length} Year fields found`);
+  if (monthFields.length > 0) console.log(`    Months: ${monthFields.map(f => `${f.value}@${f.index}`).join(', ')}`);
+  if (dayFields.length > 0) console.log(`    Days: ${dayFields.map(f => `${f.value}@${f.index}`).join(', ')}`);
+  if (yearFields.length > 0) console.log(`    Years: ${yearFields.map(f => `${f.value}@${f.index}`).join(', ')}`);
+  
+  // Strategy: Pair up Month+Day first, then use semantic meaning to assign Years
+  // Birth years are typically older (1900-2010), test years are recent (2020+)
+  const PROXIMITY_WINDOW = 30;
+  const usedDays = new Set();
+  const monthDayPairs = [];
+  
+  // Step 1: Pair each Month with its closest Day
+  for (const month of monthFields) {
+    let closestDay = null;
+    let minDayDistance = Infinity;
+    
+    for (const day of dayFields) {
+      if (usedDays.has(day.index)) continue;
+      
+      const distance = Math.abs(day.index - month.index);
+      if (distance <= PROXIMITY_WINDOW && distance < minDayDistance) {
+        closestDay = day;
+        minDayDistance = distance;
+      }
+    }
+    
+    if (closestDay) {
+      usedDays.add(closestDay.index);
+      monthDayPairs.push({ month, day: closestDay });
+      console.log(`    🔗 Paired Month=${month.value}@${month.index} with Day=${closestDay.value}@${closestDay.index}`);
+    }
+  }
+  
+  // Step 2: Assign years based on semantic meaning
+  // Sort years by value (older years first)
+  const sortedYears = [...yearFields].sort((a, b) => parseInt(a.value) - parseInt(b.value));
+  
+  // Sort month-day pairs by position (earlier in form first)
+  monthDayPairs.sort((a, b) => Math.min(a.month.index, a.day.index) - Math.min(b.month.index, b.day.index));
+  
+  // Heuristic: If we have 2 pairs and 2+ years
+  // - Older year (birth year) goes with first pair if it's old enough (< 2010)
+  // - Recent year (test year) goes with second pair if it's recent (>= 2020)
+  if (monthDayPairs.length >= 2 && sortedYears.length >= 2) {
+    const olderYear = sortedYears[0]; // Should be birth year
+    const newerYear = sortedYears[sortedYears.length - 1]; // Should be test year
+    
+    const olderYearValue = parseInt(olderYear.value);
+    const newerYearValue = parseInt(newerYear.value);
+    
+    // Check if years fit the expected pattern (birth < 2010, test >= 2020)
+    if (olderYearValue < 2010 && newerYearValue >= 2020) {
+      // First pair (birth date) = older year
+      const birthPair = monthDayPairs[0];
+      sequences.push({
+        month: birthPair.month.value,
+        day: birthPair.day.value,
+        year: olderYear.value,
+        monthConf: birthPair.month.confidence,
+        dayConf: birthPair.day.confidence,
+        yearConf: olderYear.confidence,
+        startIndex: Math.min(birthPair.month.index, birthPair.day.index, olderYear.index),
+        endIndex: Math.max(birthPair.month.index, birthPair.day.index, olderYear.index)
+      });
+      console.log(`    📅 Found BIRTH DATE sequence: ${birthPair.month.value}/${birthPair.day.value}/${olderYear.value} (semantic matching)`);
+      
+      // Second pair (test date) = newer year
+      const testPair = monthDayPairs[1];
+      sequences.push({
+        month: testPair.month.value,
+        day: testPair.day.value,
+        year: newerYear.value,
+        monthConf: testPair.month.confidence,
+        dayConf: testPair.day.confidence,
+        yearConf: newerYear.confidence,
+        startIndex: Math.min(testPair.month.index, testPair.day.index, newerYear.index),
+        endIndex: Math.max(testPair.month.index, testPair.day.index, newerYear.index)
+      });
+      console.log(`    📅 Found TEST DATE sequence: ${testPair.month.value}/${testPair.day.value}/${newerYear.value} (semantic matching)`);
+      
+      // Sort by start position (birth date typically comes first in form)
+      sequences.sort((a, b) => a.startIndex - b.startIndex);
+      return sequences;
+    }
+  }
+  
+  // Fallback: Use proximity-based matching if semantic matching fails
+  const usedYears = new Set();
+  
+  for (const pair of monthDayPairs) {
+    const { month, day } = pair;
+    
+    // Find Year closest to the midpoint between Month and Day
+    const midpoint = (month.index + day.index) / 2;
+    let closestYear = null;
+    let minYearDistance = Infinity;
+    
+    for (const year of yearFields) {
+      if (usedYears.has(year.index)) continue;
+      
+      // Calculate distance from year to the Month-Day pair midpoint
+      const distance = Math.abs(year.index - midpoint);
+      
+      // Also check that Year is within the span or reasonably close to it
+      const minPos = Math.min(month.index, day.index);
+      const maxPos = Math.max(month.index, day.index);
+      const isWithinSpan = year.index >= minPos - 10 && year.index <= maxPos + 10;
+      
+      if (isWithinSpan && distance < minYearDistance) {
+        closestYear = year;
+        minYearDistance = distance;
+      }
+    }
+    
+    // If we found Year, create a sequence
+    if (closestYear) {
+      usedYears.add(closestYear.index);
+      
+      const minIndex = Math.min(month.index, day.index, closestYear.index);
+      const maxIndex = Math.max(month.index, day.index, closestYear.index);
+      
+      sequences.push({
+        month: month.value,
+        day: day.value,
+        year: closestYear.value,
+        monthConf: month.confidence,
+        dayConf: day.confidence,
+        yearConf: closestYear.confidence,
+        startIndex: minIndex,
+        endIndex: maxIndex
+      });
+      
+      console.log(`    📅 Found Month/Day/Year sequence: ${month.value}/${day.value}/${closestYear.value} (positions ${month.index}/${day.index}/${closestYear.index})`);
+    }
+  }
+  
+  // Sort sequences by start position to maintain order (first = test date, second = birth date)
+  sequences.sort((a, b) => a.startIndex - b.startIndex);
   
   return sequences;
 }
@@ -2839,6 +2942,208 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
 }
 
 /**
+ * Organize extracted fields into structured sections based on HTS form layout
+ * @param {Object} allFields - All mapped fields with metadata
+ * @param {Object} correctedData - Validated and corrected field values
+ * @returns {Object} Structured data organized by form sections
+ */
+function organizeFieldsIntoSections(allFields, correctedData) {
+  // Define field-to-section mappings based on HTS form structure
+  const sectionMapping = {
+    // FRONT PAGE SECTIONS
+    'INFORMED CONSENT': [
+      'consentGiven',
+      'consentSignature',
+      'consentDate'
+    ],
+    'PERSONAL INFORMATION': [
+      'fullName',
+      'firstName',
+      'middleName',
+      'lastName',
+      'suffix',
+      'birthDate',
+      'age',
+      'sex',
+      'sexMale',
+      'sexFemale',
+      'genderIdentity',
+      'genderIdentityMan',
+      'genderIdentityWoman',
+      'genderIdentityTransWoman',
+      'genderIdentityTransMan',
+      'civilStatus',
+      'nationality',
+      'philSysNumber',
+      'parentalCodeMother',
+      'parentalCodeFather',
+      'birthOrder'
+    ],
+    'CONTACT INFORMATION': [
+      'contactNumber',
+      'emailAddress',
+      'address',
+      'province',
+      'cityMunicipality',
+      'barangay',
+      'provinceOfBirth',
+      'cityOfBirth'
+    ],
+    'HEALTH INFORMATION': [
+      'philHealthNumber',
+      'philHealthNumberEnrolled'
+    ],
+    'EDUCATION & OCCUPATION': [
+      'educationalAttainment',
+      'currentOccupation',
+      'occupationStatus',
+      'hasChildren',
+      'numberOfChildren',
+      'ofw',
+      'ofwCountry',
+      'ofwReturnYear'
+    ],
+    
+    // BACK PAGE SECTIONS
+    'TESTING DETAILS': [
+      'testDate',
+      'controlNumber',
+      'testingReason',
+      'htsCode',
+      'htsEntryPoint',
+      'screeningType',
+      'clientCategory',
+      'testingFacility',
+      'testKitBrand',
+      'testKitLotNumber',
+      'testKitExpiration'
+    ],
+    'PREVIOUS HIV TEST': [
+      'previouslyTested',
+      'previousTestDate',
+      'previousTestResult',
+      'previousTestLocation'
+    ],
+    'MEDICAL HISTORY & CLINICAL PICTURE': [
+      'symptoms',
+      'symptomDescription',
+      'tbSymptoms',
+      'hepatitisB',
+      'hepatitisC',
+      'whoStaging',
+      'cd4Count',
+      'viralLoad'
+    ],
+    'RISK ASSESSMENT': [
+      'multiplePartners',
+      'stdSymptoms',
+      'sharedNeedles',
+      'bloodTransfusion',
+      'sexWork',
+      'msm',
+      'transgender',
+      'sexWithPLHIV',
+      'suspectedExposure',
+      'unprotectedWithPLHIV',
+      'partnerSexWithOthers',
+      'diagnosedWithSTI',
+      'victimOfRape',
+      'noRisk',
+      'otherReason'
+    ],
+    'REFERRAL & POST-TEST': [
+      'referredTo',
+      'treatmentFacility',
+      'postTestCounseling',
+      'artLinkage',
+      'preventionServices',
+      'otherServices',
+      'condomsDistributed',
+      'lubricantsDistributed'
+    ],
+    'TEST RESULTS': [
+      'screeningTestResult',
+      'confirmatoryTestResult',
+      'finalDiagnosis',
+      'resultDisclosed',
+      'refusedTesting',
+      'refusalReason'
+    ],
+    'HTS PROVIDER': [
+      'counselorName',
+      'counselorSignature',
+      'htsProviderType',
+      'registrationNumber',
+      'facilityAddress',
+      'facilityContactNumber',
+      'facilityEmailAddress'
+    ]
+  };
+  
+  const structured = {
+    front: {},
+    back: {}
+  };
+  
+  // Organize fields by section
+  for (const [sectionName, fieldNames] of Object.entries(sectionMapping)) {
+    const sectionFields = {};
+    let hasData = false;
+    
+    for (const fieldName of fieldNames) {
+      if (correctedData[fieldName] !== undefined) {
+        sectionFields[fieldName] = {
+          value: correctedData[fieldName],
+          ...(allFields[fieldName] && {
+            confidence: allFields[fieldName].confidence,
+            rawKey: allFields[fieldName].rawKey,
+            mappingStrategy: allFields[fieldName].mappingStrategy
+          })
+        };
+        hasData = true;
+      }
+    }
+    
+    // Only include sections that have data
+    if (hasData) {
+      // Determine if this is front or back page section
+      const isFrontSection = [
+        'INFORMED CONSENT',
+        'PERSONAL INFORMATION',
+        'CONTACT INFORMATION',
+        'HEALTH INFORMATION',
+        'EDUCATION & OCCUPATION'
+      ].includes(sectionName);
+      
+      const pageKey = isFrontSection ? 'front' : 'back';
+      structured[pageKey][sectionName] = {
+        fields: sectionFields,
+        totalFields: Object.keys(sectionFields).length,
+        avgConfidence: Math.round(
+          Object.values(sectionFields).reduce((sum, f) => sum + (f.confidence || 0), 0) / 
+          Object.keys(sectionFields).length
+        )
+      };
+    }
+  }
+  
+  // Add summary statistics
+  structured.summary = {
+    frontSections: Object.keys(structured.front).length,
+    backSections: Object.keys(structured.back).length,
+    totalSections: Object.keys(structured.front).length + Object.keys(structured.back).length,
+    frontFieldCount: Object.values(structured.front).reduce((sum, s) => sum + s.totalFields, 0),
+    backFieldCount: Object.values(structured.back).reduce((sum, s) => sum + s.totalFields, 0),
+    totalFieldCount: Object.values(structured.front).reduce((sum, s) => sum + s.totalFields, 0) +
+                     Object.values(structured.back).reduce((sum, s) => sum + s.totalFields, 0)
+  };
+  
+  console.log(`✅ Organized into ${structured.summary.totalSections} sections (${structured.summary.frontSections} front, ${structured.summary.backSections} back)`);
+  
+  return structured;
+}
+
+/**
  * Analyze HTS form using AWS Textract FORMS + LAYOUT features
  * This is the NEW approach - no QUERIES, no coordinate-based extraction
  * Combines FORMS (key-value pairs) + LAYOUT (document structure) for better accuracy
@@ -2979,8 +3284,14 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
     const highConfidence = confidenceValues.filter(c => c >= 85).length;
     const mediumConfidence = confidenceValues.filter(c => c >= 70 && c < 85).length;
     const lowConfidence = confidenceValues.filter(c => c < 70).length;
+    
+    // Step 10: Organize fields into structured sections
+    console.log('📂 Organizing fields into structured sections...');
+    const structuredData = organizeFieldsIntoSections(allFields, correctedData);
+    
     const resultObject = {
       fields: correctedData,
+      structuredData, // New structured format
       confidence: overallConfidence,
       stats: {
         totalFields: Object.keys(allFields).length,
