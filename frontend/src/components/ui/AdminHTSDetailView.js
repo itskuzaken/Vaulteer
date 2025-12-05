@@ -63,6 +63,12 @@ const TEMPLATE_FIELD_LABELS = {
   contactNumber: 'Contact Number',
   emailAddress: 'Email Address',
   
+  // Consent Information
+  verbalConsent: 'Verbal Consent',
+  consentGiven: 'Consent Given',
+  consentSignature: 'Signature',
+  consentDate: 'Consent Date',
+  
   // === BACK PAGE ===
   
   // Mother HIV Status
@@ -170,7 +176,7 @@ const TEMPLATE_FIELD_LABELS = {
 // Group fields by section following DOH HTS Form 2021 structure (official sections)
 const FRONT_PAGE_SECTIONS = {
   'INFORMED CONSENT': [
-    'consentGiven', 'consentSignature', 'consentDate',
+    'verbalConsent', 'consentGiven', 'consentSignature', 'consentDate',
     'contactNumber', 'emailAddress'
   ],
   'PERSONAL INFORMATION SHEET (HTS FORM)': [
@@ -567,18 +573,6 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
                 </span>
               </div>
             )}
-          </div>
-        </div>
-              <span className="font-semibold text-gray-900">{extractionMethod}</span>
-            </div>
-            <div>
-              <span className="text-gray-600">OCR Completed:</span>{' '}
-              <span className="font-semibold text-gray-900">
-                {submissionInfo?.ocr_completed_at 
-                  ? new Date(submissionInfo.ocr_completed_at).toLocaleString()
-                  : 'N/A'}
-              </span>
-            </div>
           </div>
         </div>
       </div>

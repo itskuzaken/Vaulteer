@@ -1746,6 +1746,14 @@ async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options
  * This is a comprehensive mapping for all 97 fields in DOH HTS Form 2021
  */
 const FORMS_FIELD_MAPPING = {
+  // ========== FRONT PAGE: INFORMED CONSENT ==========
+  'verbal consent': 'verbalConsent',
+  'verbal consent given': 'verbalConsent',
+  'consent verbal': 'verbalConsent',
+  'verbal': 'verbalConsent',
+  'verbal consent obtained': 'verbalConsent',
+  'verbal approval': 'verbalConsent',
+  
   // ========== FRONT PAGE: TEST INFORMATION ==========
   'test date': 'testDate',
   'date of test': 'testDate',
@@ -2952,6 +2960,7 @@ function organizeFieldsIntoSections(allFields, correctedData) {
   const sectionMapping = {
     // FRONT PAGE SECTIONS
     'INFORMED CONSENT': [
+      'verbalConsent',
       'consentGiven',
       'consentSignature',
       'consentDate'
