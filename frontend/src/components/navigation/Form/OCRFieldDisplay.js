@@ -233,7 +233,7 @@ export default function OCRFieldDisplay({ extractedData }) {
   const renderLegacyCategories = () => {
     const fieldCategories = {
       // Front Page Sections
-      'INFORMED CONSENT': ['consentGiven', 'consentSignature', 'consentDate'],
+      'INFORMED CONSENT': ['verbalConsent', 'consentGiven', 'consentSignature', 'consentDate'],
       'PERSONAL INFORMATION SHEET (HTS FORM)': [
         'philHealthNumber', 'philSysNumber', 
         'firstName', 'middleName', 'lastName', 'suffix', 'fullName',
