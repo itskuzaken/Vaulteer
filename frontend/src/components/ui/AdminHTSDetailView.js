@@ -167,54 +167,36 @@ const TEMPLATE_FIELD_LABELS = {
   formCompletionDate: 'Form Completion Date'
 };
 
-// Group fields by section following DOH HTS Form 2021 structure
+// Group fields by section following DOH HTS Form 2021 structure (official sections)
 const FRONT_PAGE_SECTIONS = {
-  'INFORMED CONSENT - Contact Number and Email Address': [
+  'INFORMED CONSENT': [
+    'consentGiven', 'consentSignature', 'consentDate',
     'contactNumber', 'emailAddress'
   ],
-  'Q1-3: Test Date, PhilHealth Number, and PhilSys Number': [
-    'testDate', 'philHealthNumber', 'philSysNumber'
-  ],
-  'Q4: First Name, Middle Name, Last Name, and Suffix': [
-    'firstName', 'middleName', 'lastName', 'suffix'
-  ],
-  'Q5: First 2 Letters of Mother\'s First Name, First 2 Letters of Father\'s First Name, and Birth Order': [
-    'parentalCodeMother', 'parentalCodeFather', 'birthOrder'
-  ],
-  'Q6: Birth Date, Age, and Age in Months': [
-    'birthDate', 'age', 'ageMonths'
-  ],
-  'Q7: Sex & Gender Identity': [
-    'sex', 'genderIdentity'
-  ],
-  'Q8: Current Place of Residence, Permanent Residence, Place of Birth': [
-    'currentResidenceCity', 'currentResidenceProvince',
-    'permanentResidenceCity', 'permanentResidenceProvince',
-    'placeOfBirthCity', 'placeOfBirthProvince'
-  ],
-  'Q9: Nationality': [
+  'PERSONAL INFORMATION SHEET (HTS FORM)': [
+    'testDate', 'philHealthNumber', 'philSysNumber',
+    'firstName', 'middleName', 'lastName', 'suffix', 'fullName',
+    'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
+    'birthDate', 'age', 'ageMonths',
+    'sex', 'genderIdentity',
     'nationality', 'nationalityOther'
   ],
-  'Q10: Civil Status': [
-    'civilStatus', 'numberOfChildren'
-  ],
-  'Q11: Are You Currently Living with a Partner?': [
-    'livingWithPartner'
-  ],
-  'Q12: Are You Currently Pregnant?': [
+  'DEMOGRAPHIC DATA': [
+    'currentResidenceCity', 'currentResidenceProvince',
+    'permanentResidenceCity', 'permanentResidenceProvince',
+    'placeOfBirthCity', 'placeOfBirthProvince',
+    'civilStatus', 'livingWithPartner', 'numberOfChildren',
     'isPregnant'
   ],
-  'Q13-14: Educational Attainment': [
-    'educationalAttainment', 'currentlyInSchool'
-  ],
-  'Q15-16: Occupation & Overseas Work': [
-    'occupation', 'currentlyWorking', 'workedOverseas', 
-    'overseasReturnYear', 'overseasLocation', 'overseasCountry'
+  'EDUCATION & OCCUPATION': [
+    'educationalAttainment', 'currentlyInSchool',
+    'occupation', 'currentlyWorking',
+    'workedOverseas', 'overseasReturnYear', 'overseasLocation', 'overseasCountry'
   ]
 };
 
 const BACK_PAGE_SECTIONS = {
-  'Q17: History of Exposure / Risk Assessment': [
+  'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
     'motherHIV',
     'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1', 'riskSexMaleDate2',
     'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1', 'riskSexFemaleDate2',
@@ -226,32 +208,30 @@ const BACK_PAGE_SECTIONS = {
     'riskOccupationalExposureStatus', 'riskOccupationalExposureDate',
     'riskAssessment'
   ],
-  'Q18: Reasons for HIV Testing': [
+  'REASONS FOR HIV TESTING': [
     'reasonsForTesting', 'testingRefusedReason'
   ],
-  'Q19: Previous HIV Test': [
+  'PREVIOUS HIV TEST': [
     'previouslyTested', 'previousTestDate', 'previousTestProvider',
     'previousTestCity', 'previousTestResult'
   ],
-  'Q20-21: Medical History & Clinical Picture': [
+  'MEDICAL HISTORY & CLINICAL PICTURE': [
     'medicalHistory', 'medicalTB', 'medicalSTI', 'medicalPEP',
     'medicalPrEP', 'medicalHepatitisB', 'medicalHepatitisC',
     'clinicalPicture', 'symptoms', 'whoStaging'
   ],
-  'Q22-24: Testing Details': [
+  'TESTING DETAILS': [
     'clientType', 'modeOfReach', 'testingAccepted', 'testingModality',
     'linkageToCare', 'testResult'
   ],
-  'Q25: Other Services Provided to Client, and Inventory Information': [
+  'INVENTORY INFORMATION': [
     'otherServices',
     'testKitBrand', 'testKitLotNumber', 'testKitExpiration'
   ],
-  'Q26-27: HTS Provider Details - Facility': [
+  'HTS PROVIDER DETAILS': [
     'testingFacility', 'facilityAddress', 'facilityCode',
     'facilityRegion', 'facilityProvince', 'facilityCity',
-    'facilityContactNumber', 'facilityEmail'
-  ],
-  'Q26-27: HTS Provider Details - Counselor': [
+    'facilityContactNumber', 'facilityEmail',
     'counselorName', 'counselorRole', 'counselorLicense',
     'counselorDesignation', 'counselorContact', 'counselorSignature',
     'formCompletionDate'
@@ -423,6 +403,14 @@ const AdminFieldSection = ({ title, fields, extractedData }) => {
 
 /**
  * Main Admin HTS Detail View Component
+ * Displays extracted OCR data with official DOH HTS Form 2021 section structure
+ * 
+ * @param {Object} extractedData - OCR extraction result from textractService
+ *   - fields: Flat key-value pairs of extracted fields
+ *   - structuredData: Organized by front/back pages and sections (optional)
+ *   - stats: Extraction statistics
+ *   - confidence: Overall confidence score
+ * @param {Object} submissionInfo - Submission metadata (control number, user, date, status)
  */
 const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
   if (!extractedData) {
@@ -436,11 +424,13 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
     );
   }
   
+  // Extract data from response (supports both new structuredData and legacy flat format)
   const fields = extractedData.fields || extractedData;
   const stats = extractedData.stats || {};
   const confidence = extractedData.confidence || 0;
   const templateId = extractedData.templateId || 'doh-hts-2021-v2';
   const extractionMethod = extractedData.extractionMethod || 'unknown';
+  const hasStructuredData = extractedData.structuredData && extractedData.structuredData.summary;
   
   // Calculate total fields
   const totalFrontFields = Object.values(FRONT_PAGE_SECTIONS).flat().length;
@@ -568,6 +558,17 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
             </div>
             <div>
               <span className="text-gray-600">Extraction Method:</span>{' '}
+              <span className="font-semibold text-gray-900">{extractionMethod}</span>
+            </div>
+            {hasStructuredData && (
+              <div className="ml-auto">
+                <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">
+                  ✓ Structured Data Available
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
               <span className="font-semibold text-gray-900">{extractionMethod}</span>
             </div>
             <div>

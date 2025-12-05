@@ -229,13 +229,72 @@ export default function OCRFieldDisplay({ extractedData }) {
   };
 
   // Group fields by category (fallback for old format without structured data)
+  // Matches the physical DOH HTS Form 2021 structure
   const renderLegacyCategories = () => {
     const fieldCategories = {
-      'Personal Information': ['firstName', 'middleName', 'lastName', 'suffix', 'birthDate', 'age', 'sex', 'fullName'],
-      'Contact Information': ['contactNumber', 'emailAddress', 'currentResidenceCity', 'currentResidenceProvince', 'province', 'cityMunicipality'],
-      'Identification': ['philHealthNumber', 'philSysNumber'],
-      'Test Information': ['testDate', 'testResult', 'testingFacility', 'counselorName'],
-      'Risk Assessment': ['previouslyTested', 'reasonsForTesting', 'clinicalPicture'],
+      // Front Page Sections
+      'INFORMED CONSENT': ['consentGiven', 'consentSignature', 'consentDate'],
+      'PERSONAL INFORMATION SHEET (HTS FORM)': [
+        'philHealthNumber', 'philSysNumber', 
+        'firstName', 'middleName', 'lastName', 'suffix', 'fullName',
+        'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
+        'birthDate', 'age', 'ageMonths', 'sex', 'genderIdentity',
+        'nationality', 'nationalityOther'
+      ],
+      'DEMOGRAPHIC DATA': [
+        'currentResidenceCity', 'currentResidenceProvince',
+        'permanentResidenceCity', 'permanentResidenceProvince',
+        'placeOfBirthCity', 'placeOfBirthProvince',
+        'province', 'cityMunicipality',
+        'civilStatus', 'livingWithPartner', 'numberOfChildren', 'isPregnant',
+        'contactNumber', 'emailAddress'
+      ],
+      'EDUCATION & OCCUPATION': [
+        'educationalAttainment', 'currentlyInSchool',
+        'occupation', 'currentlyWorking', 'workedOverseas',
+        'overseasReturnYear', 'overseasLocation', 'overseasCountry'
+      ],
+      // Back Page Sections
+      'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
+        'motherHIV',
+        'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1', 'riskSexMaleDate2',
+        'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1', 'riskSexFemaleDate2',
+        'riskPaidForSexStatus', 'riskPaidForSexDate',
+        'riskReceivedPaymentStatus', 'riskReceivedPaymentDate',
+        'riskSexUnderDrugsStatus', 'riskSexUnderDrugsDate',
+        'riskSharedNeedlesStatus', 'riskSharedNeedlesDate',
+        'riskBloodTransfusionStatus', 'riskBloodTransfusionDate',
+        'riskOccupationalExposureStatus', 'riskOccupationalExposureDate',
+        'riskAssessment'
+      ],
+      'REASONS FOR HIV TESTING': [
+        'reasonsForTesting', 'testingRefusedReason'
+      ],
+      'PREVIOUS HIV TEST': [
+        'previouslyTested', 'previousTestDate', 'previousTestProvider',
+        'previousTestCity', 'previousTestResult'
+      ],
+      'MEDICAL HISTORY & CLINICAL PICTURE': [
+        'medicalHistory', 'medicalTB', 'medicalSTI', 'medicalPEP', 'medicalPrEP',
+        'medicalHepatitisB', 'medicalHepatitisC',
+        'clinicalPicture', 'symptoms', 'whoStaging'
+      ],
+      'TESTING DETAILS': [
+        'testDate', 'testResult',
+        'clientType', 'modeOfReach', 'testingAccepted', 'testingModality',
+        'linkageToCare', 'otherServices'
+      ],
+      'INVENTORY INFORMATION': [
+        'testKitBrand', 'testKitLotNumber', 'testKitExpiration'
+      ],
+      'HTS PROVIDER DETAILS': [
+        'testingFacility', 'facilityAddress', 'facilityCode',
+        'facilityRegion', 'facilityProvince', 'facilityCity',
+        'facilityContactNumber', 'facilityEmail', 'facilityEmailAddress',
+        'counselorName', 'counselorRole', 'counselorLicense',
+        'counselorDesignation', 'counselorContact', 'counselorSignature',
+        'formCompletionDate'
+      ],
       'Other Fields': [] // Will be populated with remaining fields
     };
 
@@ -271,28 +330,127 @@ export default function OCRFieldDisplay({ extractedData }) {
 
     // Remove empty categories
     Object.keys(categorizedFields).forEach(category => {
-      if (categorizedFields[category].length === 0) {
+      if (categorizedFields[category].length === 0 && category !== 'Other Fields') {
         delete categorizedFields[category];
       }
     });
 
-    return (
-      <div className="space-y-6">
-        {Object.entries(categorizedFields).map(([category, categoryFields]) => (
-          <div key={category} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-            <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+    // Separate front and back sections for organized display
+    const frontSectionNames = ['INFORMED CONSENT', 'PERSONAL INFORMATION SHEET (HTS FORM)', 'DEMOGRAPHIC DATA', 'EDUCATION & OCCUPATION'];
+    const backSectionNames = ['HISTORY OF EXPOSURE / RISK ASSESSMENT', 'REASONS FOR HIV TESTING', 'PREVIOUS HIV TEST', 'MEDICAL HISTORY & CLINICAL PICTURE', 'TESTING DETAILS', 'INVENTORY INFORMATION', 'HTS PROVIDER DETAILS'];
+    
+    const frontSections = {};
+    const backSections = {};
+    const otherSections = {};
+    
+    Object.entries(categorizedFields).forEach(([category, fields]) => {
+      if (frontSectionNames.includes(category)) {
+        frontSections[category] = fields;
+      } else if (backSectionNames.includes(category)) {
+        backSections[category] = fields;
+      } else {
+        otherSections[category] = fields;
+      }
+    });
+
+    const renderSection = (category, categoryFields, isFrontSection) => {
+      const headerGradient = isFrontSection 
+        ? 'from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20'
+        : 'from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20';
+      
+      return (
+        <div key={category} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+          <div className={`bg-gradient-to-r ${headerGradient} px-4 py-3 border-b border-gray-200 dark:border-gray-600`}>
+            <div className="flex items-center justify-between">
               <h4 className="font-semibold text-gray-900 dark:text-white">{category}</h4>
+              {categoryFields.length > 0 && (
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {categoryFields.length} {categoryFields.length === 1 ? 'field' : 'fields'}
+                </span>
+              )}
             </div>
-            
-            <div className="p-4">
+          </div>
+          
+          <div className="p-4">
+            {categoryFields.length > 0 ? (
               <div className="grid gap-3">
                 {categoryFields.map(({ name, value, displayName }) =>
                   renderField(name, value)
                 )}
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400 italic">
+                No fields extracted for this section
+              </div>
+            )}
           </div>
-        ))}
+        </div>
+      );
+    };
+
+    return (
+      <div className="space-y-6">
+        {/* Front Page Sections */}
+        {Object.keys(frontSections).length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-lg font-semibold text-blue-600 dark:text-blue-400">
+              <IoDocumentText className="w-5 h-5" />
+              <span>Front Page</span>
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                ({Object.keys(frontSections).length} sections)
+              </span>
+            </div>
+            
+            {Object.entries(frontSections).map(([category, categoryFields]) =>
+              renderSection(category, categoryFields, true)
+            )}
+          </div>
+        )}
+
+        {/* Back Page Sections */}
+        {Object.keys(backSections).length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-lg font-semibold text-purple-600 dark:text-purple-400">
+              <IoDocumentText className="w-5 h-5" />
+              <span>Back Page</span>
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                ({Object.keys(backSections).length} sections)
+              </span>
+            </div>
+            
+            {Object.entries(backSections).map(([category, categoryFields]) =>
+              renderSection(category, categoryFields, false)
+            )}
+          </div>
+        )}
+
+        {/* Other Fields */}
+        {Object.keys(otherSections).length > 0 && (
+          <div className="space-y-4">
+            {Object.entries(otherSections).map(([category, categoryFields]) => (
+              <div key={category} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-900 dark:text-white">{category}</h4>
+                    {categoryFields.length > 0 && (
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {categoryFields.length} {categoryFields.length === 1 ? 'field' : 'fields'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="p-4">
+                  <div className="grid gap-3">
+                    {categoryFields.map(({ name, value, displayName }) =>
+                      renderField(name, value)
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     );
   };
