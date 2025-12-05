@@ -67,9 +67,11 @@ CREATE TABLE IF NOT EXISTS ocr_user_feedback (
   INDEX idx_created_at (created_at DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Create index on users table if not exists (foreign key reference)
--- This is a safety check in case the users table doesn't have proper indexing
-CREATE INDEX IF NOT EXISTS idx_user_id ON users(user_id);
+-- Add foreign key constraint for user_id in ocr_user_feedback table
+ALTER TABLE ocr_user_feedback 
+ADD CONSTRAINT fk_ocr_feedback_user 
+FOREIGN KEY (user_id) REFERENCES users(user_id) 
+ON DELETE SET NULL;
 
 -- Insert initial tracking data if tables are empty
 INSERT IGNORE INTO ocr_processing_logs (session_id, total_fields, mapped_fields, unmapped_fields, overall_confidence, extraction_method, page_type)

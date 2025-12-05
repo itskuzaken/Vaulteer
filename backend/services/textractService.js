@@ -29,6 +29,222 @@ try {
   console.warn('⚠️ Could not load form metadata:', error.message);
 }
 
+// ======= OCR Debugging Helpers =======
+const OCR_DEBUG = process.env.OCR_DEBUG === 'true' || process.env.NODE_ENV === 'development';
+const OCR_DUMP_JSON = process.env.OCR_DUMP_JSON === 'true';
+const OCR_MASK_PII = process.env.OCR_MASK_PII === 'true';
+const OCR_DEBUG_MAX_TEXT_LENGTH = Number(process.env.OCR_DEBUG_MAX_TEXT_LENGTH || 1024);
+const USE_CACHED_TEXTRACT = process.env.USE_CACHED_TEXTRACT === 'true';
+
+/**
+ * Mask common PII fields in the extracted JSON before logging
+ * @param {any} obj
+ * @returns {any} masked copy
+ */
+function maskPII(obj) {
+  try {
+    const clone = JSON.parse(JSON.stringify(obj));
+
+    const maskString = (s, keepStart = 1, keepEnd = 0) => {
+      if (!s || typeof s !== 'string') return s;
+      const len = s.length;
+      if (len <= keepStart + keepEnd) return '*'.repeat(len);
+      const start = s.slice(0, keepStart);
+      const end = keepEnd > 0 ? s.slice(len - keepEnd) : '';
+      const mid = '*'.repeat(Math.max(0, len - keepStart - keepEnd));
+      return `${start}${mid}${end}`;
+    };
+
+    const maskPhone = (s) => {
+      if (!s || typeof s !== 'string') return s;
+      const digits = s.replace(/[^0-9]/g, '');
+      if (digits.length <= 4) return '*'.repeat(digits.length);
+      return '*'.repeat(Math.max(0, digits.length - 4)) + digits.slice(-4);
+    };
+
+    const maskEmail = (s) => {
+      if (!s || typeof s !== 'string') return s;
+      const parts = s.split('@');
+      if (parts.length !== 2) return maskString(s, 1, 1);
+      return `${parts[0][0]}***@${parts[1]}`;
+    };
+
+    const keyMatches = (k, keywords) => keywords.some(kw => k.toLowerCase().includes(kw));
+
+    (function recurse(node) {
+      if (!node || typeof node !== 'object') return;
+      if (Array.isArray(node)) {
+        node.forEach(recurse);
+        return;
+      }
+      Object.keys(node).forEach(k => {
+        const v = node[k];
+        const lowerKey = k.toLowerCase();
+
+        // Handle PII keys
+        if (typeof v === 'string') {
+          if (keyMatches(lowerKey, ['firstname', 'first_name', 'first name', 'given name', 'givenname'])) {
+            node[k] = maskString(v, 1, 0);
+            return;
+          }
+          if (keyMatches(lowerKey, ['lastname', 'last_name', 'last name', 'surname', 'family name'])) {
+            node[k] = maskString(v, 1, 0);
+            return;
+          }
+          if (keyMatches(lowerKey, ['fullname', 'full_name', 'full name', 'client name', 'name'])) {
+            node[k] = maskString(v, 1, 1);
+            return;
+          }
+          if (keyMatches(lowerKey, ['phone', 'contact', 'mobile', 'tel', 'telephone'])) {
+            node[k] = maskPhone(v);
+            return;
+          }
+          if (keyMatches(lowerKey, ['email'])) {
+            node[k] = maskEmail(v);
+            return;
+          }
+          if (keyMatches(lowerKey, ['philhealth', 'phic']) || /\bphil\s*health|phic\b/.test(lowerKey)) {
+            node[k] = maskString(v, 0, 4);
+            return;
+          }
+          if (lowerKey === '_rawdata' || lowerKey === '_raw') {
+            // mask raw text a bit by truncating long texts
+            if (v.frontText) node[k].frontText = v.frontText.slice(0, Math.max(0, OCR_DEBUG_MAX_TEXT_LENGTH)) + (v.frontText.length > OCR_DEBUG_MAX_TEXT_LENGTH ? '... (truncated)' : '');
+            if (v.backText) node[k].backText = v.backText.slice(0, Math.max(0, OCR_DEBUG_MAX_TEXT_LENGTH)) + (v.backText.length > OCR_DEBUG_MAX_TEXT_LENGTH ? '... (truncated)' : '');
+            return;
+          }
+        }
+
+        // Recurse into nested objects
+        if (typeof v === 'object') recurse(v);
+      });
+    })(clone);
+
+    return clone;
+  } catch (err) {
+    // If masking fails, return original copy
+    return obj;
+  }
+}
+
+/**
+ * Log extracted JSON (masked and/or written to logs directory) when OCR_DEBUG is enabled
+ * @param {string} label
+ * @param {object} data
+ * @param {object} options { sessionId }
+ */
+function logExtractedJSON(label, data, options = {}) {
+  if (!OCR_DEBUG) return;
+
+  const sessionId = options.sessionId || `ocr_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+  let payload = data;
+  try {
+    // Deep copy
+    payload = JSON.parse(JSON.stringify(data));
+
+    // Truncate very large raw text fields
+    if (payload && typeof payload === 'object') {
+      if (payload._rawData && typeof payload._rawData === 'object') {
+        if (payload._rawData.frontText && OCR_DEBUG_MAX_TEXT_LENGTH > 0) {
+          payload._rawData.frontText = payload._rawData.frontText.slice(0, OCR_DEBUG_MAX_TEXT_LENGTH) + (payload._rawData.frontText.length > OCR_DEBUG_MAX_TEXT_LENGTH ? '... (truncated)' : '');
+        }
+        if (payload._rawData.backText && OCR_DEBUG_MAX_TEXT_LENGTH > 0) {
+          payload._rawData.backText = payload._rawData.backText.slice(0, OCR_DEBUG_MAX_TEXT_LENGTH) + (payload._rawData.backText.length > OCR_DEBUG_MAX_TEXT_LENGTH ? '... (truncated)' : '');
+        }
+      }
+    }
+
+    // Mask PII if requested
+    if (OCR_MASK_PII) {
+      payload = maskPII(payload);
+    }
+  } catch (err) {
+    console.warn('[OCR JSON] Failed to prepare payload for logging:', err.message);
+  }
+
+  try {
+    console.log(`🔎 [OCR JSON] ${label} (session: ${sessionId}):`);
+    console.log(JSON.stringify(payload, null, 2));
+
+    if (OCR_DUMP_JSON) {
+      try {
+        const dumpPath = path.join(__dirname, '../logs', `ocr-extracted-${sessionId}.json`);
+        fs.writeFileSync(dumpPath, JSON.stringify(payload, null, 2));
+        console.log(`💾 [OCR JSON] Saved to: ${dumpPath}`);
+      } catch (err) {
+        console.error('[OCR JSON] Failed to write JSON dump file:', err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[OCR JSON] Logging error:', err.message);
+  }
+}
+// ======= End OCR Debugging Helpers =======
+
+/**
+ * Load cached Textract results from local folders
+ * @param {string} page - 'front' or 'back'
+ * @returns {Object} Textract response with Blocks array
+ */
+function loadCachedTextractResults(page) {
+  const folderName = page === 'front' ? 'HTS-FORM-FRONT' : 'HTS-FORM-BACK';
+  const resultPath = path.join(__dirname, '../assets/HTS-FORM', folderName, 'analyzeDocResponse.json');
+  
+  try {
+    const rawData = fs.readFileSync(resultPath, 'utf8');
+    const textractResponse = JSON.parse(rawData);
+    console.log(`📁 Loaded cached ${page} page Textract results: ${textractResponse.Blocks?.length || 0} blocks`);
+    return textractResponse;
+  } catch (error) {
+    console.error(`❌ Failed to load cached Textract results for ${page} page:`, error.message);
+    throw new Error(`Cached Textract data not found for ${page} page at ${resultPath}`);
+  }
+}
+
+/**
+ * Load key-value pairs from CSV file (alternative to parsing Blocks)
+ * @param {string} page - 'front' or 'back'
+ * @returns {Array} Array of {key, value, confidence} objects
+ */
+function loadKeyValuesFromCSV(page) {
+  const folderName = page === 'front' ? 'HTS-FORM-FRONT' : 'HTS-FORM-BACK';
+  const csvPath = path.join(__dirname, '../assets/HTS-FORM', folderName, 'keyValues.csv');
+  
+  try {
+    const csvData = fs.readFileSync(csvPath, 'utf8');
+    const lines = csvData.split('\n').slice(1); // Skip header
+    const kvPairs = [];
+    
+    lines.forEach(line => {
+      if (!line.trim()) return;
+      
+      // Parse CSV line (handle quoted fields)
+      const match = line.match(/'([^']*)',?/g);
+      if (!match || match.length < 5) return;
+      
+      const pageNum = match[0].replace(/'/g, '').replace(/,/g, '');
+      const key = match[1].replace(/'/g, '').replace(/,/g, '');
+      const value = match[2].replace(/'/g, '').replace(/,/g, '');
+      const keyConfidence = parseFloat(match[3].replace(/'/g, '').replace(/,/g, ''));
+      const valueConfidence = parseFloat(match[4].replace(/'/g, '').replace(/,/g, ''));
+      
+      if (key && value !== 'NOT_SELECTED') {
+        kvPairs.push({
+          key: key.trim(),
+          value: value === '' ? null : value.trim(),
+          confidence: Math.min(keyConfidence, valueConfidence)
+        });
+      }
+    });
+    
+    console.log(`📊 Loaded ${kvPairs.length} key-value pairs from ${page} page CSV`);
+    return kvPairs;
+  } catch (error) {
+    console.error(`❌ Failed to load CSV for ${page} page:`, error.message);
+    return [];
+  }
+}
+
 /**
  * Multi-strategy field extraction with fallbacks
  * Tries multiple extraction methods in priority order
@@ -1352,6 +1568,13 @@ function parseHTSFormData(frontResult, backResult) {
   console.log(`   - Previous Test: ${extractedData.previouslyTested || 'NOT FOUND'}`);
   console.log(`   - Result: ${extractedData.previousTestResult || 'NOT FOUND'}`);
   console.log(`   - Facility: ${extractedData.testingFacility || 'NOT FOUND'}`);
+  // Debug log extracted JSON (masked/truncated/dumped depending on env)
+  try {
+    const sessionId = `parse_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    logExtractedJSON('parseHTSFormData', extractedData, { sessionId });
+  } catch (err) {
+    console.warn('[OCR JSON] parseHTSFormData logging failed:', err.message);
+  }
   
   return extractedData;
 }
@@ -1646,6 +1869,13 @@ const FORMS_FIELD_MAPPING = {
   'email add': 'emailAddress',
   'e mail': 'emailAddress',
   
+  // Facility contact info (back page only)
+  'facility email': 'facilityEmailAddress',
+  'facility email address': 'facilityEmailAddress',
+  'facility contact number': 'facilityContactNumber',
+  'facility contact': 'facilityContactNumber',
+  'facility phone': 'facilityContactNumber',
+  
   // ========== FRONT PAGE: TESTING INFORMATION (Q12-Q18) ==========
   'previously tested': 'previouslyTested',
   'tested before': 'previouslyTested',
@@ -1776,7 +2006,77 @@ const FORMS_FIELD_MAPPING = {
   'counsellor name': 'counselorName',
   
   'counselor signature': 'counselorSignature',
-  'signature': 'counselorSignature'
+  'signature': 'counselorSignature',
+  
+  // ========== EXACT CSV KEY MAPPINGS (From HTS-FORM CSV Files) ==========
+  // These are exact patterns observed in the actual CSV files
+  
+  // Name components (patient)
+  'suffix (jr. sr, iii. etc)': 'suffix',
+  'suffix': 'suffix',
+  'jr. sr. iii. etc': 'suffix',
+  
+  // PhilSys ID
+  'philsys number': 'philSysNumber',
+  'philsys no': 'philSysNumber',
+  'philsys id': 'philSysNumber',
+  'philsys registry number (prn)': 'philSysNumber',
+  
+  // Nationality and Birth
+  'filipino': 'nationality',
+  'nationality': 'nationality',
+  'birth order': 'birthOrder',
+  
+  // Location fields
+  'province': 'province',
+  'city/municipality': 'cityMunicipality',
+  'city municipality': 'cityMunicipality',
+  'barangay': 'barangay',
+  
+  // Province of birth
+  'province of birth': 'provinceOfBirth',
+  'city of birth': 'cityOfBirth',
+  'city/municipality of birth': 'cityOfBirth',
+  
+  // Parental codes
+  'first 2 letters of mother\'s first name': 'parentalCodeMother',
+  'mother first name': 'parentalCodeMother',
+  'first 2 letters of father\'s first name': 'parentalCodeFather',
+  'father first name': 'parentalCodeFather',
+  
+  // Education
+  'highest educational attainment': 'educationalAttainment',
+  'educational attainment': 'educationalAttainment',
+  
+  // Testing reason categories
+  'suspected exposure to hiv': 'suspectedExposure',
+  'i had unprotected sex with an hiv-positive partner or plhiv': 'unprotectedWithPLHIV',
+  'i shared needles': 'sharedNeedlesResponse',
+  'my partner had sex with others': 'partnerSexWithOthers',
+  'i was diagnosed with sti': 'diagnosedWithSTI',
+  'i was a victim of rape or sexual abuse': 'victimOfRape',
+  'other reasons': 'otherReason',
+  
+  // Testing facility (back page) - must not map to fullName!
+  'name of testing facility/organization': 'testingFacility',
+  'name of testing facility organization': 'testingFacility',
+  'testing facility organization': 'testingFacility',
+  
+  // Provider information (back page) - must not map to fullName!
+  'name & signature of service provider': 'counselorName',
+  'name signature of service provider': 'counselorName',
+  'service provider name': 'counselorName',
+  'service provider': 'counselorName',
+  
+  // HTS provider selection (back page)
+  'which hts provider are you': 'htsProviderType',
+  'hts provider type': 'htsProviderType',
+  'type of hts provider': 'htsProviderType',
+  
+  // Registration numbers
+  'registration number': 'registrationNumber',
+  'reg no': 'registrationNumber',
+  'registration no': 'registrationNumber'
 };
 
 /**
@@ -1923,6 +2223,7 @@ function tryMultipleMappingStrategies(kvPair, context) {
 function applyMappingStrategy(kvPair, context, strategy) {
   const rawKey = kvPair.key;
   const normalizedKey = normalizeOCRKey(rawKey);
+  const pageType = context.pageType;
   
   switch (strategy) {
     case 'exact_match':
@@ -1932,15 +2233,31 @@ function applyMappingStrategy(kvPair, context, strategy) {
       break;
       
     case 'normalized_match':
-      if (FORMS_FIELD_MAPPING[normalizedKey]) {
-        return { fieldName: FORMS_FIELD_MAPPING[normalizedKey], normalizedKey };
+      let fieldName = FORMS_FIELD_MAPPING[normalizedKey];
+      
+      // Context-aware mapping: distinguish patient vs facility contact info
+      if (fieldName === 'emailAddress' && pageType === 'back') {
+        fieldName = 'facilityEmailAddress';
+      } else if (fieldName === 'contactNumber' && pageType === 'back') {
+        fieldName = 'facilityContactNumber';
+      }
+      
+      if (fieldName) {
+        return { fieldName, normalizedKey };
       }
       break;
       
     case 'fuzzy_match':
       const fuzzyMatch = findFuzzyFieldMatch(normalizedKey, 0.7);
       if (fuzzyMatch) {
-        return fuzzyMatch;
+        // Context-aware mapping: distinguish patient vs facility contact info
+        let fieldName = fuzzyMatch.fieldName;
+        if (fieldName === 'emailAddress' && pageType === 'back') {
+          fieldName = 'facilityEmailAddress';
+        } else if (fieldName === 'contactNumber' && pageType === 'back') {
+          fieldName = 'facilityContactNumber';
+        }
+        return { ...fuzzyMatch, fieldName };
       }
       break;
       
@@ -2039,22 +2356,24 @@ function tryNumberedQuestionMapping(kvPair, context) {
  * @returns {Object} Mapping result
  */
 function tryPartialMatching(normalizedKey) {
-  // Partial matching patterns
+  // IMPORTANT: Don't map generic "name" to fullName - too many false positives
+  // Examples: "Name of Testing Facility" should NOT map to fullName
+  // Only map if it's clearly a patient name field
+  
+  // Partial matching patterns (most specific first)
   const partialMatches = {
-    'name': 'fullName',
-    'age': 'age',
-    'sex': 'sex',
-    'address': 'address',
-    'contact': 'contactNumber',
-    'email': 'emailAddress',
-    'phone': 'contactNumber',
-    'mobile': 'contactNumber',
     'philhealth': 'philHealthNumber',
     'phic': 'philHealthNumber',
-    'date': 'testDate',
-    'test': 'testDate',
     'facility': 'testingFacility',
-    'counselor': 'counselorName'
+    'counselor': 'counselorName',
+    'provider': 'counselorName',
+    'phone': 'contactNumber',
+    'mobile': 'contactNumber',
+    'email': 'emailAddress',
+    'address': 'address',
+    'age': 'age',
+    'sex': 'sex'
+    // NOTE: Removed generic 'name', 'contact', 'date', 'test' - too ambiguous
   };
   
   for (const [pattern, fieldName] of Object.entries(partialMatches)) {
@@ -2076,7 +2395,14 @@ async function trackUnmappedKeys(unmappedKeys, pageType, sessionId) {
   if (!unmappedKeys.length) return;
   
   try {
-    const pool = getPool();
+    // Check if pool is available (may not be initialized in test environments)
+    let pool;
+    try {
+      pool = getPool();
+    } catch (poolError) {
+      // Silently skip database tracking if pool not initialized
+      return;
+    }
     
     for (const unmappedKey of unmappedKeys) {
       // Check if key already exists
@@ -2127,7 +2453,15 @@ async function trackUnmappedKeys(unmappedKeys, pageType, sessionId) {
  */
 async function logOCRProcessingStats(sessionId, totalFields, mappedFields, unmappedFields, confidence, pageType) {
   try {
-    const pool = getPool();
+    // Check if pool is available (may not be initialized in test environments)
+    let pool;
+    try {
+      pool = getPool();
+    } catch (poolError) {
+      // Silently skip database logging if pool not initialized
+      return;
+    }
+    
     await pool.execute(`
       INSERT INTO ocr_processing_logs 
       (session_id, total_fields, mapped_fields, unmapped_fields, overall_confidence, extraction_method, page_type)
@@ -2137,6 +2471,153 @@ async function logOCRProcessingStats(sessionId, totalFields, mappedFields, unmap
   } catch (error) {
     console.error('Error logging OCR stats:', error);
   }
+}
+
+/**
+ * Build composite fields from individual components
+ * Handles: fullName (from firstName + middleName + lastName + suffix)
+ *          testDate (from Month + Day + Year sequence)
+ *          birthDate (from Month + Day + Year sequence)
+ * @param {Object} mappedFields - Mapped fields object
+ * @param {Array} frontKVPairs - Front page key-value pairs (original order)
+ * @param {Array} backKVPairs - Back page key-value pairs (original order)
+ */
+function buildCompositeFields(mappedFields, frontKVPairs, backKVPairs) {
+  // ========== Build fullName from components ==========
+  if (mappedFields.firstName || mappedFields.middleName || mappedFields.lastName) {
+    const nameParts = [
+      mappedFields.firstName?.value,
+      mappedFields.middleName?.value,
+      mappedFields.lastName?.value,
+      mappedFields.suffix?.value
+    ].filter(part => part && part.trim() !== '');
+    
+    if (nameParts.length > 0) {
+      const fullName = nameParts.join(' ').trim();
+      mappedFields.fullName = {
+        value: fullName,
+        confidence: Math.round(
+          [mappedFields.firstName, mappedFields.middleName, mappedFields.lastName, mappedFields.suffix]
+            .filter(f => f)
+            .reduce((sum, f) => sum + f.confidence, 0) / nameParts.length
+        ),
+        rawKey: 'composite',
+        normalizedKey: 'full name',
+        mappingStrategy: 'composite',
+        page: 'front',
+        extractionMethod: 'forms+layout'
+      };
+      console.log(`  ✓ Built fullName: "${fullName}" (composite from ${nameParts.length} parts)`);
+    }
+  }
+  
+  // ========== Build testDate and birthDate from Month/Day/Year sequences ==========
+  // Strategy: Look for consecutive Month/Day/Year fields in the CSV row order
+  // First set of Month/Day/Year = testDate (rows 9-11 in sample)
+  // Second set of Month/Day/Year = birthDate (rows 25-27 in sample)
+  
+  const monthDayYearSets = findMonthDayYearSequences(frontKVPairs);
+  
+  if (monthDayYearSets.length >= 1) {
+    // First set = testDate
+    const testDateSet = monthDayYearSets[0];
+    const testDateStr = `${testDateSet.month}-${testDateSet.day}-${testDateSet.year}`;
+    mappedFields.testDate = {
+      value: testDateStr,
+      confidence: Math.round((testDateSet.monthConf + testDateSet.dayConf + testDateSet.yearConf) / 3),
+      rawKey: 'composite',
+      normalizedKey: 'test date',
+      mappingStrategy: 'composite',
+      page: 'front',
+      extractionMethod: 'forms+layout'
+    };
+    console.log(`  ✓ Built testDate: "${testDateStr}" (composite from Month/Day/Year sequence)`);
+  }
+  
+  if (monthDayYearSets.length >= 2) {
+    // Second set = birthDate
+    const birthDateSet = monthDayYearSets[1];
+    const birthDateStr = `${birthDateSet.month}-${birthDateSet.day}-${birthDateSet.year}`;
+    mappedFields.birthDate = {
+      value: birthDateStr,
+      confidence: Math.round((birthDateSet.monthConf + birthDateSet.dayConf + birthDateSet.yearConf) / 3),
+      rawKey: 'composite',
+      normalizedKey: 'birth date',
+      mappingStrategy: 'composite',
+      page: 'front',
+      extractionMethod: 'forms+layout'
+    };
+    console.log(`  ✓ Built birthDate: "${birthDateStr}" (composite from Month/Day/Year sequence)`);
+  }
+}
+
+/**
+ * Find sequences of Month/Day/Year fields in order
+ * Requires fields to be within close proximity (window of 5 positions max)
+ * @param {Array} kvPairs - Key-value pairs in original extraction order
+ * @returns {Array<Object>} Array of {month, day, year, monthConf, dayConf, yearConf} objects
+ */
+function findMonthDayYearSequences(kvPairs) {
+  const sequences = [];
+  
+  // Strategy: Find all Month fields, then look for Day within next 5 positions, then Year within next 5 after Day
+  for (let i = 0; i < kvPairs.length; i++) {
+    const kv = kvPairs[i];
+    const keyLower = kv.key.toLowerCase().trim();
+    
+    // Check if this is a Month field
+    if (keyLower === 'month' || keyLower.includes('month:')) {
+      const monthValue = kv.value;
+      const monthConf = kv.confidence || 85;
+      
+      // Look for Day within next 5 positions
+      let dayValue = null;
+      let dayConf = 0;
+      let dayIndex = -1;
+      
+      for (let j = i + 1; j <= i + 5 && j < kvPairs.length; j++) {
+        const dayKv = kvPairs[j];
+        const dayKeyLower = dayKv.key.toLowerCase().trim();
+        
+        if (dayKeyLower === 'day' || dayKeyLower.includes('day:')) {
+          dayValue = dayKv.value;
+          dayConf = dayKv.confidence || 85;
+          dayIndex = j;
+          break;
+        }
+      }
+      
+      // If found Day, look for Year within next 5 positions after Day
+      if (dayValue && dayIndex > 0) {
+        for (let k = dayIndex + 1; k <= dayIndex + 5 && k < kvPairs.length; k++) {
+          const yearKv = kvPairs[k];
+          const yearKeyLower = yearKv.key.toLowerCase().trim();
+          
+          if (yearKeyLower === 'year' || yearKeyLower.includes('year:')) {
+            const yearValue = yearKv.value;
+            const yearConf = yearKv.confidence || 85;
+            
+            // Found complete sequence!
+            sequences.push({
+              month: monthValue,
+              day: dayValue,
+              year: yearValue,
+              monthConf,
+              dayConf,
+              yearConf,
+              startIndex: i,
+              endIndex: k
+            });
+            
+            console.log(`    📅 Found Month/Day/Year sequence at positions ${i}-${k}: ${monthValue}/${dayValue}/${yearValue}`);
+            break;
+          }
+        }
+      }
+    }
+  }
+  
+  return sequences;
 }
 
 /**
@@ -2233,6 +2714,32 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
     console.log(`⚠️  ${unmappedKeys.length} unmapped keys found:`, 
       unmappedKeys.slice(0, 5).map(uk => uk.originalKey).join(', '));
   }
+
+  // Debug log mapping JSON (masked/truncated/dumped depending on env)
+  try {
+    const debugPayload = {
+      sessionId,
+      pageType,
+      stats: {
+        totalCount,
+        mappedCount,
+        unmappedCount,
+        mappingRate: parseFloat(mappingRate.toFixed(1)),
+        processingTimeMs: processingTime,
+        confidence: {
+          overall: parseFloat(avgConfidence.toFixed(1)),
+          high: highConfidence,
+          medium: mediumConfidence,
+          low: lowConfidence
+        }
+      },
+      mappedFields,
+      unmappedKeys: unmappedKeys
+    };
+    logExtractedJSON('mapTextractKeysToHTSFields', debugPayload, { sessionId });
+  } catch (err) {
+    console.warn('[OCR JSON] mapTextractKeysToHTSFields logging failed:', err.message);
+  }
   
   return {
     fields: mappedFields,
@@ -2265,57 +2772,88 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
  * @returns {Promise<Object>} Extracted data with field-level confidence
  */
 async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, options = {}) {
-  const { preprocessImages = true, useLayout = true } = options;
+  const { preprocessImages = true, useLayout = true, useCachedData = USE_CACHED_TEXTRACT } = options;
   
   // Generate session ID for tracking and analytics
   const sessionId = `ocr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
   
   const features = useLayout ? 'FORMS + LAYOUT' : 'FORMS only';
-  console.log(`📤 [FORMS OCR] Starting HTS form extraction with ${features}... (Session: ${sessionId})`);
+  const dataSource = useCachedData ? 'CACHED' : 'AWS LIVE';
+  console.log(`📤 [FORMS OCR] Starting HTS form extraction with ${features} from ${dataSource}... (Session: ${sessionId})`);
   
   try {
-    // Step 1: Preprocess images if enabled
-    if (preprocessImages) {
-      console.log('🖼️  Preprocessing images for optimal OCR...');
-      
-      try {
-        const [frontProcessed, backProcessed] = await Promise.all([
-          imagePreprocessor.process(frontImageBuffer, { mode: 'auto' }),
-          imagePreprocessor.process(backImageBuffer, { mode: 'auto' })
-        ]);
-
-        console.log(`✅ Front: ${frontProcessed.applied.join(', ')}`);
-        console.log(`✅ Back: ${backProcessed.applied.join(', ')}`);
-
-        frontImageBuffer = frontProcessed.buffer;
-        backImageBuffer = backProcessed.buffer;
-      } catch (preprocessError) {
-        console.warn('⚠️  Preprocessing failed, using original images:', preprocessError.message);
-      }
-    }
-
-    // Step 2: Analyze both pages with FORMS + LAYOUT features
-    const featureTypes = useLayout ? ['FORMS', 'LAYOUT'] : ['FORMS'];
-    console.log(`🔍 Running AWS Textract analysis with features: ${featureTypes.join(', ')}...`);
+    let frontResult, backResult, frontKVPairs, backKVPairs;
     
-    const [frontResult, backResult] = await Promise.all([
-      textractClient.send(new AnalyzeDocumentCommand({
-        Document: { Bytes: frontImageBuffer },
-        FeatureTypes: featureTypes
-      })),
-      textractClient.send(new AnalyzeDocumentCommand({
-        Document: { Bytes: backImageBuffer },
-        FeatureTypes: featureTypes
-      }))
-    ]);
+    if (useCachedData) {
+      // ========== USE CACHED TEXTRACT RESULTS ==========
+      console.log('📁 Loading cached Textract results from HTS-FORM folders...');
+      
+      // Load cached Textract responses
+      frontResult = loadCachedTextractResults('front');
+      backResult = loadCachedTextractResults('back');
+      
+      console.log(`✅ Cached data loaded`);
+      console.log(`   - Front blocks: ${frontResult.Blocks?.length || 0}`);
+      console.log(`   - Back blocks: ${backResult.Blocks?.length || 0}`);
+      
+      // Extract key-value pairs from cached blocks
+      frontKVPairs = extractKeyValuePairs(frontResult.Blocks || []);
+      backKVPairs = extractKeyValuePairs(backResult.Blocks || []);
+      
+      // Optionally load from CSV for faster processing (CSV is pre-parsed)
+      if (frontKVPairs.length === 0) {
+        console.log('⚠️  No KV pairs from blocks, loading from CSV...');
+        frontKVPairs = loadKeyValuesFromCSV('front');
+        backKVPairs = loadKeyValuesFromCSV('back');
+      }
+    } else {
+      // ========== USE LIVE AWS TEXTRACT API ==========
+      // Step 1: Preprocess images if enabled
+      if (preprocessImages) {
+        console.log('🖼️  Preprocessing images for optimal OCR...');
+        
+        try {
+          const [frontProcessed, backProcessed] = await Promise.all([
+            imagePreprocessor.process(frontImageBuffer, { mode: 'auto' }),
+            imagePreprocessor.process(backImageBuffer, { mode: 'auto' })
+          ]);
 
-    console.log(`✅ Textract analysis complete`);
-    console.log(`   - Front blocks: ${frontResult.Blocks.length}`);
-    console.log(`   - Back blocks: ${backResult.Blocks.length}`);
+          console.log(`✅ Front: ${frontProcessed.applied.join(', ')}`);
+          console.log(`✅ Back: ${backProcessed.applied.join(', ')}`);
 
-    // Step 3: Extract key-value pairs from both pages
-    const frontKVPairs = extractKeyValuePairs(frontResult.Blocks);
-    const backKVPairs = extractKeyValuePairs(backResult.Blocks);
+          frontImageBuffer = frontProcessed.buffer;
+          backImageBuffer = backProcessed.buffer;
+        } catch (preprocessError) {
+          console.warn('⚠️  Preprocessing failed, using original images:', preprocessError.message);
+        }
+      }
+
+      // Step 2: Analyze both pages with FORMS + LAYOUT features
+      const featureTypes = useLayout ? ['FORMS', 'LAYOUT'] : ['FORMS'];
+      console.log(`🔍 Running AWS Textract analysis with features: ${featureTypes.join(', ')}...`);
+      
+      const [frontResultLive, backResultLive] = await Promise.all([
+        textractClient.send(new AnalyzeDocumentCommand({
+          Document: { Bytes: frontImageBuffer },
+          FeatureTypes: featureTypes
+        })),
+        textractClient.send(new AnalyzeDocumentCommand({
+          Document: { Bytes: backImageBuffer },
+          FeatureTypes: featureTypes
+        }))
+      ]);
+      
+      frontResult = frontResultLive;
+      backResult = backResultLive;
+
+      console.log(`✅ Textract analysis complete`);
+      console.log(`   - Front blocks: ${frontResult.Blocks.length}`);
+      console.log(`   - Back blocks: ${backResult.Blocks.length}`);
+
+      // Step 3: Extract key-value pairs from both pages
+      frontKVPairs = extractKeyValuePairs(frontResult.Blocks);
+      backKVPairs = extractKeyValuePairs(backResult.Blocks);
+    }
     
     console.log(`📊 Key-value pairs found:`);
     console.log(`   - Front page: ${frontKVPairs.length} pairs`);
@@ -2336,6 +2874,10 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
     console.log(`   - Back mapped: ${backMapping.stats.mapped} fields`);
     console.log(`   - Total mapped: ${Object.keys(allFields).length} fields`);
     console.log(`   - Total unmapped: ${frontMapping.stats.unmapped + backMapping.stats.unmapped} keys`);
+
+    // Step 5.5: Build composite fields from individual components
+    console.log('🔧 Building composite fields (fullName, testDate, birthDate)...');
+    buildCompositeFields(allFields, frontKVPairs, backKVPairs);
 
     // Step 6: Convert to simplified field structure for validation
     const fieldsForValidation = {};
@@ -2361,8 +2903,7 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
     const highConfidence = confidenceValues.filter(c => c >= 85).length;
     const mediumConfidence = confidenceValues.filter(c => c >= 70 && c < 85).length;
     const lowConfidence = confidenceValues.filter(c => c < 70).length;
-
-    return {
+    const resultObject = {
       fields: correctedData,
       confidence: overallConfidence,
       stats: {
@@ -2387,6 +2928,21 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
         back: backMapping.unmappedKeys
       }
     };
+
+    // Debug log overall analyzeHTSFormWithForms JSON
+    try {
+      const debugPayload = {
+        sessionId,
+        stats: resultObject.stats,
+        fields: allFields,
+        unmappedKeys: resultObject.unmappedKeys
+      };
+      logExtractedJSON('analyzeHTSFormWithForms', debugPayload, { sessionId });
+    } catch (err) {
+      console.warn('[OCR JSON] analyzeHTSFormWithForms logging failed:', err.message);
+    }
+
+    return resultObject;
   } catch (error) {
     console.error('❌ [FORMS OCR] Extraction failed:', error);
     throw error;

@@ -1,0 +1,185 @@
+
+Condom Use:
+Always
+Sometimes
+Never
+Type of Sex:
+Oral
+Anal Inserter
+Anal Receiver
+Vaginal
+HIV TESTING
+HTS
+You may answer this on your own or with assistance from a counselor or healthcare provider
+HISTORY OF EXPOSURE / RISK ASSESSMENT
+Answer all. Please check the appropriate column for each item, and provide history of risk if applicable.
+Did your birth mother have HIV when you were born?
+Do not know
+No
+Yes
+History of sexual activity
+Date of most recent
+Date of most recent
+(oral/anal/vaginal)
+anal or neo/vaginal sex
+CONDOMLESS anal or
+(MM/YYYY)
+neo/vaginal sex (MM/YYYY)
+No
+Yes
+Total No.
+Sex with a MALE*
+2
+01/2025
+01/2007
+Sex with a FEMALE**
+3
+02/2024
+02/2016
+*Sex partners whose assigned sex at birth is MALE, including transgender and/or nonbinary
+17
+"Sex partners whose assigned sex at birth is FEMALE, including transgender and/or nonbinary
+Date of most recent
+No
+Yes
+risk (MM/YYYY)
+Paid for sex (in cash or kind)
+01/2024
+Received payment (cash or in kind) in exchange for sex
+02/2023
+Had sex under the influence of drugs
+03/2025
+Shared needles in injection of drugs
+06/2024
+Received blood transfusion
+07/2028
+Occupational exposure (needlestick/sharps)
+09/2003
+REASONS FOR HIV TESTING
+Please check all that apply.
+18
+Possible exposure to HIV
+/
+Employment Overseas/Abroad
+Requirement for insurance
+Recommended by physician/nurse/midwife
+/
+Employment Local/Philippines
+Other (please specify):
+Referred by a peer educator
+Received a text message/email encouraging me to get an HIV test
+PREVIOUS HIV TEST
+Have you ever been tested for HIV before?
+No
+/
+Yes. Date of most recent test?
+01
+2024
+Which HTS provider (facility or
+Month
+Year
+19
+organization) conducted the test?
+BAGANI
+City/Municipality:
+BACOLOO
+What was the result?
+Reactive
+Non-reactive
+Indeterminate
+Was not able to get result
+To be filled out by HTS PROVIDER only
+MEDICAL HISTORY & CLINICAL PICTURE
+Please check all that apply.
+20
+Current TB patient
+Diagnosed with other STIs
+Taken PEP
+With hepatitis B
+With hepatitis C
+Taking PrEP
+Clinical Picture:
+Asymptomatic
+21
+Symptomatic
+Describe S/Sx:
+COUGH
+World Health Organization (WHO) Staging:
+2
+No physician to do staging
+TESTING DETAILS
+Client type:
+Inpatient
+Walk-in/outpatient
+Persons Deprived of Liberty (PDL)
+22
+(select one)
+Mobile HTS / Outreach in physical venues. Specify venue:
+Mode of reach:
+Social and sexual
+23
+(select all that apply)
+Clinical reach
+Online
+Index testing
+network testing
+Outreach in physical venues
+/
+Refused HIV Testing
+Reason for refusal:
+NONE
+Accepted HIV Testing
+24
+HIV testing modality:
+Facility-based testing (FBT)
+Non-laboratory FBT
+Community-based
+Self-testing
+Linkage:
+Refer to ART
+Advise for re-testing in
+Months
+Weeks
+(choose all that apply)
+Refer for Confirmatory
+Suggested date: (MM/DD/YYYY)
+Other services provided to client:
+HIV 101
+Condoms, # distributed:
+IEC materials
+Lubricants, # distributed:
+54
+Inventory Information
+/
+Brand of test kit used:
+25
+Risk reduction planning
+Offered social and sexual network testing (SSNT)
+Number of test kit used:
+Referred to PrEP or had given PEP
+Accepted SSNT
+Test kit lot number:
+Other services:
+Expiration date (mm/dd/yyyy):
+HTS PROVIDER DETAILS
+Name of Testing Facility/Organization:
+LoveYourself Inc. (Bagani)
+26
+Complete Mailing Address:
+3F NEDF Building 6th Lacson Street, Brgy. 7, Bacolod City, Negros Occidental
+Contact Numbers:
+034 700 2034
+Email address:
+info@baganiph.org
+Primary HTS provider:
+(select one)
+HIV Counsellor
+Medical Technologist
+27
+CBS Motivator
+/
+Others: TEACHER
+Name & Signature of service provider:
+KEN BAYLON
+END
+PERSONAL INFORMATION SHEET (HTS FORM 2021)

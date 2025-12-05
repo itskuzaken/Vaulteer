@@ -20,12 +20,32 @@ async function runMigration() {
     const migrationSQL = fs.readFileSync(migrationPath, 'utf8');
     
     // Split by semicolon to execute individual statements
-    const statements = migrationSQL
+    // First, remove standalone comment lines
+    const cleanSQL = migrationSQL
+      .split('\n')
+      .filter(line => !line.trim().startsWith('--') || line.trim().length === 0)
+      .join('\n');
+    
+    const statements = cleanSQL
       .split(';')
-      .map(stmt => stmt.trim())
-      .filter(stmt => stmt.length > 0 && !stmt.startsWith('--'));
+      .map(stmt => {
+        // Clean up the statement: remove inline comments and extra whitespace
+        return stmt
+          .replace(/--.*$/gm, '') // Remove inline comments
+          .replace(/\s+/g, ' ')   // Normalize whitespace
+          .trim();
+      })
+      .filter(stmt => {
+        // Filter out empty statements
+        return stmt && stmt.length > 5; // Minimum length for a meaningful SQL statement
+      });
     
     console.log(`📝 Executing ${statements.length} SQL statements...`);
+    
+    if (statements.length === 0) {
+      console.log('⚠️  No statements found. Checking file content...');
+      console.log('File content preview:', migrationSQL.substring(0, 200) + '...');
+    }
     
     for (let i = 0; i < statements.length; i++) {
       const statement = statements[i];
