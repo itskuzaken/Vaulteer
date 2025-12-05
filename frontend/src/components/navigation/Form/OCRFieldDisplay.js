@@ -1,8 +1,9 @@
 /**
  * OCR Field Display Component
  * Displays extracted fields from FORMS+LAYOUT OCR with confidence scores and metadata
+ * Organized by form sections for better UX
  */
-import { IoCheckmarkCircle, IoAlertCircle, IoWarning, IoInformationCircle } from 'react-icons/io5';
+import { IoCheckmarkCircle, IoAlertCircle, IoWarning, IoInformationCircle, IoDocumentText } from 'react-icons/io5';
 
 export default function OCRFieldDisplay({ extractedData }) {
   if (!extractedData) {
@@ -14,8 +15,9 @@ export default function OCRFieldDisplay({ extractedData }) {
     );
   }
 
-  // Extract fields from enhanced FORMS+LAYOUT response structure
+  // Extract data from enhanced FORMS+LAYOUT response structure
   const fields = extractedData.fields || {};
+  const structuredData = extractedData.structuredData || null;
   const confidence = extractedData.confidence || extractedData.stats?.confidence?.overall || 0;
   const stats = extractedData.stats || {};
   const extractionMethod = extractedData.extractionMethod || 'forms+layout';
@@ -24,9 +26,9 @@ export default function OCRFieldDisplay({ extractedData }) {
   // Handle both old and new statistics formats
   const confidenceStats = stats.confidence || {
     overall: confidence,
-    high: 0,
-    medium: 0,
-    low: 0
+    high: stats.highConfidence || 0,
+    medium: stats.mediumConfidence || 0,
+    low: stats.lowConfidence || 0
   };
   
   const processingStats = {
@@ -36,6 +38,9 @@ export default function OCRFieldDisplay({ extractedData }) {
     mappingRate: stats.mappingRate || 0,
     processingTimeMs: stats.processingTimeMs || 0
   };
+  
+  // Check if we have structured data
+  const hasStructuredData = structuredData && (structuredData.front || structuredData.back);
 
   // Get confidence level styling
   const getConfidenceStyle = (confidence) => {
@@ -59,52 +64,238 @@ export default function OCRFieldDisplay({ extractedData }) {
       .trim();
   };
 
-  // Group fields by category
-  const fieldCategories = {
-    'Personal Information': ['firstName', 'middleName', 'lastName', 'suffix', 'birthDate', 'age', 'sex'],
-    'Contact Information': ['contactNumber', 'emailAddress', 'currentResidenceCity', 'currentResidenceProvince'],
-    'Identification': ['philHealthNumber', 'philSysNumber'],
-    'Test Information': ['testDate', 'testResult', 'testingFacility', 'counselorName'],
-    'Risk Assessment': ['previouslyTested', 'reasonsForTesting', 'clinicalPicture'],
-    'Other Fields': [] // Will be populated with remaining fields
+  // Render a single field with confidence indicator
+  const renderField = (fieldName, fieldData) => {
+    const displayName = formatFieldName(fieldName);
+    const value = fieldData?.value || fieldData;
+    const fieldConfidence = fieldData?.confidence || 0;
+    
+    return (
+      <div key={fieldName} className="flex items-start justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-gray-900 dark:text-white">
+            {displayName}
+          </div>
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            {fieldName}
+          </div>
+        </div>
+        <div className="flex-1 min-w-0 ml-4 flex items-start gap-2">
+          {value ? (
+            <>
+              <div className="flex-1 text-sm text-gray-700 dark:text-gray-300 break-words">
+                {typeof value === 'object' ? JSON.stringify(value) : value}
+              </div>
+              {fieldConfidence > 0 && (
+                <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getConfidenceStyle(fieldConfidence)}`}>
+                  {fieldConfidence.toFixed(0)}%
+                </span>
+              )}
+            </>
+          ) : (
+            <div className="text-sm text-gray-400 dark:text-gray-500 italic">
+              Not extracted
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
-  // Categorize extracted fields
-  const categorizedFields = {};
-  const usedFields = new Set();
+  // Render structured sections (new format)
+  const renderStructuredSections = () => {
+    if (!hasStructuredData) return null;
 
-  // Populate known categories
-  Object.entries(fieldCategories).forEach(([category, categoryFields]) => {
-    categorizedFields[category] = [];
-    categoryFields.forEach(fieldName => {
-      if (fields[fieldName]) {
-        categorizedFields[category].push({
+    return (
+      <div className="space-y-6">
+        {/* Front Page Sections */}
+        {structuredData.front && Object.keys(structuredData.front.sections || {}).length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-lg font-semibold text-blue-600 dark:text-blue-400">
+              <IoDocumentText className="w-5 h-5" />
+              <span>Front Page</span>
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                ({Object.keys(structuredData.front.sections).length} sections)
+              </span>
+            </div>
+            
+            {Object.entries(structuredData.front.sections).map(([sectionName, section]) => {
+              if (!section.hasData) return null;
+              
+              const sectionConfidence = section.avgConfidence || 0;
+              const fieldCount = Object.keys(section.fields || {}).length;
+              
+              return (
+                <div key={sectionName} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-gray-900 dark:text-white">{sectionName}</h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${getConfidenceStyle(sectionConfidence)}`}>
+                          {sectionConfidence.toFixed(0)}% avg
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4">
+                    <div className="grid gap-3">
+                      {Object.entries(section.fields).map(([fieldName, fieldData]) =>
+                        renderField(fieldName, fieldData)
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Back Page Sections */}
+        {structuredData.back && Object.keys(structuredData.back.sections || {}).length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 text-lg font-semibold text-purple-600 dark:text-purple-400">
+              <IoDocumentText className="w-5 h-5" />
+              <span>Back Page</span>
+              <span className="text-sm font-normal text-gray-500 dark:text-gray-400">
+                ({Object.keys(structuredData.back.sections).length} sections)
+              </span>
+            </div>
+            
+            {Object.entries(structuredData.back.sections).map(([sectionName, section]) => {
+              if (!section.hasData) return null;
+              
+              const sectionConfidence = section.avgConfidence || 0;
+              const fieldCount = Object.keys(section.fields || {}).length;
+              
+              return (
+                <div key={sectionName} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-gray-900 dark:text-white">{sectionName}</h4>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
+                        </span>
+                        <span className={`text-xs px-2 py-1 rounded-full ${getConfidenceStyle(sectionConfidence)}`}>
+                          {sectionConfidence.toFixed(0)}% avg
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4">
+                    <div className="grid gap-3">
+                      {Object.entries(section.fields).map(([fieldName, fieldData]) =>
+                        renderField(fieldName, fieldData)
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Structure Summary */}
+        {structuredData.summary && (
+          <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+            <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Structure Summary</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div>
+                <div className="text-2xl font-bold text-blue-600">{structuredData.summary.frontSections || 0}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Front Sections</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-purple-600">{structuredData.summary.backSections || 0}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Back Sections</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-green-600">{structuredData.summary.totalSections || 0}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Total Sections</div>
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-indigo-600">{structuredData.summary.totalFields || 0}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-400">Total Fields</div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Group fields by category (fallback for old format without structured data)
+  const renderLegacyCategories = () => {
+    const fieldCategories = {
+      'Personal Information': ['firstName', 'middleName', 'lastName', 'suffix', 'birthDate', 'age', 'sex', 'fullName'],
+      'Contact Information': ['contactNumber', 'emailAddress', 'currentResidenceCity', 'currentResidenceProvince', 'province', 'cityMunicipality'],
+      'Identification': ['philHealthNumber', 'philSysNumber'],
+      'Test Information': ['testDate', 'testResult', 'testingFacility', 'counselorName'],
+      'Risk Assessment': ['previouslyTested', 'reasonsForTesting', 'clinicalPicture'],
+      'Other Fields': [] // Will be populated with remaining fields
+    };
+
+    // Categorize extracted fields
+    const categorizedFields = {};
+    const usedFields = new Set();
+
+    // Populate known categories
+    Object.entries(fieldCategories).forEach(([category, categoryFields]) => {
+      categorizedFields[category] = [];
+      categoryFields.forEach(fieldName => {
+        if (fields[fieldName]) {
+          categorizedFields[category].push({
+            name: fieldName,
+            value: fields[fieldName],
+            displayName: formatFieldName(fieldName)
+          });
+          usedFields.add(fieldName);
+        }
+      });
+    });
+
+    // Add remaining fields to "Other Fields"
+    Object.keys(fields).forEach(fieldName => {
+      if (!usedFields.has(fieldName)) {
+        categorizedFields['Other Fields'].push({
           name: fieldName,
           value: fields[fieldName],
           displayName: formatFieldName(fieldName)
         });
-        usedFields.add(fieldName);
       }
     });
-  });
 
-  // Add remaining fields to "Other Fields"
-  Object.keys(fields).forEach(fieldName => {
-    if (!usedFields.has(fieldName)) {
-      categorizedFields['Other Fields'].push({
-        name: fieldName,
-        value: fields[fieldName],
-        displayName: formatFieldName(fieldName)
-      });
-    }
-  });
+    // Remove empty categories
+    Object.keys(categorizedFields).forEach(category => {
+      if (categorizedFields[category].length === 0) {
+        delete categorizedFields[category];
+      }
+    });
 
-  // Remove empty categories
-  Object.keys(categorizedFields).forEach(category => {
-    if (categorizedFields[category].length === 0) {
-      delete categorizedFields[category];
-    }
-  });
+    return (
+      <div className="space-y-6">
+        {Object.entries(categorizedFields).map(([category, categoryFields]) => (
+          <div key={category} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+            <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+              <h4 className="font-semibold text-gray-900 dark:text-white">{category}</h4>
+            </div>
+            
+            <div className="p-4">
+              <div className="grid gap-3">
+                {categoryFields.map(({ name, value, displayName }) =>
+                  renderField(name, value)
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -170,42 +361,8 @@ export default function OCRFieldDisplay({ extractedData }) {
         </div>
       </div>
 
-      {/* Extracted Fields by Category */}
-      {Object.entries(categorizedFields).map(([category, categoryFields]) => (
-        <div key={category} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-          <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
-            <h4 className="font-semibold text-gray-900 dark:text-white">{category}</h4>
-          </div>
-          
-          <div className="p-4">
-            <div className="grid gap-3">
-              {categoryFields.map(({ name, value, displayName }) => (
-                <div key={name} className="flex items-start justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                      {displayName}
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {name}
-                    </div>
-                  </div>
-                  <div className="flex-1 min-w-0 ml-4">
-                    {value ? (
-                      <div className="text-sm text-gray-700 dark:text-gray-300 break-words">
-                        {typeof value === 'object' ? JSON.stringify(value) : value}
-                      </div>
-                    ) : (
-                      <div className="text-sm text-gray-400 dark:text-gray-500 italic">
-                        Not extracted
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ))}
+      {/* Extracted Fields - Structured or Legacy Format */}
+      {hasStructuredData ? renderStructuredSections() : renderLegacyCategories()}
 
       {/* Enhanced Unmapped Keys Section */}
       {((Array.isArray(unmappedKeys) && unmappedKeys.length > 0) || 
