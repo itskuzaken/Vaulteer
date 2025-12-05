@@ -221,7 +221,7 @@ export default function OCRFieldDisplay({ extractedData }) {
             )}
           </h4>
           <p className="text-sm text-yellow-800 dark:text-yellow-200 mb-3">
-            These keys were detected by OCR but couldn't be mapped to known form fields. This data helps improve field mapping accuracy.
+            These keys were detected by OCR but couldn&apos;t be mapped to known form fields. This data helps improve field mapping accuracy.
           </p>
           
           {/* Handle new array format (single session) */}
