@@ -5,6 +5,7 @@ import { getAuth } from "firebase/auth";
 import Button from "../../ui/Button";
 import ImageLightbox from "../../ui/ImageLightbox";
 import CameraQualityIndicator from "../../ui/CameraQualityIndicator";
+import CameraStabilizerOverlay from "../../ui/CameraStabilizerOverlay"; // NEW: Camera stabilizer with real-time feedback
 import OCRFieldWarnings from "../../ui/OCRFieldWarnings";
 import AdminHTSDetailView from "../../ui/AdminHTSDetailView";
 import HTSFormEditModal from "./HTSFormEditModal";
@@ -46,6 +47,7 @@ export default function HTSFormManagement() {
   const streamRef = useRef(null);
   const metadataTimeoutRef = useRef(null);
   const isMountedRef = useRef(true); // Track component mount status
+  const stabilizerRef = useRef(null); // NEW: Reference to camera stabilizer instance
 
   // OCR-first workflow state
   const [extractedData, setExtractedData] = useState(null);
@@ -57,6 +59,10 @@ export default function HTSFormManagement() {
   const [editableData, setEditableData] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
   const [mappedUnmappedKeys, setMappedUnmappedKeys] = useState({});
+  
+  // NEW: Image quality metrics from stabilizer
+  const [frontImageQuality, setFrontImageQuality] = useState(null);
+  const [backImageQuality, setBackImageQuality] = useState(null);
   
   // Image lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -436,15 +442,23 @@ export default function HTSFormManagement() {
   }, [isFlashlightOn, showAlert]);
 
   const finalizeCaptureImage = useCallback(
-    async (step, imageData) => {
+    async (step, imageData, stabilizerMetrics = null) => {
       setIsCapturing(false);
       try {
         if (step === "front") {
           setFrontImage(imageData);
+          if (stabilizerMetrics) {
+            setFrontImageQuality(stabilizerMetrics);
+            console.log('[Stabilizer] Saved front image quality:', stabilizerMetrics);
+          }
           if (stopCamera) stopCamera();
           setCurrentStep("back");
         } else if (step === "back") {
           setBackImage(imageData);
+          if (stabilizerMetrics) {
+            setBackImageQuality(stabilizerMetrics);
+            console.log('[Stabilizer] Saved back image quality:', stabilizerMetrics);
+          }
           if (stopCamera) stopCamera();
           setCurrentStep("result");
         }
@@ -487,6 +501,23 @@ export default function HTSFormManagement() {
     
     try {
       console.log(`📸 Starting capture: ${video.videoWidth}x${video.videoHeight}`);
+      
+      // NEW: Capture stabilizer metrics at time of photo
+      let stabilizerMetrics = null;
+      if (stabilizerRef.current) {
+        const metrics = stabilizerRef.current.getMetrics();
+        if (metrics && metrics.quality) {
+          stabilizerMetrics = {
+            overallScore: Math.round(metrics.quality.overallScore),
+            components: {
+              motion: Math.round(metrics.quality.components.motion),
+              blur: Math.round(metrics.quality.components.blur),
+              lighting: Math.round(metrics.quality.components.lighting)
+            }
+          };
+          console.log('[Stabilizer] Quality metrics at capture:', stabilizerMetrics);
+        }
+      }
       
       // PRE-CAPTURE VALIDATION: Check current frame quality
       const testCanvas = document.createElement('canvas');
@@ -583,7 +614,7 @@ export default function HTSFormManagement() {
           () => {
             closeConfirm();
             // Continue with capture after user confirms
-            finalizeCaptureImage(currentStep, imageData);
+            finalizeCaptureImage(currentStep, imageData, stabilizerMetrics);
           },
           "Continue Anyway",
           "Retake"
@@ -595,7 +626,7 @@ export default function HTSFormManagement() {
       console.log('[Quality Check] ✅ Image quality is acceptable');
       
       // Save image and proceed
-      finalizeCaptureImage(currentStep, imageData);
+      finalizeCaptureImage(currentStep, imageData, stabilizerMetrics);
       
     } catch (error) {
       console.error('❌ Capture error:', error);
@@ -1230,6 +1261,16 @@ export default function HTSFormManagement() {
       const formData = new FormData();
       formData.append('frontImage', frontBlob, 'front.jpg');
       formData.append('backImage', backBlob, 'back.jpg');
+      
+      // NEW: Include image quality metrics from stabilizer if available
+      if (frontImageQuality) {
+        formData.append('frontImageQuality', JSON.stringify(frontImageQuality));
+        console.log('[OCR] Including front image quality metrics:', frontImageQuality);
+      }
+      if (backImageQuality) {
+        formData.append('backImageQuality', JSON.stringify(backImageQuality));
+        console.log('[OCR] Including back image quality metrics:', backImageQuality);
+      }
 
       const idToken = await user.getIdToken();
       const response = await fetch(`${API_BASE}/hts-forms/analyze-ocr`, {
@@ -1539,8 +1580,21 @@ export default function HTSFormManagement() {
                   style={{ maxHeight: '70vh' }}
                 />
                 
-                {/* Real-time quality indicator */}
+                {/* NEW: Camera Stabilizer with real-time feedback */}
+                <CameraStabilizerOverlay 
+                  videoRef={videoRef} 
+                  isActive={isVideoReady && !isCapturing}
+                  showDetailedMetrics={false} // Simple badges for cleaner UI
+                  enableAutoCapture={false} // Manual capture to give user control
+                  onStabilizerReady={(stabilizer) => {
+                    stabilizerRef.current = stabilizer;
+                    console.log('[Stabilizer] Instance ready and stored');
+                  }}
+                />
+                
+                {/* Legacy quality indicator - kept for fallback */}
                 <CameraQualityIndicator videoRef={videoRef} isActive={isVideoReady} />
+                
                 {!isVideoReady && (
                   <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
                     <div className="text-center text-white">
