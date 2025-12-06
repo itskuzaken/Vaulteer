@@ -424,7 +424,7 @@ export default function OCRFieldDisplay({ extractedData }) {
                   Unmapped Keys Detected
                 </h4>
                 <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                  OCR detected these fields but couldn't match them to the form template
+                  OCR detected these fields but couldn&apos;t match them to the form template
                 </p>
               </div>
             </div>
@@ -587,7 +587,7 @@ export default function OCRFieldDisplay({ extractedData }) {
                         📋 Review & Correct in Edit Mode
                       </h6>
                       <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        Click "Edit Fields" to manually map these values to the correct form fields. Your corrections help train the system.
+                        Click &quot;Edit Fields&quot; to manually map these values to the correct form fields. Your corrections help train the system.
                       </p>
                       <div className="flex gap-2">
                         <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded font-medium">
@@ -635,7 +635,7 @@ export default function OCRFieldDisplay({ extractedData }) {
                         📝 Use Standard Forms
                       </h6>
                       <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        Ensure you're using the official DOH HTS Form 2021:
+                        Ensure you&apos;re using the official DOH HTS Form 2021:
                       </p>
                       <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
                         <li>• ✓ Latest official version from DOH</li>
@@ -704,13 +704,13 @@ export default function OCRFieldDisplay({ extractedData }) {
               <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1">
                 <li>• Field names on the physical form differ from the template</li>
                 <li>• Handwritten annotations or additional notes on the form</li>
-                <li>• OCR misread similar-looking text (e.g., "Address" vs "Addross")</li>
+                <li>• OCR misread similar-looking text (e.g., &quot;Address&quot; vs &quot;Addross&quot;)</li>
                 <li>• Form version mismatch or custom fields added locally</li>
               </ul>
             </div>
             
             <div className="text-xs text-yellow-800 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/30 px-3 py-2 rounded-lg">
-              <strong>💡 System Learning:</strong> This data helps improve the OCR system's accuracy over time by identifying common variations and patterns.
+              <strong>💡 System Learning:</strong> This data helps improve the OCR system&apos;s accuracy over time by identifying common variations and patterns.
             </div>
           </div>
         </div>

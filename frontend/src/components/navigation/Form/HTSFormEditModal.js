@@ -771,7 +771,7 @@ export default function HTSFormEditModal({
                   Map Unmapped Fields ({unmappedKeys.length})
                 </h3>
                 <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
-                  OCR detected these fields but couldn't automatically match them to the form template. 
+                  OCR detected these fields but couldn&apos;t automatically match them to the form template. 
                   You can manually map them to the correct fields below. Your mappings help improve the system!
                 </p>
               </div>
