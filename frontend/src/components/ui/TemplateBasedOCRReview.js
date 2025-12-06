@@ -158,7 +158,7 @@ const FIELD_METADATA = {
   counselorLicense: { label: 'Counselor License', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 3 },
   counselorDesignation: { label: 'Counselor Designation', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 3 },
   counselorContact: { label: 'Counselor Contact', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 3 },
-  counselorSignature: { label: 'Name & Signature of Service Provider', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 }
+  counselorSignature: { label: 'Name & Signature of Service Provider', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
   formCompletionDate: { label: 'Form Completion Date', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 }
 };
 
