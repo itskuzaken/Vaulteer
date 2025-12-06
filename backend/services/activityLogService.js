@@ -1,4 +1,10 @@
 const { getPool } = require("../db/pool");
+const { DateTime } = require("luxon");
+
+const toIsoPlus8 = (date = new Date()) =>
+  DateTime.fromJSDate(new Date(date), { zone: "utc" })
+    .setZone("Asia/Singapore")
+    .toISO({ suppressMilliseconds: true });
 
 /**
  * Activity Log Service
@@ -76,13 +82,18 @@ async function createLog({
       metadata ? JSON.stringify(metadata) : null,
     ];
 
-    if (occurredAt) {
-      const occurredDate = new Date(occurredAt);
-      if (!Number.isNaN(occurredDate.getTime())) {
-        columns += ", created_at";
-        placeholders += ", ?";
-        values.push(occurredDate);
-      }
+    // Always set a created_at in +08 timezone. Use occurredAt if supplied, else now.
+    const toPlus8MySQL = (d) => {
+      // Use luxon to convert to Asia/Singapore and format to MySQL DATETIME
+      const dt = DateTime.fromJSDate(d, { zone: 'utc' }).setZone('Asia/Singapore');
+      return dt.toFormat("yyyy-LL-dd HH:mm:ss");
+    };
+
+    const createdDate = occurredAt ? new Date(occurredAt) : new Date();
+    if (!Number.isNaN(createdDate.getTime())) {
+      columns += ", created_at";
+      placeholders += ", ?";
+      values.push(toPlus8MySQL(createdDate));
     }
 
     const query = `
@@ -257,6 +268,12 @@ async function getLogs({
           ? JSON.parse(row.changes)
           : row.changes
         : null,
+      
+      created_at_local: row.created_at
+      ? DateTime.fromJSDate(new Date(row.created_at), { zone: 'utc' })
+        .setZone('Asia/Singapore')
+        .toISO({ suppressMilliseconds: true })
+      : null,
     }));
 
     return {
@@ -375,7 +392,7 @@ const logHelpers = {
       targetResource: { type: "event", id: eventId, name: eventTitle },
       description: `Created event: ${eventTitle}`,
       severity: SEVERITY_LEVELS.INFO,
-      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+      metadata: { ...metadata, eventUid, timestamp: toIsoPlus8() },
     }),
 
   logEventUpdated: ({
@@ -394,7 +411,7 @@ const logHelpers = {
       changes,
       description: `Updated event: ${eventTitle}`,
       severity: SEVERITY_LEVELS.INFO,
-      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+      metadata: { ...metadata, eventUid, timestamp: toIsoPlus8() },
     }),
 
   logEventDeleted: ({
@@ -411,7 +428,7 @@ const logHelpers = {
       targetResource: { type: "event", id: eventId, name: eventTitle },
       description: `Deleted event: ${eventTitle}`,
       severity: SEVERITY_LEVELS.MEDIUM,
-      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+      metadata: { ...metadata, eventUid, timestamp: toIsoPlus8() },
     }),
 
   logEventPublished: ({
@@ -428,7 +445,7 @@ const logHelpers = {
       targetResource: { type: "event", id: eventId, name: eventTitle },
       description: `Published event: ${eventTitle}`,
       severity: SEVERITY_LEVELS.INFO,
-      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+      metadata: { ...metadata, eventUid, timestamp: toIsoPlus8() },
     }),
 
   logEventArchived: ({
@@ -545,12 +562,7 @@ const logHelpers = {
       targetResource: { type: "event", id: eventId, name: eventTitle },
       description: `Registered for event: ${eventTitle}`,
       severity: SEVERITY_LEVELS.INFO,
-      metadata: {
-        ...metadata,
-        eventUid,
-        registrationStatus,
-        timestamp: new Date().toISOString(),
-      },
+      metadata: { ...metadata, eventUid, registrationStatus, timestamp: toIsoPlus8() },
     }),
 
   logEventCancellation: ({
@@ -572,7 +584,7 @@ const logHelpers = {
       targetResource: { type: "event", id: eventId, name: eventTitle },
       description: `Cancelled registration for event: ${eventTitle}`,
       severity: SEVERITY_LEVELS.INFO,
-      metadata: { ...metadata, eventUid, timestamp: new Date().toISOString() },
+      metadata: { ...metadata, eventUid, timestamp: toIsoPlus8() },
     }),
 
   logEventAttendance: ({
@@ -591,12 +603,7 @@ const logHelpers = {
       targetResource: { type: "event", id: eventId, name: eventTitle },
       description: `Marked ${userName} as attended for event: ${eventTitle}`,
       severity: SEVERITY_LEVELS.INFO,
-      metadata: {
-        ...metadata,
-        eventUid,
-        attendeeUserId: userId,
-        timestamp: new Date().toISOString(),
-      },
+      metadata: { ...metadata, eventUid, attendeeUserId: userId, timestamp: toIsoPlus8() },
     }),
 
   logEventParticipantStatusChange: ({
@@ -622,12 +629,7 @@ const logHelpers = {
       },
       description: `Updated ${userName}'s status from ${previousStatus} to ${newStatus} for event: ${eventTitle}`,
       severity: SEVERITY_LEVELS.INFO,
-      metadata: {
-        ...metadata,
-        eventUid,
-        participantUserId: userId,
-        timestamp: new Date().toISOString(),
-      },
+      metadata: { ...metadata, eventUid, participantUserId: userId, timestamp: toIsoPlus8() },
     }),
 
   // Gamification Logging
@@ -660,7 +662,7 @@ const logHelpers = {
         pointsDelta,
         eventId,
         eventUid,
-        timestamp: new Date().toISOString(),
+        timestamp: toIsoPlus8(),
       },
     }),
 
@@ -681,14 +683,7 @@ const logHelpers = {
       targetResource: { type: "user", id: userId, name: userName },
       description: `Earned badge: ${badgeName}`,
       severity: SEVERITY_LEVELS.INFO,
-      metadata: {
-        ...metadata,
-        badgeCode,
-        badgeName,
-        eventId,
-        eventUid,
-        timestamp: new Date().toISOString(),
-      },
+      metadata: { ...metadata, badgeCode, badgeName, eventId, eventUid, timestamp: toIsoPlus8() },
     }),
 
   logGamificationAdjustment: ({
@@ -708,12 +703,7 @@ const logHelpers = {
         pointsDelta >= 0 ? "+" : ""
       }${pointsDelta} points adjustment: ${reason}`,
       severity: SEVERITY_LEVELS.MEDIUM,
-      metadata: {
-        ...metadata,
-        reason,
-        pointsDelta,
-        timestamp: new Date().toISOString(),
-      },
+      metadata: { ...metadata, reason, pointsDelta, timestamp: toIsoPlus8() },
     }),
 
   logStreakAchievement: ({ userId, userName, streakDays, metadata = {} }) =>
@@ -724,11 +714,7 @@ const logHelpers = {
       targetResource: { type: "user", id: userId, name: userName },
       description: `Achieved ${streakDays}-day streak`,
       severity: SEVERITY_LEVELS.INFO,
-      metadata: {
-        ...metadata,
-        streakDays,
-        timestamp: new Date().toISOString(),
-      },
+      metadata: { ...metadata, streakDays, timestamp: toIsoPlus8() },
     }),
 
   // Error Logging
@@ -746,13 +732,7 @@ const logHelpers = {
       performedBy,
       description: `Error during ${action}: ${error.message}`,
       severity: SEVERITY_LEVELS.HIGH,
-      metadata: {
-        ...metadata,
-        error: error.message,
-        stack: error.stack,
-        context,
-        timestamp: new Date().toISOString(),
-      },
+      metadata: { ...metadata, error: error.message, stack: error.stack, context, timestamp: toIsoPlus8() },
     }),
 };
 
