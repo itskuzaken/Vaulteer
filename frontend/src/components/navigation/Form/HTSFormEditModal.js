@@ -574,32 +574,6 @@ export default function HTSFormEditModal({
               Risk Assessment, Testing Reasons, Previous Test, Medical History, Testing Details, Inventory, Provider Details
             </p>
           </div>
-        </div>
-              </label>
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
-                <label className="inline-flex items-center">
-                  <input type="radio" value="reactive" checked={editableData.testResult === 'reactive'}
-                    onChange={(e) => onFieldChange('testResult', e.target.value)} className="mr-2" />
-                  Reactive
-                </label>
-                <label className="inline-flex items-center">
-                  <input type="radio" value="non-reactive" checked={editableData.testResult === 'non-reactive'}
-                    onChange={(e) => onFieldChange('testResult', e.target.value)} className="mr-2" />
-                  Non-Reactive
-                </label>
-                <label className="inline-flex items-center">
-                  <input type="radio" value="indeterminate" checked={editableData.testResult === 'indeterminate'}
-                    onChange={(e) => onFieldChange('testResult', e.target.value)} className="mr-2" />
-                  Indeterminate
-                </label>
-              </div>
-            </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Test Date *</label>
-              <input type="date" value={editableData.testDate} onChange={(e) => onFieldChange('testDate', e.target.value)}
-                className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
-            </div>
-          </div>
 
           {/* FRONT PAGE SECTION 2: DEMOGRAPHIC DATA (Part 1 - Identity) */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
