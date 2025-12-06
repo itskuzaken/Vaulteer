@@ -691,7 +691,7 @@ export default function OCRFieldDisplay({ extractedData }) {
               </h5>
               <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1">
                 <li>• OCR successfully detected these text fields on the form</li>
-                <li>• These fields don't match any known template field names</li>
+                <li>• These fields don&apos;t match any known template field names</li>
                 <li>• The data is preserved and tracked for future improvements</li>
               </ul>
             </div>
