@@ -1551,7 +1551,7 @@ export default function HTSFormManagement() {
                 )}
                 {/* Capturing indicator */}
                 {isCapturing && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 z-10">
+                  <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-70 z-10 opacity-25">
                     <div className="text-center text-white">
                       <div className="animate-spin h-16 w-16 border-4 border-white border-t-transparent rounded-full mx-auto mb-4" />
                       <p className="text-base font-semibold">Processing image...</p>
