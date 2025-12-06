@@ -50,7 +50,16 @@ export default function OCRFieldDisplay({ extractedData }) {
   };
   
   // Check if we have structured data
-  const hasStructuredData = structuredData && (structuredData.front || structuredData.back);
+  // Handle two formats: 
+  // 1. New format with front/back pages: { front: { sections: {...} }, back: { sections: {...} } }
+  // 2. Direct section format: { "SECTION NAME": { fields: {...}, avgConfidence: ... } }
+  const hasStructuredData = structuredData && (
+    structuredData.front || 
+    structuredData.back || 
+    Object.keys(structuredData).some(key => 
+      structuredData[key]?.fields && typeof structuredData[key]?.avgConfidence === 'number'
+    )
+  );
 
   console.log('[OCRFieldDisplay] Data structure analysis:', {
     hasStructuredData,
@@ -125,10 +134,51 @@ export default function OCRFieldDisplay({ extractedData }) {
     );
   };
 
-  // Render structured sections (new format)
+  // Render structured sections (handles multiple formats)
   const renderStructuredSections = () => {
     if (!hasStructuredData) return null;
 
+    // Format 1: Direct section format { "SECTION NAME": { fields: {...}, avgConfidence: ... } }
+    if (!structuredData.front && !structuredData.back) {
+      return (
+        <div className="space-y-4">
+          {Object.entries(structuredData).filter(([key, value]) => 
+            value?.fields && typeof value?.avgConfidence === 'number'
+          ).map(([sectionName, section]) => {
+            const sectionConfidence = section.avgConfidence || 0;
+            const fieldCount = Object.keys(section.fields || {}).length;
+            
+            return (
+              <div key={sectionName} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold text-gray-900 dark:text-white">{sectionName}</h4>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">
+                        {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
+                      </span>
+                      <span className={`text-xs px-2 py-1 rounded-full ${getConfidenceStyle(sectionConfidence)}`}>
+                        {sectionConfidence.toFixed(0)}% avg
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-4">
+                  <div className="grid gap-3">
+                    {Object.entries(section.fields).map(([fieldName, fieldData]) =>
+                      renderField(fieldName, fieldData)
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+
+    // Format 2: Front/Back page format { front: { sections: {...} }, back: { sections: {...} } }
     return (
       <div className="space-y-6">
         {/* Front Page Sections */}

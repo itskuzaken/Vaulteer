@@ -301,6 +301,107 @@ function loadImage(dataURL) {
 }
 
 /**
+ * Detect which side of HTS form (front or back) from image
+ * Uses text pattern matching to identify form side
+ * @param {string} imageDataURL - Base64 data URL of the image
+ * @returns {Promise<Object>} Detection result with side and confidence
+ */
+export async function detectFormSide(imageDataURL) {
+  try {
+    const img = await loadImage(imageDataURL);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    
+    // Use smaller size for faster processing
+    canvas.width = 800;
+    canvas.height = 1067;
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    
+    // Get image data for text analysis
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const data = imageData.data;
+    
+    // Simple text detection based on dark pixels in specific regions
+    // Front page markers (top portion of form)
+    const frontMarkers = [
+      { text: 'PERSONAL INFORMATION SHEET', region: { x: 0.1, y: 0.05, w: 0.8, h: 0.15 } },
+      { text: 'PhilHealth Number', region: { x: 0.1, y: 0.1, w: 0.5, h: 0.2 } },
+      { text: 'First Name', region: { x: 0.1, y: 0.15, w: 0.5, h: 0.25 } },
+      { text: 'INFORMED CONSENT', region: { x: 0.1, y: 0.0, w: 0.8, h: 0.1 } }
+    ];
+    
+    // Back page markers
+    const backMarkers = [
+      { text: 'HISTORY OF EXPOSURE', region: { x: 0.1, y: 0.05, w: 0.8, h: 0.15 } },
+      { text: 'RISK ASSESSMENT', region: { x: 0.1, y: 0.05, w: 0.8, h: 0.2 } },
+      { text: 'Sex with Male', region: { x: 0.1, y: 0.1, w: 0.6, h: 0.3 } },
+      { text: 'Previous HIV Test', region: { x: 0.1, y: 0.3, w: 0.8, h: 0.5 } }
+    ];
+    
+    // Calculate text density in regions (higher density = more likely to contain text)
+    const calculateRegionDensity = (region) => {
+      const startX = Math.floor(canvas.width * region.x);
+      const startY = Math.floor(canvas.height * region.y);
+      const width = Math.floor(canvas.width * region.w);
+      const height = Math.floor(canvas.height * region.h);
+      
+      let darkPixels = 0;
+      let totalPixels = 0;
+      
+      for (let y = startY; y < Math.min(startY + height, canvas.height); y++) {
+        for (let x = startX; x < Math.min(startX + width, canvas.width); x++) {
+          const idx = (y * canvas.width + x) * 4;
+          const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+          
+          if (brightness < 200) darkPixels++; // Consider as text
+          totalPixels++;
+        }
+      }
+      
+      return totalPixels > 0 ? darkPixels / totalPixels : 0;
+    };
+    
+    // Score each side
+    let frontScore = 0;
+    let backScore = 0;
+    
+    frontMarkers.forEach(marker => {
+      const density = calculateRegionDensity(marker.region);
+      if (density > 0.05) frontScore += density; // Text found in expected region
+    });
+    
+    backMarkers.forEach(marker => {
+      const density = calculateRegionDensity(marker.region);
+      if (density > 0.05) backScore += density;
+    });
+    
+    // Determine side based on scores
+    const isFront = frontScore > backScore;
+    const confidence = Math.abs(frontScore - backScore) / Math.max(frontScore, backScore, 0.1);
+    
+    console.log('[Form Detection]', {
+      frontScore: frontScore.toFixed(3),
+      backScore: backScore.toFixed(3),
+      detected: isFront ? 'FRONT' : 'BACK',
+      confidence: (confidence * 100).toFixed(1) + '%'
+    });
+    
+    return {
+      side: isFront ? 'front' : 'back',
+      confidence: Math.min(confidence * 100, 100),
+      scores: { front: frontScore, back: backScore }
+    };
+  } catch (error) {
+    console.error('[Form Detection] Error:', error);
+    return {
+      side: 'unknown',
+      confidence: 0,
+      error: error.message
+    };
+  }
+}
+
+/**
  * Convert data URL to Blob for FormData
  */
 export function dataURLtoBlob(dataURL) {

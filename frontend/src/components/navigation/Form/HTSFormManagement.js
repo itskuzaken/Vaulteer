@@ -538,6 +538,35 @@ export default function HTSFormManagement() {
       const imageData = processedResult.processedImage;
       console.log('[Preprocessing] Enhancement complete:', processedResult.metadata);
       
+      // FORM SIDE DETECTION: Verify correct side is being captured
+      console.log('[Form Detection] Detecting form side...');
+      const { detectFormSide } = await import('../../../utils/imagePreprocessor');
+      const sideDetection = await detectFormSide(imageData);
+      
+      console.log(`[Form Detection] Detected: ${sideDetection.side.toUpperCase()} (confidence: ${sideDetection.confidence.toFixed(1)}%)`);
+      
+      // Check if detected side matches expected side
+      if (sideDetection.side !== 'unknown' && sideDetection.confidence > 30) {
+        const expectedSide = currentStep; // 'front' or 'back'
+        const detectedSide = sideDetection.side;
+        
+        if (expectedSide !== detectedSide) {
+          setIsCapturing(false);
+          showAlert(
+            "Wrong Side Detected",
+            `You are trying to capture the ${expectedSide.toUpperCase()} side, but the image appears to be the ${detectedSide.toUpperCase()} side.\n\n` +
+            `Confidence: ${sideDetection.confidence.toFixed(1)}%\n\n` +
+            `Please flip the form and try again.`,
+            "warning"
+          );
+          return;
+        }
+        
+        console.log(`[Form Detection] ✅ Correct side detected (${expectedSide})`);
+      } else {
+        console.log('[Form Detection] ⚠️ Could not reliably detect form side, proceeding anyway');
+      }
+      
       // Final quality check with feedback
       const finalQuality = await validateImageQuality(imageData);
       console.log(`[Quality Check] Final score: ${finalQuality.score}/100`);
