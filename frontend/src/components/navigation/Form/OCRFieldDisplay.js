@@ -6,7 +6,17 @@
 import { IoCheckmarkCircle, IoAlertCircle, IoWarning, IoInformationCircle, IoDocumentText } from 'react-icons/io5';
 
 export default function OCRFieldDisplay({ extractedData }) {
+  // Debug logging
+  console.log('[OCRFieldDisplay] Component rendered with data:', {
+    hasData: !!extractedData,
+    hasFields: !!extractedData?.fields,
+    hasStructuredData: !!extractedData?.structuredData,
+    fieldCount: Object.keys(extractedData?.fields || {}).length,
+    structuredDataKeys: extractedData?.structuredData ? Object.keys(extractedData.structuredData) : []
+  });
+
   if (!extractedData) {
+    console.log('[OCRFieldDisplay] No extractedData provided - showing empty state');
     return (
       <div className="text-center py-8">
         <IoInformationCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
@@ -41,6 +51,14 @@ export default function OCRFieldDisplay({ extractedData }) {
   
   // Check if we have structured data
   const hasStructuredData = structuredData && (structuredData.front || structuredData.back);
+
+  console.log('[OCRFieldDisplay] Data structure analysis:', {
+    hasStructuredData,
+    confidence,
+    processingStats,
+    unmappedKeysCount: Array.isArray(unmappedKeys) ? unmappedKeys.length : 'not array',
+    fieldsCount: Object.keys(fields).length
+  });
 
   // Get confidence level styling
   const getConfidenceStyle = (confidence) => {

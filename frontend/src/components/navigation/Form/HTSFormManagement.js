@@ -2073,6 +2073,12 @@ export default function HTSFormManagement() {
               </div>
 
               {/* Structured OCR Field Display */}
+              {console.log('[HTSFormManagement] About to render OCRFieldDisplay with:', {
+                hasExtractedData: !!extractedData,
+                extractedDataKeys: extractedData ? Object.keys(extractedData) : [],
+                hasFields: !!extractedData?.fields,
+                hasStructuredData: !!extractedData?.structuredData
+              })}
               <OCRFieldDisplay extractedData={extractedData} />
             </div>
 
