@@ -65,7 +65,7 @@ export default function CameraQualityIndicator({ videoRef, isActive }) {
   };
 
   return (
-    <div className="absolute top-4 right-4 bg-black/70 text-white px-4 py-2 rounded-lg backdrop-blur-sm z-10">
+    <div className="absolute top-4 right-4 bg-black/70 text-white px-4 py-2 rounded-lg backdrop-blur-xs z-10">
       <div className="flex items-center gap-2">
         <div className={`w-3 h-3 rounded-full ${getQualityColor(quality.score)}`} />
         <span className="text-sm font-medium">
