@@ -1,16 +1,14 @@
 /**
  * OCRFieldWarnings Component
  * Display warnings for low-confidence OCR fields with validation status
- * NOW WITH: Image quality metrics from camera stabilizer
  */
-import { IoAlertCircle, IoCheckmarkCircle, IoWarning, IoCamera } from 'react-icons/io5';
+import { IoAlertCircle, IoCheckmarkCircle, IoWarning } from 'react-icons/io5';
 
 export default function OCRFieldWarnings({ extractedData }) {
   if (!extractedData) return null;
 
   const validations = extractedData.validations || {};
   const validationSummary = extractedData.validationSummary || null;
-  const imageQuality = extractedData.imageQuality || null; // NEW: From stabilizer
 
   // Find fields with validation information or low confidence
   const fieldsToReview = Object.entries(extractedData)
@@ -42,7 +40,7 @@ export default function OCRFieldWarnings({ extractedData }) {
       validationConfidence: extractedData[`${key}_confidence`]
     }));
 
-  if (fieldsToReview.length === 0 && !validationSummary && !imageQuality) return null;
+  if (fieldsToReview.length === 0 && !validationSummary) return null;
 
   const formatFieldName = (fieldName) => {
     return fieldName
@@ -52,9 +50,9 @@ export default function OCRFieldWarnings({ extractedData }) {
   };
 
   const getConfidenceColor = (confidence) => {
-    if (confidence >= 0.9) return 'text-green-600 dark:text-green-400';
-    if (confidence >= 0.7) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
+    if (confidence >= 0.9) return 'text-green-600';
+    if (confidence >= 0.7) return 'text-yellow-600';
+    return 'text-red-600';
   };
 
   const getSeverityIcon = (confidence) => {
@@ -63,55 +61,8 @@ export default function OCRFieldWarnings({ extractedData }) {
     return <IoAlertCircle className="inline w-4 h-4" />;
   };
 
-  const getQualityColor = (score) => {
-    if (score >= 80) return 'text-green-600 dark:text-green-400';
-    if (score >= 60) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
   return (
     <div className="space-y-4 mb-4">
-      {/* Image Quality Summary (NEW) */}
-      {imageQuality && (
-        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <IoCamera className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            <h4 className="font-semibold text-blue-900 dark:text-blue-100">Image Quality Assessment</h4>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-              <div className="text-gray-600 dark:text-gray-400 text-xs mb-1">Overall Score</div>
-              <div className={`text-xl font-bold ${getQualityColor(imageQuality.overallScore)}`}>
-                {imageQuality.overallScore}%
-              </div>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-              <div className="text-gray-600 dark:text-gray-400 text-xs mb-1">Stability</div>
-              <div className={`text-xl font-bold ${getQualityColor(imageQuality.components.motion)}`}>
-                {imageQuality.components.motion}%
-              </div>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-              <div className="text-gray-600 dark:text-gray-400 text-xs mb-1">Focus</div>
-              <div className={`text-xl font-bold ${getQualityColor(imageQuality.components.blur)}`}>
-                {imageQuality.components.blur}%
-              </div>
-            </div>
-            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg border border-blue-200 dark:border-blue-700">
-              <div className="text-gray-600 dark:text-gray-400 text-xs mb-1">Lighting</div>
-              <div className={`text-xl font-bold ${getQualityColor(imageQuality.components.lighting)}`}>
-                {imageQuality.components.lighting}%
-              </div>
-            </div>
-          </div>
-          {imageQuality.overallScore < 70 && (
-            <div className="mt-3 text-xs text-blue-800 dark:text-blue-200 bg-blue-100 dark:bg-blue-900/30 px-3 py-2 rounded">
-              💡 <strong>Tip:</strong> Low image quality may affect OCR accuracy. Consider retaking the photo with better stability, focus, or lighting.
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Validation Summary */}
       {validationSummary && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

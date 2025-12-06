@@ -15,17 +15,6 @@ const htsFormsController = {
     // Extract uploaded files from multer
     const frontImage = req.files?.frontImage?.[0];
     const backImage = req.files?.backImage?.[0];
-    
-    // NEW: Extract image quality metrics from stabilizer if provided
-    const frontImageQuality = req.body.frontImageQuality ? JSON.parse(req.body.frontImageQuality) : null;
-    const backImageQuality = req.body.backImageQuality ? JSON.parse(req.body.backImageQuality) : null;
-    
-    if (frontImageQuality) {
-      console.log('[OCR Analysis] Front image quality from stabilizer:', frontImageQuality);
-    }
-    if (backImageQuality) {
-      console.log('[OCR Analysis] Back image quality from stabilizer:', backImageQuality);
-    }
 
     // Validate both images are present
     if (!frontImage || !backImage) {
@@ -131,31 +120,6 @@ const htsFormsController = {
 
       console.log(`[OCR Analysis] Extraction completed with ${extractedData.confidence.toFixed(1)}% confidence`);
       console.log(`[OCR Analysis] Method: ${extractedData.extractionMethod}, Mode: ${extractedData.extractionMode || 'N/A'}, Template: ${extractedData.templateId || 'N/A'}`);
-      
-      // NEW: Attach image quality metrics to extracted data
-      if (frontImageQuality || backImageQuality) {
-        extractedData.imageQuality = {
-          overallScore: Math.round((
-            (frontImageQuality?.overallScore || 0) + 
-            (backImageQuality?.overallScore || 0)
-          ) / 2),
-          components: {
-            motion: Math.round((
-              (frontImageQuality?.components.motion || 0) + 
-              (backImageQuality?.components.motion || 0)
-            ) / 2),
-            blur: Math.round((
-              (frontImageQuality?.components.blur || 0) + 
-              (backImageQuality?.components.blur || 0)
-            ) / 2),
-            lighting: Math.round((
-              (frontImageQuality?.components.lighting || 0) + 
-              (backImageQuality?.components.lighting || 0)
-            ) / 2)
-          }
-        };
-        console.log('[OCR Analysis] Average image quality:', extractedData.imageQuality);
-      }
       
       // Log stats if available
       if (extractedData.stats) {
