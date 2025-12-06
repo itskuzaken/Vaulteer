@@ -2,8 +2,13 @@ import React from 'react';
 
 /**
  * Admin HTS Form Detail View Component
- * Displays all extracted fields from template-metadata.json with metadata
+ * Displays all extracted fields organized by DOH HTS Form 2021 official 10-section structure
  * Shows confidence scores, detection methods, and field-by-field details
+ * 
+ * Official Structure:
+ * - Front Page (3 sections): INFORMED CONSENT, DEMOGRAPHIC DATA, EDUCATION & OCCUPATION
+ * - Back Page (7 sections): HISTORY OF EXPOSURE, REASONS FOR TESTING, PREVIOUS TEST,
+ *   MEDICAL HISTORY, TESTING DETAILS, INVENTORY INFO, HTS PROVIDER DETAILS
  */
 
 // Field labels mapping from template metadata (101 fields total)
@@ -173,26 +178,24 @@ const TEMPLATE_FIELD_LABELS = {
   formCompletionDate: 'Form Completion Date'
 };
 
-// Group fields by section following DOH HTS Form 2021 structure (official sections)
+// Group fields by section following DOH HTS Form 2021 official structure (10 sections total)
+// Front Page: 3 sections | Back Page: 7 sections
 const FRONT_PAGE_SECTIONS = {
   'INFORMED CONSENT': [
-    'verbalConsent', 'consentGiven', 'consentSignature', 'consentDate',
-    'contactNumber', 'emailAddress'
+    'contactNumber', 'emailAddress',
+    'verbalConsent', 'consentGiven', 'consentSignature', 'consentDate'
   ],
-  'PERSONAL INFORMATION SHEET (HTS FORM)': [
+  'DEMOGRAPHIC DATA': [
     'testDate', 'philHealthNumber', 'philSysNumber',
     'firstName', 'middleName', 'lastName', 'suffix', 'fullName',
     'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
     'birthDate', 'age', 'ageMonths',
     'sex', 'genderIdentity',
-    'nationality', 'nationalityOther'
-  ],
-  'DEMOGRAPHIC DATA': [
     'currentResidenceCity', 'currentResidenceProvince',
     'permanentResidenceCity', 'permanentResidenceProvince',
     'placeOfBirthCity', 'placeOfBirthProvince',
-    'civilStatus', 'livingWithPartner', 'numberOfChildren',
-    'isPregnant'
+    'nationality', 'nationalityOther',
+    'civilStatus', 'livingWithPartner', 'numberOfChildren', 'isPregnant'
   ],
   'EDUCATION & OCCUPATION': [
     'educationalAttainment', 'currentlyInSchool',
@@ -204,6 +207,7 @@ const FRONT_PAGE_SECTIONS = {
 const BACK_PAGE_SECTIONS = {
   'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
     'motherHIV',
+    'riskAssessment',
     'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1', 'riskSexMaleDate2',
     'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1', 'riskSexFemaleDate2',
     'riskPaidForSexStatus', 'riskPaidForSexDate',
@@ -211,8 +215,7 @@ const BACK_PAGE_SECTIONS = {
     'riskSexUnderDrugsStatus', 'riskSexUnderDrugsDate',
     'riskSharedNeedlesStatus', 'riskSharedNeedlesDate',
     'riskBloodTransfusionStatus', 'riskBloodTransfusionDate',
-    'riskOccupationalExposureStatus', 'riskOccupationalExposureDate',
-    'riskAssessment'
+    'riskOccupationalExposureStatus', 'riskOccupationalExposureDate'
   ],
   'REASONS FOR HIV TESTING': [
     'reasonsForTesting', 'testingRefusedReason'
@@ -280,7 +283,7 @@ const AdminFieldDisplay = ({ field, value, label }) => {
   // Render field value
   const renderValue = () => {
     if (!fieldValue) {
-      return <span className="text-gray-400 italic">Not detected</span>;
+      return <span className="text-gray-400 dark:text-gray-500 italic">Not detected</span>;
     }
     
     if (Array.isArray(fieldValue)) {
@@ -292,7 +295,7 @@ const AdminFieldDisplay = ({ field, value, label }) => {
               ? (item.label || item.value || JSON.stringify(item))
               : item;
             return (
-              <span key={index} className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm font-medium">
+              <span key={index} className="bg-indigo-100 dark:bg-indigo-900/30 text-indigo-800 dark:text-indigo-300 px-3 py-1 rounded-full text-sm font-medium">
                 {displayValue}
               </span>
             );
@@ -307,26 +310,26 @@ const AdminFieldDisplay = ({ field, value, label }) => {
       displayValue = fieldValue.label || fieldValue.value || JSON.stringify(fieldValue);
     }
     
-    return <span className="text-gray-900 font-semibold">{displayValue}</span>;
+    return <span className="text-gray-900 dark:text-white font-semibold">{displayValue}</span>;
   };
   
   return (
-    <div className={`relative p-4 border-2 rounded-lg ${borderColor} bg-white shadow-sm`}>
+    <div className={`relative p-4 border-2 rounded-lg ${borderColor} bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow`}>
       {/* Field Label */}
       <div className="flex justify-between items-start mb-2">
-        <label className="text-sm font-bold text-gray-700">
+        <label className="text-sm font-bold text-gray-700 dark:text-gray-300">
           {label}
         </label>
         
         {/* Badges */}
         <div className="flex gap-2 flex-wrap justify-end">
           {edited && (
-            <span className="text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded font-semibold">
+            <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-1 rounded font-semibold">
               ✏️ Edited
             </span>
           )}
           {requiresReview && (
-            <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-semibold">
+            <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded font-semibold">
               ⚠️ Review
             </span>
           )}
@@ -339,9 +342,9 @@ const AdminFieldDisplay = ({ field, value, label }) => {
       </div>
       
       {/* Metadata Bar */}
-      <div className="flex items-center gap-3 pt-2 border-t border-gray-200">
+      <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
         {/* Confidence Indicator */}
-        <div className={`flex items-center gap-2 ${confidenceBg} px-3 py-1 rounded-full`}>
+        <div className={`flex items-center gap-2 ${confidenceBg} dark:opacity-90 px-3 py-1 rounded-full`}>
           <div className={`text-xs font-bold ${confidenceColor}`}>
             {confidenceText}
           </div>
@@ -351,7 +354,7 @@ const AdminFieldDisplay = ({ field, value, label }) => {
         </div>
         
         {/* Extraction Method */}
-        <div className="text-xs bg-gray-100 text-gray-700 px-3 py-1 rounded-full font-medium">
+        <div className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full font-medium">
           📊 {extractionMethod}
         </div>
       </div>
@@ -372,10 +375,10 @@ const AdminFieldSection = ({ title, fields, extractedData, sectionData }) => {
     if (Object.keys(sectionFields).length === 0) {
       return (
         <div className="mb-6">
-          <h5 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">
+          <h5 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-1">
             {title}
           </h5>
-          <div className="p-4 bg-gray-50 rounded-lg text-gray-500 italic text-sm">
+          <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-gray-500 dark:text-gray-400 italic text-sm">
             No fields detected in this section
           </div>
         </div>
@@ -413,10 +416,10 @@ const AdminFieldSection = ({ title, fields, extractedData, sectionData }) => {
   if (!hasAnyField) {
     return (
       <div className="mb-6">
-        <h5 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">
+        <h5 className="text-sm font-bold text-gray-700 dark:text-gray-300 mb-3 border-b pb-1">
           {title}
         </h5>
-        <div className="p-4 bg-gray-50 rounded-lg text-gray-500 italic text-sm">
+        <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg text-gray-500 dark:text-gray-400 italic text-sm">
           No fields detected in this section
         </div>
       </div>
@@ -466,9 +469,9 @@ const AdminFieldSection = ({ title, fields, extractedData, sectionData }) => {
 const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
   if (!extractedData) {
     return (
-      <div className="p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
-        <p className="text-yellow-800 font-semibold">⚠️ No extracted data available</p>
-        <p className="text-yellow-700 text-sm mt-2">
+      <div className="p-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
+        <p className="text-yellow-800 dark:text-yellow-300 font-semibold">⚠️ No extracted data available</p>
+        <p className="text-yellow-700 dark:text-yellow-400 text-sm mt-2">
           This submission may have been created before OCR implementation or the extraction failed.
         </p>
       </div>
@@ -511,35 +514,38 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
   return (
     <div className="space-y-6">
       {/* Extraction Summary */}
-      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-6 rounded-lg shadow">
-        <h3 className="text-lg font-bold text-gray-900 mb-4">
+      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/20 dark:to-purple-950/20 p-6 rounded-lg shadow dark:border dark:border-gray-700">
+        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
           🔍 OCR Extraction Analysis
+          <span className="text-sm font-normal text-gray-600 dark:text-gray-400">
+            (DOH HTS Form 2021)
+          </span>
         </h3>
         
         {/* Submission Info */}
         {submissionInfo && (
-          <div className="mb-4 p-3 bg-white rounded border border-indigo-200">
+          <div className="mb-4 p-3 bg-white dark:bg-gray-800 rounded border border-indigo-200 dark:border-indigo-700">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <div>
-                <div className="text-gray-600">Control Number</div>
-                <div className="font-bold text-gray-900">{submissionInfo.control_number}</div>
+                <div className="text-gray-600 dark:text-gray-400">Control Number</div>
+                <div className="font-bold text-gray-900 dark:text-white">{submissionInfo.control_number}</div>
               </div>
               <div>
-                <div className="text-gray-600">Submitter</div>
-                <div className="font-bold text-gray-900">{submissionInfo.username}</div>
+                <div className="text-gray-600 dark:text-gray-400">Submitter</div>
+                <div className="font-bold text-gray-900 dark:text-white">{submissionInfo.username}</div>
               </div>
               <div>
-                <div className="text-gray-600">Submission Date</div>
-                <div className="font-bold text-gray-900">
+                <div className="text-gray-600 dark:text-gray-400">Submission Date</div>
+                <div className="font-bold text-gray-900 dark:text-white">
                   {new Date(submissionInfo.created_at).toLocaleDateString()}
                 </div>
               </div>
               <div>
-                <div className="text-gray-600">Status</div>
+                <div className="text-gray-600 dark:text-gray-400">Status</div>
                 <div className={`font-bold ${
-                  submissionInfo.status === 'approved' ? 'text-green-600' :
-                  submissionInfo.status === 'rejected' ? 'text-red-600' :
-                  'text-yellow-600'
+                  submissionInfo.status === 'approved' ? 'text-green-600 dark:text-green-400' :
+                  submissionInfo.status === 'rejected' ? 'text-red-600 dark:text-red-400' :
+                  'text-yellow-600 dark:text-yellow-400'
                 }`}>
                   {submissionInfo.status}
                 </div>
@@ -550,69 +556,69 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
         
         {/* Statistics Grid */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <div className="bg-white p-4 rounded shadow-sm">
-            <div className="text-3xl font-bold text-blue-600">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
               {(confidence).toFixed(1)}%
             </div>
-            <div className="text-sm text-gray-600">Overall Confidence</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Overall Confidence</div>
           </div>
           
-          <div className="bg-white p-4 rounded shadow-sm">
-            <div className="text-3xl font-bold text-green-600">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="text-3xl font-bold text-green-600 dark:text-green-400">
               {stats.highConfidence || 0}
             </div>
-            <div className="text-sm text-gray-600">High Confidence</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">High Confidence</div>
           </div>
           
-          <div className="bg-white p-4 rounded shadow-sm">
-            <div className="text-3xl font-bold text-yellow-600">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
               {stats.mediumConfidence || 0}
             </div>
-            <div className="text-sm text-gray-600">Medium Confidence</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Medium Confidence</div>
           </div>
           
-          <div className="bg-white p-4 rounded shadow-sm">
-            <div className="text-3xl font-bold text-red-600">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="text-3xl font-bold text-red-600 dark:text-red-400">
               {stats.lowConfidence || 0}
             </div>
-            <div className="text-sm text-gray-600">Low Confidence</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Low Confidence</div>
           </div>
           
-          <div className="bg-white p-4 rounded shadow-sm">
-            <div className="text-3xl font-bold text-purple-600">
+          <div className="bg-white dark:bg-gray-800 p-4 rounded shadow-sm border border-gray-200 dark:border-gray-700">
+            <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
               {detectedFrontFields + detectedBackFields}
             </div>
-            <div className="text-sm text-gray-600">Total Fields Detected</div>
+            <div className="text-sm text-gray-600 dark:text-gray-400">Total Fields Detected</div>
           </div>
         </div>
         
         {/* Coverage Info */}
         <div className="mt-4 grid grid-cols-2 gap-4">
-          <div className="p-3 bg-white rounded border border-blue-200">
-            <div className="text-sm text-gray-600 mb-1">Front Page Coverage</div>
+          <div className="p-3 bg-white dark:bg-gray-800 rounded border border-blue-200 dark:border-blue-700">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Front Page Coverage (3 sections)</div>
             <div className="flex items-center gap-2">
-              <div className="flex-1 bg-gray-200 rounded-full h-2">
+              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div 
-                  className="bg-blue-500 h-2 rounded-full transition-all"
+                  className="bg-blue-500 dark:bg-blue-400 h-2 rounded-full transition-all"
                   style={{ width: `${(detectedFrontFields / totalFrontFields) * 100}%` }}
                 />
               </div>
-              <span className="text-sm font-bold text-blue-600">
+              <span className="text-sm font-bold text-blue-600 dark:text-blue-400">
                 {detectedFrontFields}/{totalFrontFields}
               </span>
             </div>
           </div>
           
-          <div className="p-3 bg-white rounded border border-purple-200">
-            <div className="text-sm text-gray-600 mb-1">Back Page Coverage</div>
+          <div className="p-3 bg-white dark:bg-gray-800 rounded border border-purple-200 dark:border-purple-700">
+            <div className="text-sm text-gray-600 dark:text-gray-400 mb-1">Back Page Coverage (7 sections)</div>
             <div className="flex items-center gap-2">
-              <div className="flex-1 bg-gray-200 rounded-full h-2">
+              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                 <div 
-                  className="bg-purple-500 h-2 rounded-full transition-all"
+                  className="bg-purple-500 dark:bg-purple-400 h-2 rounded-full transition-all"
                   style={{ width: `${(detectedBackFields / totalBackFields) * 100}%` }}
                 />
               </div>
-              <span className="text-sm font-bold text-purple-600">
+              <span className="text-sm font-bold text-purple-600 dark:text-purple-400">
                 {detectedBackFields}/{totalBackFields}
               </span>
             </div>
@@ -620,19 +626,19 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
         </div>
         
         {/* Template Info */}
-        <div className="mt-4 p-3 bg-white rounded border border-gray-200 text-sm">
+        <div className="mt-4 p-3 bg-white dark:bg-gray-800 rounded border border-gray-200 dark:border-gray-700 text-sm">
           <div className="flex flex-wrap gap-4">
             <div>
-              <span className="text-gray-600">Template:</span>{' '}
-              <span className="font-semibold text-gray-900">{templateId}</span>
+              <span className="text-gray-600 dark:text-gray-400">Template:</span>{' '}
+              <span className="font-semibold text-gray-900 dark:text-white">{templateId}</span>
             </div>
             <div>
-              <span className="text-gray-600">Extraction Method:</span>{' '}
-              <span className="font-semibold text-gray-900">{extractionMethod}</span>
+              <span className="text-gray-600 dark:text-gray-400">Extraction Method:</span>{' '}
+              <span className="font-semibold text-gray-900 dark:text-white">{extractionMethod}</span>
             </div>
             {hasStructuredData && (
               <div className="ml-auto">
-                <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-semibold">
+                <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded text-xs font-semibold">
                   ✓ Structured Data Available
                 </span>
               </div>
@@ -642,10 +648,10 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
       </div>
       
       {/* Front Page */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h4 className="text-lg font-bold text-gray-800 mb-4 border-b-2 border-blue-500 pb-2 flex items-center gap-2">
-          📄 Front Page - Personal Information Sheet
-          <span className="text-sm font-normal text-blue-600">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+        <h4 className="text-lg font-bold text-gray-800 dark:text-white mb-4 border-b-2 border-blue-500 dark:border-blue-400 pb-2 flex items-center gap-2">
+          📄 Front Page (3 Sections)
+          <span className="text-sm font-normal text-blue-600 dark:text-blue-400">
             ({detectedFrontFields}/{totalFrontFields} fields)
           </span>
         </h4>
@@ -673,10 +679,10 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
       </div>
       
       {/* Back Page */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <h4 className="text-lg font-bold text-gray-800 mb-4 border-b-2 border-purple-500 pb-2 flex items-center gap-2">
-          📄 Back Page - Testing & Medical History
-          <span className="text-sm font-normal text-purple-600">
+      <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+        <h4 className="text-lg font-bold text-gray-800 dark:text-white mb-4 border-b-2 border-purple-500 dark:border-purple-400 pb-2 flex items-center gap-2">
+          📄 Back Page (7 Sections)
+          <span className="text-sm font-normal text-purple-600 dark:text-purple-400">
             ({detectedBackFields}/{totalBackFields} fields)
           </span>
         </h4>

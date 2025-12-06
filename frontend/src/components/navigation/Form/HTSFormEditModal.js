@@ -1,5 +1,5 @@
 import React from 'react';
-import { IoClose, IoCheckmark, IoDocumentText } from 'react-icons/io5';
+import { IoClose, IoCheckmark, IoDocumentText, IoWarning, IoCheckmarkCircle, IoInformationCircle } from 'react-icons/io5';
 import Button from '../../ui/Button';
 
 /**
@@ -23,11 +23,75 @@ import Button from '../../ui/Button';
 export default function HTSFormEditModal({
   isOpen,
   editableData,
+  unmappedKeys = [],
+  mappedUnmappedKeys = {},
   onClose,
   onSave,
-  onFieldChange
+  onFieldChange,
+  onMapUnmappedKey
 }) {
   if (!isOpen || !editableData) return null;
+
+  // All available form fields organized by section for mapping
+  const formFields = {
+    'INFORMED CONSENT': ['contactNumber', 'emailAddress'],
+    'DEMOGRAPHIC DATA': [
+      'philHealthNumber', 'philSysNumber',
+      'firstName', 'middleName', 'lastName', 'suffix',
+      'dateOfBirth', 'age', 'sex', 'gender',
+      'civilStatus', 'nationality',
+      'currentAddress', 'currentBarangay', 'currentCity', 'currentProvince', 'currentRegion', 'currentZipCode',
+      'permanentAddress', 'permanentBarangay', 'permanentCity', 'permanentProvince', 'permanentRegion', 'permanentZipCode'
+    ],
+    'EDUCATION & OCCUPATION': [
+      'educationalAttainment', 'employmentStatus', 'occupation',
+      'monthlyIncome', 'dependents', 'indigenousPeople',
+      'disabilityStatus', 'healthInsurance'
+    ],
+    'HISTORY OF EXPOSURE': [
+      'sexualPartners', 'sexWithMale', 'sexWithFemale', 'sexWithTransgender',
+      'condomUse', 'alcoholUse', 'drugUse', 'injectionDrugUse',
+      'tattooHistory', 'bloodTransfusion', 'surgicalProcedure',
+      'occupationalExposure', 'motherToChildTransmission',
+      'sexWorker', 'clientOfSexWorker', 'gayBisexual', 'transgenderPerson',
+      'prisonDetention', 'sexualAbuse', 'hivPositivePartner',
+      'stiHistory', 'stiType'
+    ],
+    'REASONS FOR HIV TESTING': ['testingReason', 'referralSource'],
+    'PREVIOUS HIV TEST': [
+      'previousTest', 'previousTestDate', 'previousTestResult',
+      'previousTestFacility', 'onART'
+    ],
+    'MEDICAL HISTORY': [
+      'symptoms', 'symptomsList', 'tbHistory', 'tbTreatment',
+      'pregnancyStatus', 'expectedDeliveryDate', 'breastfeeding',
+      'medications', 'allergies', 'chronicConditions'
+    ],
+    'TESTING DETAILS': [
+      'screeningTest', 'screeningTestResult', 'confirmationTest',
+      'confirmationTestResult', 'finalResult', 'testDate'
+    ],
+    'INVENTORY INFORMATION': ['testKitBrand', 'testKitLotNumber', 'testKitExpiration'],
+    'HTS PROVIDER DETAILS': [
+      'testingFacility', 'facilityAddress', 'facilityCode',
+      'facilityRegion', 'facilityProvince', 'facilityCity',
+      'facilityContactNumber', 'facilityEmail',
+      'counselorName', 'counselorRole', 'counselorLicense',
+      'counselorDesignation', 'counselorContact', 'counselorSignature',
+      'formCompletionDate'
+    ]
+  };
+
+  // Get label for field name
+  const getFieldLabel = (fieldName) => {
+    return fieldName
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .trim();
+  };
+
+  // Check if unmapped key has data
+  const hasUnmappedKeys = Array.isArray(unmappedKeys) && unmappedKeys.length > 0;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
@@ -696,6 +760,130 @@ export default function HTSFormEditModal({
             </div>
           </div>
         </div>
+
+        {/* Unmapped Keys Mapping Section */}
+        {hasUnmappedKeys && (
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-t-2 border-yellow-300 dark:border-yellow-700 p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <IoWarning className="w-6 h-6 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                  Map Unmapped Fields ({unmappedKeys.length})
+                </h3>
+                <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                  OCR detected these fields but couldn't automatically match them to the form template. 
+                  You can manually map them to the correct fields below. Your mappings help improve the system!
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {unmappedKeys.map((key, index) => {
+                const isDetailed = typeof key === 'object' && key !== null;
+                const keyName = isDetailed ? (key.originalKey || key.normalizedKey) : key;
+                const keyId = keyName || `unmapped-${index}`;
+                const confidence = isDetailed ? key.confidence : null;
+                const value = isDetailed ? key.value : null;
+                const currentMapping = mappedUnmappedKeys[keyName];
+
+                return (
+                  <div key={index} className="bg-white dark:bg-gray-800 rounded-lg border-2 border-yellow-200 dark:border-yellow-700 p-4 shadow-sm">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {/* Left: Unmapped Key Info */}
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-gray-900 dark:text-white">
+                            Detected Field:
+                          </span>
+                          <span className="text-sm font-mono bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
+                            {keyName}
+                          </span>
+                          {confidence && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
+                              confidence >= 90 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                              confidence >= 70 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-800/30 dark:text-yellow-300' :
+                              'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            }`}>
+                              {confidence}%
+                            </span>
+                          )}
+                        </div>
+
+                        {value && (
+                          <div>
+                            <span className="text-xs text-gray-500 dark:text-gray-400">Detected Value:</span>
+                            <div className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 px-3 py-2 rounded border border-gray-200 dark:border-gray-700 font-medium">
+                              {value}
+                            </div>
+                          </div>
+                        )}
+
+                        {isDetailed && key.normalizedKey && key.originalKey !== key.normalizedKey && (
+                          <div className="text-xs text-gray-500 dark:text-gray-400">
+                            Normalized: <span className="font-mono">{key.normalizedKey}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Mapping Dropdown */}
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-gray-900 dark:text-white block">
+                          Map to Form Field:
+                        </label>
+                        <select
+                          value={currentMapping?.targetField || ''}
+                          onChange={(e) => onMapUnmappedKey(key, e.target.value)}
+                          className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg 
+                                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white
+                                   focus:border-primary-red focus:ring-2 focus:ring-primary-red/20
+                                   hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
+                        >
+                          <option value="">-- Select a field to map --</option>
+                          {Object.entries(formFields).map(([sectionName, fields]) => (
+                            <optgroup key={sectionName} label={sectionName}>
+                              {fields.map(fieldName => (
+                                <option key={fieldName} value={fieldName}>
+                                  {getFieldLabel(fieldName)}
+                                </option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+
+                        {currentMapping && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <IoCheckmarkCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+                            <span className="text-green-700 dark:text-green-300 font-medium">
+                              Mapped to: {getFieldLabel(currentMapping.targetField)}
+                            </span>
+                          </div>
+                        )}
+
+                        {value && !currentMapping && (
+                          <p className="text-xs text-gray-600 dark:text-gray-400 italic">
+                            💡 Select a field above to assign this value
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Mapping Statistics */}
+            <div className="mt-4 pt-4 border-t border-yellow-300 dark:border-yellow-700 flex items-center justify-between">
+              <div className="text-sm text-gray-700 dark:text-gray-300">
+                <span className="font-semibold">{Object.keys(mappedUnmappedKeys).length}</span> of{' '}
+                <span className="font-semibold">{unmappedKeys.length}</span> fields mapped
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
+                <IoInformationCircle className="w-4 h-4" />
+                Mapped values will be saved to the selected fields
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer with Save/Cancel Buttons */}
         <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4">

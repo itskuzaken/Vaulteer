@@ -867,6 +867,32 @@ export default function HTSFormManagement() {
     }
   };
 
+  // Handle mapping unmapped keys to form fields
+  const handleMapUnmappedKey = (unmappedKey, targetField) => {
+    if (!targetField) {
+      // Clear mapping if targetField is empty
+      setMappedUnmappedKeys(prev => {
+        const updated = { ...prev };
+        delete updated[unmappedKey.originalKey || unmappedKey.normalizedKey];
+        return updated;
+      });
+      return;
+    }
+
+    // Store the mapping
+    setMappedUnmappedKeys(prev => ({
+      ...prev,
+      [unmappedKey.originalKey || unmappedKey.normalizedKey]: {
+        targetField,
+        value: unmappedKey.value,
+        confidence: unmappedKey.confidence
+      }
+    }));
+
+    // Update the editable data with the unmapped key's value
+    setEditableData(prev => ({ ...prev, [targetField]: unmappedKey.value || '' }));
+  };
+
   // Save edited data
   const saveEditedData = () => {
     if (!validateEditedFields()) {
@@ -1126,6 +1152,7 @@ export default function HTSFormManagement() {
       formCompletionDate: formatDateForInput(getFieldValue('formCompletionDate'))
     });
     setFieldErrors({});
+    setMappedUnmappedKeys({});
     setIsEditMode(true);
   };
 
@@ -1134,6 +1161,7 @@ export default function HTSFormManagement() {
     setIsEditMode(false);
     setEditableData(null);
     setFieldErrors({});
+    setMappedUnmappedKeys({});
   };
 
   const handleAnalyzeImages = async () => {
@@ -2187,9 +2215,12 @@ export default function HTSFormManagement() {
       <HTSFormEditModal
         isOpen={isEditMode}
         editableData={editableData}
+        unmappedKeys={extractedData?.unmappedKeys || extractedData?.unmappedKeysDetailed || []}
+        mappedUnmappedKeys={mappedUnmappedKeys}
         onClose={cancelEditMode}
         onSave={saveEditedData}
         onFieldChange={handleFieldChange}
+        onMapUnmappedKey={handleMapUnmappedKey}
       />
 
       {/* Image Lightbox for viewing captured forms */}
