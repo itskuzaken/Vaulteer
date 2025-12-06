@@ -936,35 +936,47 @@ export default function HTSFormManagement() {
     return extractedData[fieldName] || '';
   };
 
-  // Enter edit mode with ALL 101 fields from DOH HTS Form 2021 Template
+  // Enter edit mode with ALL fields from DOH HTS Form 2021 Template (Official 10-Section Structure)
   const enterEditMode = () => {
     setEditableData({
-      // Test metadata
+      // Test metadata (stored separately from form sections)
       testResult: getFieldValue('testResult'),
       testDate: formatDateForInput(getFieldValue('testDate')),
       
-      // === FRONT PAGE ===
+      // ============================================================
+      // FRONT PAGE SECTION 1: INFORMED CONSENT (2 fields)
+      // ============================================================
+      contactNumber: getFieldValue('contactNumber'),
+      emailAddress: getFieldValue('emailAddress'),
       
-      // Personal Information & Identification
+      // ============================================================
+      // FRONT PAGE SECTION 2: DEMOGRAPHIC DATA (30 fields)
+      // ============================================================
+      
+      // Test identification (3 fields)
       philHealthNumber: getFieldValue('philHealthNumber'),
       philSysNumber: getFieldValue('philSysNumber'),
+      
+      // Patient name (4 fields)
       firstName: getFieldValue('firstName'),
       middleName: getFieldValue('middleName'),
       lastName: getFieldValue('lastName'),
       suffix: getFieldValue('suffix'),
+      
+      // Parental codes (3 fields)
       parentalCode: getFieldValue('parentalCode'),
       parentalCodeMother: getFieldValue('parentalCodeMother'),
       parentalCodeFather: getFieldValue('parentalCodeFather'),
       birthOrder: getFieldValue('birthOrder'),
       
-      // Demographic Data
+      // Basic information (5 fields)
       birthDate: formatDateForInput(getFieldValue('birthDate')),
       age: getFieldValue('age'),
       ageMonths: getFieldValue('ageMonths'),
       sex: getFieldValue('sex'),
       genderIdentity: getFieldValue('genderIdentity'),
       
-      // Residence Information
+      // Residence (6 fields)
       currentResidenceCity: getFieldValue('currentResidenceCity'),
       currentResidenceProvince: getFieldValue('currentResidenceProvince'),
       permanentResidenceCity: getFieldValue('permanentResidenceCity'),
@@ -972,7 +984,7 @@ export default function HTSFormManagement() {
       placeOfBirthCity: getFieldValue('placeOfBirthCity'),
       placeOfBirthProvince: getFieldValue('placeOfBirthProvince'),
       
-      // Personal Status
+      // Civil status & family (6 fields)
       nationality: getFieldValue('nationality'),
       nationalityOther: getFieldValue('nationalityOther'),
       civilStatus: getFieldValue('civilStatus'),
@@ -980,7 +992,9 @@ export default function HTSFormManagement() {
       numberOfChildren: getFieldValue('numberOfChildren'),
       isPregnant: getFieldValue('isPregnant'),
       
-      // Education & Occupation
+      // ============================================================
+      // FRONT PAGE SECTION 3: EDUCATION & OCCUPATION (8 fields)
+      // ============================================================
       educationalAttainment: getFieldValue('educationalAttainment'),
       currentlyInSchool: getFieldValue('currentlyInSchool'),
       occupation: getFieldValue('occupation'),
@@ -990,66 +1004,74 @@ export default function HTSFormManagement() {
       overseasLocation: getFieldValue('overseasLocation'),
       overseasCountry: getFieldValue('overseasCountry'),
       
-      // Contact Information
-      contactNumber: getFieldValue('contactNumber'),
-      emailAddress: getFieldValue('emailAddress'),
+      // ============================================================
+      // BACK PAGE SECTION 1: HISTORY OF EXPOSURE / RISK ASSESSMENT (23 fields)
+      // =======================================================================================================
+      // BACK PAGE SECTION 1: HISTORY OF EXPOSURE / RISK ASSESSMENT (23 fields)
+      // ============================================================
       
-      // === BACK PAGE ===
-      
-      // Mother HIV Status
+      // Mother HIV status (1 field)
       motherHIV: getFieldValue('motherHIV'),
       
-      // Risk Assessment - Sex with Male
+      // Sex with male partners (4 fields)
       riskSexMaleStatus: getFieldValue('riskSexMaleStatus'),
       riskSexMaleTotal: getFieldValue('riskSexMaleTotal'),
       riskSexMaleDate1: getFieldValue('riskSexMaleDate1'),
       riskSexMaleDate2: getFieldValue('riskSexMaleDate2'),
       
-      // Risk Assessment - Sex with Female
+      // Sex with female partners (4 fields)
       riskSexFemaleStatus: getFieldValue('riskSexFemaleStatus'),
       riskSexFemaleTotal: getFieldValue('riskSexFemaleTotal'),
       riskSexFemaleDate1: getFieldValue('riskSexFemaleDate1'),
       riskSexFemaleDate2: getFieldValue('riskSexFemaleDate2'),
       
-      // Risk Assessment - Paid for Sex
+      // Paid for sex (2 fields)
       riskPaidForSexStatus: getFieldValue('riskPaidForSexStatus'),
       riskPaidForSexDate: getFieldValue('riskPaidForSexDate'),
       
-      // Risk Assessment - Received Payment
+      // Received payment for sex (2 fields)
       riskReceivedPaymentStatus: getFieldValue('riskReceivedPaymentStatus'),
       riskReceivedPaymentDate: getFieldValue('riskReceivedPaymentDate'),
       
-      // Risk Assessment - Sex Under Drugs
+      // Sex under influence of drugs (2 fields)
       riskSexUnderDrugsStatus: getFieldValue('riskSexUnderDrugsStatus'),
       riskSexUnderDrugsDate: getFieldValue('riskSexUnderDrugsDate'),
       
-      // Risk Assessment - Shared Needles
+      // Shared needles (2 fields)
       riskSharedNeedlesStatus: getFieldValue('riskSharedNeedlesStatus'),
       riskSharedNeedlesDate: getFieldValue('riskSharedNeedlesDate'),
       
-      // Risk Assessment - Blood Transfusion
+      // Blood transfusion (2 fields)
       riskBloodTransfusionStatus: getFieldValue('riskBloodTransfusionStatus'),
       riskBloodTransfusionDate: getFieldValue('riskBloodTransfusionDate'),
       
-      // Risk Assessment - Occupational Exposure
+      // Occupational exposure (2 fields)
       riskOccupationalExposureStatus: getFieldValue('riskOccupationalExposureStatus'),
       riskOccupationalExposureDate: getFieldValue('riskOccupationalExposureDate'),
       
-      // Risk Assessment Summary
+      // Risk assessment summary (1 field)
       riskAssessment: getFieldValue('riskAssessment'),
       
-      // Reasons for Testing
+      // ============================================================
+      // BACK PAGE SECTION 2: REASONS FOR HIV TESTING (2 fields)
+      // ============================================================
       reasonsForTesting: getFieldValue('reasonsForTesting'),
       testingRefusedReason: getFieldValue('testingRefusedReason'),
       
-      // Previous HIV Test
+      // ============================================================
+      // BACK PAGE SECTION 3: PREVIOUS HIV TEST (5 fields)
+      // ============================================================
       previouslyTested: getFieldValue('previouslyTested'),
       previousTestDate: formatDateForInput(getFieldValue('previousTestDate')),
       previousTestProvider: getFieldValue('previousTestProvider'),
       previousTestCity: getFieldValue('previousTestCity'),
       previousTestResult: getFieldValue('previousTestResult'),
       
-      // Medical History
+      // ============================================================
+      // BACK PAGE SECTION 4: MEDICAL HISTORY & CLINICAL PICTURE (10 fields)
+      // ============================================================
+      
+      // Medical history (7 fields)
       medicalHistory: getFieldValue('medicalHistory'),
       medicalTB: getFieldValue('medicalTB'),
       medicalSTI: getFieldValue('medicalSTI'),
@@ -1058,12 +1080,14 @@ export default function HTSFormManagement() {
       medicalHepatitisB: getFieldValue('medicalHepatitisB'),
       medicalHepatitisC: getFieldValue('medicalHepatitisC'),
       
-      // Clinical Picture
+      // Clinical picture (3 fields)
       clinicalPicture: getFieldValue('clinicalPicture'),
       symptoms: getFieldValue('symptoms'),
       whoStaging: getFieldValue('whoStaging'),
       
-      // Testing Details
+      // ============================================================
+      // BACK PAGE SECTION 5: TESTING DETAILS (6 fields)
+      // ============================================================
       clientType: getFieldValue('clientType'),
       modeOfReach: getFieldValue('modeOfReach'),
       testingAccepted: getFieldValue('testingAccepted'),
@@ -1071,12 +1095,18 @@ export default function HTSFormManagement() {
       linkageToCare: getFieldValue('linkageToCare'),
       otherServices: getFieldValue('otherServices'),
       
-      // Test Kit Information
+      // ============================================================
+      // BACK PAGE SECTION 6: INVENTORY INFORMATION (3 fields)
+      // ============================================================
       testKitBrand: getFieldValue('testKitBrand'),
       testKitLotNumber: getFieldValue('testKitLotNumber'),
       testKitExpiration: formatDateForInput(getFieldValue('testKitExpiration')),
       
-      // Facility Information
+      // ============================================================
+      // BACK PAGE SECTION 7: HTS PROVIDER DETAILS (15 fields)
+      // ============================================================
+      
+      // Facility information (8 fields)
       testingFacility: getFieldValue('testingFacility'),
       facilityAddress: getFieldValue('facilityAddress'),
       facilityCode: getFieldValue('facilityCode'),
@@ -1086,15 +1116,13 @@ export default function HTSFormManagement() {
       facilityContactNumber: getFieldValue('facilityContactNumber'),
       facilityEmail: getFieldValue('facilityEmail'),
       
-      // Counselor Information
+      // Counselor information (7 fields)
       counselorName: getFieldValue('counselorName'),
       counselorRole: getFieldValue('counselorRole'),
       counselorLicense: getFieldValue('counselorLicense'),
       counselorDesignation: getFieldValue('counselorDesignation'),
       counselorContact: getFieldValue('counselorContact'),
       counselorSignature: getFieldValue('counselorSignature'),
-      
-      // Form Completion
       formCompletionDate: formatDateForInput(getFieldValue('formCompletionDate'))
     });
     setFieldErrors({});

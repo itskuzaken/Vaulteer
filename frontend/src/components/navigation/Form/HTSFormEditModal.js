@@ -4,7 +4,21 @@ import Button from '../../ui/Button';
 
 /**
  * HTS Form Edit Modal - Allows editing of all extracted OCR fields
- * Separated from the review modal for better organization
+ * Organized by DOH HTS Form 2021 official 10-section structure:
+ * 
+ * FRONT PAGE (3 sections):
+ *   1. INFORMED CONSENT (2 fields)
+ *   2. DEMOGRAPHIC DATA (30 fields)
+ *   3. EDUCATION & OCCUPATION (8 fields)
+ * 
+ * BACK PAGE (7 sections):
+ *   4. HISTORY OF EXPOSURE / RISK ASSESSMENT (23 fields)
+ *   5. REASONS FOR HIV TESTING (2 fields)
+ *   6. PREVIOUS HIV TEST (5 fields)
+ *   7. MEDICAL HISTORY & CLINICAL PICTURE (10 fields)
+ *   8. TESTING DETAILS (6 fields)
+ *   9. INVENTORY INFORMATION (3 fields)
+ *   10. HTS PROVIDER DETAILS (15 fields)
  */
 export default function HTSFormEditModal({
   isOpen,
@@ -22,7 +36,7 @@ export default function HTSFormEditModal({
         <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <IoDocumentText className="w-6 h-6 text-primary-red" />
-            Edit Extracted Fields
+            Edit Extracted Fields (DOH HTS Form 2021)
           </h2>
           <button
             onClick={onClose}
@@ -34,9 +48,9 @@ export default function HTSFormEditModal({
 
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {/* TEST RESULT */}
+          {/* TEST RESULT (Stored separately from form sections) */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Current Test Result</h3>
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Test Result & Date</h3>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Current Test Result *
@@ -66,9 +80,11 @@ export default function HTSFormEditModal({
             </div>
           </div>
 
-          {/* IDENTITY & REGISTRATION */}
+          {/* FRONT PAGE SECTION 2: DEMOGRAPHIC DATA (Part 1 - Identity) */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Identity & Registration</h3>
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              📋 Section 2: Demographic Data - Identity & Registration
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">PhilHealth Number</label>
@@ -134,9 +150,11 @@ export default function HTSFormEditModal({
             </div>
           </div>
 
-          {/* DEMOGRAPHIC DATA */}
+          {/* FRONT PAGE SECTION 2: DEMOGRAPHIC DATA (Part 2 - Demographics & Residence) */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Demographic Data</h3>
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              📋 Section 2: Demographic Data - Demographics & Residence
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Birth Date *</label>
@@ -257,9 +275,11 @@ export default function HTSFormEditModal({
             </div>
           </div>
 
-          {/* EDUCATION & EMPLOYMENT */}
+          {/* FRONT PAGE SECTION 3: EDUCATION & OCCUPATION */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Education & Employment</h3>
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              📚 Section 3: Education & Occupation
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Highest Educational Attainment (Q13)</label>
@@ -326,9 +346,11 @@ export default function HTSFormEditModal({
             </div>
           </div>
 
-          {/* RISK ASSESSMENT & TESTING HISTORY */}
+          {/* BACK PAGE SECTION 1: HISTORY OF EXPOSURE / RISK ASSESSMENT */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Risk Assessment & Testing History</h3>
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              ⚠️ Section 4: History of Exposure / Risk Assessment
+            </h3>
             
             <div className="mb-4">
               <label className="block text-sm font-medium mb-2">Mother with HIV</label>
@@ -471,13 +493,26 @@ export default function HTSFormEditModal({
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="mt-4">
+          {/* BACK PAGE SECTION 2: REASONS FOR HIV TESTING */}
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              📋 Section 5: Reasons for HIV Testing
+            </h3>
+            <div>
               <label className="block text-sm font-medium mb-2">Reasons for Testing (Q18)</label>
               <textarea value={editableData.reasonsForTesting} onChange={(e) => onFieldChange('reasonsForTesting', e.target.value)}
                 rows="2" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
             </div>
-            <div className="mt-3 sm:mt-4">
+          </div>
+
+          {/* BACK PAGE SECTION 3: PREVIOUS HIV TEST */}
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              🔍 Section 6: Previous HIV Test
+            </h3>
+            <div>
               <label className="block text-sm font-semibold mb-2">Previous HIV Test (Q19)</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <select value={editableData.previouslyTested} onChange={(e) => onFieldChange('previouslyTested', e.target.value)}
@@ -503,9 +538,11 @@ export default function HTSFormEditModal({
             </div>
           </div>
 
-          {/* MEDICAL HISTORY */}
+          {/* BACK PAGE SECTION 4: MEDICAL HISTORY & CLINICAL PICTURE */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Medical History</h3>
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              🏫 Section 7: Medical History & Clinical Picture
+            </h3>
             <div>
               <label className="block text-sm font-medium mb-2">Medical History (Q20)</label>
               <textarea value={editableData.medicalHistory} onChange={(e) => onFieldChange('medicalHistory', e.target.value)}
@@ -540,9 +577,11 @@ export default function HTSFormEditModal({
             </div>
           </div>
 
-          {/* TESTING DETAILS */}
+          {/* BACK PAGE SECTION 5: TESTING DETAILS */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Testing Details</h3>
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              🧪 Section 8: Testing Details
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Client Type (Q22)</label>
@@ -576,7 +615,14 @@ export default function HTSFormEditModal({
               <textarea value={editableData.otherServices} onChange={(e) => onFieldChange('otherServices', e.target.value)}
                 rows="2" className="w-full px-4 py-2 border rounded-lg dark:bg-gray-700 dark:text-white" />
             </div>
-            <div className="mt-3 sm:mt-4">
+          </div>
+
+          {/* BACK PAGE SECTION 6: INVENTORY INFORMATION */}
+          <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              📦 Section 9: Inventory Information
+            </h3>
+            <div>
               <label className="block text-sm font-semibold mb-2">Test Kit Information (Q25)</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                 <input type="text" value={editableData.testKitBrand} onChange={(e) => onFieldChange('testKitBrand', e.target.value)}
@@ -589,9 +635,11 @@ export default function HTSFormEditModal({
             </div>
           </div>
 
-          {/* HTS PROVIDER DETAILS */}
+          {/* BACK PAGE SECTION 7: HTS PROVIDER DETAILS */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">HTS Provider Details</h3>
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              🏬 Section 10: HTS Provider Details
+            </h3>
             <div>
               <label className="block text-sm font-medium mb-2">Testing Facility (Q26)</label>
               <input type="text" value={editableData.testingFacility} onChange={(e) => onFieldChange('testingFacility', e.target.value)}
@@ -629,9 +677,11 @@ export default function HTSFormEditModal({
             </div>
           </div>
 
-          {/* CONTACT INFORMATION */}
+          {/* FRONT PAGE SECTION 1: INFORMED CONSENT (Contact Information) */}
           <div className="bg-gray-50 dark:bg-gray-800 p-3 sm:p-4 rounded-lg">
-            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">Contact Information</h3>
+            <h3 className="font-semibold text-base sm:text-lg mb-3 sm:mb-4 text-gray-900 dark:text-white">
+              ✅ Section 1: Informed Consent - Contact Information
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Contact Number</label>
