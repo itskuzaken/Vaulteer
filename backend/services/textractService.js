@@ -1588,7 +1588,7 @@ function parseHTSFormData(frontResult, backResult) {
  * @returns {Promise<Object>} Extracted data with field-level confidence
  */
 async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options = {}) {
-  const { useQueries = false, extractionMode = 'hybrid', preprocessImages = true } = options;
+  const { useQueries = false, extractionMode = 'forms+layout', preprocessImages = true } = options;
   
   console.log(`📤 [Enhanced OCR] Starting field extraction (mode: ${extractionMode}, queries: ${useQueries}, preprocess: ${preprocessImages})...`);
   

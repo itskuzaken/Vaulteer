@@ -2023,8 +2023,10 @@ export default function HTSFormManagement() {
       </div>
 
       {/* Enhanced OCR Review Modal with Structured Sections */}
+      {console.log('[HTSFormManagement] Modal conditional check:', { showOCRReview, hasExtractedData: !!extractedData })}
       {showOCRReview && extractedData && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+          {console.log('[HTSFormManagement] Modal is rendering!')}
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
             <div className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4 flex items-center justify-between">
               <div>
