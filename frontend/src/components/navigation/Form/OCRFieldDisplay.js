@@ -140,11 +140,19 @@ export default function OCRFieldDisplay({ extractedData }) {
 
     // Format 1: Direct section format { "SECTION NAME": { fields: {...}, avgConfidence: ... } }
     if (!structuredData.front && !structuredData.back) {
+      // Calculate summary stats for direct format
+      const sections = Object.entries(structuredData).filter(([key, value]) => 
+        value?.fields && typeof value?.avgConfidence === 'number'
+      );
+      
+      const totalSections = sections.length;
+      const totalFields = sections.reduce((sum, [, section]) => 
+        sum + Object.keys(section.fields || {}).length, 0
+      );
+      
       return (
         <div className="space-y-4">
-          {Object.entries(structuredData).filter(([key, value]) => 
-            value?.fields && typeof value?.avgConfidence === 'number'
-          ).map(([sectionName, section]) => {
+          {sections.map(([sectionName, section]) => {
             const sectionConfidence = section.avgConfidence || 0;
             const fieldCount = Object.keys(section.fields || {}).length;
             
@@ -174,6 +182,23 @@ export default function OCRFieldDisplay({ extractedData }) {
               </div>
             );
           })}
+          
+          {/* Summary for direct format */}
+          {totalSections > 0 && (
+            <div className="bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+              <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Extraction Summary</h4>
+              <div className="grid grid-cols-2 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-green-600">{totalSections}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Total Sections</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-indigo-600">{totalFields}</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-400">Total Fields</div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }

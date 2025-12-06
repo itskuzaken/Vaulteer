@@ -3090,8 +3090,12 @@ function organizeFieldsIntoSections(allFields, correctedData) {
   };
   
   const structured = {
-    front: {},
-    back: {}
+    front: {
+      sections: {}
+    },
+    back: {
+      sections: {}
+    }
   };
   
   // Organize fields by section
@@ -3125,26 +3129,27 @@ function organizeFieldsIntoSections(allFields, correctedData) {
       ].includes(sectionName);
       
       const pageKey = isFrontSection ? 'front' : 'back';
-      structured[pageKey][sectionName] = {
+      structured[pageKey].sections[sectionName] = {
         fields: sectionFields,
         totalFields: Object.keys(sectionFields).length,
         avgConfidence: Math.round(
           Object.values(sectionFields).reduce((sum, f) => sum + (f.confidence || 0), 0) / 
           Object.keys(sectionFields).length
-        )
+        ),
+        hasData: true
       };
     }
   }
   
   // Add summary statistics
   structured.summary = {
-    frontSections: Object.keys(structured.front).length,
-    backSections: Object.keys(structured.back).length,
-    totalSections: Object.keys(structured.front).length + Object.keys(structured.back).length,
-    frontFieldCount: Object.values(structured.front).reduce((sum, s) => sum + s.totalFields, 0),
-    backFieldCount: Object.values(structured.back).reduce((sum, s) => sum + s.totalFields, 0),
-    totalFieldCount: Object.values(structured.front).reduce((sum, s) => sum + s.totalFields, 0) +
-                     Object.values(structured.back).reduce((sum, s) => sum + s.totalFields, 0)
+    frontSections: Object.keys(structured.front.sections).length,
+    backSections: Object.keys(structured.back.sections).length,
+    totalSections: Object.keys(structured.front.sections).length + Object.keys(structured.back.sections).length,
+    frontFieldCount: Object.values(structured.front.sections).reduce((sum, s) => sum + s.totalFields, 0),
+    backFieldCount: Object.values(structured.back.sections).reduce((sum, s) => sum + s.totalFields, 0),
+    totalFieldCount: Object.values(structured.front.sections).reduce((sum, s) => sum + s.totalFields, 0) +
+                     Object.values(structured.back.sections).reduce((sum, s) => sum + s.totalFields, 0)
   };
   
   console.log(`✅ Organized into ${structured.summary.totalSections} sections (${structured.summary.frontSections} front, ${structured.summary.backSections} back)`);

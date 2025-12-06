@@ -360,9 +360,54 @@ const AdminFieldDisplay = ({ field, value, label }) => {
 };
 
 /**
- * Section Component
+ * Section Component - Supports both legacy field arrays and new structured data format
  */
-const AdminFieldSection = ({ title, fields, extractedData }) => {
+const AdminFieldSection = ({ title, fields, extractedData, sectionData }) => {
+  // If sectionData is provided (new format), use it instead of fields array
+  if (sectionData) {
+    const sectionFields = sectionData.fields || {};
+    const avgConfidence = sectionData.avgConfidence || 0;
+    const totalFields = sectionData.totalFields || Object.keys(sectionFields).length;
+    
+    if (Object.keys(sectionFields).length === 0) {
+      return (
+        <div className="mb-6">
+          <h5 className="text-sm font-bold text-gray-700 mb-3 border-b pb-1">
+            {title}
+          </h5>
+          <div className="p-4 bg-gray-50 rounded-lg text-gray-500 italic text-sm">
+            No fields detected in this section
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <section className="mb-8">
+        <div className="flex items-center gap-3 mb-4">
+          <h5 className="text-base font-bold text-gray-900 dark:text-white uppercase tracking-wide">
+            {title}
+          </h5>
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+            {totalFields} fields · {avgConfidence}% avg confidence
+          </span>
+          <div className="flex-1 h-px bg-gradient-to-r from-gray-300 dark:from-gray-700 to-transparent"></div>
+        </div>
+        <div className="space-y-4">
+          {Object.entries(sectionFields).map(([fieldName, fieldData]) => (
+            <AdminFieldDisplay
+              key={fieldName}
+              field={fieldName}
+              value={fieldData}
+              label={TEMPLATE_FIELD_LABELS[fieldName] || fieldName}
+            />
+          ))}
+        </div>
+      </section>
+    );
+  }
+  
+  // Legacy format: use fields array
   const hasAnyField = fields.some(field => extractedData[field]);
   
   if (!hasAnyField) {
@@ -436,13 +481,32 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
   const confidence = extractedData.confidence || 0;
   const templateId = extractedData.templateId || 'doh-hts-2021-v2';
   const extractionMethod = extractedData.extractionMethod || 'unknown';
-  const hasStructuredData = extractedData.structuredData && extractedData.structuredData.summary;
+  const structuredData = extractedData.structuredData || null;
+  const hasStructuredData = structuredData && (structuredData.front || structuredData.back);
   
   // Calculate total fields
-  const totalFrontFields = Object.values(FRONT_PAGE_SECTIONS).flat().length;
-  const totalBackFields = Object.values(BACK_PAGE_SECTIONS).flat().length;
-  const detectedFrontFields = Object.values(FRONT_PAGE_SECTIONS).flat().filter(f => fields[f]).length;
-  const detectedBackFields = Object.values(BACK_PAGE_SECTIONS).flat().filter(f => fields[f]).length;
+  let totalFrontFields, totalBackFields, detectedFrontFields, detectedBackFields;
+  
+  if (hasStructuredData) {
+    // Use structured data for accurate counts
+    const frontSections = structuredData.front?.sections || {};
+    const backSections = structuredData.back?.sections || {};
+    
+    totalFrontFields = Object.values(frontSections).reduce((sum, section) => 
+      sum + (section.totalFields || 0), 0
+    );
+    totalBackFields = Object.values(backSections).reduce((sum, section) => 
+      sum + (section.totalFields || 0), 0
+    );
+    detectedFrontFields = totalFrontFields;
+    detectedBackFields = totalBackFields;
+  } else {
+    // Fallback to hardcoded sections
+    totalFrontFields = Object.values(FRONT_PAGE_SECTIONS).flat().length;
+    totalBackFields = Object.values(BACK_PAGE_SECTIONS).flat().length;
+    detectedFrontFields = Object.values(FRONT_PAGE_SECTIONS).flat().filter(f => fields[f]).length;
+    detectedBackFields = Object.values(BACK_PAGE_SECTIONS).flat().filter(f => fields[f]).length;
+  }
   
   return (
     <div className="space-y-6">
@@ -585,14 +649,27 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
             ({detectedFrontFields}/{totalFrontFields} fields)
           </span>
         </h4>
-        {Object.entries(FRONT_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
-          <AdminFieldSection
-            key={sectionTitle}
-            title={sectionTitle}
-            fields={sectionFields}
-            extractedData={fields}
-          />
-        ))}
+        {hasStructuredData && structuredData.front?.sections ? (
+          // Render using structured data from backend
+          Object.entries(structuredData.front.sections).map(([sectionTitle, sectionData]) => (
+            <AdminFieldSection
+              key={sectionTitle}
+              title={sectionTitle}
+              sectionData={sectionData}
+              extractedData={fields}
+            />
+          ))
+        ) : (
+          // Fallback to hardcoded sections
+          Object.entries(FRONT_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
+            <AdminFieldSection
+              key={sectionTitle}
+              title={sectionTitle}
+              fields={sectionFields}
+              extractedData={fields}
+            />
+          ))
+        )}
       </div>
       
       {/* Back Page */}
@@ -603,14 +680,27 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
             ({detectedBackFields}/{totalBackFields} fields)
           </span>
         </h4>
-        {Object.entries(BACK_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
-          <AdminFieldSection
-            key={sectionTitle}
-            title={sectionTitle}
-            fields={sectionFields}
-            extractedData={fields}
-          />
-        ))}
+        {hasStructuredData && structuredData.back?.sections ? (
+          // Render using structured data from backend
+          Object.entries(structuredData.back.sections).map(([sectionTitle, sectionData]) => (
+            <AdminFieldSection
+              key={sectionTitle}
+              title={sectionTitle}
+              sectionData={sectionData}
+              extractedData={fields}
+            />
+          ))
+        ) : (
+          // Fallback to hardcoded sections
+          Object.entries(BACK_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
+            <AdminFieldSection
+              key={sectionTitle}
+              title={sectionTitle}
+              fields={sectionFields}
+              extractedData={fields}
+            />
+          ))
+        )}
       </div>
     </div>
   );
