@@ -948,14 +948,16 @@ export default function HTSFormManagement() {
     
     // New FORMS+LAYOUT structure: data.fields contains the extracted fields
     if (extractedData.fields && typeof extractedData.fields === 'object') {
-      // Direct field access from FORMS extraction
-      if (extractedData.fields[fieldName]) {
-        return extractedData.fields[fieldName] || '';
+      const field = extractedData.fields[fieldName];
+      
+      // Handle nested field structure if it exists (object with value property)
+      if (field && typeof field === 'object' && field.value !== undefined) {
+        return field.value || '';
       }
       
-      // Handle nested field structure if it exists
-      if (extractedData.fields[fieldName] && extractedData.fields[fieldName].value) {
-        return extractedData.fields[fieldName].value || '';
+      // Direct field access from FORMS extraction (simple value)
+      if (field !== undefined && field !== null) {
+        return field;
       }
     }
     
@@ -1913,7 +1915,7 @@ export default function HTSFormManagement() {
 
                   {/* Mismatch warning */}
                   {testResult && getFieldValue('testResult') && 
-                   testResult !== getFieldValue('testResult').toLowerCase().replace(/[-\s]/g, '-') && (
+                   testResult !== String(getFieldValue('testResult')).toLowerCase().replace(/[-\s]/g, '-') && (
                     <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
                       <div className="flex items-start gap-2">
                         <IoAlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
