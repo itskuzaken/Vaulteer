@@ -58,7 +58,8 @@ export default function CameraStabilizerOverlay({
       }
       cancelCountdown();
     };
-  }, [isActive, videoRef, onCaptureReady, enableAutoCapture]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isActive, videoRef, onCaptureReady, enableAutoCapture, onStabilizerReady]);
 
   const startCountdown = () => {
     setCountdown(3);
