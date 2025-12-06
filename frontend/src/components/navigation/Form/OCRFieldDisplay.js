@@ -60,6 +60,11 @@ export default function OCRFieldDisplay({ extractedData }) {
     fieldsCount: Object.keys(fields).length
   });
 
+  console.log('[OCRFieldDisplay] About to render, hasStructuredData:', hasStructuredData);
+
+  try {
+    console.log('[OCRFieldDisplay] Rendering component...');
+
   // Get confidence level styling
   const getConfidenceStyle = (confidence) => {
     if (confidence >= 90) return 'text-green-600 bg-green-50 border-green-200';
@@ -629,4 +634,12 @@ export default function OCRFieldDisplay({ extractedData }) {
       )}
     </div>
   );
+  } catch (error) {
+    console.error('[OCRFieldDisplay] Render error:', error);
+    return (
+      <div className="text-center py-8 text-red-600">
+        <p>Error displaying OCR data: {error.message}</p>
+      </div>
+    );
+  }
 }
