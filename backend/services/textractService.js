@@ -601,6 +601,7 @@ const QUERY_ALIAS_MAP = {
   'verbal_consent': 'verbalConsent',
   'consent_given': 'consentGiven',
   'consent_signature': 'consentSignature',
+  'parental_code': 'parentalCode',
   
   // ============================================================
   // FRONT PAGE SECTION 3: EDUCATION & OCCUPATION (8 fields)
@@ -620,6 +621,7 @@ const QUERY_ALIAS_MAP = {
   
   // Mother HIV status (1 field)
   'mother_hiv': 'motherHIV',
+  'risk_assessment': 'riskAssessment',
   
   // Sex with male partners (4 fields)
   'risk_sex_male_status': 'riskSexMaleStatus',
@@ -680,6 +682,7 @@ const QUERY_ALIAS_MAP = {
   // ============================================================
   
   // Medical history (6 fields)
+  'medical_history': 'medicalHistory',
   'medical_tb': 'medicalTB',
   'medical_sti': 'medicalSTI',
   'medical_pep': 'medicalPEP',
@@ -700,6 +703,7 @@ const QUERY_ALIAS_MAP = {
   'testing_accepted': 'testingAccepted',
   'testing_refused_reason': 'testingRefusedReason',
   'testing_modality': 'testingModality',
+  'test_result': 'testResult',
   'linkage_to_care': 'linkageToCare',
   'other_services': 'otherServices',
   
@@ -2992,11 +2996,12 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
  */
 function organizeFieldsIntoSections(allFields, correctedData) {
   // Define field-to-section mappings based on DOH HTS Form 2021 official structure
-  // Front page: 3 sections | Back page: 7 sections
+  // 88 fields across 11 sections (3 front + 8 back)
+  // This structure mirrors template-metadata.json structure.sections and frontend components
   const sectionMapping = {
     // ===== FRONT PAGE SECTIONS (3) =====
     'INFORMED CONSENT': [
-      'consentGiven',
+      'nameAndSignature',
       'contactNumber',
       'emailAddress',
       'verbalConsent'
@@ -3005,118 +3010,107 @@ function organizeFieldsIntoSections(allFields, correctedData) {
       'testDate',
       'philHealthNumber',
       'philSysNumber',
-      'firstName',
-      'middleName',
-      'lastName',
-      'suffix',
+      'fullName',
+      'parentalCodeMother',
+      'parentalCodeFather',
       'birthOrder',
       'birthDate',
       'age',
       'ageMonths',
       'sex',
       'genderIdentity',
-      'currentResidenceCity',
-      'currentResidenceProvince',
-      'permanentResidenceCity',
-      'permanentResidenceProvince',
-      'placeOfBirthCity',
-      'placeOfBirthProvince',
+      'currentResidence',
+      'permanentResidence',
+      'placeOfBirth',
       'nationality',
-      'nationalityOther',
       'civilStatus',
       'livingWithPartner',
       'numberOfChildren',
-      'isPregnant'
+      'isPregnant',
+      'parentalCode'
     ],
     'EDUCATION & OCCUPATION': [
       'educationalAttainment',
       'currentlyInSchool',
-      'occupation',
       'currentlyWorking',
       'workedOverseas',
       'overseasReturnYear',
-      'overseasLocation',
-      'overseasCountry'
+      'workedOverseasPassedFiveYears'
     ],
     
-    // ===== BACK PAGE SECTIONS (7) =====
+    // ===== BACK PAGE SECTIONS (8) =====
     'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
       'motherHIV',
       'riskAssessment',
       'riskSexMaleStatus',
       'riskSexMaleTotal',
       'riskSexMaleDate1',
-      'riskSexMaleDate2',
       'riskSexFemaleStatus',
       'riskSexFemaleTotal',
       'riskSexFemaleDate1',
-      'riskSexFemaleDate2',
       'riskPaidForSexStatus',
-      'riskPaidForSexDate',
       'riskReceivedPaymentStatus',
-      'riskReceivedPaymentDate',
       'riskSexUnderDrugsStatus',
-      'riskSexUnderDrugsDate',
       'riskSharedNeedlesStatus',
-      'riskSharedNeedlesDate',
       'riskBloodTransfusionStatus',
       'riskBloodTransfusionDate',
-      'riskOccupationalExposureStatus',
-      'riskOccupationalExposureDate'
+      'riskSexMale',
+      'riskSexFemale',
+      'riskPaidForSex',
+      'riskReceivedPayment',
+      'riskSexUnderDrugs',
+      'riskSharedNeedles',
+      'riskBloodTransfusion',
+      'riskOccupationalExposure'
     ],
     'REASONS FOR HIV TESTING': [
       'reasonsForTesting',
-      'testingRefusedReason'
+      'reasonForTesting'
     ],
     'PREVIOUS HIV TEST': [
       'previouslyTested',
+      'previousTestResult',
       'previousTestDate',
-      'previousTestProvider',
-      'previousTestCity',
-      'previousTestResult'
+      'previousTestCity'
     ],
     'MEDICAL HISTORY & CLINICAL PICTURE': [
       'medicalHistory',
-      'medicalTB',
-      'medicalSTI',
-      'medicalPEP',
-      'medicalPrEP',
-      'medicalHepatitisB',
-      'medicalHepatitisC',
       'clinicalPicture',
       'symptoms',
-      'whoStaging'
+      'whoStaging',
+      'noPhysicianStage'
     ],
     'TESTING DETAILS': [
       'clientType',
       'modeOfReach',
       'testingAccepted',
       'testingModality',
+      'testingDetails',
+      'linkageToTesting',
+      'otherServiceProvided',
       'linkageToCare',
-      'testResult'
+      'otherServices'
     ],
     'INVENTORY INFORMATION': [
-      'otherServices',
       'testKitBrand',
+      'testKitUsed',
       'testKitLotNumber',
       'testKitExpiration'
     ],
     'HTS PROVIDER DETAILS': [
       'testingFacility',
       'facilityAddress',
-      'facilityCode',
-      'facilityRegion',
-      'facilityProvince',
-      'facilityCity',
       'facilityContactNumber',
       'facilityEmail',
       'counselorName',
       'counselorRole',
-      'counselorLicense',
-      'counselorDesignation',
-      'counselorContact',
       'counselorSignature',
+      'primaryHTSProvider',
       'formCompletionDate'
+    ],
+    'OTHERS': [
+      'condomUse',
+      'typeOfSex'
     ]
   };
   

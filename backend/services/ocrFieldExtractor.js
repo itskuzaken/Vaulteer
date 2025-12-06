@@ -41,6 +41,89 @@ class OCRFieldExtractor {
   }
 
   /**
+   * ADAPTER LAYER: Get field coordinates from new structure or legacy ocrMapping
+   * Supports hybrid migration: checks structure.sections first, falls back to ocrMapping
+   * @param {string} page - 'front' or 'back'
+   * @param {string} fieldName - Field name to look up
+   * @returns {Object|null} Field configuration with region coordinates
+   */
+  getFieldCoordinates(page, fieldName) {
+    // Strategy 1: Check new structure format (post-migration)
+    if (this.templateMetadata.structure && this.templateMetadata.structure[page]) {
+      const sections = this.templateMetadata.structure[page].sections;
+      
+      for (const [sectionName, sectionData] of Object.entries(sections)) {
+        const fieldConfig = this.findFieldInSection(sectionData.fields, fieldName);
+        
+        if (fieldConfig && fieldConfig.region) {
+          // Found in new structure with coordinates
+          if (this.templateMetadata.mappingFormat === 'hybrid-v1') {
+            console.log(`[ADAPTER] Using NEW structure for ${page}/${fieldName} (section: ${sectionName})`);
+          }
+          return fieldConfig;
+        }
+      }
+    }
+
+    // Strategy 2: Fallback to legacy ocrMapping
+    if (this.templateMetadata.ocrMapping && 
+        this.templateMetadata.ocrMapping[page] && 
+        this.templateMetadata.ocrMapping[page].fields) {
+      
+      const fieldConfig = this.templateMetadata.ocrMapping[page].fields[fieldName];
+      
+      if (fieldConfig) {
+        if (this.templateMetadata.mappingFormat === 'hybrid-v1') {
+          console.warn(`[ADAPTER] Using LEGACY ocrMapping for ${page}/${fieldName} (consider migrating)`);
+        }
+        return fieldConfig;
+      }
+    }
+
+    // Field not found in either location
+    console.warn(`[ADAPTER] Field ${page}/${fieldName} not found in structure or ocrMapping`);
+    return null;
+  }
+
+  /**
+   * Recursively search for field in nested structure
+   * @param {Array} fields - Array of field definitions
+   * @param {string} fieldName - Field name to find
+   * @returns {Object|null} Field configuration if found
+   */
+  findFieldInSection(fields, fieldName) {
+    if (!Array.isArray(fields)) return null;
+
+    for (const field of fields) {
+      // Direct string match
+      if (typeof field === 'string' && field === fieldName) {
+        return null; // String-only, no coordinates embedded yet
+      }
+
+      // Object with name property
+      if (typeof field === 'object' && field !== null) {
+        if (field.name === fieldName) {
+          return field; // Found it
+        }
+
+        // Check subfields
+        if (Array.isArray(field.subfields)) {
+          const found = this.findFieldInSection(field.subfields, fieldName);
+          if (found) return found;
+        }
+
+        // Check options (for checkbox-group, conditional fields)
+        if (Array.isArray(field.options)) {
+          const found = this.findFieldInSection(field.options, fieldName);
+          if (found) return found;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Extract all fields from HTS form images
    * @param {Buffer} frontImageBuffer - Front page image
    * @param {Buffer} backImageBuffer - Back page image
@@ -93,7 +176,8 @@ class OCRFieldExtractor {
         this.templateMetadata.ocrMapping.front.fields,
         { width: frontMeta.width, height: frontMeta.height },
         frontQueryResults,
-        extractionMode
+        extractionMode,
+        'front' // Page identifier for adapter layer
       );
 
       // Extract fields from back page
@@ -103,7 +187,8 @@ class OCRFieldExtractor {
         this.templateMetadata.ocrMapping.back.fields,
         { width: backMeta.width, height: backMeta.height },
         backQueryResults,
-        extractionMode
+        extractionMode,
+        'back' // Page identifier for adapter layer
       );
 
       // Combine results
@@ -145,22 +230,26 @@ class OCRFieldExtractor {
    * Extract fields from a single page
    * @param {Buffer} imageBuffer - Page image buffer
    * @param {Object} textractResult - Textract analysis result
-   * @param {Object} fieldConfigs - Field configurations from template
+   * @param {Object} fieldConfigs - Field configurations from template (legacy format or new structure)
    * @param {Object} imageDimensions - { width, height }
    * @param {Object} queryResults - Query results from Textract Queries API
    * @param {string} extractionMode - 'hybrid', 'queries', or 'coordinate'
+   * @param {string} page - 'front' or 'back' (for adapter layer)
    * @returns {Promise<Object>} Extracted fields
    */
-  async extractPageFields(imageBuffer, textractResult, fieldConfigs, imageDimensions, queryResults = null, extractionMode = 'hybrid') {
+  async extractPageFields(imageBuffer, textractResult, fieldConfigs, imageDimensions, queryResults = null, extractionMode = 'hybrid', page = 'front') {
     const extractedFields = {};
 
     for (const [fieldName, fieldConfig] of Object.entries(fieldConfigs)) {
       try {
+        // Use adapter layer to get coordinates (supports both old and new structure)
+        const resolvedConfig = this.getFieldCoordinates(page, fieldName) || fieldConfig;
+        
         const fieldResult = await this.extractField(
           imageBuffer,
           textractResult,
           fieldName,
-          fieldConfig,
+          resolvedConfig,
           imageDimensions,
           queryResults,
           extractionMode

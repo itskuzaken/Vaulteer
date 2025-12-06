@@ -11,11 +11,14 @@ import React from 'react';
  *   MEDICAL HISTORY, TESTING DETAILS, INVENTORY INFO, HTS PROVIDER DETAILS
  */
 
-// Field labels mapping from template metadata (101 fields total)
+// Field labels mapping from template metadata (88+ fields total)
 const TEMPLATE_FIELD_LABELS = {
   // Test Metadata
   testResult: 'Test Result',
   testDate: 'Test Date',
+  
+  // Consent
+  nameAndSignature: 'Name and Signature',
   
   // === FRONT PAGE ===
   
@@ -46,6 +49,12 @@ const TEMPLATE_FIELD_LABELS = {
   placeOfBirthCity: 'Place of Birth - City',
   placeOfBirthProvince: 'Place of Birth - Province',
   
+  // Composite Residence Fields
+  currentResidence: 'Current Residence',
+  permanentResidence: 'Permanent Residence',
+  placeOfBirth: 'Place of Birth',
+  fullName: 'Full Name',
+  
   // Personal Status
   nationality: 'Nationality',
   nationalityOther: 'Nationality (Other)',
@@ -63,6 +72,7 @@ const TEMPLATE_FIELD_LABELS = {
   overseasReturnYear: 'Overseas Return Year',
   overseasLocation: 'Overseas Location',
   overseasCountry: 'Overseas Country',
+  workedOverseasPassedFiveYears: 'Worked Overseas (Passed 5 Years)',
   
   // Contact Information
   contactNumber: 'Contact Number',
@@ -118,8 +128,19 @@ const TEMPLATE_FIELD_LABELS = {
   // Risk Assessment Summary
   riskAssessment: 'Risk Assessment Summary',
   
+  // Risk Assessment Parent Fields
+  riskSexMale: 'Sex with Male',
+  riskSexFemale: 'Sex with Female',
+  riskPaidForSex: 'Paid for Sex',
+  riskReceivedPayment: 'Received Payment for Sex',
+  riskSexUnderDrugs: 'Sex Under Influence of Drugs/Alcohol',
+  riskSharedNeedles: 'Shared Needles/Syringes',
+  riskBloodTransfusion: 'Blood Transfusion',
+  riskOccupationalExposure: 'Occupational Exposure',
+  
   // Reasons for Testing
   reasonsForTesting: 'Reasons for Testing',
+  reasonForTesting: 'Reason for Testing',
   testingRefusedReason: 'Testing Refusal Reason',
   
   // Previous HIV Test
@@ -142,17 +163,22 @@ const TEMPLATE_FIELD_LABELS = {
   clinicalPicture: 'Clinical Picture',
   symptoms: 'Symptoms',
   whoStaging: 'WHO Staging',
+  noPhysicianStage: 'No Physician Stage',
   
   // Testing Details
   clientType: 'Client Type',
   modeOfReach: 'Mode of Reach',
   testingAccepted: 'Testing Accepted',
   testingModality: 'Testing Modality',
+  testingDetails: 'Testing Details',
+  linkageToTesting: 'Linkage to Testing',
+  otherServiceProvided: 'Other Service Provided',
   linkageToCare: 'Linkage to Care',
   otherServices: 'Other Services',
   
   // Test Kit Information
   testKitBrand: 'Test Kit Brand',
+  testKitUsed: 'Test Kit Used',
   testKitLotNumber: 'Test Kit Lot Number',
   testKitExpiration: 'Test Kit Expiration',
   
@@ -173,77 +199,72 @@ const TEMPLATE_FIELD_LABELS = {
   counselorDesignation: 'Counselor Designation',
   counselorContact: 'Counselor Contact',
   counselorSignature: 'Counselor Signature',
+  primaryHTSProvider: 'Primary HTS Provider',
   
   // Form Completion
-  formCompletionDate: 'Form Completion Date'
+  formCompletionDate: 'Form Completion Date',
+  
+  // Other Information
+  condomUse: 'Condom Use',
+  typeOfSex: 'Type of Sex'
 };
 
 // Group fields by section following DOH HTS Form 2021 official structure (10 sections total)
 // Front Page: 3 sections | Back Page: 7 sections
 const FRONT_PAGE_SECTIONS = {
   'INFORMED CONSENT': [
-    'contactNumber', 'emailAddress',
-    'verbalConsent', 'consentGiven', 'consentSignature', 'consentDate'
+    'nameAndSignature', 'contactNumber', 'emailAddress', 'verbalConsent'
   ],
   'DEMOGRAPHIC DATA': [
-    'testDate', 'philHealthNumber', 'philSysNumber',
-    'firstName', 'middleName', 'lastName', 'suffix', 'fullName',
-    'parentalCode', 'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
-    'birthDate', 'age', 'ageMonths',
-    'sex', 'genderIdentity',
-    'currentResidenceCity', 'currentResidenceProvince',
-    'permanentResidenceCity', 'permanentResidenceProvince',
-    'placeOfBirthCity', 'placeOfBirthProvince',
-    'nationality', 'nationalityOther',
-    'civilStatus', 'livingWithPartner', 'numberOfChildren', 'isPregnant'
+    'testDate', 'philHealthNumber', 'philSysNumber', 'fullName',
+    'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
+    'birthDate', 'age', 'ageMonths', 'sex', 'genderIdentity',
+    'currentResidence', 'permanentResidence', 'placeOfBirth',
+    'nationality', 'civilStatus', 'livingWithPartner',
+    'numberOfChildren', 'isPregnant', 'parentalCode'
   ],
   'EDUCATION & OCCUPATION': [
-    'educationalAttainment', 'currentlyInSchool',
-    'occupation', 'currentlyWorking',
-    'workedOverseas', 'overseasReturnYear', 'overseasLocation', 'overseasCountry'
+    'educationalAttainment', 'currentlyInSchool', 'currentlyWorking',
+    'workedOverseas', 'overseasReturnYear', 'workedOverseasPassedFiveYears'
   ]
 };
 
 const BACK_PAGE_SECTIONS = {
   'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
-    'motherHIV',
-    'riskAssessment',
-    'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1', 'riskSexMaleDate2',
-    'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1', 'riskSexFemaleDate2',
-    'riskPaidForSexStatus', 'riskPaidForSexDate',
-    'riskReceivedPaymentStatus', 'riskReceivedPaymentDate',
-    'riskSexUnderDrugsStatus', 'riskSexUnderDrugsDate',
-    'riskSharedNeedlesStatus', 'riskSharedNeedlesDate',
+    'motherHIV', 'riskAssessment',
+    'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1',
+    'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1',
+    'riskPaidForSexStatus', 'riskReceivedPaymentStatus',
+    'riskSexUnderDrugsStatus', 'riskSharedNeedlesStatus',
     'riskBloodTransfusionStatus', 'riskBloodTransfusionDate',
-    'riskOccupationalExposureStatus', 'riskOccupationalExposureDate'
+    'riskSexMale', 'riskSexFemale', 'riskPaidForSex',
+    'riskReceivedPayment', 'riskSexUnderDrugs', 'riskSharedNeedles',
+    'riskBloodTransfusion', 'riskOccupationalExposure'
   ],
   'REASONS FOR HIV TESTING': [
-    'reasonsForTesting', 'testingRefusedReason'
+    'reasonsForTesting', 'reasonForTesting'
   ],
   'PREVIOUS HIV TEST': [
-    'previouslyTested', 'previousTestDate', 'previousTestProvider',
-    'previousTestCity', 'previousTestResult'
+    'previouslyTested', 'previousTestResult', 'previousTestDate', 'previousTestCity'
   ],
   'MEDICAL HISTORY & CLINICAL PICTURE': [
-    'medicalHistory', 'medicalTB', 'medicalSTI', 'medicalPEP',
-    'medicalPrEP', 'medicalHepatitisB', 'medicalHepatitisC',
-    'clinicalPicture', 'symptoms', 'whoStaging'
+    'medicalHistory', 'clinicalPicture', 'symptoms', 'whoStaging', 'noPhysicianStage'
   ],
   'TESTING DETAILS': [
     'clientType', 'modeOfReach', 'testingAccepted', 'testingModality',
-    'linkageToCare', 'testResult'
+    'testingDetails', 'linkageToTesting', 'otherServiceProvided',
+    'linkageToCare', 'otherServices'
   ],
   'INVENTORY INFORMATION': [
-    'otherServices',
-    'testKitBrand', 'testKitLotNumber', 'testKitExpiration'
+    'testKitBrand', 'testKitUsed', 'testKitLotNumber', 'testKitExpiration'
   ],
   'HTS PROVIDER DETAILS': [
-    'testingFacility', 'facilityAddress', 'facilityCode',
-    'facilityRegion', 'facilityProvince', 'facilityCity',
-    'facilityContactNumber', 'facilityEmail',
-    'counselorName', 'counselorRole', 'counselorLicense',
-    'counselorDesignation', 'counselorContact', 'counselorSignature',
-    'formCompletionDate'
+    'testingFacility', 'facilityAddress', 'facilityContactNumber', 'facilityEmail',
+    'counselorName', 'counselorRole', 'counselorSignature',
+    'primaryHTSProvider', 'formCompletionDate'
+  ],
+  'OTHERS': [
+    'condomUse', 'typeOfSex'
   ]
 };
 

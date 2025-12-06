@@ -7,8 +7,8 @@ import Button from '../../ui/Button';
  * Organized by DOH HTS Form 2021 official 10-section structure:
  * 
  * FRONT PAGE (3 sections):
- *   1. INFORMED CONSENT (2 fields)
- *   2. DEMOGRAPHIC DATA (30 fields)
+ *   1. INFORMED CONSENT (4 fields)
+ *   2. DEMOGRAPHIC DATA (28 fields)
  *   3. EDUCATION & OCCUPATION (8 fields)
  * 
  * BACK PAGE (7 sections):
@@ -17,7 +17,7 @@ import Button from '../../ui/Button';
  *   6. PREVIOUS HIV TEST (5 fields)
  *   7. MEDICAL HISTORY & CLINICAL PICTURE (10 fields)
  *   8. TESTING DETAILS (6 fields)
- *   9. INVENTORY INFORMATION (3 fields)
+ *   9. INVENTORY INFORMATION (4 fields)
  *   10. HTS PROVIDER DETAILS (15 fields)
  */
 export default function HTSFormEditModal({
@@ -36,60 +36,55 @@ export default function HTSFormEditModal({
   // MUST match backend sectionMapping in textractService.js
   const formFields = {
     'INFORMED CONSENT': [
-      'consentGiven', 'contactNumber', 'emailAddress', 'verbalConsent'
+      'nameAndSignature', 'contactNumber', 'emailAddress', 'verbalConsent'
     ],
     'DEMOGRAPHIC DATA': [
-      'testDate', 'philHealthNumber', 'philSysNumber',
-      'firstName', 'middleName', 'lastName', 'suffix', 'birthOrder',
+      'testDate', 'philHealthNumber', 'philSysNumber', 'fullName',
+      'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
       'birthDate', 'age', 'ageMonths', 'sex', 'genderIdentity',
-      'currentResidenceCity', 'currentResidenceProvince',
-      'permanentResidenceCity', 'permanentResidenceProvince',
-      'placeOfBirthCity', 'placeOfBirthProvince',
-      'nationality', 'nationalityOther', 'civilStatus',
-      'livingWithPartner', 'numberOfChildren', 'isPregnant'
+      'currentResidence', 'permanentResidence', 'placeOfBirth',
+      'nationality', 'civilStatus', 'livingWithPartner',
+      'numberOfChildren', 'isPregnant', 'parentalCode'
     ],
     'EDUCATION & OCCUPATION': [
-      'educationalAttainment', 'currentlyInSchool', 'occupation',
-      'currentlyWorking', 'workedOverseas', 'overseasReturnYear',
-      'overseasLocation', 'overseasCountry'
+      'educationalAttainment', 'currentlyInSchool', 'currentlyWorking',
+      'workedOverseas', 'overseasReturnYear', 'workedOverseasPassedFiveYears'
     ],
     'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
       'motherHIV', 'riskAssessment',
-      'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1', 'riskSexMaleDate2',
-      'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1', 'riskSexFemaleDate2',
-      'riskPaidForSexStatus', 'riskPaidForSexDate',
-      'riskReceivedPaymentStatus', 'riskReceivedPaymentDate',
-      'riskSexUnderDrugsStatus', 'riskSexUnderDrugsDate',
-      'riskSharedNeedlesStatus', 'riskSharedNeedlesDate',
+      'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1',
+      'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1',
+      'riskPaidForSexStatus', 'riskReceivedPaymentStatus',
+      'riskSexUnderDrugsStatus', 'riskSharedNeedlesStatus',
       'riskBloodTransfusionStatus', 'riskBloodTransfusionDate',
-      'riskOccupationalExposureStatus', 'riskOccupationalExposureDate'
+      'riskSexMale', 'riskSexFemale', 'riskPaidForSex',
+      'riskReceivedPayment', 'riskSexUnderDrugs', 'riskSharedNeedles',
+      'riskBloodTransfusion', 'riskOccupationalExposure'
     ],
     'REASONS FOR HIV TESTING': [
-      'reasonsForTesting', 'testingRefusedReason'
+      'reasonsForTesting', 'reasonForTesting'
     ],
     'PREVIOUS HIV TEST': [
-      'previouslyTested', 'previousTestDate', 'previousTestProvider',
-      'previousTestCity', 'previousTestResult'
+      'previouslyTested', 'previousTestResult', 'previousTestDate', 'previousTestCity'
     ],
     'MEDICAL HISTORY & CLINICAL PICTURE': [
-      'medicalHistory', 'medicalTB', 'medicalSTI', 'medicalPEP', 'medicalPrEP',
-      'medicalHepatitisB', 'medicalHepatitisC',
-      'clinicalPicture', 'symptoms', 'whoStaging'
+      'medicalHistory', 'clinicalPicture', 'symptoms', 'whoStaging', 'noPhysicianStage'
     ],
     'TESTING DETAILS': [
-      'clientType', 'modeOfReach', 'testingAccepted',
-      'testingModality', 'linkageToCare', 'testResult'
+      'clientType', 'modeOfReach', 'testingAccepted', 'testingModality',
+      'testingDetails', 'linkageToTesting', 'otherServiceProvided',
+      'linkageToCare', 'otherServices'
     ],
     'INVENTORY INFORMATION': [
-      'otherServices', 'testKitBrand', 'testKitLotNumber', 'testKitExpiration'
+      'testKitBrand', 'testKitUsed', 'testKitLotNumber', 'testKitExpiration'
     ],
     'HTS PROVIDER DETAILS': [
-      'testingFacility', 'facilityAddress', 'facilityCode',
-      'facilityRegion', 'facilityProvince', 'facilityCity',
-      'facilityContactNumber', 'facilityEmail',
-      'counselorName', 'counselorRole', 'counselorLicense',
-      'counselorDesignation', 'counselorContact', 'counselorSignature',
-      'formCompletionDate'
+      'testingFacility', 'facilityAddress', 'facilityContactNumber', 'facilityEmail',
+      'counselorName', 'counselorRole', 'counselorSignature',
+      'primaryHTSProvider', 'formCompletionDate'
+    ],
+    'OTHERS': [
+      'condomUse', 'typeOfSex'
     ]
   };
 

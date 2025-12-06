@@ -24,6 +24,9 @@ const FIELD_METADATA = {
   parentalCodeFather: { label: "Father's First Name (First 2 letters)", category: 'INFORMED CONSENT', page: 'front', priority: 3 },
   birthOrder: { label: 'Birth Order', category: 'INFORMED CONSENT', page: 'front', priority: 3 },
   contactNumber: { label: 'Contact Number', category: 'INFORMED CONSENT', page: 'front', priority: 2 },
+  consentGiven: { label: 'Consent Given', category: 'INFORMED CONSENT', page: 'front', priority: 2 },
+  consentSignature: { label: 'Consent Signature', category: 'INFORMED CONSENT', page: 'front', priority: 3 },
+  verbalConsent: { label: 'Verbal Consent', category: 'INFORMED CONSENT', page: 'front', priority: 2 },
   email: { label: 'Email', category: 'INFORMED CONSENT', page: 'front', priority: 3 },
   emailAddress: { label: 'Email Address', category: 'INFORMED CONSENT', page: 'front', priority: 3 },
   
@@ -82,6 +85,8 @@ const FIELD_METADATA = {
   riskReceivedPaymentDate: { label: 'Received payment for sex - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
   riskSexUnderDrugsStatus: { label: 'Sex under influence of drugs - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
   riskSexUnderDrugsDate: { label: 'Sex under influence of drugs - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskTattooStatus: { label: 'Tattoo exposure - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
+  riskTattooDate: { label: 'Tattoo exposure - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 3 },
   riskSharedNeedlesStatus: { label: 'Shared needles for drug injection - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
   riskSharedNeedlesDate: { label: 'Shared needles for drug injection - Date', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
   riskBloodTransfusionStatus: { label: 'Received blood transfusion - Status', category: 'HISTORY OF EXPOSURE / RISK ASSESSMENT', page: 'back', priority: 2 },
@@ -125,6 +130,7 @@ const FIELD_METADATA = {
   modeOfReach: { label: 'Mode of Reach', category: 'TESTING DETAILS', page: 'back', priority: 2 },
   testingAccepted: { label: 'HIV Testing Status', category: 'TESTING DETAILS', page: 'back', priority: 1 },
   testingModality: { label: 'HIV Testing Modality', category: 'TESTING DETAILS', page: 'back', priority: 2 },
+  testingRefusedReason: { label: 'Reason for Refusal', category: 'TESTING DETAILS', page: 'back', priority: 3 },
   linkageToCare: { label: 'Linkage to Care Plan', category: 'TESTING DETAILS', page: 'back', priority: 2 },
   refusalReason: { label: 'Refusal Reason', category: 'TESTING DETAILS', page: 'back', priority: 3 },
   otherServices: { label: 'Other Services Provided', category: 'TESTING DETAILS', page: 'back', priority: 3 },
@@ -135,16 +141,25 @@ const FIELD_METADATA = {
   kitLotNumber: { label: 'Test Kit Lot Number', category: 'INVENTORY INFORMATION', page: 'back', priority: 2 },
   testKitLotNumber: { label: 'Lot Number', category: 'INVENTORY INFORMATION', page: 'back', priority: 2 },
   testKitExpiration: { label: 'Test Kit Expiration Date', category: 'INVENTORY INFORMATION', page: 'back', priority: 2 },
+  testResult: { label: 'HIV Test Result', category: 'TESTING DETAILS', page: 'back', priority: 2 },
   
   // HTS PROVIDER DETAILS
   testingFacility: { label: 'Name of Testing Facility/Organization', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
   facilityAddress: { label: 'Complete Mailing Address', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  facilityRegion: { label: 'Facility Region', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  facilityProvince: { label: 'Facility Province', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  facilityCity: { label: 'Facility City', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  facilityCode: { label: 'Facility Code', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
   facilityContactNumber: { label: 'Facility Contact Number', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
   facilityEmail: { label: 'Facility Email Address', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
   counselorName: { label: 'Name of Service Provider', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
   serviceProvider: { label: 'Service Provider', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
   counselorRole: { label: 'Role', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 },
+  counselorLicense: { label: 'Counselor License', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 3 },
+  counselorDesignation: { label: 'Counselor Designation', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 3 },
+  counselorContact: { label: 'Counselor Contact', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 3 },
   counselorSignature: { label: 'Name & Signature of Service Provider', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 }
+  formCompletionDate: { label: 'Form Completion Date', category: 'HTS PROVIDER DETAILS', page: 'back', priority: 2 }
 };
 
 // Category display order matching HTS Form template structure
