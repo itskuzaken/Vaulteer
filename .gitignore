@@ -68,3 +68,5 @@ AWS_DEPLOYMENT_INSTRUCTIONS.md
 
 # Ignore log files
 /backend/logs/*.json
+
+/.github/instructions/*

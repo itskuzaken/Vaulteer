@@ -56,6 +56,7 @@ export default function HTSFormManagement() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editableData, setEditableData] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
+  const [mappedUnmappedKeys, setMappedUnmappedKeys] = useState({});
   
   // Image lightbox state
   const [lightboxOpen, setLightboxOpen] = useState(false);
