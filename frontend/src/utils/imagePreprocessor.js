@@ -26,7 +26,7 @@ export async function preprocessImage(imageDataURL, options = {}) {
   // Load image
   const img = await loadImage(imageDataURL);
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   
   // Step 1: Resize to optimal resolution
   const resized = resizeImage(img, targetResolution);
@@ -88,7 +88,7 @@ export async function preprocessImage(imageDataURL, options = {}) {
  */
 function resizeImage(img, targetResolution) {
   const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   
   // Calculate scaling to fit target resolution
   const scaleWidth = targetResolution.width / img.width;

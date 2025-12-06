@@ -10,11 +10,9 @@
  * @returns {Promise<Object>} Quality validation result
  */
 export async function validateImageQuality(imageDataURL) {
-  const img = await loadImage(imageDataURL);
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d');
-  
-  canvas.width = img.width;
+    const img = await loadImage(imageDataURL);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });  canvas.width = img.width;
   canvas.height = img.height;
   ctx.drawImage(img, 0, 0);
   
@@ -233,7 +231,7 @@ function loadImage(dataURL) {
  * @returns {Promise<Object>} Quality validation result
  */
 export async function validateQuality(canvas) {
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   
   // Quality checks
@@ -275,7 +273,7 @@ export async function captureMultipleFrames(videoElement, frameCount = 3, delayM
     const canvas = document.createElement('canvas');
     canvas.width = videoElement.videoWidth;
     canvas.height = videoElement.videoHeight;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(videoElement, 0, 0);
     
     const quality = await validateQuality(canvas);

@@ -491,7 +491,7 @@ export default function HTSFormManagement() {
       const testCanvas = document.createElement('canvas');
       testCanvas.width = video.videoWidth;
       testCanvas.height = video.videoHeight;
-      const testCtx = testCanvas.getContext('2d');
+      const testCtx = testCanvas.getContext('2d', { willReadFrequently: true });
       testCtx.drawImage(video, 0, 0);
       
       const preCheck = await validateQuality(testCanvas);
