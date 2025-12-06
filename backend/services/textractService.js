@@ -548,35 +548,40 @@ async function processBatchQueries(imageBuffer, batches) {
  * @deprecated This mapping will be removed in next major version
  */
 const QUERY_ALIAS_MAP = {
-  // FRONT PAGE - INFORMED CONSENT & CONTACT (2 fields)
+  // ============================================================
+  // FRONT PAGE SECTION 1: INFORMED CONSENT (2 fields)
+  // ============================================================
   'contact_number': 'contactNumber',
   'email_address': 'emailAddress',
-  'verbal_consent': 'verbalConsent',
   
-  // FRONT PAGE - DEMOGRAPHIC DATA (3 fields)
+  // ============================================================
+  // FRONT PAGE SECTION 2: DEMOGRAPHIC DATA (30 fields)
+  // ============================================================
+  
+  // Test identification (3 fields)
   'test_date': 'testDate',
   'phil_health_number': 'philHealthNumber',
   'phil_sys_number': 'philSysNumber',
   
-  // FRONT PAGE - DEMOGRAPHIC DATA (4 fields)
+  // Patient name (4 fields)
   'first_name': 'firstName',
   'middle_name': 'middleName',
   'last_name': 'lastName',
   'suffix': 'suffix',
   
-  // FRONT PAGE - DEMOGRAPHIC DATA (3 fields)
+  // Parental codes (3 fields)
   'parental_code_mother': 'parentalCodeMother',
   'parental_code_father': 'parentalCodeFather',
   'birth_order': 'birthOrder',
   
-  // FRONT PAGE - DEMOGRAPHIC DATA (5 fields)
+  // Basic information (5 fields)
   'birth_date': 'birthDate',
   'age': 'age',
   'age_months': 'ageMonths',
   'sex': 'sex',
   'gender_identity': 'genderIdentity',
   
-  // FRONT PAGE - DEMOGRAPHIC DATA (6 fields)
+  // Residence (6 fields)
   'current_residence_city': 'currentResidenceCity',
   'current_residence_province': 'currentResidenceProvince',
   'permanent_residence_city': 'permanentResidenceCity',
@@ -584,7 +589,7 @@ const QUERY_ALIAS_MAP = {
   'place_of_birth_city': 'placeOfBirthCity',
   'place_of_birth_province': 'placeOfBirthProvince',
   
-  // FRONT PAGE - DEMOGRAPHIC DATA (6 fields)
+  // Civil status & family (6 fields)
   'nationality': 'nationality',
   'nationality_other': 'nationalityOther',
   'civil_status': 'civilStatus',
@@ -592,7 +597,14 @@ const QUERY_ALIAS_MAP = {
   'number_of_children': 'numberOfChildren',
   'is_pregnant': 'isPregnant',
   
-  // FRONT PAGE - EDUCATION & OCCUPATION (8 fields)
+  // Verbal consent (3 fields) - Legacy fields, retained for backward compatibility
+  'verbal_consent': 'verbalConsent',
+  'consent_given': 'consentGiven',
+  'consent_signature': 'consentSignature',
+  
+  // ============================================================
+  // FRONT PAGE SECTION 3: EDUCATION & OCCUPATION (8 fields)
+  // ============================================================
   'educational_attainment': 'educationalAttainment',
   'currently_in_school': 'currentlyInSchool',
   'currently_working': 'currentlyWorking',
@@ -602,56 +614,72 @@ const QUERY_ALIAS_MAP = {
   'overseas_location': 'overseasLocation',
   'overseas_country': 'overseasCountry',
   
-  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (1 field)
+  // ============================================================
+  // BACK PAGE SECTION 1: HISTORY OF EXPOSURE / RISK ASSESSMENT (23 fields)
+  // ============================================================
+  
+  // Mother HIV status (1 field)
   'mother_hiv': 'motherHIV',
   
-  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (4 fields)
+  // Sex with male partners (4 fields)
   'risk_sex_male_status': 'riskSexMaleStatus',
   'risk_sex_male_total': 'riskSexMaleTotal',
   'risk_sex_male_date1': 'riskSexMaleDate1',
   'risk_sex_male_date2': 'riskSexMaleDate2',
   
-  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (4 fields)
+  // Sex with female partners (4 fields)
   'risk_sex_female_status': 'riskSexFemaleStatus',
   'risk_sex_female_total': 'riskSexFemaleTotal',
   'risk_sex_female_date1': 'riskSexFemaleDate1',
   'risk_sex_female_date2': 'riskSexFemaleDate2',
   
-  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
+  // Paid for sex (2 fields)
   'risk_paid_for_sex_status': 'riskPaidForSexStatus',
   'risk_paid_for_sex_date': 'riskPaidForSexDate',
   
-  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
+  // Received payment for sex (2 fields)
   'risk_received_payment_status': 'riskReceivedPaymentStatus',
   'risk_received_payment_date': 'riskReceivedPaymentDate',
   
-  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
+  // Sex under influence of drugs (2 fields)
   'risk_sex_under_drugs_status': 'riskSexUnderDrugsStatus',
   'risk_sex_under_drugs_date': 'riskSexUnderDrugsDate',
   
-  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
+  // Shared needles (2 fields)
   'risk_shared_needles_status': 'riskSharedNeedlesStatus',
   'risk_shared_needles_date': 'riskSharedNeedlesDate',
   
-  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
+  // Blood transfusion (2 fields)
   'risk_blood_transfusion_status': 'riskBloodTransfusionStatus',
   'risk_blood_transfusion_date': 'riskBloodTransfusionDate',
   
-  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
+  // Occupational exposure (2 fields)
   'risk_occupational_exposure_status': 'riskOccupationalExposureStatus',
   'risk_occupational_exposure_date': 'riskOccupationalExposureDate',
   
-  // BACK PAGE - REASONS FOR TESTING (1 field)
+  // Tattoo exposure (2 fields) - From template-metadata.json
+  'risk_tattoo_status': 'riskTattooStatus',
+  'risk_tattoo_date': 'riskTattooDate',
+  
+  // ============================================================
+  // BACK PAGE SECTION 2: REASONS FOR HIV TESTING (1 field)
+  // ============================================================
   'reasons_for_testing': 'reasonsForTesting',
   
-  // BACK PAGE - PREVIOUS HIV TEST (5 fields)
+  // ============================================================
+  // BACK PAGE SECTION 3: PREVIOUS HIV TEST (5 fields)
+  // ============================================================
   'previously_tested': 'previouslyTested',
   'previous_test_date': 'previousTestDate',
   'previous_test_provider': 'previousTestProvider',
   'previous_test_city': 'previousTestCity',
   'previous_test_result': 'previousTestResult',
   
-  // BACK PAGE - MEDICAL HISTORY & CLINICAL PICTURE (6 fields)
+  // ============================================================
+  // BACK PAGE SECTION 4: MEDICAL HISTORY & CLINICAL PICTURE (9 fields)
+  // ============================================================
+  
+  // Medical history (6 fields)
   'medical_tb': 'medicalTB',
   'medical_sti': 'medicalSTI',
   'medical_pep': 'medicalPEP',
@@ -659,12 +687,14 @@ const QUERY_ALIAS_MAP = {
   'medical_hepatitis_b': 'medicalHepatitisB',
   'medical_hepatitis_c': 'medicalHepatitisC',
   
-  // BACK PAGE - MEDICAL HISTORY & CLINICAL PICTURE (3 fields)
+  // Clinical picture (3 fields)
   'clinical_picture': 'clinicalPicture',
   'symptoms': 'symptoms',
   'who_staging': 'whoStaging',
   
-  // BACK PAGE - TESTING DETAILS (7 fields)
+  // ============================================================
+  // BACK PAGE SECTION 5: TESTING DETAILS (7 fields)
+  // ============================================================
   'client_type': 'clientType',
   'mode_of_reach': 'modeOfReach',
   'testing_accepted': 'testingAccepted',
@@ -673,12 +703,16 @@ const QUERY_ALIAS_MAP = {
   'linkage_to_care': 'linkageToCare',
   'other_services': 'otherServices',
   
-  // BACK PAGE - INVENTORY INFORMATION (3 fields)
+  // ============================================================
+  // BACK PAGE SECTION 6: INVENTORY INFORMATION (3 fields)
+  // ============================================================
   'test_kit_brand': 'testKitBrand',
   'test_kit_lot_number': 'testKitLotNumber',
   'test_kit_expiration': 'testKitExpiration',
   
-  // BACK PAGE - HTS PROVIDER DETAILS (15 fields)
+  // ============================================================
+  // BACK PAGE SECTION 7: HTS PROVIDER DETAILS (15 fields)
+  // ============================================================
   'testing_facility': 'testingFacility',
   'facility_address': 'facilityAddress',
   'facility_contact_number': 'facilityContactNumber',
@@ -2957,136 +2991,135 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
  * @returns {Object} Structured data organized by form sections
  */
 function organizeFieldsIntoSections(allFields, correctedData) {
-  // Define field-to-section mappings based on HTS form structure
+  // Define field-to-section mappings based on DOH HTS Form 2021 official structure
+  // Front page: 3 sections | Back page: 7 sections
   const sectionMapping = {
-    // FRONT PAGE SECTIONS
+    // ===== FRONT PAGE SECTIONS (3) =====
     'INFORMED CONSENT': [
-      'verbalConsent',
       'consentGiven',
-      'consentSignature',
-      'consentDate'
+      'contactNumber',
+      'emailAddress',
+      'verbalConsent'
     ],
-    'PERSONAL INFORMATION': [
-      'fullName',
+    'DEMOGRAPHIC DATA': [
+      'testDate',
+      'philHealthNumber',
+      'philSysNumber',
       'firstName',
       'middleName',
       'lastName',
       'suffix',
-      'birthDate',
-      'age',
-      'sex',
-      'sexMale',
-      'sexFemale',
-      'genderIdentity',
-      'genderIdentityMan',
-      'genderIdentityWoman',
-      'genderIdentityTransWoman',
-      'genderIdentityTransMan',
-      'civilStatus',
-      'nationality',
-      'philSysNumber',
+      'parentalCode',
       'parentalCodeMother',
       'parentalCodeFather',
-      'birthOrder'
-    ],
-    'CONTACT INFORMATION': [
-      'contactNumber',
-      'emailAddress',
-      'address',
-      'province',
-      'cityMunicipality',
-      'barangay',
-      'provinceOfBirth',
-      'cityOfBirth'
-    ],
-    'HEALTH INFORMATION': [
-      'philHealthNumber',
-      'philHealthNumberEnrolled'
+      'birthOrder',
+      'birthDate',
+      'age',
+      'ageMonths',
+      'sex',
+      'genderIdentity',
+      'currentResidenceCity',
+      'currentResidenceProvince',
+      'permanentResidenceCity',
+      'permanentResidenceProvince',
+      'placeOfBirthCity',
+      'placeOfBirthProvince',
+      'nationality',
+      'nationalityOther',
+      'civilStatus',
+      'livingWithPartner',
+      'numberOfChildren',
+      'isPregnant'
     ],
     'EDUCATION & OCCUPATION': [
       'educationalAttainment',
-      'currentOccupation',
-      'occupationStatus',
-      'hasChildren',
-      'numberOfChildren',
-      'ofw',
-      'ofwCountry',
-      'ofwReturnYear'
+      'currentlyInSchool',
+      'occupation',
+      'currentlyWorking',
+      'workedOverseas',
+      'overseasReturnYear',
+      'overseasLocation',
+      'overseasCountry'
     ],
     
-    // BACK PAGE SECTIONS
-    'TESTING DETAILS': [
-      'testDate',
-      'controlNumber',
-      'testingReason',
-      'htsCode',
-      'htsEntryPoint',
-      'screeningType',
-      'clientCategory',
-      'testingFacility',
-      'testKitBrand',
-      'testKitLotNumber',
-      'testKitExpiration'
+    // ===== BACK PAGE SECTIONS (7) =====
+    'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
+      'motherHIV',
+      'riskAssessment',
+      'riskSexMaleStatus',
+      'riskSexMaleTotal',
+      'riskSexMaleDate1',
+      'riskSexMaleDate2',
+      'riskSexFemaleStatus',
+      'riskSexFemaleTotal',
+      'riskSexFemaleDate1',
+      'riskSexFemaleDate2',
+      'riskPaidForSexStatus',
+      'riskPaidForSexDate',
+      'riskReceivedPaymentStatus',
+      'riskReceivedPaymentDate',
+      'riskSexUnderDrugsStatus',
+      'riskSexUnderDrugsDate',
+      'riskSharedNeedlesStatus',
+      'riskSharedNeedlesDate',
+      'riskBloodTransfusionStatus',
+      'riskBloodTransfusionDate',
+      'riskOccupationalExposureStatus',
+      'riskOccupationalExposureDate'
+    ],
+    'REASONS FOR HIV TESTING': [
+      'reasonsForTesting',
+      'testingRefusedReason'
     ],
     'PREVIOUS HIV TEST': [
       'previouslyTested',
       'previousTestDate',
-      'previousTestResult',
-      'previousTestLocation'
+      'previousTestProvider',
+      'previousTestCity',
+      'previousTestResult'
     ],
     'MEDICAL HISTORY & CLINICAL PICTURE': [
+      'medicalHistory',
+      'medicalTB',
+      'medicalSTI',
+      'medicalPEP',
+      'medicalPrEP',
+      'medicalHepatitisB',
+      'medicalHepatitisC',
+      'clinicalPicture',
       'symptoms',
-      'symptomDescription',
-      'tbSymptoms',
-      'hepatitisB',
-      'hepatitisC',
-      'whoStaging',
-      'cd4Count',
-      'viralLoad'
+      'whoStaging'
     ],
-    'RISK ASSESSMENT': [
-      'multiplePartners',
-      'stdSymptoms',
-      'sharedNeedles',
-      'bloodTransfusion',
-      'sexWork',
-      'msm',
-      'transgender',
-      'sexWithPLHIV',
-      'suspectedExposure',
-      'unprotectedWithPLHIV',
-      'partnerSexWithOthers',
-      'diagnosedWithSTI',
-      'victimOfRape',
-      'noRisk',
-      'otherReason'
+    'TESTING DETAILS': [
+      'clientType',
+      'modeOfReach',
+      'testingAccepted',
+      'testingModality',
+      'linkageToCare',
+      'testResult'
     ],
-    'REFERRAL & POST-TEST': [
-      'referredTo',
-      'treatmentFacility',
-      'postTestCounseling',
-      'artLinkage',
-      'preventionServices',
+    'INVENTORY INFORMATION': [
       'otherServices',
-      'condomsDistributed',
-      'lubricantsDistributed'
+      'testKitBrand',
+      'testKitLotNumber',
+      'testKitExpiration'
     ],
-    'TEST RESULTS': [
-      'screeningTestResult',
-      'confirmatoryTestResult',
-      'finalDiagnosis',
-      'resultDisclosed',
-      'refusedTesting',
-      'refusalReason'
-    ],
-    'HTS PROVIDER': [
-      'counselorName',
-      'counselorSignature',
-      'htsProviderType',
-      'registrationNumber',
+    'HTS PROVIDER DETAILS': [
+      'testingFacility',
       'facilityAddress',
+      'facilityCode',
+      'facilityRegion',
+      'facilityProvince',
+      'facilityCity',
       'facilityContactNumber',
-      'facilityEmailAddress'
+      'facilityEmail',
+      'counselorName',
+      'counselorRole',
+      'counselorLicense',
+      'counselorDesignation',
+      'counselorContact',
+      'counselorSignature',
+      'formCompletionDate'
     ]
   };
   
@@ -3120,12 +3153,10 @@ function organizeFieldsIntoSections(allFields, correctedData) {
     
     // Only include sections that have data
     if (hasData) {
-      // Determine if this is front or back page section
+      // Determine if this is front or back page section based on official DOH HTS Form 2021 structure
       const isFrontSection = [
         'INFORMED CONSENT',
-        'PERSONAL INFORMATION',
-        'CONTACT INFORMATION',
-        'HEALTH INFORMATION',
+        'DEMOGRAPHIC DATA',
         'EDUCATION & OCCUPATION'
       ].includes(sectionName);
       
