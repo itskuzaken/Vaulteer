@@ -65,6 +65,17 @@ async function createLog({
     const performedByUserId =
       performedBy.userId === "system" ? null : performedBy.userId;
 
+    // Normalize metadata.timestamp to +08 ISO if present
+    let normalizedMetadata = metadata;
+    try {
+      if (metadata && metadata.timestamp) {
+        normalizedMetadata = { ...metadata, timestamp: toIsoPlus8(metadata.timestamp) };
+      }
+    } catch (err) {
+      // If normalization fails, keep original metadata
+      normalizedMetadata = metadata;
+    }
+
     const values = [
       type,
       action,
@@ -79,7 +90,7 @@ async function createLog({
       ipAddress,
       userAgent,
       sessionId,
-      metadata ? JSON.stringify(metadata) : null,
+      normalizedMetadata ? JSON.stringify(normalizedMetadata) : null,
     ];
 
     // Always set a created_at in +08 timezone. Use occurredAt if supplied, else now.
