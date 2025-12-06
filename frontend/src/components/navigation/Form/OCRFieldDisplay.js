@@ -33,6 +33,17 @@ export default function OCRFieldDisplay({ extractedData }) {
   const extractionMethod = extractedData.extractionMethod || 'forms+layout';
   const unmappedKeys = extractedData.unmappedKeys || extractedData.unmappedKeysDetailed || [];
   
+  // Debug: Check structuredData structure
+  console.log('[OCRFieldDisplay] structuredData structure:', {
+    hasStructuredData: !!structuredData,
+    hasFront: !!structuredData?.front,
+    hasBack: !!structuredData?.back,
+    hasSummary: !!structuredData?.summary,
+    topLevelKeys: structuredData ? Object.keys(structuredData) : [],
+    frontKeys: structuredData?.front ? Object.keys(structuredData.front) : [],
+    backKeys: structuredData?.back ? Object.keys(structuredData.back) : []
+  });
+  
   // Handle both old and new statistics formats
   const confidenceStats = stats.confidence || {
     overall: confidence,

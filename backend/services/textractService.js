@@ -551,19 +551,20 @@ const QUERY_ALIAS_MAP = {
   // FRONT PAGE - INFORMED CONSENT & CONTACT (2 fields)
   'contact_number': 'contactNumber',
   'email_address': 'emailAddress',
+  'verbal_consent': 'verbalConsent',
   
-  // FRONT PAGE - TEST IDENTIFICATION (3 fields)
+  // FRONT PAGE - DEMOGRAPHIC DATA (3 fields)
   'test_date': 'testDate',
   'phil_health_number': 'philHealthNumber',
   'phil_sys_number': 'philSysNumber',
   
-  // FRONT PAGE - PATIENT NAME (4 fields)
+  // FRONT PAGE - DEMOGRAPHIC DATA (4 fields)
   'first_name': 'firstName',
   'middle_name': 'middleName',
   'last_name': 'lastName',
   'suffix': 'suffix',
   
-  // FRONT PAGE - PARENTAL CODES (3 fields)
+  // FRONT PAGE - DEMOGRAPHIC DATA (3 fields)
   'parental_code_mother': 'parentalCodeMother',
   'parental_code_father': 'parentalCodeFather',
   'birth_order': 'birthOrder',
@@ -575,7 +576,7 @@ const QUERY_ALIAS_MAP = {
   'sex': 'sex',
   'gender_identity': 'genderIdentity',
   
-  // FRONT PAGE - RESIDENCE (6 fields)
+  // FRONT PAGE - DEMOGRAPHIC DATA (6 fields)
   'current_residence_city': 'currentResidenceCity',
   'current_residence_province': 'currentResidenceProvince',
   'permanent_residence_city': 'permanentResidenceCity',
@@ -583,7 +584,7 @@ const QUERY_ALIAS_MAP = {
   'place_of_birth_city': 'placeOfBirthCity',
   'place_of_birth_province': 'placeOfBirthProvince',
   
-  // FRONT PAGE - PERSONAL STATUS (6 fields)
+  // FRONT PAGE - DEMOGRAPHIC DATA (6 fields)
   'nationality': 'nationality',
   'nationality_other': 'nationalityOther',
   'civil_status': 'civilStatus',
@@ -601,42 +602,42 @@ const QUERY_ALIAS_MAP = {
   'overseas_location': 'overseasLocation',
   'overseas_country': 'overseasCountry',
   
-  // BACK PAGE - MOTHER HIV STATUS (1 field)
+  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (1 field)
   'mother_hiv': 'motherHIV',
   
-  // BACK PAGE - RISK ASSESSMENT: SEX WITH MALE (4 fields)
+  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (4 fields)
   'risk_sex_male_status': 'riskSexMaleStatus',
   'risk_sex_male_total': 'riskSexMaleTotal',
   'risk_sex_male_date1': 'riskSexMaleDate1',
   'risk_sex_male_date2': 'riskSexMaleDate2',
   
-  // BACK PAGE - RISK ASSESSMENT: SEX WITH FEMALE (4 fields)
+  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (4 fields)
   'risk_sex_female_status': 'riskSexFemaleStatus',
   'risk_sex_female_total': 'riskSexFemaleTotal',
   'risk_sex_female_date1': 'riskSexFemaleDate1',
   'risk_sex_female_date2': 'riskSexFemaleDate2',
   
-  // BACK PAGE - RISK ASSESSMENT: PAID FOR SEX (2 fields)
+  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
   'risk_paid_for_sex_status': 'riskPaidForSexStatus',
   'risk_paid_for_sex_date': 'riskPaidForSexDate',
   
-  // BACK PAGE - RISK ASSESSMENT: RECEIVED PAYMENT (2 fields)
+  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
   'risk_received_payment_status': 'riskReceivedPaymentStatus',
   'risk_received_payment_date': 'riskReceivedPaymentDate',
   
-  // BACK PAGE - RISK ASSESSMENT: SEX UNDER DRUGS (2 fields)
+  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
   'risk_sex_under_drugs_status': 'riskSexUnderDrugsStatus',
   'risk_sex_under_drugs_date': 'riskSexUnderDrugsDate',
   
-  // BACK PAGE - RISK ASSESSMENT: SHARED NEEDLES (2 fields)
+  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
   'risk_shared_needles_status': 'riskSharedNeedlesStatus',
   'risk_shared_needles_date': 'riskSharedNeedlesDate',
   
-  // BACK PAGE - RISK ASSESSMENT: BLOOD TRANSFUSION (2 fields)
+  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
   'risk_blood_transfusion_status': 'riskBloodTransfusionStatus',
   'risk_blood_transfusion_date': 'riskBloodTransfusionDate',
   
-  // BACK PAGE - RISK ASSESSMENT: OCCUPATIONAL EXPOSURE (2 fields)
+  // BACK PAGE - HISTORY OF EXPOSURE / RISK ASSESSMENT (2 fields)
   'risk_occupational_exposure_status': 'riskOccupationalExposureStatus',
   'risk_occupational_exposure_date': 'riskOccupationalExposureDate',
   
@@ -650,7 +651,7 @@ const QUERY_ALIAS_MAP = {
   'previous_test_city': 'previousTestCity',
   'previous_test_result': 'previousTestResult',
   
-  // BACK PAGE - MEDICAL HISTORY (6 fields)
+  // BACK PAGE - MEDICAL HISTORY & CLINICAL PICTURE (6 fields)
   'medical_tb': 'medicalTB',
   'medical_sti': 'medicalSTI',
   'medical_pep': 'medicalPEP',
@@ -658,7 +659,7 @@ const QUERY_ALIAS_MAP = {
   'medical_hepatitis_b': 'medicalHepatitisB',
   'medical_hepatitis_c': 'medicalHepatitisC',
   
-  // BACK PAGE - CLINICAL PICTURE (3 fields)
+  // BACK PAGE - MEDICAL HISTORY & CLINICAL PICTURE (3 fields)
   'clinical_picture': 'clinicalPicture',
   'symptoms': 'symptoms',
   'who_staging': 'whoStaging',
@@ -3153,6 +3154,18 @@ function organizeFieldsIntoSections(allFields, correctedData) {
   };
   
   console.log(`✅ Organized into ${structured.summary.totalSections} sections (${structured.summary.frontSections} front, ${structured.summary.backSections} back)`);
+  
+  // Debug: Log the structure being returned
+  console.log('📋 [DEBUG] structuredData structure:', {
+    hasFront: !!structured.front,
+    hasBack: !!structured.back,
+    hasSummary: !!structured.summary,
+    topLevelKeys: Object.keys(structured),
+    frontKeys: Object.keys(structured.front),
+    backKeys: Object.keys(structured.back),
+    frontSections: Object.keys(structured.front.sections),
+    backSections: Object.keys(structured.back.sections)
+  });
   
   return structured;
 }
