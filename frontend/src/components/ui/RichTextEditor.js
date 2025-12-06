@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import dynamic from "next/dynamic";
-import "react-quill-new/dist/quill.snow.css";
+// Importing Quill CSS globally in app layout
 
 // Dynamically import Quill to avoid SSR issues (using react-quill-new for React 19 compatibility)
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });

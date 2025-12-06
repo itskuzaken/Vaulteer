@@ -19,10 +19,21 @@ export async function fetchWithAuth(url, options = {}) {
   };
 
   // Make the first request
-  let response = await fetch(url, {
+  let response;
+  try {
+    response = await fetch(url, {
     ...options,
     headers,
   });
+  } catch (networkErr) {
+    const err = new Error(
+      `Network error while contacting API (${url}): ${networkErr.message || networkErr}`
+    );
+    err.status = 0;
+    err.isNetworkError = true;
+    console.error('[apiUtils] Network error contacting', url, networkErr);
+    throw err;
+  }
 
   // If we get a 401 (unauthorized), try refreshing the token
   if (response.status === 401) {

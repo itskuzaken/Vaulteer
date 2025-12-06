@@ -79,11 +79,7 @@ export default function EventFilters({
         >
           <IoFunnelOutline className="text-lg" />
           <span>Filters</span>
-          {hasActiveFilters && (
-            <span className="ml-1 px-2 py-0.5 bg-white text-red-600 rounded-full text-xs font-semibold">
-              {activeFilterCount}
-            </span>
-          )}
+          {/* Active filter badge removed */}
         </button>
       </div>
 

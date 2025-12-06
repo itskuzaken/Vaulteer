@@ -16,6 +16,7 @@ import {
   IoMailOutline,
   IoCallOutline,
   IoPencilOutline,
+  IoPauseOutline,
   IoDocumentTextOutline,
   IoAlertCircleOutline,
 } from "react-icons/io5";
@@ -23,17 +24,19 @@ import { useNotify } from "@/components/ui/NotificationProvider";
 import EventStatusBadge from "@/components/events/EventStatusBadge";
 import JoinEventButton from "@/components/events/JoinEventButton";
 import {
-  deleteEvent,
   getEventDetails,
   getEventParticipants,
   updateEvent,
   publishEvent,
   postponeEvent,
+  archiveEvent,
+  cancelEvent,
 } from "@/services/eventService";
 import { buildEventDetailPath } from "@/utils/dashboardRouteHelpers";
 import EventForm, { mapEventToFormValues } from "@/components/events/EventForm";
 import PostponeEventModal from "@/components/events/modals/PostponeEventModal";
-import DeleteEventConfirmModal from "@/components/events/modals/DeleteEventConfirmModal";
+import ArchiveEventConfirmModal from "@/components/events/modals/ArchiveEventConfirmModal";
+import CancelEventConfirmModal from "@/components/events/modals/CancelEventConfirmModal";
 
 const formatDate = (value, pattern = "MMMM dd, yyyy") => {
   if (!value) return "–";
@@ -51,7 +54,7 @@ const PARTICIPANT_TABS = [
   { key: "cancelled", label: "Cancelled" },
 ];
 
-export default function EventDetailsPage({ eventUid, currentUser }) {
+export default function EventDetailsPage({ eventUid, currentUser, initialEdit = false, initialCancel = false }) {
   const router = useRouter();
   const notify = useNotify();
   const [eventData, setEventData] = useState(null);
@@ -65,14 +68,18 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
     useState("registered");
   const [isEditing, setIsEditing] = useState(false);
   const [showPostponeModal, setShowPostponeModal] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(Boolean(initialCancel));
   const [isActionLoading, setIsActionLoading] = useState(false);
 
   const role = (currentUser?.role || "volunteer").toLowerCase();
   const canManageEvent = role === "admin" || role === "staff";
-  // Only the event creator can edit/delete their event
-  const isEventCreator = currentUser?.user_id && eventData?.created_by_user_id && currentUser.user_id == eventData.created_by_user_id;
-  const canEditEvent = isEventCreator;
+  // Only the event creator can edit/delete their event — allow admins to edit all events
+  const isEventCreator =
+    currentUser?.user_id &&
+    eventData?.created_by_user_id &&
+    currentUser.user_id == eventData.created_by_user_id;
+  const canEditEvent = isEventCreator || role === "admin";
   const isPostponed = (eventData?.status || "").toLowerCase() === "postponed";
 
   const sharePath = useMemo(() => {
@@ -173,6 +180,19 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
   }, [loadEventDetails]);
 
   useEffect(() => {
+    if (!initialEdit || !eventData) return;
+    if (eventData.status === 'completed') {
+      notify?.push('Cannot open editor for a completed event', 'warning');
+      return;
+    }
+    if ((eventData.status || "").toLowerCase() === 'cancelled') {
+      notify?.push('Cannot open editor for a cancelled event', 'warning');
+      return;
+    }
+    if (canEditEvent) setIsEditing(true);
+  }, [initialEdit, eventData, canEditEvent, notify]);
+
+  useEffect(() => {
     if (!eventData) return;
     loadParticipants();
   }, [eventData, loadParticipants]);
@@ -193,6 +213,8 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
 
   const handleEditToggle = () => {
     if (!canEditEvent) return;
+    if (eventData?.status === 'completed') return;
+    if ((eventData?.status || "").toLowerCase() === 'cancelled') return;
     setIsEditing((prev) => !prev);
   };
 
@@ -255,21 +277,40 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
     [eventUid, loadEventDetails, notify]
   );
 
-  const handleDeleteEvent = useCallback(async () => {
+  const handleArchiveEvent = useCallback(async () => {
     if (!eventUid) return;
     setIsActionLoading(true);
     try {
-      await deleteEvent(eventUid);
-      notify?.push("Event deleted", "success");
-      setShowDeleteModal(false);
+      await archiveEvent(eventUid);
+      notify?.push("Event archived", "success");
+      setShowArchiveModal(false);
+      await loadEventDetails();
+      // once archived, navigate back to list for admin view
       router.back();
     } catch (err) {
-      console.error("Failed to delete event", err);
-      notify?.push(err?.message || "Failed to delete event", "error");
+      console.error("Failed to archive event", err);
+      notify?.push(err?.message || "Failed to archive event", "error");
     } finally {
       setIsActionLoading(false);
     }
-  }, [eventUid, notify, router]);
+  }, [eventUid, notify, router, loadEventDetails]);
+
+    const handleCancelEvent = useCallback(async () => {
+      if (!eventUid) return;
+      setIsActionLoading(true);
+      try {
+        await cancelEvent(eventUid);
+        notify?.push("Event cancelled", "success");
+        setShowCancelModal(false);
+        await loadEventDetails();
+        router.back();
+      } catch (err) {
+        console.error("Failed to cancel event", err);
+        notify?.push(err?.message || "Failed to cancel event", "error");
+      } finally {
+        setIsActionLoading(false);
+      }
+    }, [eventUid, notify, router, loadEventDetails]);
 
   if (isLoading) {
     return (
@@ -326,35 +367,51 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
         <button
           type="button"
           onClick={() => router.back()}
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300 hover:text-gray-900"
+          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-white hover:text-gray-300"
         >
           <IoArrowBackOutline className="text-lg" /> Back to previous view
         </button>
         <div className="flex flex-wrap items-center gap-3">
           {eventData.status && <EventStatusBadge status={eventData.status} />}
-          {canEditEvent && (
+          {canEditEvent && eventData?.status !== 'completed' && !isPostponed && ((eventData?.status || "").toLowerCase() !== "cancelled") && (
             <>
               <button
                 type="button"
                 onClick={handleEditToggle}
                 className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
               >
-                <IoPencilOutline /> {isEditing ? "Cancel" : "Edit event"}
+                <IoPencilOutline /> {isEditing ? "Cancel" : "Edit"}
               </button>
-              <button
-                type="button"
-                onClick={() => setShowPostponeModal(true)}
-                className="inline-flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100 dark:border-amber-500 dark:bg-amber-900/30 dark:text-amber-100"
-              >
-                Pause / postpone
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowDeleteModal(true)}
-                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
-              >
-                Delete event
-              </button>
+              {/* Postpone button — available for published (non-postponed) events */}
+              {eventData?.status && ["published"].includes((eventData.status || "").toLowerCase()) && (
+                <button
+                  type="button"
+                  onClick={() => setShowPostponeModal(true)}
+                  disabled={isActionLoading}
+                  className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <IoPauseOutline /> Postpone
+                </button>
+              )}
+              {/* Postpone button intentionally hidden when event is already postponed */}
+              {eventData?.status && ["published", "postponed"].includes((eventData.status || "").toLowerCase()) && (
+                <button
+                  type="button"
+                  onClick={() => setShowArchiveModal(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+                >
+                  Archive
+                </button>
+              )}
+              {eventData?.status && ["published", "postponed"].includes((eventData.status || "").toLowerCase()) && (
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(true)}
+                  className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                >
+                  Cancel
+                </button>
+              )}
             </>
           )}
         </div>
@@ -380,7 +437,7 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
               )}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-6">
                 <p className="text-sm text-white/80 uppercase tracking-wide">
-                  {formatDate(eventData.start_datetime, "eeee, MMM dd")}
+                  {formatDate(eventData.start_datetime_local || eventData.start_datetime, "eeee, MMM dd")}
                 </p>
                 <h1 className="text-3xl font-semibold text-white">
                   {eventData.title}
@@ -394,12 +451,12 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
                   <IoCalendarOutline /> Schedule
                 </p>
                 <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
-                  {formatDate(eventData.start_datetime)}
+                  {formatDate(eventData.start_datetime_local || eventData.start_datetime)}
                 </p>
                 <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
                   <IoTimeOutline />
                   {`${formatDate(
-                    eventData.start_datetime,
+                    eventData.start_datetime_local || eventData.start_datetime,
                     "h:mm a"
                   )} – ${formatDate(eventData.end_datetime, "h:mm a")}`}
                 </p>
@@ -482,8 +539,8 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
                           eventData.previous_start_datetime,
                           "h:mm a"
                         )}`
-                      : `${formatDate(eventData.start_datetime)} · ${formatDate(
-                          eventData.start_datetime,
+                      : `${formatDate(eventData.start_datetime_local || eventData.start_datetime)} · ${formatDate(
+                          eventData.start_datetime_local || eventData.start_datetime,
                           "h:mm a"
                         )}`}
                   </p>
@@ -758,11 +815,18 @@ export default function EventDetailsPage({ eventUid, currentUser }) {
             isSubmitting={isActionLoading}
           />
 
-          <DeleteEventConfirmModal
-            isOpen={showDeleteModal}
+          <ArchiveEventConfirmModal
+            isOpen={showArchiveModal}
             eventTitle={eventData?.title}
-            onCancel={() => setShowDeleteModal(false)}
-            onConfirm={handleDeleteEvent}
+            onCancel={() => setShowArchiveModal(false)}
+            onConfirm={handleArchiveEvent}
+            isSubmitting={isActionLoading}
+          />
+          <CancelEventConfirmModal
+            isOpen={showCancelModal}
+            eventTitle={eventData?.title}
+            onCancel={() => setShowCancelModal(false)}
+            onConfirm={handleCancelEvent}
             isSubmitting={isActionLoading}
           />
         </>

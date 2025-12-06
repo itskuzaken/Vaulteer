@@ -8,8 +8,32 @@
 const fs = require("fs");
 const path = require("path");
 const { initPool } = require("./db/pool");
+const { CONFIG } = require('./config/env');
+const net = require('net');
 
 async function runMigration(sqlFilePath) {
+  console.log(`[migration] Connecting to DB host=${process.env.DB_HOST || CONFIG.DB_HOST} user=${process.env.DB_USER || CONFIG.DB_USER} db=${process.env.DB_NAME || CONFIG.DB_NAME}`);
+  console.log(`[migration] Connection attempts will use DB_CONN_RETRIES=${process.env.DB_CONN_RETRIES || 3}`);
+
+  // Quick TCP check to see if DB host:port is reachable before pool init
+  const host = process.env.DB_HOST || CONFIG.DB_HOST;
+  const port = process.env.DB_PORT || 3306;
+  const testPortOpen = (host, port, timeout = 3000) => {
+    return new Promise((resolve) => {
+      const socket = net.createConnection({ host, port }, () => {
+        socket.end();
+        resolve(true);
+      });
+      socket.on('error', () => resolve(false));
+      setTimeout(() => resolve(false), timeout);
+    });
+  };
+  const reachable = await testPortOpen(host, port, 3000);
+  if (!reachable) {
+    console.error(`✗ Could not connect to database at ${host}:${port}. Verify host:port and that DB is running and reachable`);
+    process.exit(1);
+  }
+
   const pool = await initPool();
 
   try {
@@ -24,20 +48,53 @@ async function runMigration(sqlFilePath) {
     console.log(`\n📄 Reading migration file: ${sqlFilePath}`);
     const sql = fs.readFileSync(fullPath, "utf8");
 
-    // Split SQL into individual statements (handle multi-statement files)
-    const statements = sql
-      .split(/;\s*\n/)
-      .map((stmt) => stmt.trim())
-      .filter((stmt) => {
-        // Remove empty statements and SQL comments
-        return (
-          stmt.length > 0 &&
-          !stmt.startsWith("--") &&
-          !stmt.startsWith("/*") &&
-          !stmt.match(/^USE\s+/i) && // Skip USE statements (pool already connected)
-          !stmt.match(/^SET\s+@/i) // Skip variable declarations that aren't queries
-        );
-      });
+    // Robustly split SQL into statements while ignoring semicolons inside quotes/backticks
+    function splitStatements(sqlText) {
+      const statements = [];
+      let cur = "";
+      let inSingle = false;
+      let inDouble = false;
+      let inBacktick = false;
+      for (let i = 0; i < sqlText.length; i++) {
+        const ch = sqlText[i];
+        const prev = i > 0 ? sqlText[i - 1] : null;
+        if (ch === "'" && prev !== "\\" && !inDouble && !inBacktick) {
+          inSingle = !inSingle;
+          cur += ch;
+          continue;
+        }
+        if (ch === '"' && prev !== "\\" && !inSingle && !inBacktick) {
+          inDouble = !inDouble;
+          cur += ch;
+          continue;
+        }
+        if (ch === "`" && prev !== "\\" && !inSingle && !inDouble) {
+          inBacktick = !inBacktick;
+          cur += ch;
+          continue;
+        }
+
+        if (ch === ";" && !inSingle && !inDouble && !inBacktick) {
+          const stmt = cur.trim();
+          if (stmt.length > 0) statements.push(stmt);
+          cur = "";
+          continue;
+        }
+
+        cur += ch;
+      }
+      const last = cur.trim();
+      if (last.length > 0) statements.push(last);
+      return statements;
+    }
+
+    const statements = splitStatements(sql).filter((stmt) => {
+      // Remove empty statements and SQL comments as well as USE statements
+      const s = stmt.trim();
+      return (
+        s.length > 0 && !s.startsWith("--") && !s.startsWith("/*") && !s.match(/^USE\s+/i)
+      );
+    });
 
     console.log(`\n🔄 Executing ${statements.length} SQL statements...\n`);
 
@@ -65,12 +122,18 @@ async function runMigration(sqlFilePath) {
         // Handle different types of results
         if (Array.isArray(result) && result.length > 0) {
           // SELECT query - show results
-          if (result.length <= 10) {
-            console.table(result);
-          } else {
+          try {
+            if (result.length <= 10) {
+              console.table(result);
+            } else {
+              console.log(`✅ Returned ${result.length} rows`);
+              console.table(result.slice(0, 5));
+              console.log(`... and ${result.length - 5} more rows`);
+            }
+          } catch (e) {
+            // Fallback to JSON if console.table fails for unexpected data shapes
             console.log(`✅ Returned ${result.length} rows`);
-            console.table(result.slice(0, 5));
-            console.log(`... and ${result.length - 5} more rows`);
+            console.log(JSON.stringify(result.slice(0, 5), null, 2));
           }
         } else if (result.affectedRows !== undefined) {
           // INSERT/UPDATE/DELETE query

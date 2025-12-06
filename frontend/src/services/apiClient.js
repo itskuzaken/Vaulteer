@@ -116,7 +116,23 @@ export async function fetchWithAuth(endpoint, options = {}, attempt = 0) {
       };
 
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      else throw new Error("Authentication required. Please log in again.");
+          let response;
+          try {
+            response = await fetch(`${API_BASE}${endpoint}`, {
+              ...options,
+              headers,
+            });
+          } catch (networkErr) {
+            // Typical fetch network errors (CORS, DNS, offline) show as TypeError "Failed to fetch"
+            // Enrich and normalize the message to make it actionable in UI logs
+            const err = new Error(
+              `Network error while contacting API (${API_BASE}${endpoint}): ${networkErr.message || networkErr}`
+            );
+            err.status = 0;
+            err.isNetworkError = true;
+            console.error(`[apiClient] Network error contacting ${API_BASE}${endpoint}:`, networkErr);
+            throw err;
+          }
 
       // Retry loop for 429 responses (exponential backoff) + 401 refresh flow
       let retryCount429 = 0;

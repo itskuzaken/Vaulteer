@@ -70,6 +70,12 @@ export async function archiveEvent(eventUid) {
   });
 }
 
+export async function cancelEvent(eventUid) {
+  return fetchWithAuth(`/events/${eventUid}/cancel`, {
+    method: "POST",
+  });
+}
+
 export async function getEventStats(eventUid) {
   return fetchWithAuth(`/events/${eventUid}/stats`);
 }

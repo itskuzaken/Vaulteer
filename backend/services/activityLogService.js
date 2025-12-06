@@ -454,6 +454,29 @@ const logHelpers = {
       },
     }),
 
+    logEventCancelled: ({
+      eventId,
+      eventUid,
+      eventTitle,
+      performedBy,
+      reason = "manual",
+      metadata = {},
+    }) =>
+      createLog({
+        type: LOG_TYPES.EVENT,
+        action: "CANCEL",
+        performedBy,
+        targetResource: { type: "event", id: eventId, name: eventTitle },
+        description: `Cancelled event: ${eventTitle} (${reason})`,
+        severity: SEVERITY_LEVELS.WARNING,
+        metadata: {
+          ...metadata,
+          eventUid,
+          reason,
+          timestamp: new Date().toISOString(),
+        },
+      }),
+
   logEventPostponed: ({
     eventId,
     eventUid,

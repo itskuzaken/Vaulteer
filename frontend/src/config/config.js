@@ -19,10 +19,13 @@ const normalizeBase = (value) => {
 };
 
 // Support multiple environment var names for historical reasons (BASE vs URL)
-const resolvedEnvBase =
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_API_BASE ||
-  "https://vaulteer.kuzaken.tech/api";
+// Behavior: use NEXT_PUBLIC_API_URL / NEXT_PUBLIC_API_BASE if present; otherwise if in
+// production fallback to the canonical production API host; in development, default to
+// the local dev server derived from window.location.
+let resolvedEnvBase = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_BASE || null;
+if (!resolvedEnvBase && process.env.NODE_ENV === 'production') {
+  resolvedEnvBase = "https://vaulteer.kuzaken.tech/api";
+}
 
 const resolvedDefaultBase = `${getDefaultProtocol()}//${getDefaultHost()}:${DEFAULT_API_PORT}/api`;
 

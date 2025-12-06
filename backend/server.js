@@ -11,6 +11,8 @@ const {
   startDeadlineScheduler,
 } = require("./jobs/applicationDeadlineScheduler");
 const { startPostScheduler } = require("./jobs/postScheduler");
+const { startEventCompletionScheduler, stopEventCompletionScheduler } = require("./jobs/eventCompletionScheduler");
+const { startEventReminderScheduler, stopEventReminderScheduler } = require("./jobs/eventReminderScheduler");
 const { textractQueue } = require("./jobs/textractQueue");
 const { apiLimiter } = require("./middleware/rateLimiter");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
@@ -211,6 +213,8 @@ async function start() {
     scheduleInactiveUserJob();
     startDeadlineScheduler();
     startPostScheduler();
+    startEventCompletionScheduler();
+    startEventReminderScheduler();
     console.log('✓ Textract OCR queue initialized');
 
     app.listen(CONFIG.PORT, "0.0.0.0", () => {
@@ -230,5 +234,27 @@ async function start() {
 if (require.main === module) {
   start();
 }
+
+// Graceful shutdown: stop scheduled tasks on process termination
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, shutting down...');
+    try {
+      stopEventCompletionScheduler();
+      stopEventReminderScheduler();
+  } catch (e) {
+    console.warn('Error during shutdown cleanup:', e);
+  }
+  process.exit(0);
+});
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down...');
+    try {
+      stopEventCompletionScheduler();
+      stopEventReminderScheduler();
+  } catch (e) {
+    console.warn('Error during shutdown cleanup:', e);
+  }
+  process.exit(0);
+});
 
 module.exports = { app, start };

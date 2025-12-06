@@ -13,6 +13,11 @@ export default function ProfileHeader({
   canEdit = true,
 }) {
   const userData = comprehensiveData?.user;
+  const isApplicantRole = (userData?.role || '').toLowerCase() === 'applicant';
+  const memberSinceLabel = isApplicantRole ? 'Application Date' : 'Member Since';
+  const memberSinceDate = isApplicantRole
+    ? userData?.application_date || userData?.date_added
+    : userData?.date_added;
   const normalizedStatus = (userData?.status || "active").toLowerCase();
 
   const renderStatusBadge = () => (
@@ -157,10 +162,10 @@ export default function ProfileHeader({
           </div>
           <div className="text-center md:text-left">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Member Since
+              {memberSinceLabel}
             </p>
             <p className="text-gray-900 dark:text-white font-medium">
-              {formatDate(userData?.date_added)}
+              {formatDate(memberSinceDate)}
             </p>
           </div>
           <div className="text-center md:text-left">

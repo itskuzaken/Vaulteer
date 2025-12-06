@@ -364,6 +364,94 @@ Manage your notification preferences: ${process.env.FRONTEND_URL || "http://loca
   }
 
   /**
+   * Generate event cancelled email HTML
+   * @param {Object} event
+   * @param {string} recipientName
+   * @returns {string}
+   */
+  generateEventCancelledEmailHTML(event, recipientName) {
+    const eventDate = new Date(event.start_datetime).toLocaleString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Event Cancelled: ${event.title}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f4f4f4; padding: 20px 0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background-color: #dc2626; padding: 30px; text-align: center; border-radius: 8px 8px 0 0;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 28px;">❌ Event Cancelled</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="color: #333333; font-size: 16px; line-height: 1.5; margin: 0 0 20px;">Hi ${recipientName || "there"},</p>
+              <p style="color: #333333; font-size: 16px; line-height: 1.5; margin: 0 0 30px;">We regret to inform you that the following event has been cancelled:</p>
+              <div style="background-color: #f9fafb; border-left: 4px solid #dc2626; padding: 20px; margin-bottom: 30px; border-radius: 4px;">
+                <h2 style="color: #1f2937; margin: 0 0 15px; font-size: 22px;">${event.title}</h2>
+                <p style="margin: 5px 0; color: #6b7280; font-size: 14px;">
+                  <strong>📍 Date:</strong> ${eventDate}
+                </p>
+                ${event.location ? `<p style="margin: 5px 0; color: #6b7280; font-size: 14px;"><strong>🏢 Location:</strong> ${event.location}</p>` : ''}
+              </div>
+              <p style="color: #333333; font-size: 15px; line-height: 1.6;">If you were registered, the refund/credit process (if any) will be handled according to the organizer's policy. For clarification contact the event organizer.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #f9fafb; padding: 20px 30px; border-radius: 0 0 8px 8px; border-top: 1px solid #e5e7eb;">
+              <p style="color: #6b7280; font-size: 13px; line-height: 1.5; margin: 0 0 10px; text-align: center;">You received this email because you have email notifications enabled in your Vaulteer settings.</p>
+              <p style="color: #9ca3af; font-size: 12px; line-height: 1.5; margin: 0; text-align: center;"><a href="${process.env.FRONTEND_URL || 'http://localhost:3000'}/settings" style="color: #dc2626; text-decoration: none;">Manage your notification preferences</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+  }
+
+  generateEventCancelledEmailText(event, recipientName) {
+    const eventDate = new Date(event.start_datetime).toLocaleString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    return `
+Event Cancelled: ${event.title}
+
+Hi ${recipientName || 'there'},
+
+We regret to inform you that the following event has been cancelled:
+
+${event.title}
+Date: ${eventDate}
+${event.location ? `Location: ${event.location}\n` : ''}
+
+If you were registered, the refund/credit process (if any) will be handled according to the organizer's policy.
+
+View settings: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/settings
+`;
+  }
+
+  /**
    * Generate announcement published email HTML
    * @param {Object} post - Post object
    * @param {string} recipientName - Recipient's name
@@ -484,6 +572,28 @@ Manage your notification preferences: ${process.env.FRONTEND_URL || "http://loca
 `;
   }
 }
+
+// Email template helpers for event promotions & reminders
+EmailService.prototype.generateEventPromotedEmailHTML = function (event, recipientName) {
+  return `Hi ${recipientName || 'Volunteer'},\n\n` +
+    `<p>You're now registered for <strong>${event.title}</strong>!</p>` +
+    `<p>Start: ${event.start_datetime}</p>` +
+    `<p>Thank you for participating.</p>`;
+};
+
+EmailService.prototype.generateEventPromotedEmailText = function (event, recipientName) {
+  return `Hi ${recipientName || 'Volunteer'},\n\nYou're now registered for ${event.title}!\nStart: ${event.start_datetime}\n\nThank you for participating.`;
+};
+
+EmailService.prototype.generateEventReminderEmailHTML = function (event, recipientName) {
+  return `Hi ${recipientName || 'Volunteer'},\n\n` +
+    `<p>This is a reminder that <strong>${event.title}</strong> will start at ${event.start_datetime}.</p>` +
+    `<p>We hope to see you there!</p>`;
+};
+
+EmailService.prototype.generateEventReminderEmailText = function (event, recipientName) {
+  return `Hi ${recipientName || 'Volunteer'},\n\nThis is a reminder that ${event.title} will start at ${event.start_datetime}.\n\nWe hope to see you there!`;
+};
 
 // Export singleton instance
 const emailService = new EmailService();

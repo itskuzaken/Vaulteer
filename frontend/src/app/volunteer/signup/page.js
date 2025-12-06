@@ -6,6 +6,21 @@ import { auth, googleProvider } from "../../../services/firebase";
 import { API_BASE } from "../../../config/config";
 import { submitVolunteerApplication } from "../../../services/applicantsService";
 import { getApplicationSettings } from "@/services";
+import {
+  isValidName,
+  isValidMiddleInitial,
+  isValidNickname,
+  isValidMobile,
+  isValidCity,
+  isValidSocialUrl,
+  isValidGraduation,
+  isNotFutureDate,
+  isValidSmallText,
+  isAlpha,
+  countSentences,
+  isSentenceCountInRange,
+  normalizeMobile,
+} from "../../../utils/formValidation";
 
 export default function VolunteerSignupPage() {
   const [form, setForm] = useState({
@@ -157,6 +172,112 @@ export default function VolunteerSignupPage() {
     });
   };
 
+  // Today's date for date inputs (yyyy-mm-dd)
+  const today = typeof window !== "undefined" ? new Date().toISOString().split("T")[0] : "";
+
+  // Validate a specific field and set/remove error for that field
+  const validateField = (fieldName, value) => {
+    const newErrors = { ...errors };
+    const val = value !== undefined ? value : form[fieldName];
+
+    switch (fieldName) {
+            case "genderOther":
+              if (form.gender === "Other" && (!val || !val.trim())) {
+                newErrors[fieldName] = "Please specify your gender.";
+              } else if (form.gender === "Other" && val && !isAlpha(val)) {
+                newErrors[fieldName] = "Please use only letters for gender specification.";
+              } else {
+                delete newErrors[fieldName];
+              }
+              break;
+      case "lastName":
+      case "firstName":
+        if (!val || !isValidName(val)) {
+          newErrors[fieldName] = `${fieldName === "lastName" ? "Last" : "First"} name is required and must contain only letters, spaces or basic punctuation.`;
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      case "middleInitial":
+        if (val && !isValidMiddleInitial(val)) {
+          newErrors[fieldName] = "Middle initial must be a single letter.";
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      case "nickname":
+        if (!val || !isValidNickname(val)) {
+          newErrors[fieldName] = "Nickname is required and may contain letters, numbers, spaces and -_.";
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      case "birthdate":
+        if (!val) {
+          newErrors[fieldName] = "Birthdate is required.";
+        } else if (!isNotFutureDate(val)) {
+          newErrors[fieldName] = "Birthdate cannot be a future date.";
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      case "mobileNumber":
+        if (!val || !isValidMobile(val)) {
+          newErrors[fieldName] = "Mobile number is required and must be 11 digits starting with 09.";
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      case "city":
+        if (!val || !isValidCity(val)) {
+          newErrors[fieldName] = "Current city is required and must be a valid place name.";
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      case "facebook":
+      case "twitter":
+      case "instagram":
+      case "tiktok":
+        if (val && !isValidSocialUrl(val, fieldName)) {
+          newErrors[fieldName] = `Please enter a valid ${fieldName} URL (https://...).`;
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      case "graduation":
+        if (!val || !isValidGraduation(val)) {
+          newErrors[fieldName] = "Enter a valid graduation year (e.g. 2025).";
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      case "position":
+      case "industry":
+        if (!val || !isValidSmallText(val, 100)) {
+          newErrors[fieldName] = "This field is required and must be concise.";
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      case "volunteerReason":
+        if (!val || !isValidSmallText(val, 600)) {
+          newErrors[fieldName] = "Please provide a short reason (max 600 characters).";
+        } else if (!isSentenceCountInRange(val, 5, 10)) {
+          const count = countSentences(val);
+          newErrors[fieldName] = `Please write between 5 and 10 sentences (currently ${count}).`;
+        } else {
+          delete newErrors[fieldName];
+        }
+        break;
+      default:
+        break;
+    }
+
+    setErrors(newErrors);
+    return newErrors[fieldName] === undefined;
+  };
+
   // Clear form and localStorage for all sections
   const handleClearForm = () => {
     setForm({
@@ -218,14 +339,19 @@ export default function VolunteerSignupPage() {
   const handleChange = (e) => {
     const { name, value, type } = e.target;
     
-    // Handle mobile number with 11-digit limit and numbers only
+    // Handle mobile number with normalization
     if (name === "mobileNumber") {
-      const numericValue = value.replace(/\D/g, ""); // Remove non-digits
-      if (numericValue.length <= 11) {
-        setForm((prev) => ({
-          ...prev,
-          [name]: numericValue,
-        }));
+      const normalized = normalizeMobile(value);
+      setForm((prev) => ({ ...prev, [name]: normalized }));
+      setErrors((prev) => ({ ...prev, [name]: undefined }));
+      return;
+    }
+
+    // Handle graduation field to accept only digits and max length 4
+    if (name === "graduation") {
+      const numericValue = value.replace(/\D/g, "");
+      if (numericValue.length <= 4) {
+        setForm((prev) => ({ ...prev, [name]: numericValue }));
         setErrors((prev) => ({ ...prev, [name]: undefined }));
       }
       return;
@@ -236,6 +362,43 @@ export default function VolunteerSignupPage() {
       [name]: type === "radio" ? value : value,
     }));
     setErrors((prev) => ({ ...prev, [name]: undefined }));
+
+    // run inline validation for some fields as the user types
+    const inlineFields = [
+      "lastName",
+      "firstName",
+      "middleInitial",
+      "nickname",
+      "birthdate",
+      "genderOther",
+      "mobileNumber",
+      "city",
+      "facebook",
+      "twitter",
+      "instagram",
+      "tiktok",
+      "graduation",
+      "position",
+      "industry",
+      "volunteerReason",
+    ];
+    if (inlineFields.includes(name)) {
+      // if we updated the mobile number earlier in this handler, pass the sanitized value
+      const v = name === "mobileNumber" ? (value ? value.replace(/\D/g, "") : value) : value;
+      validateField(name, v);
+    }
+
+    // Special handling for gender selection: if 'Other' is selected, validate the genderOther field
+    if (name === "gender") {
+      if (value === "Other") {
+        // If there's already a genderOther value, validate it; otherwise set error
+        const currentOther = form.genderOther || "";
+        validateField("genderOther", currentOther);
+      } else {
+        // Clear genderOther error if user selects a non-Other gender
+        setErrors((prev) => ({ ...prev, genderOther: undefined }));
+      }
+    }
   };
 
   const handleConsentChange = (e) => {
@@ -255,28 +418,49 @@ export default function VolunteerSignupPage() {
 
   const validatePersonal = () => {
     const newErrors = {};
-    if (!form.lastName.trim()) newErrors.lastName = "Last Name is required.";
-    if (!form.firstName.trim()) newErrors.firstName = "First Name is required.";
-    if (!form.nickname.trim())
-      newErrors.nickname = "Nickname/Alias is required.";
+    if (!form.lastName.trim() || !isValidName(form.lastName)) newErrors.lastName = "Last Name is required and must be valid.";
+    if (!form.firstName.trim() || !isValidName(form.firstName)) newErrors.firstName = "First Name is required and must be valid.";
+    if (!form.nickname.trim() || !isValidNickname(form.nickname))
+      newErrors.nickname = "Nickname/Alias is required and must be valid.";
     if (!form.birthdate) newErrors.birthdate = "Birthdate is required.";
     if (!form.gender) newErrors.gender = "Gender is required.";
-    if (form.gender === "Other" && !form.genderOther.trim())
-      newErrors.genderOther = "Please specify your gender.";
+    if (form.gender === "Other") {
+      if (!form.genderOther.trim())
+        newErrors.genderOther = "Please specify your gender.";
+      else if (!isAlpha(form.genderOther))
+        newErrors.genderOther = "Please use letters only for gender specification.";
+    }
+    // Validate birthdate not in future
+    if (form.birthdate && !isNotFutureDate(form.birthdate)) {
+      newErrors.birthdate = "Birthdate cannot be a future date.";
+    }
+    // Validate middle initial if present
+    if (form.middleInitial && !isValidMiddleInitial(form.middleInitial)) {
+      newErrors.middleInitial = "Middle initial must be a single letter.";
+    }
     return newErrors;
   };
 
   const validateContact = () => {
     const newErrors = {};
-    if (!form.mobileNumber.trim()) {
-      newErrors.mobileNumber = "Mobile Number is required.";
-    } else if (form.mobileNumber.length !== 11) {
-      newErrors.mobileNumber = "Mobile Number must be exactly 11 digits.";
-    } else if (!form.mobileNumber.startsWith("09")) {
-      newErrors.mobileNumber = "Mobile Number must start with 09.";
+    if (!form.mobileNumber.trim() || !isValidMobile(form.mobileNumber)) {
+      newErrors.mobileNumber = "Mobile Number is required and must be 11 digits starting with 09.";
     }
-    if (!form.city.trim())
-      newErrors.city = "Current City/Municipality is required.";
+    if (!form.city.trim() || !isValidCity(form.city))
+      newErrors.city = "Current City/Municipality is required and must be a valid place.";
+    // validate social URLs if provided
+    if (form.facebook && !isValidSocialUrl(form.facebook, "facebook")) {
+      newErrors.facebook = "Please provide a valid Facebook URL.";
+    }
+    if (form.twitter && !isValidSocialUrl(form.twitter, "twitter")) {
+      newErrors.twitter = "Please provide a valid Twitter URL.";
+    }
+    if (form.instagram && !isValidSocialUrl(form.instagram, "instagram")) {
+      newErrors.instagram = "Please provide a valid Instagram URL.";
+    }
+    if (form.tiktok && !isValidSocialUrl(form.tiktok, "tiktok")) {
+      newErrors.tiktok = "Please provide a valid Tiktok URL.";
+    }
     return newErrors;
   };
 
@@ -290,8 +474,8 @@ export default function VolunteerSignupPage() {
 
   const validateWorkProfile = () => {
     const newErrors = {};
-    if (!form.position.trim()) newErrors.position = "Position is required.";
-    if (!form.industry.trim()) newErrors.industry = "Industry is required.";
+    if (!form.position.trim() || !isValidSmallText(form.position, 100)) newErrors.position = "Position is required and must be concise.";
+    if (!form.industry.trim() || !isValidSmallText(form.industry, 100)) newErrors.industry = "Industry is required and must be concise.";
     if (!form.workingDays.length)
       newErrors.workingDays = "Select at least one working day.";
     if (!form.workShift)
@@ -306,8 +490,8 @@ export default function VolunteerSignupPage() {
     if (!form.school.trim())
       newErrors.school = "School and location is required.";
     if (!form.course.trim()) newErrors.course = "Course/Major is required.";
-    if (!form.graduation.trim())
-      newErrors.graduation = "Expected graduation is required.";
+    if (!form.graduation.trim() || !isValidGraduation(form.graduation))
+      newErrors.graduation = "Expected graduation is required and must be a 4-digit year (e.g. 2025).";
     if (!form.schoolDays.length)
       newErrors.schoolDays = "Select at least one school day.";
     if (!form.studentOtherSkills.trim())
@@ -328,8 +512,12 @@ export default function VolunteerSignupPage() {
         "Please select how often you can volunteer.";
     if (!form.volunteerTrainings.length)
       newErrors.volunteerTrainings = "Please select at least one training.";
-    if (!form.volunteerReason.trim())
-      newErrors.volunteerReason = "Please write your reason for volunteering.";
+    if (!form.volunteerReason.trim() || !isValidSmallText(form.volunteerReason, 600))
+      newErrors.volunteerReason = "Please write your reason for volunteering (max 600 characters).";
+    else if (!isSentenceCountInRange(form.volunteerReason, 5, 10)) {
+      const c = countSentences(form.volunteerReason);
+      newErrors.volunteerReason = `Please write between 5 and 10 sentences (currently ${c}).`;
+    }
     return newErrors;
   };
 
@@ -444,6 +632,29 @@ export default function VolunteerSignupPage() {
       const currentUser = auth.currentUser;
       if (!currentUser) {
         throw new Error("You must be signed in to submit an application");
+      }
+
+      // Run final validation for all steps to ensure no invalid input
+      const personalErrors = validatePersonal();
+      const contactErrors = validateContact();
+      const statusErrors = validateStatus();
+      const workErrors = form.currentStatus === "Working Professional" ? validateWorkProfile() : {};
+      const studentErrors = form.currentStatus === "Student" ? validateStudentProfile() : {};
+      const volunteerErrors = validateVolunteerProfile();
+
+      const combinedErrors = {
+        ...personalErrors,
+        ...contactErrors,
+        ...statusErrors,
+        ...workErrors,
+        ...studentErrors,
+        ...volunteerErrors,
+      };
+
+      if (Object.keys(combinedErrors).length > 0) {
+        setErrors(combinedErrors);
+        setIsSubmitting(false);
+        return;
       }
 
       // Use the applicantsService instead of direct fetch
@@ -798,6 +1009,7 @@ export default function VolunteerSignupPage() {
                   name="lastName"
                   value={form.lastName}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.lastName ? "border-red-500" : "border-gray-300"
                   }`}
@@ -815,6 +1027,7 @@ export default function VolunteerSignupPage() {
                   name="firstName"
                   value={form.firstName}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.firstName ? "border-red-500" : "border-gray-300"
                   }`}
@@ -832,6 +1045,7 @@ export default function VolunteerSignupPage() {
                   name="middleInitial"
                   value={form.middleInitial}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900"
                   maxLength={1}
                 />
@@ -845,6 +1059,7 @@ export default function VolunteerSignupPage() {
                   name="nickname"
                   value={form.nickname}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.nickname ? "border-red-500" : "border-gray-300"
                   }`}
@@ -862,6 +1077,8 @@ export default function VolunteerSignupPage() {
                   name="birthdate"
                   value={form.birthdate}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
+                  max={today}
                   className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.birthdate ? "border-red-500" : "border-gray-300"
                   }`}
@@ -919,27 +1136,35 @@ export default function VolunteerSignupPage() {
                     />
                     Other
                     {form.gender === "Other" && (
+                      <>
                       <input
                         type="text"
                         name="genderOther"
                         value={form.genderOther}
                         onChange={handleChange}
-                        placeholder="Please specify"
+                        onBlur={(e) => validateField(e.target.name, e.target.value)}
+                        placeholder="Please specify (letters only)"
+                        pattern="[A-Za-z ]+"
+                        title="Use letters and spaces only"
                         className={`ml-2 border rounded px-2 py-1 text-gray-900 text-sm sm:text-base touch-manipulation ${
                           errors.genderOther
                             ? "border-red-500"
                             : "border-gray-300"
                         }`}
                       />
+                      {errors.genderOther && (
+                        <p className="text-red-600 text-xs sm:text-sm mt-1">
+                          {errors.genderOther}
+                        </p>
+                      )}
+                      </>
                     )}
                   </label>
                 </div>
                 {errors.gender && (
                   <p className="text-red-600 text-xs sm:text-sm">{errors.gender}</p>
                 )}
-                {errors.genderOther && (
-                  <p className="text-red-600 text-xs sm:text-sm">{errors.genderOther}</p>
-                )}
+                {/* genderOther error is shown inline next to the input when visible */}
               </div>
             </div>
             <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
@@ -988,12 +1213,14 @@ export default function VolunteerSignupPage() {
                   name="mobileNumber"
                   value={form.mobileNumber}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.mobileNumber ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="09XXXXXXXXX"
                   maxLength="11"
                   inputMode="numeric"
+                  pattern="^09\d{9}$"
                   required
                 />
                 
@@ -1011,6 +1238,7 @@ export default function VolunteerSignupPage() {
                   name="city"
                   value={form.city}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.city ? "border-red-500" : "border-gray-300"
                   }`}
@@ -1030,10 +1258,14 @@ export default function VolunteerSignupPage() {
                   name="facebook"
                   value={form.facebook}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   placeholder="https://facebook.com/yourprofile"
                   pattern="https?://.+"
                 />
+                {errors.facebook && (
+                  <p className="text-red-600 text-xs sm:text-sm mt-1">{errors.facebook}</p>
+                )}
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
@@ -1044,10 +1276,14 @@ export default function VolunteerSignupPage() {
                   name="twitter"
                   value={form.twitter}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   placeholder="https://twitter.com/yourprofile"
                   pattern="https?://.+"
                 />
+                {errors.twitter && (
+                  <p className="text-red-600 text-xs sm:text-sm mt-1">{errors.twitter}</p>
+                )}
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
@@ -1058,10 +1294,14 @@ export default function VolunteerSignupPage() {
                   name="instagram"
                   value={form.instagram}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   placeholder="https://instagram.com/yourprofile"
                   pattern="https?://.+"
                 />
+                {errors.instagram && (
+                  <p className="text-red-600 text-xs sm:text-sm mt-1">{errors.instagram}</p>
+                )}
               </div>
               <div>
                 <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
@@ -1072,10 +1312,14 @@ export default function VolunteerSignupPage() {
                   name="tiktok"
                   value={form.tiktok}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   placeholder="https://tiktok.com/@yourprofile"
                   pattern="https?://.+"
                 />
+                {errors.tiktok && (
+                  <p className="text-red-600 text-xs sm:text-sm mt-1">{errors.tiktok}</p>
+                )}
               </div>
             </div>
             <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
@@ -1207,6 +1451,7 @@ export default function VolunteerSignupPage() {
                   name="position"
                   value={form.position}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.position ? "border-red-500" : "border-gray-300"
                   }`}
@@ -1224,6 +1469,7 @@ export default function VolunteerSignupPage() {
                   name="industry"
                   value={form.industry}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.industry ? "border-red-500" : "border-gray-300"
                   }`}
@@ -1341,6 +1587,7 @@ export default function VolunteerSignupPage() {
                   name="workOtherSkills"
                   value={form.workOtherSkills}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation${
                     errors.workOtherSkills ? " border-red-500" : ""
                   }`}
@@ -1433,12 +1680,17 @@ export default function VolunteerSignupPage() {
                 <input
                   type="text"
                   name="graduation"
+                  inputMode="numeric"
+                  pattern="\d{4}"
+                  maxLength={4}
                   value={form.graduation}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation ${
                     errors.graduation ? "border-red-500" : "border-gray-300"
                   }`}
                   placeholder="e.g. 2025"
+                  title="Enter a 4-digit year, e.g. 2025"
                 />
                 {errors.graduation && (
                   <p className="text-red-600 text-xs sm:text-sm">{errors.graduation}</p>
@@ -1487,6 +1739,7 @@ export default function VolunteerSignupPage() {
                   name="studentOtherSkills"
                   value={form.studentOtherSkills}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className={`w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation${
                     errors.studentOtherSkills ? " border-red-500" : ""
                   }`}
@@ -1586,6 +1839,7 @@ export default function VolunteerSignupPage() {
                         name="volunteerOtherRole"
                         value={form.volunteerOtherRole}
                         onChange={handleChange}
+                        onBlur={(e) => validateField(e.target.name, e.target.value)}
                         className="ml-2 border rounded px-2 py-1 text-gray-900 text-sm sm:text-base touch-manipulation"
                         placeholder="Please specify"
                       />
@@ -1742,6 +1996,7 @@ export default function VolunteerSignupPage() {
                   name="volunteerReason"
                   value={form.volunteerReason}
                   onChange={handleChange}
+                  onBlur={(e) => validateField(e.target.name, e.target.value)}
                   className="w-full border border-gray-300 rounded px-3 py-2 text-gray-900 text-sm sm:text-base touch-manipulation"
                   rows={4}
                   placeholder="Your answer..."

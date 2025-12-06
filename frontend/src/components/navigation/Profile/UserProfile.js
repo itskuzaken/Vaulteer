@@ -305,12 +305,17 @@ export default function UserProfile() {
     reloadProfileData(targetUserUid, { showLoader: true });
   }, [user, targetUserUid, reloadProfileData]);
   const currentUserRole = dashboardUser?.role || null;
+  const targetUserRole = (comprehensiveData?.user?.role || "").toLowerCase();
   const targetUserStatus = (
     comprehensiveData?.user?.status || ""
   ).toLowerCase();
 
   const canEditProfile = useMemo(() => {
     if (!profileUserId) {
+      return false;
+    }
+    // If the profile belongs to an 'applicant', disallow editing for everyone
+    if (targetUserRole === "applicant") {
       return false;
     }
     if (currentUserRole === "admin") {
@@ -323,7 +328,7 @@ export default function UserProfile() {
       return false;
     }
     return String(currentUserId) === String(profileUserId);
-  }, [currentUserId, currentUserRole, profileUserId, targetUserStatus]);
+  }, [currentUserId, currentUserRole, profileUserId, targetUserStatus, targetUserRole]);
 
   useEffect(() => {
     if (!canEditProfile && isEditing) {

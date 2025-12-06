@@ -84,7 +84,7 @@ export default function MyEvents() {
         getDescription: (event) =>
           event.cancelled_at
             ? `Cancelled on ${formatDate(event.cancelled_at)}`
-            : `Originally scheduled for ${formatDate(event.start_datetime)}`,
+            : `Originally scheduled for ${formatDate(event.start_datetime_local || event.start_datetime)}`,
       },
     }),
     []

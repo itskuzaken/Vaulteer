@@ -36,13 +36,26 @@ const ACTION_LABELS = {
   },
 };
 
+// Convert input to UTC ISO string. If input has timezone, respect it. If input is naive
+// string (YYYY-MM-DDTHH:mm) we interpret it as +08 (Asia/Singapore).
 const toISOStringOrNull = (value) => {
   if (!value) return null;
   try {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) {
-      return null;
+    const str = String(value).trim();
+    const tzRegex = /(?:Z|[+-]\d{2}:?\d{2})$/;
+    if (tzRegex.test(str)) {
+      const date = new Date(str);
+      if (Number.isNaN(date.getTime())) return null;
+      return date.toISOString();
     }
+    // naive input: YYYY-MM-DDTHH:mm or YYYY-MM-DD HH:mm
+    const m = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/);
+    if (!m) return null;
+    const [ , y, mo, d, hh, mm, ss = '00' ] = m;
+    const naiveUtcMs = Date.UTC(parseInt(y), parseInt(mo)-1, parseInt(d), parseInt(hh), parseInt(mm), parseInt(ss));
+    const offsetMs = 8 * 60 * 60 * 1000; // +08:00
+    const utcMs = naiveUtcMs - offsetMs;
+    const date = new Date(utcMs);
     return date.toISOString();
   } catch (error) {
     return null;
@@ -81,15 +94,16 @@ export const mapEventToFormValues = (eventData = {}) => {
     if (!value) return "";
     try {
       const date = new Date(value);
-      if (Number.isNaN(date.getTime())) {
-        return "";
-      }
+      if (Number.isNaN(date.getTime())) return "";
+      // Convert UTC value to +08 local for input
+      const offsetMs = 8 * 60 * 60 * 1000;
+      const plus8 = new Date(date.getTime() + offsetMs);
       const pad = (num) => String(num).padStart(2, "0");
-      const year = date.getFullYear();
-      const month = pad(date.getMonth() + 1);
-      const day = pad(date.getDate());
-      const hours = pad(date.getHours());
-      const minutes = pad(date.getMinutes());
+      const year = plus8.getUTCFullYear();
+      const month = pad(plus8.getUTCMonth() + 1);
+      const day = pad(plus8.getUTCDate());
+      const hours = pad(plus8.getUTCHours());
+      const minutes = pad(plus8.getUTCMinutes());
       return `${year}-${month}-${day}T${hours}:${minutes}`;
     } catch (error) {
       return "";
@@ -189,8 +203,18 @@ export default function EventForm({
     }
 
     if (formData.start_datetime && formData.end_datetime) {
-      const start = new Date(formData.start_datetime);
-      const end = new Date(formData.end_datetime);
+      // Interpret inputs as +08 naive local times when comparing
+      const parseToUTCFromPlus8 = (str) => {
+        const m = String(str).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/);
+        if (!m) return new Date(str); // fallback
+        const [ , y, mo, d, hh, mm, ss='00' ] = m;
+        const naiveUtcMs = Date.UTC(parseInt(y), parseInt(mo)-1, parseInt(d), parseInt(hh), parseInt(mm), parseInt(ss));
+        const offsetMs = 8 * 60 * 60 * 1000;
+        const utcMs = naiveUtcMs - offsetMs;
+        return new Date(utcMs);
+      };
+      const start = parseToUTCFromPlus8(formData.start_datetime);
+      const end = parseToUTCFromPlus8(formData.end_datetime);
       if (!Number.isNaN(start.getTime()) && !Number.isNaN(end.getTime())) {
         if (end <= start) {
           newErrors.end_datetime = "End date must be after start date";
@@ -199,8 +223,17 @@ export default function EventForm({
     }
 
     if (formData.registration_deadline && formData.start_datetime) {
-      const deadline = new Date(formData.registration_deadline);
-      const start = new Date(formData.start_datetime);
+      const parseToUTCFromPlus8 = (str) => {
+        const m = String(str).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/);
+        if (!m) return new Date(str);
+        const [ , y, mo, d, hh, mm, ss='00' ] = m;
+        const naiveUtcMs = Date.UTC(parseInt(y), parseInt(mo)-1, parseInt(d), parseInt(hh), parseInt(mm), parseInt(ss));
+        const offsetMs = 8 * 60 * 60 * 1000;
+        const utcMs = naiveUtcMs - offsetMs;
+        return new Date(utcMs);
+      };
+      const deadline = parseToUTCFromPlus8(formData.registration_deadline);
+      const start = parseToUTCFromPlus8(formData.start_datetime);
       if (
         !Number.isNaN(deadline.getTime()) &&
         !Number.isNaN(start.getTime()) &&
@@ -215,6 +248,26 @@ export default function EventForm({
     if (Object.keys(newErrors).length > 0) {
       onValidationError?.();
       return false;
+    }
+    // Additional check: start datetime must not be in the past relative to +08
+    if (formData.start_datetime) {
+      const nowUtc = Date.now();
+      const parseToUTCFromPlus8 = (str) => {
+        const m = String(str).match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/);
+        if (!m) return new Date(str);
+        const [ , y, mo, d, hh, mm, ss='00' ] = m;
+        const naiveUtcMs = Date.UTC(parseInt(y), parseInt(mo)-1, parseInt(d), parseInt(hh), parseInt(mm), parseInt(ss));
+        const offsetMs = 8 * 60 * 60 * 1000;
+        const utcMs = naiveUtcMs - offsetMs;
+        return new Date(utcMs);
+      };
+      const startUtc = parseToUTCFromPlus8(formData.start_datetime);
+      if (startUtc.getTime() <= nowUtc) {
+        newErrors.start_datetime = 'Start date cannot be in the past';
+        setErrors(newErrors);
+        onValidationError?.();
+        return false;
+      }
     }
     return true;
   };

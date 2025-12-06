@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   IoFilterOutline,
   IoRefreshOutline,
@@ -8,42 +8,7 @@ import {
   IoCloseCircleOutline,
 } from "react-icons/io5";
 
-function buildActiveChips(filters, defaults, config) {
-  const chips = [];
-  config.fields.forEach((field) => {
-    if (field.type === "select") {
-      const value = filters[field.key];
-      const defaultValue = defaults[field.key];
-      if (value && value !== "ALL" && value !== defaultValue) {
-        const optionLabel = field.options.find(
-          (opt) => opt.value === value
-        )?.label;
-        chips.push({
-          key: field.key,
-          label: `${field.label}: ${optionLabel || value}`,
-        });
-      }
-    }
-    if (field.type === "daterange") {
-      const start = filters[field.startKey];
-      const end = filters[field.endKey];
-      if (start || end) {
-        const formatted = [start, end].filter(Boolean).join(" → ");
-        chips.push({
-          key: `${field.startKey}-${field.endKey}`,
-          label: `${field.label}: ${formatted}`,
-        });
-      }
-    }
-  });
-  if (filters.search && filters.search.trim()) {
-    chips.unshift({
-      key: "search",
-      label: `Search: "${filters.search.trim()}"`,
-    });
-  }
-  return chips;
-}
+// Active chips functionality removed: we no longer render active filter chips/tags
 
 export default function LogFilterSearch({
   filters,
@@ -52,7 +17,6 @@ export default function LogFilterSearch({
   onChange,
   onReset,
   activeCount = 0,
-  isBusy = false,
 }) {
   const [isOpen, setIsOpen] = useState(activeCount > 0);
 
@@ -62,10 +26,7 @@ export default function LogFilterSearch({
     }
   }, [activeCount]);
 
-  const activeChips = useMemo(
-    () => buildActiveChips(filters, defaults, config),
-    [filters, defaults, config]
-  );
+  // Active chips removed: no chip list is generated
 
   const toggleFilters = () => setIsOpen((prev) => !prev);
 
@@ -107,12 +68,6 @@ export default function LogFilterSearch({
               <IoCloseCircleOutline className="w-5 h-5" />
             </button>
           ) : null}
-          {isBusy ? (
-            <span className="absolute right-10 top-1/2 -translate-y-1/2 flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
-            </span>
-          ) : null}
         </div>
 
         <div className="flex items-center gap-2 flex-wrap md:ml-auto">
@@ -133,54 +88,9 @@ export default function LogFilterSearch({
           >
             <IoFilterOutline className="w-5 h-5" />
             Filters
-            {activeCount > 0 ? (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300">
-                {activeCount}
-              </span>
-            ) : null}
           </button>
         </div>
       </div>
-
-      {activeChips.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {activeChips.map((chip) => (
-            <span
-              key={chip.key}
-              className="inline-flex items-center gap-2 px-2 py-1 text-xs font-medium rounded-full bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300"
-            >
-              {chip.label}
-              <button
-                type="button"
-                onClick={() => {
-                  if (chip.key === "search") {
-                    handleClearSearch();
-                    return;
-                  }
-                  const field = config.fields.find((fld) => {
-                    if (fld.type === "select") return fld.key === chip.key;
-                    if (fld.type === "daterange") {
-                      return `${fld.startKey}-${fld.endKey}` === chip.key;
-                    }
-                    return false;
-                  });
-                  if (!field) return;
-                  if (field.type === "select") {
-                    onChange(field.key, defaults[field.key]);
-                  } else if (field.type === "daterange") {
-                    onChange(field.startKey, defaults[field.startKey] || "");
-                    onChange(field.endKey, defaults[field.endKey] || "");
-                  }
-                }}
-                className="text-red-500 hover:text-red-700 dark:text-red-300 dark:hover:text-red-100"
-                aria-label="Remove filter"
-              >
-                <IoCloseCircleOutline className="w-4 h-4" />
-              </button>
-            </span>
-          ))}
-        </div>
-      ) : null}
 
       <div
         className={`overflow-hidden transition-[max-height] duration-500 ease-in-out ${
@@ -262,6 +172,7 @@ export default function LogFilterSearch({
           })}
         </div>
       </div>
+    {/* Active chip list removed */}
     </div>
   );
 }

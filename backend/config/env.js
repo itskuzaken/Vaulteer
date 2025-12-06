@@ -1,5 +1,7 @@
 // Centralized environment configuration & validation
-require("dotenv").config();
+const path = require('path');
+// Load .env from the backend folder explicitly to support running scripts from subfolders
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 function req(name, fallback, opts = { required: false }) {
   const v = process.env[name] ?? fallback;

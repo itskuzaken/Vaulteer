@@ -6,6 +6,8 @@ import Image from "next/image";
 import Script from "next/script";
 import { Inter, Roboto_Mono, Poppins } from "next/font/google";
 import "./globals.css"; // Import global styles
+import "quill/dist/quill.snow.css";
+import "quill/dist/quill.bubble.css";
 import Login from "../services/auth/login";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../services/firebase";

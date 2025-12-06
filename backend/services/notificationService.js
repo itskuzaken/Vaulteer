@@ -609,6 +609,158 @@ async function notifyAnnouncementPublished(post) {
   }
 }
 
+/**
+ * Notify participants when an event is cancelled
+ * @param {Object} event - Event object
+ * @param {Array<number>} participantIds - Array of user IDs to notify
+ * @returns {Promise<Object>} Notification results
+ */
+async function notifyEventCancelled(event, participantIds = []) {
+  try {
+    if (!Array.isArray(participantIds) || participantIds.length === 0) {
+      return { inApp: 0, push: { successCount: 0, failureCount: 0 }, email: { successCount: 0, failureCount: 0 } };
+    }
+
+    const title = `❌ Event Cancelled: ${event.title}`;
+    const message = `The event '${event.title}' has been cancelled.`;
+    const actionUrl = `/dashboard?content=event&eventUid=${event.uid}`;
+    const metadata = {
+      source_type: "event",
+      source_id: event.event_id,
+      event_uid: event.uid,
+    };
+
+    // Fetch push/email enabled users and filter by participant IDs
+    const [pushEnabledUsers, emailEnabledUsers] = await Promise.all([
+      userSettingsRepository.getUsersWithPushEnabled(),
+      userSettingsRepository.getUsersWithEmailEnabled(),
+    ]);
+
+    const participantIdSet = new Set(participantIds.map((id) => Number(id)));
+    const pushUsersForParticipants = pushEnabledUsers.filter((u) => participantIdSet.has(u.user_id));
+    const emailUsersForParticipants = emailEnabledUsers.filter((u) => participantIdSet.has(u.user_id));
+
+    const [inAppCount, pushResults, emailResults] = await Promise.allSettled([
+      createBulkNotifications(participantIds, { title, message, type: "alert", actionUrl, metadata }),
+      sendBulkPushNotifications(pushUsersForParticipants, { title, body: message, data: { actionUrl, ...metadata } }),
+      emailService.sendBulkEmails(
+        emailUsersForParticipants,
+        `Event Cancelled: ${event.title}`,
+        (recipient) => emailService.generateEventCancelledEmailHTML(event, recipient.name),
+        (recipient) => emailService.generateEventCancelledEmailText(event, recipient.name)
+      ),
+    ]);
+
+    const result = {
+      inAppNotifications: inAppCount.status === "fulfilled" ? inAppCount.value : 0,
+      pushNotifications: pushResults.status === "fulfilled" ? pushResults.value : { successCount: 0, failureCount: 0, errors: [] },
+      emailNotifications: emailResults.status === "fulfilled" ? emailResults.value : { successCount: 0, failureCount: 0, errors: [] },
+      pushRecipients: pushUsersForParticipants.length,
+      emailRecipients: emailUsersForParticipants.length,
+    };
+
+    console.log(`Event cancel notifications: inApp=${result.inAppNotifications}, pushRecipients=${result.pushRecipients}, emailRecipients=${result.emailRecipients}`);
+    return result;
+  } catch (error) {
+    console.error("Error notifying event cancelled:", error);
+    throw error;
+  }
+}
+
+/**
+ * Notify a single user when they are promoted from the waitlist to registered
+ * @param {Object} event - Event object
+ * @param {number} promotedUserId - User ID of promoted participant
+ */
+async function notifyWaitlistPromotion(event, promotedUserId) {
+  try {
+    if (!promotedUserId) return null;
+
+    const userSettings = await userSettingsRepository.getUserSettings(promotedUserId);
+    const title = `🎉 Waitlist Promotion: ${event.title}`;
+    const message = `Good news! You've been moved from the waitlist to registered for '${event.title}'.`;
+    const actionUrl = `/dashboard?content=event&eventUid=${event.uid}`;
+    const metadata = { source_type: 'event', source_id: event.event_id, event_uid: event.uid };
+
+    // In-app notification
+    await createNotification({ userId: promotedUserId, title, message, type: 'success', actionUrl, metadata });
+
+    // Push
+    if (userSettings?.push_notifications_enabled && userSettings?.fcm_token) {
+      await sendPushNotification(userSettings.fcm_token, { title, body: message, data: { actionUrl, ...metadata } }, promotedUserId);
+    }
+
+    // Email
+    if (userSettings?.email_notifications_enabled) {
+      const user = await userRepository.getById(promotedUserId);
+      if (user?.email) {
+        const html = emailService.generateEventPromotedEmailHTML(event, user.name || 'Volunteer');
+        const text = emailService.generateEventPromotedEmailText(event, user.name || 'Volunteer');
+        await emailService.sendEmail(user.email, `You're registered for ${event.title}`, html, text);
+      }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error notifying waitlist promotion:', error);
+    return null;
+  }
+}
+
+/**
+ * Notify participants about a reminder for an event
+ * @param {Object} event
+ * @param {Array<number>} participantIds
+ */
+async function notifyEventReminder(event, participantIds = []) {
+  try {
+    if (!Array.isArray(participantIds) || participantIds.length === 0) {
+      return { inApp: 0, push: { successCount: 0, failureCount: 0 }, email: { successCount: 0, failureCount: 0 } };
+    }
+
+    const title = `⏰ Reminder: ${event.title} starts soon`;
+    const message = `Reminder: the event '${event.title}' will start at ${event.start_datetime}.`;
+    const actionUrl = `/dashboard?content=event&eventUid=${event.uid}`;
+    const metadata = { source_type: 'event', source_id: event.event_id, event_uid: event.uid };
+
+    // Fetch push/email users and filter by participant IDs
+    const [pushEnabledUsers, emailEnabledUsers] = await Promise.all([
+      userSettingsRepository.getUsersWithPushEnabled(),
+      userSettingsRepository.getUsersWithEmailEnabled(),
+    ]);
+
+    const participantIdSet = new Set(participantIds.map((id) => Number(id)));
+    const pushUsersForParticipants = pushEnabledUsers.filter((u) => participantIdSet.has(u.user_id));
+    const emailUsersForParticipants = emailEnabledUsers.filter((u) => participantIdSet.has(u.user_id));
+
+    const [inAppCount, pushResults, emailResults] = await Promise.allSettled([
+      createBulkNotifications(participantIds, { title, message, type: 'info', actionUrl, metadata }),
+      sendBulkPushNotifications(pushUsersForParticipants, { title, body: message, data: { actionUrl, ...metadata } }),
+      emailService.sendBulkEmails(
+        emailUsersForParticipants,
+        `Reminder: ${event.title}`,
+        (recipient) => emailService.generateEventReminderEmailHTML(event, recipient.name),
+        (recipient) => emailService.generateEventReminderEmailText(event, recipient.name)
+      ),
+    ]);
+
+    const result = {
+      inAppNotifications: inAppCount.status === 'fulfilled' ? inAppCount.value : 0,
+      pushNotifications: pushResults.status === 'fulfilled' ? pushResults.value : { successCount: 0, failureCount: 0, errors: [] },
+      emailNotifications: emailResults.status === 'fulfilled' ? emailResults.value : { successCount: 0, failureCount: 0, errors: [] },
+      pushRecipients: pushUsersForParticipants.length,
+      emailRecipients: emailUsersForParticipants.length,
+    };
+
+    console.log(`Event reminder notifications: inApp=${result.inAppNotifications}, pushRecipients=${result.pushRecipients}, emailRecipients=${result.emailRecipients}`);
+
+    return result;
+  } catch (error) {
+    console.error('Error notifying event reminder:', error);
+    throw error;
+  }
+}
+
 module.exports = {
   createNotification,
   notifyGamificationPoints,
@@ -617,5 +769,8 @@ module.exports = {
   sendBulkPushNotifications,
   createBulkNotifications,
   notifyEventPublished,
+  notifyEventCancelled,
   notifyAnnouncementPublished,
+  notifyWaitlistPromotion,
+  notifyEventReminder,
 };

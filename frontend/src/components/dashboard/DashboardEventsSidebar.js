@@ -132,7 +132,7 @@ export default function DashboardEventsSidebar() {
   const eventsByDate = useMemo(() => {
     const grouped = {};
     monthlyEvents.forEach((event) => {
-      const key = format(new Date(event.start_datetime), "yyyy-MM-dd");
+      const key = format(new Date(event.start_datetime_local || event.start_datetime), "yyyy-MM-dd");
       if (!grouped[key]) {
         grouped[key] = [];
       }
@@ -203,8 +203,8 @@ export default function DashboardEventsSidebar() {
     return (
       <div className="space-y-2 sm:space-y-3">
         {events.map((event) => {
-          const startTime = format(new Date(event.start_datetime), "h:mm a");
-          const endTime = format(new Date(event.end_datetime), "h:mm a");
+            const startTime = format(new Date(event.start_datetime_local || event.start_datetime), "h:mm a");
+              const endTime = format(new Date(event.end_datetime_local || event.end_datetime), "h:mm a");
           return (
             <button
               type="button"

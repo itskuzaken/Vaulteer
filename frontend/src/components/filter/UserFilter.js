@@ -44,10 +44,7 @@ function ModernFilterButton({ onClick, isActive, hasActiveFilters }) {
         }`}
       />
 
-      {/* Active filter indicator */}
-      {hasActiveFilters && !isActive && (
-        <span className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse" />
-      )}
+      {/* Active filter indicator removed */}
     </button>
   );
 }

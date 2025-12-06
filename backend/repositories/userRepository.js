@@ -9,6 +9,15 @@ async function getByUid(uid) {
   );
   return rows[0] || null;
 }
+async function getById(id) {
+  const pool = getPool();
+  const [rows] = await pool.query(
+    `SELECT u.user_id AS id, u.uid, u.name, u.email, r.role, u.status, u.date_added, u.last_login_at, u.updated_at
+     FROM users u JOIN roles r ON u.role_id = r.role_id WHERE u.user_id = ? LIMIT 1`,
+    [id]
+  );
+  return rows[0] || null;
+}
 async function listByRole(role) {
   const pool = getPool();
   const [rows] = await pool.query(
@@ -102,6 +111,7 @@ async function getActiveUsersByRole(role) {
 
 module.exports = {
   getByUid,
+  getById,
   listByRole,
   create,
   update,
