@@ -45,7 +45,8 @@
               "required": false,
               "priority": 2,
               "extractionMethod": "query-only",
-              "query": "Was verbal consent obtained from the client?"
+              "query": "Was verbal consent obtained from the client?",
+              "checkIndicator": "/ (slash mark indicates checked/selected - Yes)"
             }
           ],
           "description": "Patient consent for HIV testing with contact information"
@@ -410,7 +411,8 @@
               "extractionMethod": "checkbox-detection",
               "query": "What is the patient's sex assigned at birth - Male or Female?",
               "required": true,
-              "priority": 1
+              "priority": 1,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "genderIdentity",
@@ -430,7 +432,8 @@
               "extractionMethod": "checkbox-detection",
               "query": "what is the patient's gender identity - Man, Woman, or Other?(Specify)",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "currentResidence",
@@ -589,7 +592,8 @@
               "extractionMethod": "checkbox-detection",
               "query": "What is the patient's nationality?",
               "required": false,
-              "priority": 3
+              "priority": 3,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "civilStatus",
@@ -611,7 +615,8 @@
               "extractionMethod": "checkbox-detection",
               "query": "What is the patient's civil status - Single, Married, Separated, Widowed, or Divorced?",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "livingWithPartner",
@@ -629,7 +634,8 @@
               "label": "Currently living with a partner",
               "extractionMethod": "checkbox-detection",
               "required": false,
-              "priority": 3
+              "priority": 3,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "numberOfChildren",
@@ -670,7 +676,8 @@
               "conditionalOn": {
                 "field": "sex",
                 "value": "Female"
-              }
+              },
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "parentalCode",
@@ -717,7 +724,8 @@
               "label": "Highest Educational Attainment",
               "extractionMethod": "checkbox-detection",
               "required": false,
-              "priority": 3
+              "priority": 3,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "currentlyInSchool",
@@ -735,7 +743,8 @@
               "label": "Currently in school",
               "extractionMethod": "checkbox-detection",
               "required": false,
-              "priority": 3
+              "priority": 3,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "currentlyWorking",
@@ -1157,7 +1166,8 @@
               "extractionMethod": "query-only",
               "query": "Is the mother of the patient known to have HIV?",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "riskAssessment",
@@ -1172,6 +1182,7 @@
               "extractionMethod": "checkbox-matrix-with-dates",
               "required": false,
               "priority": 2,
+              "checkIndicator": "/ (slash mark indicates selected option - select all that apply)",
               "sections": [
                 {
                   "label": "Sex with a MALE",
@@ -1352,7 +1363,8 @@
               "extractionMethod": "query-only",
               "query": "Has the patient had sex with a male partner? Answer Yes or No",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates checked/selected - Yes)"
             },
             {
               "name": "riskSexMaleTotal",
@@ -1397,7 +1409,8 @@
               "extractionMethod": "query-only",
               "query": "Has the patient had sex with a female partner? Answer Yes or No",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates checked/selected - Yes)"
             },
             {
               "name": "riskSexFemaleTotal",
@@ -1442,7 +1455,8 @@
               "extractionMethod": "query-only",
               "query": "Has the patient paid for sex in cash or kind? Answer Yes or No",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates checked/selected - Yes)"
             },
             {
               "name": "riskReceivedPaymentStatus",
@@ -1457,7 +1471,8 @@
               "extractionMethod": "query-only",
               "query": "Has the patient received payment for sex? Answer Yes or No",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates checked/selected - Yes)"
             },
             {
               "name": "riskSexUnderDrugsStatus",
@@ -1472,7 +1487,8 @@
               "extractionMethod": "query-only",
               "query": "Has the patient had sex under the influence of drugs? Answer Yes or No",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates checked/selected - Yes)"
             },
             {
               "name": "riskSharedNeedlesStatus",
@@ -1487,7 +1503,8 @@
               "extractionMethod": "query-only",
               "query": "Has the patient shared needles for drug injection? Answer Yes or No",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates checked/selected - Yes)"
             },
             {
               "name": "riskBloodTransfusionStatus",
@@ -1502,7 +1519,8 @@
               "extractionMethod": "query-only",
               "query": "Has the patient received blood transfusion? Answer Yes or No",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates checked/selected - Yes)"
             },
             {
               "name": "riskBloodTransfusionDate",
@@ -2021,7 +2039,8 @@
               "label": "Client type",
               "extractionMethod": "checkbox-with-text",
               "required": false,
-              "priority": 2
+              "priority": 2,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "modeOfReach",
@@ -2042,7 +2061,8 @@
               "label": "Mode of reach",
               "extractionMethod": "checkbox-multiple",
               "required": false,
-              "priority": 3
+              "priority": 3,
+              "checkIndicator": "/ (slash mark indicates selected option - select all that apply)"
             },
             {
               "name": "testingAccepted",
@@ -2142,6 +2162,7 @@
               "query": "What HIV testing modality was used - Facility-based, Non-laboratory, Community-based, or Self-testing?",
               "required": false,
               "priority": 3,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)",
               "options": [
                 {
                   "value": "Facility-based testing (FBT)"
@@ -2269,7 +2290,8 @@
                 "linkageAdviseReTestingMonths",
                 "linkageAdviseReTestingWeeks",
                 "linkageAdviseReTestingDate"
-              ]
+              ],
+              "checkIndicator": "/ (slash mark indicates selected option - select all that apply)"
             },
             {
               "name": "otherServiceProvided",
@@ -2294,7 +2316,8 @@
                 },
                 "offeredSocialAndSexualNetworkTesting",
                 "acceptedSocialAndSexualNetworkTesting"
-              ]
+              ],
+              "checkIndicator": "/ (slash mark indicates selected option - select all that apply)"
             },
             {
               "name": "linkageToCare",
@@ -2512,6 +2535,7 @@
               "extractionMethod": "checkbox-detection",
               "required": false,
               "priority": 4,
+              "checkIndicator": "/ (slash mark indicates selected option - select one)",
               "options": [
                 {
                   "value": "HIV Counselor",
@@ -2573,7 +2597,8 @@
                 "medicalTechnologist",
                 "cbsMotivator",
                 "othersSpecify"
-              ]
+              ],
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "formCompletionDate",
@@ -2602,7 +2627,8 @@
                 "always",
                 "sometimes",
                 "never"
-              ]
+              ],
+              "checkIndicator": "/ (slash mark indicates selected option - select one)"
             },
             {
               "name": "typeOfSex",
@@ -2612,7 +2638,8 @@
                 "analInserter",
                 "analReceiver",
                 "vaginalSex"
-              ]
+              ],
+              "checkIndicator": "/ (slash mark indicates selected option - select all that apply)"
             }
           ],
           "description": "Additional information about sexual practices"

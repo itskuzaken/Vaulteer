@@ -534,6 +534,46 @@ function extractCheckboxes(blocks) {
 }
 
 /**
+ * Get checkbox indicator pattern from metadata for a specific field
+ * @param {string} fieldName - Name of the field to lookup
+ * @returns {string|null} CheckIndicator pattern or null if not found
+ */
+function getCheckboxIndicatorFromMetadata(fieldName) {
+  try {
+    if (!formMetadata || !formMetadata.structure) return null;
+    
+    // Search through all fields in front and back
+    const searchFields = (fields) => {
+      if (!Array.isArray(fields)) return null;
+      for (const field of fields) {
+        if (field.name === fieldName && field.checkIndicator) {
+          return field.checkIndicator;
+        }
+        // Recursively search subfields
+        if (Array.isArray(field.subfields)) {
+          const found = searchFields(field.subfields);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    
+    // Search both front and back
+    for (const page of ['front', 'back']) {
+      const sections = formMetadata.structure[page]?.sections;
+      if (!sections) continue;
+      for (const section of Object.values(sections)) {
+        const found = searchFields(section.fields);
+        if (found) return found;
+      }
+    }
+  } catch (error) {
+    console.warn(`Warning: Error looking up checkbox indicator for ${fieldName}:`, error.message);
+  }
+  return null;
+}
+
+/**
  * Map checkboxes to field names based on nearby text context
  * @param {Array} checkboxes - Checkboxes from extractCheckboxes()
  * @param {string} page - 'front' or 'back'
@@ -632,6 +672,7 @@ function mapCheckboxesToFields(checkboxes, page) {
     
     for (const [fieldName, pattern] of Object.entries(checkboxPatterns)) {
       if (pattern.test(contextText)) {
+        const checkIndicator = getCheckboxIndicatorFromMetadata(fieldName);
         mappedCheckboxes[fieldName] = {
           value: checkbox.selectionStatus, // 'SELECTED' or 'NOT_SELECTED'
           confidence: checkbox.confidence,
@@ -640,11 +681,12 @@ function mapCheckboxesToFields(checkboxes, page) {
           mappingStrategy: 'checkbox',
           page,
           extractionMethod: 'forms+selection',
-          context: checkbox.nearbyText.slice(0, 3).map(t => t.text) // Top 3 nearest text
+          context: checkbox.nearbyText.slice(0, 3).map(t => t.text), // Top 3 nearest text
+          checkIndicator: checkIndicator // Visual indicator pattern from metadata
         };
         
         if (OCR_DEBUG) {
-          console.log(`  ✓ Checkbox matched: ${fieldName} = ${checkbox.selectionStatus} (${contextText.substring(0, 50)}...)`);
+          console.log(`  ✓ Checkbox matched: ${fieldName} = ${checkbox.selectionStatus} (indicator: "${checkIndicator}") (${contextText.substring(0, 50)}...)`);
         }
         break; // Stop after first match
       }
@@ -2745,6 +2787,21 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
       
       console.log(`   - Front page: ${Object.keys(frontCheckboxFields).length} checkbox fields mapped`);
       console.log(`   - Back page: ${Object.keys(backCheckboxFields).length} checkbox fields mapped`);
+      
+      // Log checkbox selections with indicators
+      if (Object.keys(frontCheckboxFields).length > 0) {
+        console.log(`   📋 [FRONT] Checkbox Indicators:`);
+        Object.entries(frontCheckboxFields).slice(0, 5).forEach(([fieldName, data]) => {
+          console.log(`      • ${fieldName}: ${data.value} (indicator: "${data.checkIndicator || 'N/A'}")`);
+        });
+      }
+      
+      if (Object.keys(backCheckboxFields).length > 0) {
+        console.log(`   📋 [BACK] Checkbox Indicators:`);
+        Object.entries(backCheckboxFields).slice(0, 5).forEach(([fieldName, data]) => {
+          console.log(`      • ${fieldName}: ${data.value} (indicator: "${data.checkIndicator || 'N/A'}")`);
+        });
+      }
       
       // Optionally load from CSV for faster processing (CSV is pre-parsed)
       if (frontKVPairs.length === 0) {
