@@ -1175,6 +1175,14 @@ export default function HTSFormManagement() {
         body: formData
       });
 
+      // Check if response is JSON before parsing
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error("[OCR] Server returned non-JSON response:", text.substring(0, 500));
+        throw new Error(`Server error (${response.status}): Expected JSON but received ${contentType || 'unknown type'}. The backend may be offline or misconfigured.`);
+      }
+
       const data = await response.json();
 
       if (data.success) {

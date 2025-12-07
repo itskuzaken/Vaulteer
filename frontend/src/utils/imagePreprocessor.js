@@ -85,23 +85,46 @@ export async function preprocessImage(imageDataURL, options = {}) {
 
 /**
  * Resize image to target resolution while maintaining aspect ratio
+ * CRITICAL: Ensures portrait orientation for HTS forms
  */
 function resizeImage(img, targetResolution) {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   
+  // Detect if image needs rotation to portrait
+  const isLandscape = img.width > img.height;
+  const targetIsPortrait = targetResolution.height > targetResolution.width;
+  
+  let sourceWidth = img.width;
+  let sourceHeight = img.height;
+  
+  // If image is landscape but target is portrait, rotate 90 degrees
+  if (isLandscape && targetIsPortrait) {
+    console.log('[Preprocessor] Rotating landscape image to portrait orientation');
+    sourceWidth = img.height;
+    sourceHeight = img.width;
+  }
+  
   // Calculate scaling to fit target resolution
-  const scaleWidth = targetResolution.width / img.width;
-  const scaleHeight = targetResolution.height / img.height;
+  const scaleWidth = targetResolution.width / sourceWidth;
+  const scaleHeight = targetResolution.height / sourceHeight;
   const scale = Math.min(scaleWidth, scaleHeight);
   
-  canvas.width = Math.round(img.width * scale);
-  canvas.height = Math.round(img.height * scale);
+  canvas.width = Math.round(sourceWidth * scale);
+  canvas.height = Math.round(sourceHeight * scale);
   
   // High-quality scaling
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  
+  // Apply rotation if needed
+  if (isLandscape && targetIsPortrait) {
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(90 * Math.PI / 180);
+    ctx.drawImage(img, -img.width * scale / 2, -img.height * scale / 2, img.width * scale, img.height * scale);
+  } else {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  }
   
   return canvas;
 }
