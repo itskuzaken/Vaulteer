@@ -2230,29 +2230,6 @@ export default function HTSFormManagement() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {/* OCR Processing Status */}
-              <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <IoCheckmarkCircle className="w-5 h-5 text-green-600" />
-                    <span className="text-sm font-medium text-green-900 dark:text-green-100">
-                      FORMS+LAYOUT Extraction Complete
-                    </span>
-                  </div>
-                  <span className="px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-200 text-xs font-medium rounded-full">
-                    {extractedData?.extractionMethod?.toUpperCase() || 'FORMS+LAYOUT'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-4 text-xs text-green-700 dark:text-green-300">
-                  <span>• Modern OCR approach</span>
-                  <span>• Faster processing</span>
-                  <span>• Better accuracy</span>
-                  {extractedData.structuredData && (
-                    <span>• Organized by sections</span>
-                  )}
-                </div>
-              </div>
-
               {/* Structured OCR Field Display */}
               {console.log('[HTSFormManagement] About to render OCRFieldDisplay with:', {
                 hasExtractedData: !!extractedData,

@@ -3930,7 +3930,7 @@ function organizeFieldsIntoSections(allFields, correctedData) {
  * @returns {Promise<Object>} Extracted data with field-level confidence
  */
 async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, options = {}) {
-  const { preprocessImages = true, useLayout = true, useCachedData = USE_CACHED_TEXTRACT } = options;
+  const { preprocessImages = false, useLayout = true, useCachedData = USE_CACHED_TEXTRACT } = options;
   
   // Generate session ID for tracking and analytics
   const sessionId = `ocr_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
