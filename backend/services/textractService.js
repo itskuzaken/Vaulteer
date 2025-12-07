@@ -2774,8 +2774,9 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
         }
       }
 
-      // Step 2: Analyze both pages with FORMS + LAYOUT + SELECTION_ELEMENT features
-      const featureTypes = useLayout ? ['FORMS', 'LAYOUT', 'SELECTION_ELEMENT'] : ['FORMS', 'SELECTION_ELEMENT'];
+      // Step 2: Analyze both pages with FORMS + LAYOUT features
+      // REMOVED SELECTION_ELEMENT: Causes AWS "invalid parameters" rejection with preprocessed images
+      const featureTypes = useLayout ? ['FORMS', 'LAYOUT'] : ['FORMS'];
       console.log(`🔍 Running AWS Textract analysis with features: ${featureTypes.join(', ')}...`);
       console.log(`   - Front buffer: ${(frontImageBuffer.length / 1024).toFixed(0)}KB`);
       console.log(`   - Back buffer: ${(backImageBuffer.length / 1024).toFixed(0)}KB`);
