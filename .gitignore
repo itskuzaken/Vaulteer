@@ -49,6 +49,11 @@ vaulteer.sql
 vaulteer-structure.txt
 vaulteer_db.sql
 
+# Backup files
+*.bak
+*.backup
+*.tmp
+
 # Ignore markdown files in root directory only
 /*.md
 backend/schema.sql
