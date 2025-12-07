@@ -55,23 +55,30 @@ class ImageProcessor {
       });
     }
     
-    // Convert to grayscale for better OCR
-    pipeline = pipeline.grayscale();
+    // REMOVED: Grayscale conversion breaks AWS Textract SELECTION_ELEMENT feature
+    // Keep images in color for FORMS+LAYOUT+SELECTION_ELEMENT to work properly
+    // pipeline = pipeline.grayscale();
     
-    // Enhance contrast
-    pipeline = pipeline.linear(1.2, -(128 * 1.2) + 128); // Contrast +20%
+    // Enhance contrast (keep in color space)
+    pipeline = pipeline.linear(1.1, -(128 * 1.1) + 128); // Contrast +10% (reduced from +20%)
     
     // Output format
     if (format === 'png') {
       pipeline = pipeline.png({ compressionLevel: 6 });
     } else {
-      pipeline = pipeline.jpeg({ quality, mozjpeg: true });
+      pipeline = pipeline.jpeg({ 
+        quality, 
+        mozjpeg: true,
+        chromaSubsampling: '4:4:4', // Preserve color detail for SELECTION_ELEMENT
+        force: true // Ensure JPEG output even if input is different format
+      });
     }
     
     const processedBuffer = await pipeline.toBuffer();
     
     console.log('[ImageProcessor] Output:', {
       size: processedBuffer.length,
+      sizeKB: (processedBuffer.length / 1024).toFixed(0) + 'KB',
       reduction: ((1 - processedBuffer.length / imageBuffer.length) * 100).toFixed(1) + '%'
     });
     

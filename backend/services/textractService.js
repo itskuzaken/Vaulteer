@@ -2777,6 +2777,19 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
       // Step 2: Analyze both pages with FORMS + LAYOUT + SELECTION_ELEMENT features
       const featureTypes = useLayout ? ['FORMS', 'LAYOUT', 'SELECTION_ELEMENT'] : ['FORMS', 'SELECTION_ELEMENT'];
       console.log(`🔍 Running AWS Textract analysis with features: ${featureTypes.join(', ')}...`);
+      console.log(`   - Front buffer: ${(frontImageBuffer.length / 1024).toFixed(0)}KB`);
+      console.log(`   - Back buffer: ${(backImageBuffer.length / 1024).toFixed(0)}KB`);
+      
+      // Validate buffers before sending to AWS
+      if (!Buffer.isBuffer(frontImageBuffer) || frontImageBuffer.length === 0) {
+        throw new Error('Invalid front image buffer: empty or not a buffer');
+      }
+      if (!Buffer.isBuffer(backImageBuffer) || backImageBuffer.length === 0) {
+        throw new Error('Invalid back image buffer: empty or not a buffer');
+      }
+      if (frontImageBuffer.length > 10 * 1024 * 1024 || backImageBuffer.length > 10 * 1024 * 1024) {
+        throw new Error(`Image buffer exceeds 10MB limit (front: ${(frontImageBuffer.length / 1024 / 1024).toFixed(2)}MB, back: ${(backImageBuffer.length / 1024 / 1024).toFixed(2)}MB)`);
+      }
       
       const [frontResultLive, backResultLive] = await Promise.all([
         textractClient.send(new AnalyzeDocumentCommand({
