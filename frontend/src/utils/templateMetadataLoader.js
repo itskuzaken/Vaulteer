@@ -240,3 +240,136 @@ export function getSectionMappingWithFallback(metadata) {
   
   return mapping;
 }
+
+/**
+ * Build field metadata mapping from template metadata
+ * Extracts labels and categories for all fields
+ * @param {Object} metadata - Template metadata object
+ * @returns {Object} Field metadata { fieldName: { label, category, page, priority } }
+ */
+export function buildFieldMetadata(metadata) {
+  if (!metadata || !metadata.structure) {
+    return {};
+  }
+  
+  const fieldMetadata = {};
+  
+  // Process front page sections
+  if (metadata.structure.front && metadata.structure.front.sections) {
+    Object.entries(metadata.structure.front.sections).forEach(([sectionName, sectionData]) => {
+      const fields = sectionData.fields || [];
+      processFieldsForMetadata(fields, fieldMetadata, sectionName, 'front');
+    });
+  }
+  
+  // Process back page sections
+  if (metadata.structure.back && metadata.structure.back.sections) {
+    Object.entries(metadata.structure.back.sections).forEach(([sectionName, sectionData]) => {
+      const fields = sectionData.fields || [];
+      processFieldsForMetadata(fields, fieldMetadata, sectionName, 'back');
+    });
+  }
+  
+  return fieldMetadata;
+}
+
+/**
+ * Process fields array to extract metadata
+ * @param {Array} fields - Array of field definitions
+ * @param {Object} fieldMetadata - Target metadata object to populate
+ * @param {string} sectionName - Section category name
+ * @param {string} page - Page location (front/back)
+ */
+function processFieldsForMetadata(fields, fieldMetadata, sectionName, page) {
+  if (!Array.isArray(fields)) return;
+  
+  fields.forEach(field => {
+    if (typeof field === 'string') {
+      // Simple string field name
+      fieldMetadata[field] = {
+        label: formatFieldLabel(field),
+        category: sectionName,
+        page: page,
+        priority: 3
+      };
+    } else if (typeof field === 'object' && field !== null) {
+      // Object field definition
+      const fieldName = field.name || field.label;
+      if (fieldName) {
+        fieldMetadata[fieldName] = {
+          label: field.label || formatFieldLabel(fieldName),
+          category: sectionName,
+          page: page,
+          priority: field.priority || 3
+        };
+        
+        // Process subfields
+        if (Array.isArray(field.subfields)) {
+          field.subfields.forEach(subfield => {
+            const subfieldName = typeof subfield === 'string' ? subfield : subfield.name;
+            if (subfieldName) {
+              const compositeFieldName = `${fieldName}${capitalizeFirst(subfieldName)}`;
+              fieldMetadata[compositeFieldName] = {
+                label: `${field.label || formatFieldLabel(fieldName)} - ${formatFieldLabel(subfieldName)}`,
+                category: sectionName,
+                page: page,
+                priority: (field.priority || 3) + 1
+              };
+            }
+          });
+        }
+        
+        // Process options as field variants
+        if (Array.isArray(field.options)) {
+          field.options.forEach(option => {
+            if (option.value) {
+              const optionName = capitalizeFirst(option.value.replace(/[^a-zA-Z0-9]/g, ''));
+              if (optionName) {
+                const variantFieldName = `${fieldName}${optionName}`;
+                fieldMetadata[variantFieldName] = {
+                  label: `${field.label || formatFieldLabel(fieldName)} - ${option.value}`,
+                  category: sectionName,
+                  page: page,
+                  priority: (field.priority || 3) + 1
+                };
+              }
+            }
+          });
+        }
+      }
+    }
+  });
+}
+
+/**
+ * Format field name into human-readable label
+ * @param {string} fieldName - Camel case field name
+ * @returns {string} Formatted label
+ */
+function formatFieldLabel(fieldName) {
+  if (!fieldName || typeof fieldName !== 'string') return '';
+  return fieldName
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, str => str.toUpperCase())
+    .trim();
+}
+
+/**
+ * Get category order from metadata
+ * @param {Object} metadata - Template metadata object
+ * @returns {Object} { front: [categories], back: [categories] }
+ */
+export function getCategoryOrder(metadata) {
+  if (!metadata || !metadata.structure) {
+    return {
+      front: ['INFORMED CONSENT', 'DEMOGRAPHIC DATA', 'EDUCATION & OCCUPATION'],
+      back: ['HISTORY OF EXPOSURE / RISK ASSESSMENT', 'REASONS FOR HIV TESTING', 'PREVIOUS HIV TEST', 
+             'MEDICAL HISTORY & CLINICAL PICTURE', 'TESTING DETAILS', 'INVENTORY INFORMATION', 'HTS PROVIDER DETAILS']
+    };
+  }
+  
+  return {
+    front: metadata.structure.front?.sections ? Object.keys(metadata.structure.front.sections) : [],
+    back: metadata.structure.back?.sections ? Object.keys(metadata.structure.back.sections) : []
+  };
+}
