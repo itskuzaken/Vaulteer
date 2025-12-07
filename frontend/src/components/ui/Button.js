@@ -16,6 +16,7 @@ const Button = ({
   className = "", 
   loading = false,
   disabled = false,
+  mode = "auto", // 'auto' | 'light' | 'dark'
   ...props 
 }) => {
   // Base styles
@@ -23,12 +24,36 @@ const Button = ({
   
   // Variant styles
   const variants = {
-    primary: "bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 focus:ring-red-500 shadow-sm",
-    secondary: "rounded-full border border-gray-200 bg-white text-gray-700 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-400",
-    danger: "bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 focus:ring-red-500",
-    success: "bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 focus:ring-green-500",
-    ghost: "text-gray-700 hover:bg-gray-100 rounded-lg focus:ring-gray-400",
-    icon: "p-2 text-gray-700 hover:bg-gray-100 rounded-lg focus:ring-gray-400",
+    primary: {
+      auto: "bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 focus:ring-red-500 shadow-sm dark:bg-red-600 dark:text-white",
+      light: "bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 focus:ring-red-500 shadow-sm",
+      dark: "bg-red-700 text-white rounded-lg hover:bg-red-600 active:bg-red-800 focus:ring-red-500 shadow-sm",
+    },
+    secondary: {
+      auto: "rounded-full border border-gray-200 bg-white text-gray-700 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200",
+      light: "rounded-full border border-gray-200 bg-white text-gray-700 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-400",
+      dark: "rounded-full border border-gray-700 bg-gray-900 text-white hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-500",
+    },
+    danger: {
+      auto: "bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 focus:ring-red-500",
+      light: "bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 focus:ring-red-500",
+      dark: "bg-red-700 text-white rounded-lg hover:bg-red-600 active:bg-red-800 focus:ring-red-500",
+    },
+    success: {
+      auto: "bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 focus:ring-green-500",
+      light: "bg-green-600 text-white rounded-lg hover:bg-green-700 active:bg-green-800 focus:ring-green-500",
+      dark: "bg-green-700 text-white rounded-lg hover:bg-green-600 active:bg-green-800 focus:ring-green-500",
+    },
+    ghost: {
+      auto: "text-gray-700 hover:bg-gray-100 rounded-lg focus:ring-gray-400 dark:text-gray-200 dark:hover:bg-gray-700",
+      light: "text-gray-700 hover:bg-gray-100 rounded-lg focus:ring-gray-400",
+      dark: "text-gray-200 hover:bg-gray-700 rounded-lg focus:ring-gray-400",
+    },
+    icon: {
+      auto: "p-2 text-gray-700 hover:bg-gray-100 rounded-lg focus:ring-gray-400 dark:text-gray-200 dark:hover:bg-gray-700",
+      light: "p-2 text-gray-700 hover:bg-gray-100 rounded-lg focus:ring-gray-400",
+      dark: "p-2 text-gray-200 hover:bg-gray-700 rounded-lg focus:ring-gray-400",
+    },
   };
   
   // Size styles
@@ -45,9 +70,12 @@ const Button = ({
     large: 20,
   };
   
+  const variantObj = variants[variant] || variants.primary;
+  const variantClass = typeof variantObj === 'string' ? variantObj : (variantObj[mode] || variantObj.auto);
+
   return (
     <button
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`${baseStyles} ${variantClass} ${sizes[size]} ${className}`}
       disabled={disabled || loading}
       {...props}
     >

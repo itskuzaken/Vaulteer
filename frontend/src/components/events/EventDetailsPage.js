@@ -343,6 +343,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
           icon={IoArrowBackOutline}
           onClick={() => router.back()}
           className="px-5 py-3 bg-gray-900 text-white hover:bg-gray-800"
+          mode="dark"
           size="medium"
         >
           Return to previous page
