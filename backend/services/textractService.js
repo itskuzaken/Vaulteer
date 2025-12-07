@@ -2794,19 +2794,101 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
       // Debug: Check buffer headers to verify image format
       const frontHeader = frontImageBuffer.slice(0, 4).toString('hex');
       const backHeader = backImageBuffer.slice(0, 4).toString('hex');
-      console.log(`   - Front header: ${frontHeader} (${frontHeader === 'ffd8ffe0' || frontHeader === 'ffd8ffe1' ? 'JPEG' : frontHeader === '89504e47' ? 'PNG' : 'UNKNOWN'})`);
-      console.log(`   - Back header: ${backHeader} (${backHeader === 'ffd8ffe0' || backHeader === 'ffd8ffe1' ? 'JPEG' : backHeader === '89504e47' ? 'PNG' : 'UNKNOWN'})`);
+      const isJPEG = (h) => h.startsWith('ffd8ff');
+      const isPNG = (h) => h === '89504e47';
       
-      const [frontResultLive, backResultLive] = await Promise.all([
-        textractClient.send(new AnalyzeDocumentCommand({
-          Document: { Bytes: frontImageBuffer },
-          FeatureTypes: featureTypes
-        })),
-        textractClient.send(new AnalyzeDocumentCommand({
-          Document: { Bytes: backImageBuffer },
-          FeatureTypes: featureTypes
-        }))
-      ]);
+      const frontFormat = isJPEG(frontHeader) ? 'JPEG' : isPNG(frontHeader) ? 'PNG' : 'UNKNOWN';
+      const backFormat = isJPEG(backHeader) ? 'JPEG' : isPNG(backHeader) ? 'PNG' : 'UNKNOWN';
+      
+      console.log(`   - Front header: ${frontHeader} (${frontFormat})`);
+      console.log(`   - Back header: ${backHeader} (${backFormat})`);
+      
+      // If format is unknown/invalid, convert to PNG as fallback
+      if (frontFormat === 'UNKNOWN') {
+        console.warn(`⚠️  Front image has invalid format, attempting conversion to PNG...`);
+        try {
+          const sharp = require('sharp');
+          frontImageBuffer = await sharp(frontImageBuffer).png().toBuffer();
+          console.log(`   ✓ Converted front to PNG: ${(frontImageBuffer.length / 1024).toFixed(0)}KB`);
+        } catch (conversionError) {
+          throw new Error(`Failed to convert front image: ${conversionError.message}`);
+        }
+      }
+      
+      if (backFormat === 'UNKNOWN') {
+        console.warn(`⚠️  Back image has invalid format, attempting conversion to PNG...`);
+        try {
+          const sharp = require('sharp');
+          backImageBuffer = await sharp(backImageBuffer).png().toBuffer();
+          console.log(`   ✓ Converted back to PNG: ${(backImageBuffer.length / 1024).toFixed(0)}KB`);
+        } catch (conversionError) {
+          throw new Error(`Failed to convert back image: ${conversionError.message}`);
+        }
+      }
+      
+      let frontResultLive, backResultLive;
+      
+      try {
+        [frontResultLive, backResultLive] = await Promise.all([
+          textractClient.send(new AnalyzeDocumentCommand({
+            Document: { Bytes: frontImageBuffer },
+            FeatureTypes: featureTypes
+          })),
+          textractClient.send(new AnalyzeDocumentCommand({
+            Document: { Bytes: backImageBuffer },
+            FeatureTypes: featureTypes
+          }))
+        ]);
+      } catch (awsError) {
+        // If AWS rejects with InvalidParameterException, try PNG conversion as last resort
+        if (awsError.__type === 'InvalidParameterException' || awsError.name === 'InvalidParameterException') {
+          console.warn(`⚠️  AWS Textract rejected images, attempting PNG conversion fallback...`);
+          
+          try {
+            const sharp = require('sharp');
+            
+            // Convert both images to PNG
+            if (frontFormat !== 'PNG') {
+              frontImageBuffer = await sharp(frontImageBuffer).png().toBuffer();
+              console.log(`   ✓ Converted front to PNG: ${(frontImageBuffer.length / 1024).toFixed(0)}KB`);
+            }
+            
+            if (backFormat !== 'PNG') {
+              backImageBuffer = await sharp(backImageBuffer).png().toBuffer();
+              console.log(`   ✓ Converted back to PNG: ${(backImageBuffer.length / 1024).toFixed(0)}KB`);
+            }
+            
+            // Retry AWS Textract with PNG images
+            [frontResultLive, backResultLive] = await Promise.all([
+              textractClient.send(new AnalyzeDocumentCommand({
+                Document: { Bytes: frontImageBuffer },
+                FeatureTypes: featureTypes
+              })),
+              textractClient.send(new AnalyzeDocumentCommand({
+                Document: { Bytes: backImageBuffer },
+                FeatureTypes: featureTypes
+              }))
+            ]);
+            
+            console.log(`✓ [OCR] PNG conversion fallback succeeded`);
+          } catch (fallbackError) {
+            // Provide detailed error info
+            const errorDetails = {
+              frontSize: frontImageBuffer.length,
+              backSize: backImageBuffer.length,
+              frontHeader: frontImageBuffer.slice(0, 8).toString('hex'),
+              backHeader: backImageBuffer.slice(0, 8).toString('hex'),
+              features: featureTypes,
+              originalError: awsError.message,
+              fallbackError: fallbackError.message
+            };
+            console.error('❌ AWS Textract rejected images even after PNG conversion:', errorDetails);
+            throw new Error(`AWS Textract InvalidParameterException: ${JSON.stringify(errorDetails)}`);
+          }
+        } else {
+          throw awsError;
+        }
+      }
       
       frontResult = frontResultLive;
       backResult = backResultLive;

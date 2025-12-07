@@ -1109,20 +1109,20 @@ export default function HTSFormManagement() {
       
       const [processedFront, processedBack] = await Promise.all([
         preprocessImage(frontImage, {
-          targetResolution: { width: 1600, height: 2133 },
+          targetResolution: { width: 1800, height: 2400 }, // Increased for better OCR quality
           enableDeskew: true,
           enableDenoising: true,
           enableContrast: true,
-          enableBinarization: false, // Keep in color
-          quality: 0.85 // Reduced from 0.95 to stay under AWS 10MB limit
+          enableBinarization: false, // Keep in color for SELECTION_ELEMENT
+          quality: 0.85 // Balanced quality to stay under AWS 10MB limit
         }),
         preprocessImage(backImage, {
-          targetResolution: { width: 1600, height: 2133 },
+          targetResolution: { width: 1800, height: 2400 }, // Increased for better OCR quality
           enableDeskew: true,
           enableDenoising: true,
           enableContrast: true,
-          enableBinarization: false, // Keep in color
-          quality: 0.85 // Reduced from 0.95 to stay under AWS 10MB limit
+          enableBinarization: false, // Keep in color for SELECTION_ELEMENT
+          quality: 0.85 // Balanced quality to stay under AWS 10MB limit
         })
       ]);
       

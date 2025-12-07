@@ -403,15 +403,65 @@ export async function detectFormSide(imageDataURL) {
 
 /**
  * Convert data URL to Blob for FormData
+ * Enhanced with validation and error handling
  */
 export function dataURLtoBlob(dataURL) {
-  const arr = dataURL.split(',');
-  const mime = arr[0].match(/:(.*?);/)[1];
-  const bstr = atob(arr[1]);
-  let n = bstr.length;
-  const u8arr = new Uint8Array(n);
-  while (n--) {
-    u8arr[n] = bstr.charCodeAt(n);
+  try {
+    // Validate dataURL format
+    if (!dataURL || typeof dataURL !== 'string') {
+      throw new Error('Invalid dataURL: not a string');
+    }
+    
+    if (!dataURL.startsWith('data:image/')) {
+      throw new Error('Invalid dataURL: missing data:image/ prefix');
+    }
+    
+    const arr = dataURL.split(',');
+    if (arr.length !== 2) {
+      throw new Error('Invalid dataURL: malformed base64');
+    }
+    
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    if (!mimeMatch) {
+      throw new Error('Invalid dataURL: missing MIME type');
+    }
+    const mime = mimeMatch[1];
+    
+    // Validate MIME type
+    if (!['image/jpeg', 'image/jpg', 'image/png'].includes(mime)) {
+      throw new Error(`Unsupported MIME type: ${mime}`);
+    }
+    
+    // Decode base64 with error handling
+    let bstr;
+    try {
+      bstr = atob(arr[1]);
+    } catch (e) {
+      throw new Error(`Base64 decode failed: ${e.message}`);
+    }
+    
+    let n = bstr.length;
+    if (n === 0) {
+      throw new Error('Empty image data after base64 decode');
+    }
+    
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    
+    const blob = new Blob([u8arr], { type: mime });
+    
+    // Validate blob size
+    if (blob.size === 0) {
+      throw new Error('Created blob has zero size');
+    }
+    
+    console.log(`[dataURLtoBlob] Created ${mime} blob: ${(blob.size / 1024).toFixed(0)}KB`);
+    return blob;
+    
+  } catch (error) {
+    console.error('[dataURLtoBlob] Conversion failed:', error);
+    throw error;
   }
-  return new Blob([u8arr], { type: mime });
 }

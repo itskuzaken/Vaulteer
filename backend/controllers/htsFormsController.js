@@ -2,7 +2,7 @@ const htsFormsRepository = require('../repositories/htsFormsRepository');
 const asyncHandler = require('../middleware/asyncHandler');
 const { enqueueOCRJob } = require('../jobs/textractQueue');
 const textractService = require('../services/textractService');
-const imageProcessor = require('../services/imageProcessor');
+const sharp = require('sharp');
 const { getExtractionOptions } = require('../config/ocrConfig');
 
 const htsFormsController = {
@@ -38,65 +38,54 @@ const htsFormsController = {
     console.log(`🔍 [OCR] Processing images (front: ${(frontImage.size/1024).toFixed(0)}KB, back: ${(backImage.size/1024).toFixed(0)}KB)`);
 
     try {
-      // Validate images with enhanced quality checks
+      // Validate images using Sharp metadata (no processing, just validation)
+      const validateImageBuffer = async (buffer, name) => {
+        if (!Buffer.isBuffer(buffer) || buffer.length === 0) {
+          throw new Error(`${name} buffer is empty or invalid`);
+        }
+        
+        // Size limit: 10MB
+        if (buffer.length > 10 * 1024 * 1024) {
+          throw new Error(`${name} exceeds 10MB size limit`);
+        }
+        
+        // Validate with Sharp
+        const metadata = await sharp(buffer).metadata();
+        
+        if (!metadata || !metadata.format) {
+          throw new Error(`${name} has unknown or invalid format`);
+        }
+        
+        // Check format
+        if (!['jpeg', 'jpg', 'png'].includes(metadata.format)) {
+          throw new Error(`${name} has unsupported format: ${metadata.format}`);
+        }
+        
+        // Check resolution (warning only)
+        if (metadata.width < 1200 || metadata.height < 1500) {
+          console.warn(`⚠️  [OCR] ${name} resolution is low: ${metadata.width}x${metadata.height} (recommended: 1200x1500+)`);
+        }
+        
+        return {
+          valid: true,
+          metadata,
+          format: metadata.format,
+          width: metadata.width,
+          height: metadata.height
+        };
+      };
+      
+      // Validate both images
       const [frontValidation, backValidation] = await Promise.all([
-        imageProcessor.validateImage(frontImage.buffer),
-        imageProcessor.validateImage(backImage.buffer)
+        validateImageBuffer(frontImage.buffer, 'Front image'),
+        validateImageBuffer(backImage.buffer, 'Back image')
       ]);
-
-      if (!frontValidation.valid || !backValidation.valid) {
-        return res.status(400).json({
-          error: 'Invalid images',
-          details: {
-            front: frontValidation.issues,
-            back: backValidation.issues
-          }
-        });
-      }
       
-      // Enhanced quality checks to prevent poor OCR results
-      const qualityIssues = [];
+      console.log(`✓ [OCR] Validation passed - Front: ${frontValidation.format.toUpperCase()} ${frontValidation.width}x${frontValidation.height}, Back: ${backValidation.format.toUpperCase()} ${backValidation.width}x${backValidation.height}`);
       
-      // Check if images are too small for reliable OCR
-      if (frontValidation.metadata.width < 1200 || frontValidation.metadata.height < 1500) {
-        qualityIssues.push('Front image resolution too low for optimal OCR (recommended: 1200x1500+)');
-      }
-      if (backValidation.metadata.width < 1200 || backValidation.metadata.height < 1500) {
-        qualityIssues.push('Back image resolution too low for optimal OCR (recommended: 1200x1500+)');
-      }
-      
-      // Check if images are suspiciously small in file size (likely poor quality/compression)
-      const minFileSize = 100 * 1024; // 100KB
-      if (frontImage.size < minFileSize) {
-        qualityIssues.push('Front image file size too small - may be over-compressed or poor quality');
-      }
-      if (backImage.size < minFileSize) {
-        qualityIssues.push('Back image file size too small - may be over-compressed or poor quality');
-      }
-      
-      // If quality issues found, return warning (but don't block - let client-side validation handle it)
-      if (qualityIssues.length > 0) {
-        console.log(`⚠️  [OCR] Quality issues detected: ${qualityIssues.join(', ')}`);
-        // Log but continue - preprocessing may improve quality
-      }
-
-      // Check if images are already preprocessed (good resolution, reasonable size)
-      const isAlreadyOptimized = 
-        frontValidation.metadata.width >= 1400 && frontValidation.metadata.width <= 1800 &&
-        backValidation.metadata.width >= 1400 && backValidation.metadata.width <= 1800 &&
-        frontImage.size < 8 * 1024 * 1024 && // Less than 8MB
-        backImage.size < 8 * 1024 * 1024;
-
-      let processedFront, processedBack;
-
-      // ALWAYS skip backend preprocessing to avoid Sharp-related issues
-      // Frontend preprocessing is sufficient and more reliable
-      console.log(`✓ [OCR] Using images as-is (frontend-preprocessed)`);
-      processedFront = frontImage.buffer;
-      processedBack = backImage.buffer;
-      
-      console.log(`   - Front: ${(processedFront.length/1024).toFixed(0)}KB`);
-      console.log(`   - Back: ${(processedBack.length/1024).toFixed(0)}KB`);
+      // Use images as-is (frontend-preprocessed)
+      const processedFront = frontImage.buffer;
+      const processedBack = backImage.buffer;
 
       // Use FORMS+LAYOUT approach with nested structure
       const useLayout = process.env.OCR_USE_LAYOUT !== 'false'; // Default: true
