@@ -3,7 +3,7 @@ module.exports = {
     {
       // Backend: Express.js (Port 5000)
       name: "vaulteer-backend",
-      cwd: "/opt/vaulteer/backend", 
+      cwd: "/opt/Vaulteer/backend", 
       script: "backend/server.js",
       interpreter: "/usr/bin/node", 
       instances: 1,
@@ -24,7 +24,7 @@ module.exports = {
     {
       // Frontend: Next.js (Port 3000)
       name: "vaulteer-frontend",
-      cwd: "/opt/vaulteer/frontend", 
+      cwd: "/opt/Vaulteer/frontend", 
       script: "npx",
       args: "next start -p 3000",
       interpreter: "/usr/bin/node",
