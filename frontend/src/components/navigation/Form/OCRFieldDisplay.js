@@ -33,9 +33,33 @@
  * 6. addresses (city, province → "City, Province")
  * 7. riskFields (no/yes → total, date1, date2, dateMostRecentRisk)
  */
+import React, { useState, useEffect } from 'react';
 import { IoCheckmarkCircle, IoAlertCircle, IoWarning, IoInformationCircle, IoDocumentText } from 'react-icons/io5';
+import { loadTemplateMetadata, buildFieldMetadata } from '../../../utils/templateMetadataLoader';
 
 export default function OCRFieldDisplay({ extractedData }) {
+  // State for metadata-driven field labels
+  const [fieldMetadata, setFieldMetadata] = useState({});
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(true);
+
+  // Load field metadata on mount
+  useEffect(() => {
+    const loadMetadata = async () => {
+      try {
+        const metadata = await loadTemplateMetadata();
+        if (metadata) {
+          const fields = buildFieldMetadata(metadata);
+          setFieldMetadata(fields);
+        }
+      } catch (error) {
+        console.error('Failed to load field metadata:', error);
+      } finally {
+        setIsLoadingMetadata(false);
+      }
+    };
+    loadMetadata();
+  }, []);
+
   // Debug logging
   console.log('[OCRFieldDisplay] Component rendered with data:', {
     hasData: !!extractedData,
@@ -129,8 +153,14 @@ export default function OCRFieldDisplay({ extractedData }) {
     return <IoAlertCircle className="w-4 h-4" />;
   };
 
-  // Format field name for display
+  // Format field name for display - uses metadata labels if available, falls back to camelCase
   const formatFieldName = (fieldName) => {
+    // Try to get label from metadata first
+    if (fieldMetadata[fieldName]?.label) {
+      return fieldMetadata[fieldName].label;
+    }
+    
+    // Fallback to camelCase conversion if metadata not loaded or field not found
     return fieldName
       .replace(/([A-Z])/g, ' $1') // Add space before capitals
       .replace(/^./, str => str.toUpperCase()) // Capitalize first letter

@@ -7,6 +7,7 @@ import Button from "../../ui/Button";
 import AdminHTSDetailView from "../../ui/AdminHTSDetailView";
 import * as imageEncryption from "../../../utils/imageEncryption";
 import { API_BASE } from "../../../config/config";
+import { loadTemplateMetadata, buildFieldMetadata } from "../../../utils/templateMetadataLoader";
 
 // Destructure with defaults to avoid undefined errors
 const { 
@@ -24,9 +25,31 @@ export default function AdminFormReview() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  
+  // State for metadata-driven field labels
+  const [fieldMetadata, setFieldMetadata] = useState({});
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(true);
 
   useEffect(() => {
     fetchAllSubmissions();
+  }, []);
+
+  // Load field metadata on mount
+  useEffect(() => {
+    const loadMetadata = async () => {
+      try {
+        const metadata = await loadTemplateMetadata();
+        if (metadata) {
+          const fields = buildFieldMetadata(metadata);
+          setFieldMetadata(fields);
+        }
+      } catch (error) {
+        console.error('Failed to load field metadata:', error);
+      } finally {
+        setIsLoadingMetadata(false);
+      }
+    };
+    loadMetadata();
   }, []);
 
   // Helper function to extract field values from nested structure
@@ -40,6 +63,18 @@ export default function AdminFormReview() {
     
     // Fallback to direct property access (old format or already transformed)
     return extractedData[fieldName] || '';
+  };
+
+  // Helper function to get field label from metadata
+  const getFieldLabel = (fieldName) => {
+    if (fieldMetadata[fieldName]?.label) {
+      return fieldMetadata[fieldName].label;
+    }
+    // Fallback to camelCase conversion
+    return fieldName
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .trim();
   };
 
   const filterSubmissions = useCallback(() => {

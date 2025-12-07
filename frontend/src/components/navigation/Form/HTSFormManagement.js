@@ -14,6 +14,7 @@ import ConfirmModal from "../../ui/ConfirmModal";
 import NextImage from 'next/image';
 import { API_BASE } from "../../../config/config";
 import { encryptFormSubmission } from "../../../utils/imageEncryption";
+import { loadTemplateMetadata, buildSectionMappingFromMetadata } from "../../../utils/templateMetadataLoader";
 import {
   isCameraSupported,
   getCameraPermission,
@@ -1004,250 +1005,70 @@ export default function HTSFormManagement() {
     return field && field.components && typeof field.components === 'object';
   };
 
-  // Enter edit mode with ALL fields from DOH HTS Form 2021 Template (Official 10-Section Structure)
-  const enterEditMode = () => {
-    setEditableData({
-      // Test metadata (stored separately from form sections)
-      testResult: getFieldValue('testResult'),
-      testDate: formatDateForInput(getFieldValue('testDate')),
+  // Enter edit mode - dynamically loads all fields from template metadata
+  // METADATA-DRIVEN ARCHITECTURE: Field structure derived from template-metadata.json
+  const enterEditMode = async () => {
+    try {
+      // Load template metadata to get all field definitions
+      const metadata = await loadTemplateMetadata();
+      const sections = buildSectionMappingFromMetadata(metadata);
       
-      // ============================================================
-      // FRONT PAGE SECTION 1: INFORMED CONSENT (4 fields)
-      // ============================================================
-      nameAndSignature: getFieldValue('nameAndSignature'),
-      contactNumber: getFieldValue('contactNumber'),
-      emailAddress: getFieldValue('emailAddress'),
-      verbalConsent: getFieldValue('verbalConsent'),
+      // Build editable data object dynamically from all sections
+      const editableFieldsData = {};
       
-      // ============================================================
-      // FRONT PAGE SECTION 2: DEMOGRAPHIC DATA (21 fields + nested components)
-      // ============================================================
-      testDate: formatDateForInput(getFieldValue('testDate')),
-      // testDate components (if composite field structure exists)
-      testDateMonth: getComponentValue('testDate', 'month'),
-      testDateDay: getComponentValue('testDate', 'day'),
-      testDateYear: getComponentValue('testDate', 'year'),
+      // Add testResult (not in sections, stored separately)
+      editableFieldsData.testResult = getFieldValue('testResult');
       
-      philHealthNumber: getFieldValue('philHealthNumber'),
-      philSysNumber: getFieldValue('philSysNumber'),
-      fullName: getFieldValue('fullName'),
-      // fullName components
-      firstName: getComponentValue('fullName', 'firstName'),
-      middleName: getComponentValue('fullName', 'middleName'),
-      lastName: getComponentValue('fullName', 'lastName'),
-      suffix: getComponentValue('fullName', 'suffix'),
+      // Process all sections (front and back)
+      Object.values(sections).forEach(sectionFields => {
+        sectionFields.forEach(fieldName => {
+          const fieldValue = getFieldValue(fieldName);
+          
+          // Handle date fields with formatting
+          if (fieldName.toLowerCase().includes('date') && fieldValue) {
+            editableFieldsData[fieldName] = formatDateForInput(fieldValue);
+          } else {
+            editableFieldsData[fieldName] = fieldValue;
+          }
+          
+          // Extract component values for composite fields
+          if (hasComponents(fieldName)) {
+            const extractedField = extractedData?.fields?.[fieldName];
+            if (extractedField?.components) {
+              Object.keys(extractedField.components).forEach(componentName => {
+                const componentKey = `${fieldName}${componentName.charAt(0).toUpperCase() + componentName.slice(1)}`;
+                editableFieldsData[componentKey] = getComponentValue(fieldName, componentName);
+              });
+            }
+          }
+        });
+      });
       
-      parentalCodeMother: getFieldValue('parentalCodeMother'),
-      parentalCodeFather: getFieldValue('parentalCodeFather'),
-      birthOrder: getFieldValue('birthOrder'),
-      birthDate: formatDateForInput(getFieldValue('birthDate')),
-      // birthDate components
-      birthDateMonth: getComponentValue('birthDate', 'month'),
-      birthDateDay: getComponentValue('birthDate', 'day'),
-      birthDateYear: getComponentValue('birthDate', 'year'),
-      
-      age: getFieldValue('age'),
-      ageMonths: getFieldValue('ageMonths'),
-      sex: getFieldValue('sex'),
-      // sex components (checkbox group)
-      sexMale: getComponentValue('sex', 'male'),
-      sexFemale: getComponentValue('sex', 'female'),
-      
-      genderIdentity: getFieldValue('genderIdentity'),
-      // genderIdentity components (multi-select checkbox group)
-      genderMan: getComponentValue('genderIdentity', 'man'),
-      genderWoman: getComponentValue('genderIdentity', 'woman'),
-      genderTransWoman: getComponentValue('genderIdentity', 'transWoman'),
-      genderTransMan: getComponentValue('genderIdentity', 'transMan'),
-      genderOther: getComponentValue('genderIdentity', 'other'),
-      
-      currentResidence: getFieldValue('currentResidence'),
-      // currentResidence components
-      currentResidenceCity: getComponentValue('currentResidence', 'city'),
-      currentResidenceProvince: getComponentValue('currentResidence', 'province'),
-      
-      permanentResidence: getFieldValue('permanentResidence'),
-      // permanentResidence components
-      permanentResidenceCity: getComponentValue('permanentResidence', 'city'),
-      permanentResidenceProvince: getComponentValue('permanentResidence', 'province'),
-      
-      placeOfBirth: getFieldValue('placeOfBirth'),
-      // placeOfBirth components
-      placeOfBirthCity: getComponentValue('placeOfBirth', 'city'),
-      placeOfBirthProvince: getComponentValue('placeOfBirth', 'province'),
-      
-      nationality: getFieldValue('nationality'),
-      civilStatus: getFieldValue('civilStatus'),
-      // civilStatus components (checkbox group)
-      civilStatusSingle: getComponentValue('civilStatus', 'single'),
-      civilStatusMarried: getComponentValue('civilStatus', 'married'),
-      civilStatusWidowed: getComponentValue('civilStatus', 'widowed'),
-      civilStatusSeparated: getComponentValue('civilStatus', 'separated'),
-      civilStatusLiveIn: getComponentValue('civilStatus', 'liveIn'),
-      
-      livingWithPartner: getFieldValue('livingWithPartner'),
-      numberOfChildren: getFieldValue('numberOfChildren'),
-      isPregnant: getFieldValue('isPregnant'),
-      parentalCode: getFieldValue('parentalCode'),
-      
-      // ============================================================
-      // FRONT PAGE SECTION 3: EDUCATION & OCCUPATION (6 fields)
-      // ============================================================
-      educationalAttainment: getFieldValue('educationalAttainment'),
-      currentlyInSchool: getFieldValue('currentlyInSchool'),
-      currentlyWorking: getFieldValue('currentlyWorking'),
-      workedOverseas: getFieldValue('workedOverseas'),
-      overseasReturnYear: getFieldValue('overseasReturnYear'),
-      workedOverseasPassedFiveYears: getFieldValue('workedOverseasPassedFiveYears'),
-      
-      // ============================================================
-      // BACK PAGE SECTION 1: HISTORY OF EXPOSURE / RISK ASSESSMENT (23 fields + nested components)
-      // ============================================================
-      motherHIV: getFieldValue('motherHIV'),
-      riskAssessment: getFieldValue('riskAssessment'),
-      
-      // riskSexMale with conditional components
-      riskSexMaleStatus: getFieldValue('riskSexMaleStatus'),
-      riskSexMale: getFieldValue('riskSexMale'),
-      // riskSexMale.no/yes components
-      riskSexMaleNo: getComponentValue('riskSexMale', 'no'),
-      riskSexMaleYes: getComponentValue('riskSexMale', 'yes'),
-      // riskSexMale.yes conditional fields
-      riskSexMaleTotal: getComponentValue('riskSexMale', 'total'),
-      riskSexMaleDate1: getComponentValue('riskSexMale', 'date1'),
-      riskSexMaleDate2: getComponentValue('riskSexMale', 'date2'),
-      riskSexMaleDateMostRecent: getComponentValue('riskSexMale', 'dateMostRecentRisk'),
-      
-      // riskSexFemale with conditional components
-      riskSexFemaleStatus: getFieldValue('riskSexFemaleStatus'),
-      riskSexFemale: getFieldValue('riskSexFemale'),
-      riskSexFemaleNo: getComponentValue('riskSexFemale', 'no'),
-      riskSexFemaleYes: getComponentValue('riskSexFemale', 'yes'),
-      riskSexFemaleTotal: getComponentValue('riskSexFemale', 'total'),
-      riskSexFemaleDate1: getComponentValue('riskSexFemale', 'date1'),
-      riskSexFemaleDate2: getComponentValue('riskSexFemale', 'date2'),
-      riskSexFemaleDateMostRecent: getComponentValue('riskSexFemale', 'dateMostRecentRisk'),
-      
-      // riskPaidForSex with conditional components
-      riskPaidForSexStatus: getFieldValue('riskPaidForSexStatus'),
-      riskPaidForSex: getFieldValue('riskPaidForSex'),
-      riskPaidForSexNo: getComponentValue('riskPaidForSex', 'no'),
-      riskPaidForSexYes: getComponentValue('riskPaidForSex', 'yes'),
-      riskPaidForSexTotal: getComponentValue('riskPaidForSex', 'total'),
-      riskPaidForSexDate1: getComponentValue('riskPaidForSex', 'date1'),
-      riskPaidForSexDate2: getComponentValue('riskPaidForSex', 'date2'),
-      riskPaidForSexDateMostRecent: getComponentValue('riskPaidForSex', 'dateMostRecentRisk'),
-      
-      // riskReceivedPayment with conditional components
-      riskReceivedPaymentStatus: getFieldValue('riskReceivedPaymentStatus'),
-      riskReceivedPayment: getFieldValue('riskReceivedPayment'),
-      riskReceivedPaymentNo: getComponentValue('riskReceivedPayment', 'no'),
-      riskReceivedPaymentYes: getComponentValue('riskReceivedPayment', 'yes'),
-      riskReceivedPaymentTotal: getComponentValue('riskReceivedPayment', 'total'),
-      riskReceivedPaymentDate1: getComponentValue('riskReceivedPayment', 'date1'),
-      riskReceivedPaymentDate2: getComponentValue('riskReceivedPayment', 'date2'),
-      riskReceivedPaymentDateMostRecent: getComponentValue('riskReceivedPayment', 'dateMostRecentRisk'),
-      
-      // riskSexUnderDrugs with conditional components
-      riskSexUnderDrugsStatus: getFieldValue('riskSexUnderDrugsStatus'),
-      riskSexUnderDrugs: getFieldValue('riskSexUnderDrugs'),
-      riskSexUnderDrugsNo: getComponentValue('riskSexUnderDrugs', 'no'),
-      riskSexUnderDrugsYes: getComponentValue('riskSexUnderDrugs', 'yes'),
-      riskSexUnderDrugsTotal: getComponentValue('riskSexUnderDrugs', 'total'),
-      riskSexUnderDrugsDate1: getComponentValue('riskSexUnderDrugs', 'date1'),
-      riskSexUnderDrugsDate2: getComponentValue('riskSexUnderDrugs', 'date2'),
-      riskSexUnderDrugsDateMostRecent: getComponentValue('riskSexUnderDrugs', 'dateMostRecentRisk'),
-      
-      // riskSharedNeedles with conditional components
-      riskSharedNeedlesStatus: getFieldValue('riskSharedNeedlesStatus'),
-      riskSharedNeedles: getFieldValue('riskSharedNeedles'),
-      riskSharedNeedlesNo: getComponentValue('riskSharedNeedles', 'no'),
-      riskSharedNeedlesYes: getComponentValue('riskSharedNeedles', 'yes'),
-      riskSharedNeedlesTotal: getComponentValue('riskSharedNeedles', 'total'),
-      riskSharedNeedlesDate1: getComponentValue('riskSharedNeedles', 'date1'),
-      riskSharedNeedlesDate2: getComponentValue('riskSharedNeedles', 'date2'),
-      riskSharedNeedlesDateMostRecent: getComponentValue('riskSharedNeedles', 'dateMostRecentRisk'),
-      
-      // riskBloodTransfusion with conditional components
-      riskBloodTransfusionStatus: getFieldValue('riskBloodTransfusionStatus'),
-      riskBloodTransfusion: getFieldValue('riskBloodTransfusion'),
-      riskBloodTransfusionNo: getComponentValue('riskBloodTransfusion', 'no'),
-      riskBloodTransfusionYes: getComponentValue('riskBloodTransfusion', 'yes'),
-      riskBloodTransfusionTotal: getComponentValue('riskBloodTransfusion', 'total'),
-      riskBloodTransfusionDate1: getComponentValue('riskBloodTransfusion', 'date1'),
-      riskBloodTransfusionDate2: getComponentValue('riskBloodTransfusion', 'date2'),
-      riskBloodTransfusionDateMostRecent: getComponentValue('riskBloodTransfusion', 'dateMostRecentRisk'),
-      riskBloodTransfusionDate: getFieldValue('riskBloodTransfusionDate'),
-      
-      // riskOccupationalExposure (simple field, no conditional components)
-      riskOccupationalExposure: getFieldValue('riskOccupationalExposure'),
-      
-      // ============================================================
-      // BACK PAGE SECTION 2: REASONS FOR HIV TESTING (2 fields)
-      // ============================================================
-      reasonsForTesting: getFieldValue('reasonsForTesting'),
-      reasonForTesting: getFieldValue('reasonForTesting'),
-      
-      // ============================================================
-      // BACK PAGE SECTION 3: PREVIOUS HIV TEST (4 fields)
-      // ============================================================
-      previouslyTested: getFieldValue('previouslyTested'),
-      previousTestResult: getFieldValue('previousTestResult'),
-      previousTestDate: formatDateForInput(getFieldValue('previousTestDate')),
-      previousTestCity: getFieldValue('previousTestCity'),
-      
-      // ============================================================
-      // BACK PAGE SECTION 4: MEDICAL HISTORY & CLINICAL PICTURE (5 fields)
-      // ============================================================
-      medicalHistory: getFieldValue('medicalHistory'),
-      clinicalPicture: getFieldValue('clinicalPicture'),
-      symptoms: getFieldValue('symptoms'),
-      whoStaging: getFieldValue('whoStaging'),
-      noPhysicianStage: getFieldValue('noPhysicianStage'),
-      
-      // ============================================================
-      // BACK PAGE SECTION 5: TESTING DETAILS (9 fields)
-      // ============================================================
-      clientType: getFieldValue('clientType'),
-      modeOfReach: getFieldValue('modeOfReach'),
-      testingAccepted: getFieldValue('testingAccepted'),
-      testingModality: getFieldValue('testingModality'),
-      testingDetails: getFieldValue('testingDetails'),
-      linkageToTesting: getFieldValue('linkageToTesting'),
-      otherServiceProvided: getFieldValue('otherServiceProvided'),
-      linkageToCare: getFieldValue('linkageToCare'),
-      otherServices: getFieldValue('otherServices'),
-      
-      // ============================================================
-      // BACK PAGE SECTION 6: INVENTORY INFORMATION (4 fields)
-      // ============================================================
-      testKitBrand: getFieldValue('testKitBrand'),
-      testKitUsed: getFieldValue('testKitUsed'),
-      testKitLotNumber: getFieldValue('testKitLotNumber'),
-      testKitExpiration: formatDateForInput(getFieldValue('testKitExpiration')),
-      
-      // ============================================================
-      // BACK PAGE SECTION 7: HTS PROVIDER DETAILS (9 fields)
-      // ============================================================
-      testingFacility: getFieldValue('testingFacility'),
-      facilityAddress: getFieldValue('facilityAddress'),
-      facilityContactNumber: getFieldValue('facilityContactNumber'),
-      facilityEmail: getFieldValue('facilityEmail'),
-      counselorName: getFieldValue('counselorName'),
-      counselorRole: getFieldValue('counselorRole'),
-      counselorSignature: getFieldValue('counselorSignature'),
-      primaryHTSProvider: getFieldValue('primaryHTSProvider'),
-      formCompletionDate: formatDateForInput(getFieldValue('formCompletionDate')),
-      
-      // ============================================================
-      // BACK PAGE SECTION 8: OTHERS (2 fields)
-      // ============================================================
-      condomUse: getFieldValue('condomUse'),
-      typeOfSex: getFieldValue('typeOfSex')
-    });
-    setFieldErrors({});
-    setMappedUnmappedKeys({});
-    setIsEditMode(true);
+      setEditableData(editableFieldsData);
+      setFieldErrors({});
+      setMappedUnmappedKeys({});
+      setIsEditMode(true);
+    } catch (error) {
+      console.error('Failed to load metadata for edit mode:', error);
+      // Fallback: Initialize with minimal critical fields if metadata fails
+      setEditableData({
+        testResult: getFieldValue('testResult'),
+        testDate: formatDateForInput(getFieldValue('testDate')),
+        firstName: getComponentValue('fullName', 'firstName'),
+        lastName: getComponentValue('fullName', 'lastName'),
+        birthDate: formatDateForInput(getFieldValue('birthDate')),
+        age: getFieldValue('age'),
+        sex: getFieldValue('sex')
+      });
+      setFieldErrors({});
+      setMappedUnmappedKeys({});
+      setIsEditMode(true);
+      showAlert(
+        'Limited Edit Mode',
+        'Could not load full form structure. Only critical fields are available for editing.',
+        'warning'
+      );
+    }
   };
 
   // Cancel edit mode
