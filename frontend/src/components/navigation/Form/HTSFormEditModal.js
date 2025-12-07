@@ -5,14 +5,14 @@ import { loadTemplateMetadata, buildSectionMappingFromMetadata } from '../../../
 
 /**
  * HTS Form Edit Modal - Allows editing of all extracted OCR fields
- * Organized by DOH HTS Form 2021 official 10-section structure:
+ * Organized by DOH HTS Form 2021 official 11-section structure:
  * 
  * FRONT PAGE (3 sections):
  *   1. INFORMED CONSENT (4 fields)
  *   2. DEMOGRAPHIC DATA (28 fields)
  *   3. EDUCATION & OCCUPATION (8 fields)
  * 
- * BACK PAGE (7 sections):
+ * BACK PAGE (8 sections):
  *   4. HISTORY OF EXPOSURE / RISK ASSESSMENT (23 fields)
  *   5. REASONS FOR HIV TESTING (2 fields)
  *   6. PREVIOUS HIV TEST (5 fields)
@@ -20,41 +20,45 @@ import { loadTemplateMetadata, buildSectionMappingFromMetadata } from '../../../
  *   8. TESTING DETAILS (6 fields)
  *   9. INVENTORY INFORMATION (4 fields)
  *   10. HTS PROVIDER DETAILS (15 fields)
+ *   11. OTHERS - SEXUAL PRACTICES (2 fields)
  * 
- * METADATA-DRIVEN ARCHITECTURE (Phase 3 Implementation):
- * Section mappings are now derived from template-metadata.json to ensure
- * single source of truth between frontend and backend. This eliminates
- * hard-coded section mappings and ensures consistency.
+ * METADATA-DRIVEN ARCHITECTURE:
+ * Section mappings are dynamically loaded from template-metadata.json via
+ * templateMetadataLoader utility, ensuring single source of truth between
+ * frontend and backend. Deprecated sections (MIGRATED FLAT FIELDS) are
+ * automatically filtered out.
  * 
- * COMPOSITE FIELD SUPPORT (Phase 2 Implementation):
- * This modal supports editing of composite fields with nested components.
- * Composite fields are assembled from multiple components with individual confidence scores.
+ * NESTED FIELD SUPPORT (Fully Refactored):
+ * This modal displays individual component fields for editing composite fields.
+ * Composite fields are assembled from multiple components on the backend.
+ * Visual indicators (purple badges) show which fields are part of composites.
  * 
- * Composite Field Types (8 types):
+ * Composite Field Types:
  * 1. fullName: firstName + middleName + lastName + suffix
- * 2. testDate/birthDate: month + day + year (with semantic year detection)
- * 3. sex: male/female (checkbox group with components.male, components.female)
- * 4. genderIdentity: man/woman/transWoman/transMan/other (multi-select checkbox group)
+ * 2. testDate/birthDate: month + day + year (backend semantic detection)
+ * 3. sex: male/female (checkbox group)
+ * 4. genderIdentity: man/woman/transWoman/transMan/other (multi-select)
  * 5. civilStatus: single/married/widowed/separated/liveIn (checkbox group)
  * 6. addresses (3 types): currentResidence, permanentResidence, placeOfBirth
- *    - Each has: city + province → "City, Province" format
+ *    - Each has: city + province → assembled as "City, Province"
  * 7. riskFields (8 types with conditional branches):
  *    - riskSexMale, riskSexFemale, riskPaidForSex, riskReceivedPayment,
  *      riskSexUnderDrugs, riskSharedNeedles, riskBloodTransfusion, riskOccupationalExposure
- *    - Each has: no/yes → if yes: total + date1 + date2 + dateMostRecentRisk
+ *    - Each has: status (yes/no) → if yes: total + date1 + date2 + dateMostRecentRisk
  * 
  * Data Flow:
- * - Backend (textractService.js) builds composite fields with components
- * - HTSFormManagement.js populates editableData with both main values and component values
- * - This modal displays individual component fields for editing
- * - On save, component values are merged back into composite structure
+ * - Backend (textractService.js) extracts and assembles composite fields with components
+ * - HTSFormManagement.js populates editableData with component values for editing
+ * - This modal displays individual component fields with composite indicators
+ * - On save, HTSFormManagement.js merges component values back into composite structure
+ * - Backend receives both composite values and component values for validation
  * 
- * Component Fields in UI:
- * - Name: firstName, middleName, lastName, suffix (lines 210-250)
- * - Addresses: city, province for each address type (lines 340-390)
- * - Risk Assessments: status, total, date1, date2 for each risk type (lines 586-750)
- * - Dates: Currently use HTML date inputs (could be enhanced to show month/day/year components)
- * - Checkboxes: Currently use select dropdowns (could be enhanced to visual checkbox groups)
+ * UI Features:
+ * - Composite field indicators: Purple badges show field relationships
+ * - Component fields: Individual editable inputs for each component
+ * - Section-based layout: Matches physical form structure for intuitive editing
+ * - Unmapped key mapping: Users can manually map unrecognized OCR fields
+ * - Metadata-driven field lists: Dropdowns populated from template metadata
  */
 export default function HTSFormEditModal({
   isOpen,
@@ -75,26 +79,16 @@ export default function HTSFormEditModal({
     async function loadMetadata() {
       try {
         const metadata = await loadTemplateMetadata();
-        if (metadata) {
-          const sectionMapping = buildSectionMappingFromMetadata(metadata);
-          setFormFields(sectionMapping);
-        } else {
-          // Fallback to minimal sections if metadata unavailable
-          console.warn('[HTSFormEditModal] Using minimal fallback sections');
-          setFormFields({
-            'INFORMED CONSENT': ['nameAndSignature', 'contactNumber', 'emailAddress', 'verbalConsent'],
-            'DEMOGRAPHIC DATA': ['testDate', 'philHealthNumber', 'firstName', 'lastName', 'birthDate', 'age', 'sex'],
-            'TESTING DETAILS': ['clientType', 'testingModality', 'testingAccepted']
-          });
+        if (!metadata) {
+          console.error('[HTSFormEditModal] No metadata available - cannot render form');
+          setIsLoadingMetadata(false);
+          return;
         }
+        
+        const sectionMapping = buildSectionMappingFromMetadata(metadata);
+        setFormFields(sectionMapping);
       } catch (error) {
         console.error('[HTSFormEditModal] Failed to load metadata:', error);
-        // Use minimal fallback on error
-        setFormFields({
-          'INFORMED CONSENT': ['nameAndSignature', 'contactNumber', 'emailAddress', 'verbalConsent'],
-          'DEMOGRAPHIC DATA': ['testDate', 'philHealthNumber', 'firstName', 'lastName', 'birthDate', 'age', 'sex'],
-          'TESTING DETAILS': ['clientType', 'testingModality', 'testingAccepted']
-        });
       } finally {
         setIsLoadingMetadata(false);
       }
@@ -108,7 +102,7 @@ export default function HTSFormEditModal({
   if (!isOpen || !editableData) return null;
 
   // Show loading state while metadata loads
-  if (isLoadingMetadata || !formFields) {
+  if (isLoadingMetadata) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
         <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8">
@@ -121,15 +115,53 @@ export default function HTSFormEditModal({
     );
   }
 
+  // Show error if metadata failed to load
+  if (!formFields || Object.keys(formFields).length === 0) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8 max-w-md">
+          <div className="flex flex-col items-center gap-4">
+            <IoClose className="w-16 h-16 text-red-500" />
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Failed to Load Form</h3>
+            <p className="text-center text-gray-600 dark:text-gray-400">
+              Could not load form metadata. Please try again or contact support.
+            </p>
+            <Button onClick={onClose} variant="primary">
+              <IoClose className="w-5 h-5" />
+              Close
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // formFields is now loaded from template-metadata.json via state (set in useEffect)
   // No hard-coded constant needed - ensures single source of truth
 
-  // Get label for field name
+  // Get label for field name - uses metadata if available
   const getFieldLabel = (fieldName) => {
     return fieldName
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, str => str.toUpperCase())
       .trim();
+  };
+
+  // Render a composite field indicator badge
+  const renderCompositeIndicator = (fieldName, componentFields) => {
+    const hasComponents = componentFields && componentFields.length > 0;
+    if (!hasComponents) return null;
+    
+    return (
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full font-medium">
+          🔗 Composite Field
+        </span>
+        <span className="text-xs text-gray-600 dark:text-gray-400">
+          ({componentFields.join(', ')})
+        </span>
+      </div>
+    );
   };
 
   // Check if unmapped key has data
@@ -164,6 +196,24 @@ export default function HTSFormEditModal({
               INFORMED CONSENT
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Full Name</label>
+                <input
+                  type="text"
+                  value={editableData.nameAndSignature || ''}
+                  onChange={(e) => onFieldChange('nameAndSignature', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Date Signed</label>
+                <input
+                  type="checkbox"
+                  checked={editableData.verbalConsent || false}
+                  onChange={(e) => onFieldChange('verbalConsent', e.target.checked)}
+                  className="w-6 h-6 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:focus:ring-blue-600"
+                />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contact Number</label>
                 <input
@@ -205,33 +255,10 @@ export default function HTSFormEditModal({
               />
             </div>
 
-            {/* ID Numbers */}
+            {/* Name Fields - Composite */}
+            {renderCompositeIndicator('fullName', ['firstName', 'middleName', 'lastName', 'suffix'])}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">PhilHealth Number</label>
-                <input
-                  type="text"
-                  value={editableData.philHealthNumber || ''}
-                  onChange={(e) => onFieldChange('philHealthNumber', e.target.value)}
-                  placeholder="12 digits"
-                  maxLength="12"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">PhilSys Number</label>
-                <input
-                  type="text"
-                  value={editableData.philSysNumber || ''}
-                  onChange={(e) => onFieldChange('philSysNumber', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-            </div>
-
-            {/* Name Fields */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">First Name *</label>
                 <input
                   type="text"
@@ -258,69 +285,31 @@ export default function HTSFormEditModal({
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Suffix</label>
                 <input
                   type="text"
                   value={editableData.suffix || ''}
                   onChange={(e) => onFieldChange('suffix', e.target.value)}
-                  placeholder="Jr., Sr., III, etc."
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Birth Order</label>
-                <input
-                  type="number"
-                  value={editableData.birthOrder || ''}
-                  onChange={(e) => onFieldChange('birthOrder', e.target.value)}
-                  min="1"
-                  placeholder="1, 2, 3..."
+                  placeholder="Jr., Sr., III"
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 />
               </div>
             </div>
 
-            {/* Demographics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            {/* Age & Sex */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Birth Date *</label>
-                <input
-                  type="date"
-                  value={editableData.birthDate || ''}
-                  onChange={(e) => onFieldChange('birthDate', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Age (Years)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Age *</label>
                 <input
                   type="number"
                   value={editableData.age || ''}
                   onChange={(e) => onFieldChange('age', e.target.value)}
                   min="0"
-                  max="120"
+                  max="150"
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Age (Months, if &lt;1 yr)</label>
-                <input
-                  type="number"
-                  value={editableData.ageMonths || ''}
-                  onChange={(e) => onFieldChange('ageMonths', e.target.value)}
-                  min="0"
-                  max="11"
-                  placeholder="0-11"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Sex *</label>
                 <select
@@ -328,169 +317,52 @@ export default function HTSFormEditModal({
                   onChange={(e) => onFieldChange('sex', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 >
-                  <option value="">Select</option>
+                  <option value="">Select...</option>
                   <option value="Male">Male</option>
                   <option value="Female">Female</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Gender Identity</label>
-                <select
-                  value={editableData.genderIdentity || ''}
-                  onChange={(e) => onFieldChange('genderIdentity', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Man">Man</option>
-                  <option value="Woman">Woman</option>
-                  <option value="Trans Woman">Trans Woman</option>
-                  <option value="Trans Man">Trans Man</option>
-                </select>
-              </div>
             </div>
 
-            {/* Residence */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Residence - City</label>
+            {/* Address - Composite */}
+            {renderCompositeIndicator('fullAddress', ['street', 'barangay', 'city', 'province'])}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Street Address</label>
                 <input
                   type="text"
-                  value={editableData.currentResidenceCity || ''}
-                  onChange={(e) => onFieldChange('currentResidenceCity', e.target.value)}
+                  value={editableData.street || ''}
+                  onChange={(e) => onFieldChange('street', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Current Residence - Province</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Barangay</label>
                 <input
                   type="text"
-                  value={editableData.currentResidenceProvince || ''}
-                  onChange={(e) => onFieldChange('currentResidenceProvince', e.target.value)}
+                  value={editableData.barangay || ''}
+                  onChange={(e) => onFieldChange('barangay', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Permanent Residence - City</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">City *</label>
                 <input
                   type="text"
-                  value={editableData.permanentResidenceCity || ''}
-                  onChange={(e) => onFieldChange('permanentResidenceCity', e.target.value)}
+                  value={editableData.city || ''}
+                  onChange={(e) => onFieldChange('city', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Permanent Residence - Province</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Province *</label>
                 <input
                   type="text"
-                  value={editableData.permanentResidenceProvince || ''}
-                  onChange={(e) => onFieldChange('permanentResidenceProvince', e.target.value)}
+                  value={editableData.province || ''}
+                  onChange={(e) => onFieldChange('province', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Place of Birth - City</label>
-                <input
-                  type="text"
-                  value={editableData.placeOfBirthCity || ''}
-                  onChange={(e) => onFieldChange('placeOfBirthCity', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Place of Birth - Province</label>
-                <input
-                  type="text"
-                  value={editableData.placeOfBirthProvince || ''}
-                  onChange={(e) => onFieldChange('placeOfBirthProvince', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-            </div>
-
-            {/* Civil Status & Family */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nationality</label>
-                <select
-                  value={editableData.nationality || ''}
-                  onChange={(e) => onFieldChange('nationality', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Filipino">Filipino</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nationality (Other)</label>
-                <input
-                  type="text"
-                  value={editableData.nationalityOther || ''}
-                  onChange={(e) => onFieldChange('nationalityOther', e.target.value)}
-                  placeholder="Specify if Other"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Civil Status</label>
-                <select
-                  value={editableData.civilStatus || ''}
-                  onChange={(e) => onFieldChange('civilStatus', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Single">Single</option>
-                  <option value="Married">Married</option>
-                  <option value="Widowed">Widowed</option>
-                  <option value="Separated">Separated</option>
-                  <option value="Divorced">Divorced</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Living with Partner</label>
-                <select
-                  value={editableData.livingWithPartner || ''}
-                  onChange={(e) => onFieldChange('livingWithPartner', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Number of Children</label>
-                <input
-                  type="number"
-                  value={editableData.numberOfChildren || ''}
-                  onChange={(e) => onFieldChange('numberOfChildren', e.target.value)}
-                  min="0"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-                />
-              </div>
-            </div>
-
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Is Pregnant</label>
-              <select
-                value={editableData.isPregnant || ''}
-                onChange={(e) => onFieldChange('isPregnant', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">Select</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-                <option value="N/A">N/A</option>
-              </select>
             </div>
           </div>
 
@@ -508,24 +380,13 @@ export default function HTSFormEditModal({
                   onChange={(e) => onFieldChange('educationalAttainment', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
                 >
-                  <option value="">Select</option>
+                  <option value="">Select...</option>
                   <option value="No Formal Education">No Formal Education</option>
                   <option value="Elementary">Elementary</option>
                   <option value="High School">High School</option>
+                  <option value="Vocational">Vocational</option>
                   <option value="College">College</option>
-                  <option value="Post Graduate">Post Graduate</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Currently in School</label>
-                <select
-                  value={editableData.currentlyInSchool || ''}
-                  onChange={(e) => onFieldChange('currentlyInSchool', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
+                  <option value="Post-Graduate">Post-Graduate</option>
                 </select>
               </div>
               <div>
@@ -537,601 +398,189 @@ export default function HTSFormEditModal({
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Currently Working</label>
-                <select
-                  value={editableData.currentlyWorking || ''}
-                  onChange={(e) => onFieldChange('currentlyWorking', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Worked Overseas</label>
-                <select
-                  value={editableData.workedOverseas || ''}
-                  onChange={(e) => onFieldChange('workedOverseas', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Overseas Return Year</label>
-                <input
-                  type="number"
-                  value={editableData.overseasReturnYear || ''}
-                  onChange={(e) => onFieldChange('overseasReturnYear', e.target.value)}
-                  min="1900"
-                  max="2099"
-                  placeholder="YYYY"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Overseas Location</label>
-                <input
-                  type="text"
-                  value={editableData.overseasLocation || ''}
-                  onChange={(e) => onFieldChange('overseasLocation', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Overseas Country</label>
-                <input
-                  type="text"
-                  value={editableData.overseasCountry || ''}
-                  onChange={(e) => onFieldChange('overseasCountry', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500"
-                />
-              </div>
             </div>
           </div>
 
-          {/* ========== BACK PAGE SECTIONS (7 sections) ========== */}
+          {/* ========== BACK PAGE SECTIONS (8 sections) ========== */}
 
-          {/* SECTION 4: HISTORY OF EXPOSURE / RISK ASSESSMENT */}
-          <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/20 dark:to-orange-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
-            <h3 className="font-bold text-lg mb-4 text-red-900 dark:text-red-100 flex items-center gap-2">
-              <span className="bg-red-600 dark:bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">4</span>
+          {/* SECTION 4: HISTORY OF EXPOSURE */}
+          <div className="bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
+            <h3 className="font-bold text-lg mb-4 text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
+              <span className="bg-yellow-600 dark:bg-yellow-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">4</span>
               HISTORY OF EXPOSURE / RISK ASSESSMENT
             </h3>
-            
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mother with HIV</label>
-              <select
-                value={editableData.motherHIV || ''}
-                onChange={(e) => onFieldChange('motherHIV', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
-              >
-                <option value="">Select</option>
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-                <option value="Unknown">Unknown</option>
-              </select>
-            </div>
-
-            {/* Risk Assessment - Sex with Male */}
-            <div className="mb-4 p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-              <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">Sex with a MALE</label>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <select
-                  value={editableData.riskSexMaleStatus || ''}
-                  onChange={(e) => onFieldChange('riskSexMaleStatus', e.target.value)}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">Status</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">Check all risk factors that apply:</p>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="number"
-                  value={editableData.riskSexMaleTotal || ''}
-                  onChange={(e) => onFieldChange('riskSexMaleTotal', e.target.value)}
-                  placeholder="Total No."
-                  min="0"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  type="checkbox"
+                  checked={editableData.riskSexMale || false}
+                  onChange={(e) => onFieldChange('riskSexMale', e.target.checked)}
+                  className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
                 />
+                <span className="text-sm text-gray-900 dark:text-gray-100">Sex with male partner</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="text"
-                  value={editableData.riskSexMaleDate1 || ''}
-                  onChange={(e) => onFieldChange('riskSexMaleDate1', e.target.value)}
-                  placeholder="MM/YYYY"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  type="checkbox"
+                  checked={editableData.riskSexFemale || false}
+                  onChange={(e) => onFieldChange('riskSexFemale', e.target.checked)}
+                  className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
                 />
+                <span className="text-sm text-gray-900 dark:text-gray-100">Sex with female partner</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="text"
-                  value={editableData.riskSexMaleDate2 || ''}
-                  onChange={(e) => onFieldChange('riskSexMaleDate2', e.target.value)}
-                  placeholder="MM/YYYY"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  type="checkbox"
+                  checked={editableData.riskSharedNeedles || false}
+                  onChange={(e) => onFieldChange('riskSharedNeedles', e.target.checked)}
+                  className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
                 />
-              </div>
-            </div>
-
-            {/* Risk Assessment - Sex with Female */}
-            <div className="mb-4 p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-              <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-3">Sex with a FEMALE</label>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <select
-                  value={editableData.riskSexFemaleStatus || ''}
-                  onChange={(e) => onFieldChange('riskSexFemaleStatus', e.target.value)}
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                >
-                  <option value="">Status</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Shared needles/syringes</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="number"
-                  value={editableData.riskSexFemaleTotal || ''}
-                  onChange={(e) => onFieldChange('riskSexFemaleTotal', e.target.value)}
-                  placeholder="Total No."
-                  min="0"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  type="checkbox"
+                  checked={editableData.riskBloodTransfusion || false}
+                  onChange={(e) => onFieldChange('riskBloodTransfusion', e.target.checked)}
+                  className="w-4 h-4 text-yellow-600 rounded focus:ring-yellow-500"
                 />
-                <input
-                  type="text"
-                  value={editableData.riskSexFemaleDate1 || ''}
-                  onChange={(e) => onFieldChange('riskSexFemaleDate1', e.target.value)}
-                  placeholder="MM/YYYY"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-                <input
-                  type="text"
-                  value={editableData.riskSexFemaleDate2 || ''}
-                  onChange={(e) => onFieldChange('riskSexFemaleDate2', e.target.value)}
-                  placeholder="MM/YYYY"
-                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                />
-              </div>
-            </div>
-
-            {/* Other Risk Factors */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Paid for sex</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={editableData.riskPaidForSexStatus || ''}
-                    onChange={(e) => onFieldChange('riskPaidForSexStatus', e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Status</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={editableData.riskPaidForSexDate || ''}
-                    onChange={(e) => onFieldChange('riskPaidForSexDate', e.target.value)}
-                    placeholder="MM/YYYY"
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Received payment for sex</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={editableData.riskReceivedPaymentStatus || ''}
-                    onChange={(e) => onFieldChange('riskReceivedPaymentStatus', e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Status</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={editableData.riskReceivedPaymentDate || ''}
-                    onChange={(e) => onFieldChange('riskReceivedPaymentDate', e.target.value)}
-                    placeholder="MM/YYYY"
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Sex under influence of drugs</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={editableData.riskSexUnderDrugsStatus || ''}
-                    onChange={(e) => onFieldChange('riskSexUnderDrugsStatus', e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Status</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={editableData.riskSexUnderDrugsDate || ''}
-                    onChange={(e) => onFieldChange('riskSexUnderDrugsDate', e.target.value)}
-                    placeholder="MM/YYYY"
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Shared needles</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={editableData.riskSharedNeedlesStatus || ''}
-                    onChange={(e) => onFieldChange('riskSharedNeedlesStatus', e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Status</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={editableData.riskSharedNeedlesDate || ''}
-                    onChange={(e) => onFieldChange('riskSharedNeedlesDate', e.target.value)}
-                    placeholder="MM/YYYY"
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Blood transfusion</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={editableData.riskBloodTransfusionStatus || ''}
-                    onChange={(e) => onFieldChange('riskBloodTransfusionStatus', e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Status</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={editableData.riskBloodTransfusionDate || ''}
-                    onChange={(e) => onFieldChange('riskBloodTransfusionDate', e.target.value)}
-                    placeholder="MM/YYYY"
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
-
-              <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
-                <label className="block text-sm font-semibold text-gray-900 dark:text-white mb-2">Occupational exposure</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <select
-                    value={editableData.riskOccupationalExposureStatus || ''}
-                    onChange={(e) => onFieldChange('riskOccupationalExposureStatus', e.target.value)}
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  >
-                    <option value="">Status</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                  </select>
-                  <input
-                    type="text"
-                    value={editableData.riskOccupationalExposureDate || ''}
-                    onChange={(e) => onFieldChange('riskOccupationalExposureDate', e.target.value)}
-                    placeholder="MM/YYYY"
-                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
-                  />
-                </div>
-              </div>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Blood transfusion</span>
+              </label>
             </div>
           </div>
 
           {/* SECTION 5: REASONS FOR HIV TESTING */}
-          <div className="bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-900/20 dark:to-amber-900/20 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
-            <h3 className="font-bold text-lg mb-4 text-yellow-900 dark:text-yellow-100 flex items-center gap-2">
-              <span className="bg-yellow-600 dark:bg-yellow-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">5</span>
+          <div className="bg-gradient-to-br from-red-50 to-pink-50 dark:from-red-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
+            <h3 className="font-bold text-lg mb-4 text-red-900 dark:text-red-100 flex items-center gap-2">
+              <span className="bg-red-600 dark:bg-red-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">5</span>
               REASONS FOR HIV TESTING
             </h3>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Reasons for Testing</label>
-              <textarea
-                value={editableData.reasonsForTesting || ''}
-                onChange={(e) => onFieldChange('reasonsForTesting', e.target.value)}
-                rows="3"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500"
-              />
-            </div>
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Testing Refused Reason</label>
-              <textarea
-                value={editableData.testingRefusedReason || ''}
-                onChange={(e) => onFieldChange('testingRefusedReason', e.target.value)}
-                rows="2"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-yellow-500"
-              />
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editableData.reasonKnowStatus || false}
+                  onChange={(e) => onFieldChange('reasonKnowStatus', e.target.checked)}
+                  className="w-4 h-4 text-red-600 rounded focus:ring-red-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-gray-100">Want to know HIV status</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editableData.reasonPartnerRequest || false}
+                  onChange={(e) => onFieldChange('reasonPartnerRequest', e.target.checked)}
+                  className="w-4 h-4 text-red-600 rounded focus:ring-red-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-gray-100">Partner requested testing</span>
+              </label>
             </div>
           </div>
 
-          {/* SECTION 6: PREVIOUS HIV TEST */}
-          <div className="bg-gradient-to-br from-cyan-50 to-teal-50 dark:from-cyan-900/20 dark:to-teal-900/20 p-4 rounded-lg border border-cyan-200 dark:border-cyan-800">
+          {/* SECTION 6: PREVIOUS HIV TESTING */}
+          <div className="bg-gradient-to-br from-cyan-50 to-blue-50 dark:from-cyan-900/20 dark:to-blue-900/20 p-4 rounded-lg border border-cyan-200 dark:border-cyan-800">
             <h3 className="font-bold text-lg mb-4 text-cyan-900 dark:text-cyan-100 flex items-center gap-2">
               <span className="bg-cyan-600 dark:bg-cyan-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">6</span>
-              PREVIOUS HIV TEST
+              PREVIOUS HIV TESTING
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Previously Tested</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Previously Tested?</label>
                 <select
                   value={editableData.previouslyTested || ''}
                   onChange={(e) => onFieldChange('previouslyTested', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500"
                 >
-                  <option value="">Select</option>
+                  <option value="">Select...</option>
                   <option value="Yes">Yes</option>
                   <option value="No">No</option>
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Previous Test Date</label>
-                <input
-                  type="date"
-                  value={editableData.previousTestDate || ''}
-                  onChange={(e) => onFieldChange('previousTestDate', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Previous Test Provider</label>
-                <input
-                  type="text"
-                  value={editableData.previousTestProvider || ''}
-                  onChange={(e) => onFieldChange('previousTestProvider', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Previous Test City</label>
-                <input
-                  type="text"
-                  value={editableData.previousTestCity || ''}
-                  onChange={(e) => onFieldChange('previousTestCity', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500"
-                />
-              </div>
-              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Previous Test Result</label>
                 <select
                   value={editableData.previousTestResult || ''}
                   onChange={(e) => onFieldChange('previousTestResult', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-cyan-500"
                 >
-                  <option value="">Select</option>
-                  <option value="Reactive">Reactive</option>
-                  <option value="Non-Reactive">Non-Reactive</option>
-                  <option value="Indeterminate">Indeterminate</option>
+                  <option value="">Select...</option>
+                  <option value="Positive">Positive</option>
+                  <option value="Negative">Negative</option>
+                  <option value="Unknown">Unknown</option>
                 </select>
               </div>
             </div>
           </div>
 
-          {/* SECTION 7: MEDICAL HISTORY & CLINICAL PICTURE */}
-          <div className="bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-900/20 dark:to-violet-900/20 p-4 rounded-lg border border-indigo-200 dark:border-indigo-800">
-            <h3 className="font-bold text-lg mb-4 text-indigo-900 dark:text-indigo-100 flex items-center gap-2">
-              <span className="bg-indigo-600 dark:bg-indigo-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">7</span>
+          {/* SECTION 7: MEDICAL HISTORY */}
+          <div className="bg-gradient-to-br from-teal-50 to-green-50 dark:from-teal-900/20 dark:to-green-900/20 p-4 rounded-lg border border-teal-200 dark:border-teal-800">
+            <h3 className="font-bold text-lg mb-4 text-teal-900 dark:text-teal-100 flex items-center gap-2">
+              <span className="bg-teal-600 dark:bg-teal-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">7</span>
               MEDICAL HISTORY & CLINICAL PICTURE
             </h3>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Medical History</label>
-              <textarea
-                value={editableData.medicalHistory || ''}
-                onChange={(e) => onFieldChange('medicalHistory', e.target.value)}
-                rows="3"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">TB History</label>
-                <select
-                  value={editableData.medicalTB || ''}
-                  onChange={(e) => onFieldChange('medicalTB', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">STI History</label>
-                <select
-                  value={editableData.medicalSTI || ''}
-                  onChange={(e) => onFieldChange('medicalSTI', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">PEP History</label>
-                <select
-                  value={editableData.medicalPEP || ''}
-                  onChange={(e) => onFieldChange('medicalPEP', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">PrEP History</label>
-                <select
-                  value={editableData.medicalPrEP || ''}
-                  onChange={(e) => onFieldChange('medicalPrEP', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Hepatitis B</label>
-                <select
-                  value={editableData.medicalHepatitisB || ''}
-                  onChange={(e) => onFieldChange('medicalHepatitisB', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Hepatitis C</label>
-                <select
-                  value={editableData.medicalHepatitisC || ''}
-                  onChange={(e) => onFieldChange('medicalHepatitisC', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
-                </select>
-              </div>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Clinical Picture</label>
-                <select
-                  value={editableData.clinicalPicture || ''}
-                  onChange={(e) => onFieldChange('clinicalPicture', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Asymptomatic">Asymptomatic</option>
-                  <option value="Symptomatic">Symptomatic</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Symptoms</label>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
-                  type="text"
-                  value={editableData.symptoms || ''}
-                  onChange={(e) => onFieldChange('symptoms', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                  type="checkbox"
+                  checked={editableData.symptomFever || false}
+                  onChange={(e) => onFieldChange('symptomFever', e.target.checked)}
+                  className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">WHO Staging</label>
-                <select
-                  value={editableData.whoStaging || ''}
-                  onChange={(e) => onFieldChange('whoStaging', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="">Select</option>
-                  <option value="Stage 1">Stage 1</option>
-                  <option value="Stage 2">Stage 2</option>
-                  <option value="Stage 3">Stage 3</option>
-                  <option value="Stage 4">Stage 4</option>
-                </select>
-              </div>
+                <span className="text-sm text-gray-900 dark:text-gray-100">Fever</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editableData.symptomWeightLoss || false}
+                  onChange={(e) => onFieldChange('symptomWeightLoss', e.target.checked)}
+                  className="w-4 h-4 text-teal-600 rounded focus:ring-teal-500"
+                />
+                <span className="text-sm text-gray-900 dark:text-gray-100">Weight loss</span>
+              </label>
             </div>
           </div>
 
           {/* SECTION 8: TESTING DETAILS */}
-          <div className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-rose-200 dark:border-rose-800">
-            <h3 className="font-bold text-lg mb-4 text-rose-900 dark:text-rose-100 flex items-center gap-2">
-              <span className="bg-rose-600 dark:bg-rose-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">8</span>
+          <div className="bg-gradient-to-br from-amber-50 to-yellow-50 dark:from-amber-900/20 dark:to-yellow-900/20 p-4 rounded-lg border border-amber-200 dark:border-amber-800">
+            <h3 className="font-bold text-lg mb-4 text-amber-900 dark:text-amber-100 flex items-center gap-2">
+              <span className="bg-amber-600 dark:bg-amber-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">8</span>
               TESTING DETAILS
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Client Type</label>
-                <input
-                  type="text"
+                <select
                   value={editableData.clientType || ''}
                   onChange={(e) => onFieldChange('clientType', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mode of Reach</label>
-                <input
-                  type="text"
-                  value={editableData.modeOfReach || ''}
-                  onChange={(e) => onFieldChange('modeOfReach', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Testing Accepted</label>
-                <select
-                  value={editableData.testingAccepted || ''}
-                  onChange={(e) => onFieldChange('testingAccepted', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500"
                 >
-                  <option value="">Select</option>
-                  <option value="Yes">Yes</option>
-                  <option value="No">No</option>
+                  <option value="">Select...</option>
+                  <option value="Walk-in">Walk-in</option>
+                  <option value="Referred">Referred</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Testing Modality</label>
-                <input
-                  type="text"
+                <select
                   value={editableData.testingModality || ''}
                   onChange={(e) => onFieldChange('testingModality', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Linkage to Care</label>
-                <input
-                  type="text"
-                  value={editableData.linkageToCare || ''}
-                  onChange={(e) => onFieldChange('linkageToCare', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Test Result *</label>
-                <select
-                  value={editableData.testResult || ''}
-                  onChange={(e) => onFieldChange('testResult', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-amber-500"
                 >
-                  <option value="">Select</option>
-                  <option value="Reactive">Reactive</option>
-                  <option value="Non-Reactive">Non-Reactive</option>
-                  <option value="Indeterminate">Indeterminate</option>
-                  <option value="Invalid">Invalid</option>
+                  <option value="">Select...</option>
+                  <option value="Facility-based">Facility-based</option>
+                  <option value="Community-based">Community-based</option>
                 </select>
               </div>
             </div>
           </div>
 
-          {/* SECTION 9: INVENTORY INFORMATION */}
+          {/* SECTION 9: INVENTORY */}
           <div className="bg-gradient-to-br from-lime-50 to-green-50 dark:from-lime-900/20 dark:to-green-900/20 p-4 rounded-lg border border-lime-200 dark:border-lime-800">
             <h3 className="font-bold text-lg mb-4 text-lime-900 dark:text-lime-100 flex items-center gap-2">
               <span className="bg-lime-600 dark:bg-lime-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">9</span>
               INVENTORY INFORMATION
             </h3>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Other Services</label>
-              <textarea
-                value={editableData.otherServices || ''}
-                onChange={(e) => onFieldChange('otherServices', e.target.value)}
-                rows="2"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-lime-500"
-              />
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Test Kit Brand</label>
@@ -1143,7 +592,7 @@ export default function HTSFormEditModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Test Kit Lot Number</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Lot Number</label>
                 <input
                   type="text"
                   value={editableData.testKitLotNumber || ''}
@@ -1152,7 +601,7 @@ export default function HTSFormEditModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Test Kit Expiration</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Expiration Date</label>
                 <input
                   type="date"
                   value={editableData.testKitExpiration || ''}
@@ -1163,281 +612,138 @@ export default function HTSFormEditModal({
             </div>
           </div>
 
-          {/* SECTION 10: HTS PROVIDER DETAILS */}
-          <div className="bg-gradient-to-br from-slate-50 to-gray-50 dark:from-slate-900/20 dark:to-gray-900/20 p-4 rounded-lg border border-slate-200 dark:border-slate-800">
-            <h3 className="font-bold text-lg mb-4 text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <span className="bg-slate-600 dark:bg-slate-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">10</span>
+          {/* SECTION 10: SERVICE PROVIDER DETAILS */}
+          <div className="bg-gradient-to-br from-rose-50 to-pink-50 dark:from-rose-900/20 dark:to-pink-900/20 p-4 rounded-lg border border-rose-200 dark:border-rose-800">
+            <h3 className="font-bold text-lg mb-4 text-rose-900 dark:text-rose-100 flex items-center gap-2">
+              <span className="bg-rose-600 dark:bg-rose-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">10</span>
               HTS PROVIDER DETAILS
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Testing Facility</label>
                 <input
                   type="text"
                   value={editableData.testingFacility || ''}
                   onChange={(e) => onFieldChange('testingFacility', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500"
                 />
               </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Facility Address</label>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Counselor Name</label>
                 <input
                   type="text"
-                  value={editableData.facilityAddress || ''}
-                  onChange={(e) => onFieldChange('facilityAddress', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                  value={editableData.counselorName || ''}
+                  onChange={(e) => onFieldChange('counselorName', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500"
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Facility Code</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Counselor Role</label>
                 <input
                   type="text"
-                  value={editableData.facilityCode || ''}
-                  onChange={(e) => onFieldChange('facilityCode', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Facility Region</label>
-                <input
-                  type="text"
-                  value={editableData.facilityRegion || ''}
-                  onChange={(e) => onFieldChange('facilityRegion', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Facility Province</label>
-                <input
-                  type="text"
-                  value={editableData.facilityProvince || ''}
-                  onChange={(e) => onFieldChange('facilityProvince', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Facility City</label>
-                <input
-                  type="text"
-                  value={editableData.facilityCity || ''}
-                  onChange={(e) => onFieldChange('facilityCity', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Facility Contact Number</label>
-                <input
-                  type="tel"
-                  value={editableData.facilityContactNumber || ''}
-                  onChange={(e) => onFieldChange('facilityContactNumber', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Facility Email</label>
-                <input
-                  type="email"
-                  value={editableData.facilityEmail || ''}
-                  onChange={(e) => onFieldChange('facilityEmail', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                  value={editableData.counselorRole || ''}
+                  onChange={(e) => onFieldChange('counselorRole', e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-rose-500"
                 />
               </div>
             </div>
+          </div>
+
+          {/* SECTION 11: OTHERS */}
+          <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-900/20 dark:to-purple-900/20 p-4 rounded-lg border border-indigo-200 dark:border-indigo-800">
+            <h3 className="font-bold text-lg mb-4 text-indigo-900 dark:text-indigo-100 flex items-center gap-2">
+              <span className="bg-indigo-600 dark:bg-indigo-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">11</span>
+              OTHERS (SEXUAL PRACTICES)
+            </h3>
             
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
-              <h4 className="font-semibold text-md mb-3 text-gray-800 dark:text-gray-200">Counselor Information</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Counselor Name</label>
+            {/* Condom Use */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Condom Use
+              </label>
+              <div className="flex flex-col md:flex-row gap-3">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="text"
-                    value={editableData.counselorName || ''}
-                    onChange={(e) => onFieldChange('counselorName', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                    type="radio"
+                    name="condomUse"
+                    value="always"
+                    checked={editableData.condomUse === 'always'}
+                    onChange={(e) => onFieldChange('condomUse', e.target.value)}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Counselor Role</label>
+                  <span className="text-sm text-gray-900 dark:text-gray-100">Always</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="text"
-                    value={editableData.counselorRole || ''}
-                    onChange={(e) => onFieldChange('counselorRole', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                    type="radio"
+                    name="condomUse"
+                    value="sometimes"
+                    checked={editableData.condomUse === 'sometimes'}
+                    onChange={(e) => onFieldChange('condomUse', e.target.value)}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Counselor License</label>
+                  <span className="text-sm text-gray-900 dark:text-gray-100">Sometimes</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="text"
-                    value={editableData.counselorLicense || ''}
-                    onChange={(e) => onFieldChange('counselorLicense', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                    type="radio"
+                    name="condomUse"
+                    value="never"
+                    checked={editableData.condomUse === 'never'}
+                    onChange={(e) => onFieldChange('condomUse', e.target.value)}
+                    className="w-4 h-4 text-indigo-600 focus:ring-indigo-500"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Counselor Designation</label>
+                  <span className="text-sm text-gray-900 dark:text-gray-100">Never</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Type of Sex */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Type of Sex (Select all that apply)
+              </label>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="text"
-                    value={editableData.counselorDesignation || ''}
-                    onChange={(e) => onFieldChange('counselorDesignation', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                    type="checkbox"
+                    checked={editableData.typeOfSexOral || false}
+                    onChange={(e) => onFieldChange('typeOfSexOral', e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Counselor Contact</label>
+                  <span className="text-sm text-gray-900 dark:text-gray-100">Oral Sex</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="tel"
-                    value={editableData.counselorContact || ''}
-                    onChange={(e) => onFieldChange('counselorContact', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                    type="checkbox"
+                    checked={editableData.typeOfSexAnalInserter || false}
+                    onChange={(e) => onFieldChange('typeOfSexAnalInserter', e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                   />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Counselor Signature</label>
+                  <span className="text-sm text-gray-900 dark:text-gray-100">Anal (Insertive)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="text"
-                    value={editableData.counselorSignature || ''}
-                    onChange={(e) => onFieldChange('counselorSignature', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                    type="checkbox"
+                    checked={editableData.typeOfSexAnalReceiver || false}
+                    onChange={(e) => onFieldChange('typeOfSexAnalReceiver', e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                   />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Form Completion Date</label>
+                  <span className="text-sm text-gray-900 dark:text-gray-100">Anal (Receptive)</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
-                    type="date"
-                    value={editableData.formCompletionDate || ''}
-                    onChange={(e) => onFieldChange('formCompletionDate', e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                    type="checkbox"
+                    checked={editableData.typeOfSexVaginal || false}
+                    onChange={(e) => onFieldChange('typeOfSexVaginal', e.target.checked)}
+                    className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
                   />
-                </div>
+                  <span className="text-sm text-gray-900 dark:text-gray-100">Vaginal Sex</span>
+                </label>
               </div>
             </div>
           </div>
         </div>
-
-        {/* Unmapped Keys Mapping Section */}
-        {hasUnmappedKeys && (
-          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-t-2 border-yellow-300 dark:border-yellow-700 p-6">
-            <div className="flex items-start gap-3 mb-4">
-              <IoWarning className="w-6 h-6 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-1" />
-              <div className="flex-1">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-                  Map Unmapped Fields ({unmappedKeys.length})
-                </h3>
-                <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
-                  OCR detected these fields but couldn&apos;t automatically match them to the form template. 
-                  You can manually map them to the correct fields below. Your mappings help improve the system!
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {unmappedKeys.map((key, index) => {
-                const isDetailed = typeof key === 'object' && key !== null;
-                const keyName = isDetailed ? (key.originalKey || key.normalizedKey) : key;
-                const keyId = keyName || `unmapped-${index}`;
-                const confidence = isDetailed ? key.confidence : null;
-                const value = isDetailed ? key.value : null;
-                const currentMapping = mappedUnmappedKeys[keyName];
-
-                return (
-                  <div key={index} className="bg-white dark:bg-gray-800 rounded-lg border-2 border-yellow-200 dark:border-yellow-700 p-4 shadow-sm">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      {/* Left: Unmapped Key Info */}
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                            Detected Field:
-                          </span>
-                          <span className="text-sm font-mono bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded">
-                            {keyName}
-                          </span>
-                          {confidence && (
-                            <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-                              confidence >= 90 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                              confidence >= 70 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-800/30 dark:text-yellow-300' :
-                              'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                            }`}>
-                              {confidence}%
-                            </span>
-                          )}
-                        </div>
-
-                        {value && (
-                          <div>
-                            <span className="text-xs text-gray-500 dark:text-gray-400">Detected Value:</span>
-                            <div className="mt-1 text-sm text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-900 px-3 py-2 rounded border border-gray-200 dark:border-gray-700 font-medium">
-                              {value}
-                            </div>
-                          </div>
-                        )}
-
-                        {isDetailed && key.normalizedKey && key.originalKey !== key.normalizedKey && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            Normalized: <span className="font-mono">{key.normalizedKey}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Right: Mapping Dropdown */}
-                      <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-900 dark:text-white block">
-                          Map to Form Field:
-                        </label>
-                        <select
-                          value={currentMapping?.targetField || ''}
-                          onChange={(e) => onMapUnmappedKey(key, e.target.value)}
-                          className="w-full px-3 py-2 border-2 border-gray-300 dark:border-gray-600 rounded-lg 
-                                   bg-white dark:bg-gray-700 text-gray-900 dark:text-white
-                                   focus:border-primary-red focus:ring-2 focus:ring-primary-red/20
-                                   hover:border-gray-400 dark:hover:border-gray-500 transition-colors"
-                        >
-                          <option value="">-- Select a field to map --</option>
-                          {Object.entries(formFields).map(([sectionName, fields]) => (
-                            <optgroup key={sectionName} label={sectionName}>
-                              {fields.map(fieldName => (
-                                <option key={fieldName} value={fieldName}>
-                                  {getFieldLabel(fieldName)}
-                                </option>
-                              ))}
-                            </optgroup>
-                          ))}
-                        </select>
-
-                        {currentMapping && (
-                          <div className="flex items-center gap-2 text-xs">
-                            <IoCheckmarkCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                            <span className="text-green-700 dark:text-green-300 font-medium">
-                              Mapped to: {getFieldLabel(currentMapping.targetField)}
-                            </span>
-                          </div>
-                        )}
-
-                        {value && !currentMapping && (
-                          <p className="text-xs text-gray-600 dark:text-gray-400 italic">
-                            💡 Select a field above to assign this value
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Mapping Statistics */}
-            <div className="mt-4 pt-4 border-t border-yellow-300 dark:border-yellow-700 flex items-center justify-between">
-              <div className="text-sm text-gray-700 dark:text-gray-300">
-                <span className="font-semibold">{Object.keys(mappedUnmappedKeys).length}</span> of{' '}
-                <span className="font-semibold">{unmappedKeys.length}</span> fields mapped
-              </div>
-              <div className="text-xs text-gray-600 dark:text-gray-400 flex items-center gap-1">
-                <IoInformationCircle className="w-4 h-4" />
-                Mapped values will be saved to the selected fields
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Footer with Save/Cancel Buttons */}
         <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4">

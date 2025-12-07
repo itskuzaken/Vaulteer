@@ -173,6 +173,7 @@ export default function OCRFieldDisplay({ extractedData }) {
     const value = fieldData?.value || fieldData;
     const fieldConfidence = fieldData?.confidence || 0;
     const hasComponents = fieldData?.components && typeof fieldData.components === 'object';
+    const checkIndicator = fieldData?.checkIndicator;
     
     return (
       <div key={fieldName} className="border-b border-gray-100 dark:border-gray-700 last:border-b-0">
@@ -188,17 +189,27 @@ export default function OCRFieldDisplay({ extractedData }) {
                   Composite
                 </span>
               )}
+              {checkIndicator && (
+                <span className="text-xs px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded font-medium" title={checkIndicator}>
+                  ✓ Checkbox
+                </span>
+              )}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">
               {fieldName}
             </div>
+            {checkIndicator && (
+              <div className="text-xs text-blue-600 dark:text-blue-400 mt-0.5 italic">
+                {checkIndicator}
+              </div>
+            )}
           </div>
           <div className="flex-1 min-w-0 ml-4">
             <div className="flex items-start gap-2">
               {value ? (
                 <>
                   <div className="flex-1 text-sm text-gray-700 dark:text-gray-300 break-words">
-                    {typeof value === 'object' ? JSON.stringify(value) : value}
+                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
                   </div>
                   {fieldConfidence > 0 && (
                     <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getConfidenceStyle(fieldConfidence)}`}>
@@ -213,7 +224,7 @@ export default function OCRFieldDisplay({ extractedData }) {
               )}
             </div>
             {/* Region coordinates display (if available) */}
-            {fieldData.region && (
+            {fieldData?.region && (
               <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 font-mono">
                 📍 ({fieldData.region.x.toFixed(3)}, {fieldData.region.y.toFixed(3)}) {fieldData.region.width.toFixed(3)}×{fieldData.region.height.toFixed(3)} | Page {fieldData.region.page}
               </div>
@@ -227,28 +238,35 @@ export default function OCRFieldDisplay({ extractedData }) {
             <div className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-1">
               Components:
             </div>
-            {Object.entries(fieldData.components).map(([componentKey, componentValue]) => (
-              <div key={componentKey} className="flex items-center justify-between text-xs py-1">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-purple-400 dark:bg-purple-600"></span>
-                  <span className="text-gray-600 dark:text-gray-400 font-medium">
-                    {formatFieldName(componentKey)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-gray-700 dark:text-gray-300">
-                    {typeof componentValue === 'object' && componentValue !== null
-                      ? JSON.stringify(componentValue)
-                      : componentValue || <span className="italic text-gray-400">empty</span>}
-                  </span>
-                  {typeof componentValue === 'object' && componentValue?.confidence && (
-                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${getConfidenceStyle(componentValue.confidence)}`}>
-                      {componentValue.confidence.toFixed(0)}%
+            {Object.entries(fieldData.components).map(([componentKey, componentValue]) => {
+              // Handle nested component values with confidence
+              const isNestedObject = typeof componentValue === 'object' && componentValue !== null && !Array.isArray(componentValue);
+              const nestedValue = isNestedObject ? (componentValue.value ?? componentValue) : componentValue;
+              const nestedConfidence = isNestedObject ? componentValue.confidence : null;
+              
+              return (
+                <div key={componentKey} className="flex items-center justify-between text-xs py-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-purple-400 dark:bg-purple-600"></span>
+                    <span className="text-gray-600 dark:text-gray-400 font-medium">
+                      {formatFieldName(componentKey)}
                     </span>
-                  )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-700 dark:text-gray-300">
+                      {typeof nestedValue === 'object'
+                        ? JSON.stringify(nestedValue)
+                        : (nestedValue || <span className="italic text-gray-400">empty</span>)}
+                    </span>
+                    {nestedConfidence !== null && nestedConfidence !== undefined && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${getConfidenceStyle(nestedConfidence)}`}>
+                        {nestedConfidence.toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
             
             {/* Show mapping strategy if available */}
             {fieldData.mappingStrategy && (
@@ -682,154 +700,6 @@ export default function OCRFieldDisplay({ extractedData }) {
               </div>
             </div>
           )}
-          
-          {/* Action items and improvement tips */}
-          <div className="mt-4 pt-4 border-t border-yellow-300 dark:border-yellow-700 space-y-2">
-            {/* How You Can Help Section */}
-            <div className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-900/20 dark:to-blue-900/20 rounded-lg p-4 border-2 border-green-300 dark:border-green-700 shadow-sm">
-              <h5 className="text-base font-bold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                <IoCheckmarkCircle className="w-5 h-5 text-green-600 dark:text-green-400" />
-                How You Can Help Improve Accuracy
-              </h5>
-              
-              <div className="space-y-3">
-                {/* Action 1: Review & Correct */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-bold text-blue-600 dark:text-blue-400">1</span>
-                    </div>
-                    <div className="flex-1">
-                      <h6 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                        📋 Review & Correct in Edit Mode
-                      </h6>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        Click &quot;Edit Fields&quot; to manually map these values to the correct form fields. Your corrections help train the system.
-                      </p>
-                      <div className="flex gap-2">
-                        <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded font-medium">
-                          ✓ Immediate fix
-                        </span>
-                        <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded font-medium">
-                          ✓ Improves system
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action 2: Image Quality */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-bold text-purple-600 dark:text-purple-400">2</span>
-                    </div>
-                    <div className="flex-1">
-                      <h6 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                        📸 Improve Capture Quality
-                      </h6>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        Better image quality = fewer unmapped keys. Follow these tips:
-                      </p>
-                      <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                        <li>• ✓ Good lighting - avoid shadows and glare</li>
-                        <li>• ✓ Flat surface - no wrinkles or folds</li>
-                        <li>• ✓ Clear focus - wait for camera to stabilize</li>
-                        <li>• ✓ Straight angle - minimize perspective distortion</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action 3: Form Condition */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-bold text-orange-600 dark:text-orange-400">3</span>
-                    </div>
-                    <div className="flex-1">
-                      <h6 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                        📝 Use Standard Forms
-                      </h6>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        Ensure you&apos;re using the official DOH HTS Form 2021:
-                      </p>
-                      <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                        <li>• ✓ Latest official version from DOH</li>
-                        <li>• ✓ Clean, unmodified template</li>
-                        <li>• ✓ No custom fields or annotations</li>
-                        <li>• ✓ Printed clearly (not photocopied multiple times)</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action 4: Report Patterns */}
-                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">
-                  <div className="flex items-start gap-3">
-                    <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center">
-                      <span className="text-sm font-bold text-indigo-600 dark:text-indigo-400">4</span>
-                    </div>
-                    <div className="flex-1">
-                      <h6 className="text-sm font-semibold text-gray-900 dark:text-white mb-1">
-                        🔔 Report Recurring Issues
-                      </h6>
-                      <p className="text-xs text-gray-600 dark:text-gray-400 mb-2">
-                        If you see the same unmapped keys repeatedly, contact your admin:
-                      </p>
-                      <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                        <li>• ⚠️ Same field consistently unmapped (may need template update)</li>
-                        <li>• ⚠️ Regional field name variations</li>
-                        <li>• ⚠️ Handwriting patterns causing issues</li>
-                        <li>• ⚠️ Local form modifications</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick Tips Summary */}
-              <div className="mt-4 p-3 bg-gradient-to-r from-blue-100 to-indigo-100 dark:from-blue-900/30 dark:to-indigo-900/30 rounded-lg border border-blue-300 dark:border-blue-700">
-                <div className="flex items-start gap-2">
-                  <IoInformationCircle className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-                  <div className="text-xs text-gray-700 dark:text-gray-300">
-                    <strong className="text-blue-700 dark:text-blue-300">Quick Tip:</strong> The system learns from your corrections. 
-                    Each time you manually map an unmapped field, it improves future extractions for similar cases.
-                    Your edits contribute to better accuracy for everyone! 🚀
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-yellow-200 dark:border-yellow-700">
-              <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-1">
-                <IoCheckmarkCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
-                What This Means
-              </h5>
-              <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1">
-                <li>• OCR successfully detected these text fields on the form</li>
-                <li>• These fields don&apos;t match any known template field names</li>
-                <li>• The data is preserved and tracked for future improvements</li>
-              </ul>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-yellow-200 dark:border-yellow-700">
-              <h5 className="text-sm font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-1">
-                <IoAlertCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                Possible Causes
-              </h5>
-              <ul className="text-xs text-gray-700 dark:text-gray-300 space-y-1">
-                <li>• Field names on the physical form differ from the template</li>
-                <li>• Handwritten annotations or additional notes on the form</li>
-                <li>• OCR misread similar-looking text (e.g., &quot;Address&quot; vs &quot;Addross&quot;)</li>
-                <li>• Form version mismatch or custom fields added locally</li>
-              </ul>
-            </div>
-            
-            <div className="text-xs text-yellow-800 dark:text-yellow-300 bg-yellow-100 dark:bg-yellow-900/30 px-3 py-2 rounded-lg">
-              <strong>💡 System Learning:</strong> This data helps improve the OCR system&apos;s accuracy over time by identifying common variations and patterns.
-            </div>
-          </div>
         </div>
       )}
     </div>

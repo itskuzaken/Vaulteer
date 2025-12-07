@@ -915,23 +915,84 @@ export default function HTSFormManagement() {
       return;
     }
     
-    // Merge edited fields back into extractedData (handle both flat and nested structures)
+    // Merge edited fields back into extractedData
+    // Handle composite fields: map flat keys (firstName, middleName, lastName) back to nested structure (fullName.components)
     setExtractedData(prev => {
       // If prev has fields property (nested structure), update it
       if (prev.fields) {
         const updatedFields = { ...prev.fields };
-        // Update each field's value
+        
+        // Define composite field mappings (component → parent field)
+        const compositeFieldMap = {
+          firstName: 'fullName',
+          middleName: 'fullName',
+          lastName: 'fullName',
+          suffix: 'fullName',
+          street: 'fullAddress',
+          barangay: 'fullAddress',
+          city: 'fullAddress',
+          province: 'fullAddress',
+          day: 'dateOfBirth',
+          month: 'dateOfBirth',
+          year: 'dateOfBirth',
+          birthCity: 'placeOfBirth',
+          birthProvince: 'placeOfBirth',
+          birthCountry: 'placeOfBirth'
+        };
+        
+        // Update each edited field
         Object.keys(editableData).forEach(key => {
-          if (updatedFields[key]) {
+          const parentField = compositeFieldMap[key];
+          
+          if (parentField && updatedFields[parentField]) {
+            // Update component within composite field
+            if (!updatedFields[parentField].components) {
+              updatedFields[parentField].components = {};
+            }
+            updatedFields[parentField].components[key] = editableData[key];
+            
+            // Rebuild composite field value from components
+            const components = updatedFields[parentField].components;
+            if (parentField === 'fullName') {
+              const nameParts = [
+                components.firstName,
+                components.middleName,
+                components.lastName,
+                components.suffix
+              ].filter(Boolean);
+              updatedFields[parentField].value = nameParts.join(' ');
+            } else if (parentField === 'fullAddress') {
+              const addressParts = [
+                components.street,
+                components.barangay,
+                components.city,
+                components.province
+              ].filter(Boolean);
+              updatedFields[parentField].value = addressParts.join(', ');
+            } else if (parentField === 'dateOfBirth') {
+              const { day, month, year } = components;
+              updatedFields[parentField].value = [month, day, year].filter(Boolean).join('/');
+            } else if (parentField === 'placeOfBirth') {
+              const birthParts = [
+                components.birthCity,
+                components.birthProvince,
+                components.birthCountry
+              ].filter(Boolean);
+              updatedFields[parentField].value = birthParts.join(', ');
+            }
+          } else if (updatedFields[key]) {
+            // Update standalone field value
             updatedFields[key] = { ...updatedFields[key], value: editableData[key] };
           } else {
             // Create new field if it doesn't exist
             updatedFields[key] = { value: editableData[key], confidence: 1.0, requiresReview: false };
           }
         });
+        
         return { ...prev, fields: updatedFields, wasEdited: true };
       }
-      // Fallback: flat structure
+      
+      // Fallback: flat structure (legacy compatibility)
       return {
         ...prev,
         ...editableData,
@@ -1032,12 +1093,13 @@ export default function HTSFormManagement() {
           }
           
           // Extract component values for composite fields
+          // Use component name directly (e.g., 'firstName' not 'fullNameFirstName')
           if (hasComponents(fieldName)) {
             const extractedField = extractedData?.fields?.[fieldName];
             if (extractedField?.components) {
               Object.keys(extractedField.components).forEach(componentName => {
-                const componentKey = `${fieldName}${componentName.charAt(0).toUpperCase() + componentName.slice(1)}`;
-                editableFieldsData[componentKey] = getComponentValue(fieldName, componentName);
+                // Use componentName directly as the key (flat structure)
+                editableFieldsData[componentName] = getComponentValue(fieldName, componentName);
               });
             }
           }

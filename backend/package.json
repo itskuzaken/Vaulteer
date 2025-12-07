@@ -20,6 +20,7 @@
     "@aws-sdk/client-ses": "^3.940.0",
     "@aws-sdk/client-textract": "^3.940.0",
     "@sendgrid/mail": "^8.1.6",
+    "bull": "^4.16.5",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-rate-limit": "^6.11.2",

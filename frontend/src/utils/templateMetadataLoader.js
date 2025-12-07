@@ -98,6 +98,7 @@ function capitalizeFirst(str) {
 /**
  * Build section mapping from template metadata
  * Mirrors backend buildSectionMappingFromMetadata() logic
+ * Filters out deprecated sections like MIGRATED FLAT FIELDS
  * @param {Object} metadata - Template metadata object
  * @returns {Object} Section mapping { sectionName: [fieldNames] }
  */
@@ -107,10 +108,16 @@ export function buildSectionMappingFromMetadata(metadata) {
   }
   
   const mapping = {};
+  const deprecatedSections = ['MIGRATED FLAT FIELDS', 'MIGRATED_FLAT_FIELDS'];
   
   // Process front page sections
   if (metadata.structure.front && metadata.structure.front.sections) {
     Object.entries(metadata.structure.front.sections).forEach(([sectionName, sectionData]) => {
+      // Skip deprecated sections
+      if (deprecatedSections.includes(sectionName)) {
+        console.warn(`[templateMetadataLoader] Skipping deprecated section: ${sectionName}`);
+        return;
+      }
       const fields = sectionData.fields || [];
       mapping[sectionName] = extractFieldNames(fields);
     });
@@ -119,6 +126,11 @@ export function buildSectionMappingFromMetadata(metadata) {
   // Process back page sections
   if (metadata.structure.back && metadata.structure.back.sections) {
     Object.entries(metadata.structure.back.sections).forEach(([sectionName, sectionData]) => {
+      // Skip deprecated sections
+      if (deprecatedSections.includes(sectionName)) {
+        console.warn(`[templateMetadataLoader] Skipping deprecated section: ${sectionName}`);
+        return;
+      }
       const fields = sectionData.fields || [];
       mapping[sectionName] = extractFieldNames(fields);
     });
@@ -182,6 +194,7 @@ export function getAllFieldNames(metadata) {
 
 /**
  * Split sections into front and back page mappings
+ * Filters out deprecated sections like MIGRATED FLAT FIELDS
  * @param {Object} metadata - Template metadata object
  * @returns {Object} { frontPageSections: {}, backPageSections: {} }
  */
@@ -192,10 +205,12 @@ export function splitSectionsByPage(metadata) {
   
   const frontPageSections = {};
   const backPageSections = {};
+  const deprecatedSections = ['MIGRATED FLAT FIELDS', 'MIGRATED_FLAT_FIELDS'];
   
   // Build front page sections
   if (metadata.structure.front && metadata.structure.front.sections) {
     Object.entries(metadata.structure.front.sections).forEach(([sectionName, sectionData]) => {
+      if (deprecatedSections.includes(sectionName)) return;
       const fields = sectionData.fields || [];
       frontPageSections[sectionName] = extractFieldNames(fields);
     });
@@ -204,6 +219,7 @@ export function splitSectionsByPage(metadata) {
   // Build back page sections
   if (metadata.structure.back && metadata.structure.back.sections) {
     Object.entries(metadata.structure.back.sections).forEach(([sectionName, sectionData]) => {
+      if (deprecatedSections.includes(sectionName)) return;
       const fields = sectionData.fields || [];
       backPageSections[sectionName] = extractFieldNames(fields);
     });
@@ -244,6 +260,7 @@ export function getSectionMappingWithFallback(metadata) {
 /**
  * Build field metadata mapping from template metadata
  * Extracts labels and categories for all fields
+ * Filters out deprecated sections like MIGRATED FLAT FIELDS
  * @param {Object} metadata - Template metadata object
  * @returns {Object} Field metadata { fieldName: { label, category, page, priority } }
  */
@@ -253,10 +270,12 @@ export function buildFieldMetadata(metadata) {
   }
   
   const fieldMetadata = {};
+  const deprecatedSections = ['MIGRATED FLAT FIELDS', 'MIGRATED_FLAT_FIELDS'];
   
   // Process front page sections
   if (metadata.structure.front && metadata.structure.front.sections) {
     Object.entries(metadata.structure.front.sections).forEach(([sectionName, sectionData]) => {
+      if (deprecatedSections.includes(sectionName)) return;
       const fields = sectionData.fields || [];
       processFieldsForMetadata(fields, fieldMetadata, sectionName, 'front');
     });
@@ -265,6 +284,7 @@ export function buildFieldMetadata(metadata) {
   // Process back page sections
   if (metadata.structure.back && metadata.structure.back.sections) {
     Object.entries(metadata.structure.back.sections).forEach(([sectionName, sectionData]) => {
+      if (deprecatedSections.includes(sectionName)) return;
       const fields = sectionData.fields || [];
       processFieldsForMetadata(fields, fieldMetadata, sectionName, 'back');
     });
@@ -356,10 +376,13 @@ function formatFieldLabel(fieldName) {
 
 /**
  * Get category order from metadata
+ * Filters out deprecated sections like MIGRATED FLAT FIELDS
  * @param {Object} metadata - Template metadata object
  * @returns {Object} { front: [categories], back: [categories] }
  */
 export function getCategoryOrder(metadata) {
+  const deprecatedSections = ['MIGRATED FLAT FIELDS', 'MIGRATED_FLAT_FIELDS'];
+  
   if (!metadata || !metadata.structure) {
     return {
       front: ['INFORMED CONSENT', 'DEMOGRAPHIC DATA', 'EDUCATION & OCCUPATION'],
@@ -369,7 +392,11 @@ export function getCategoryOrder(metadata) {
   }
   
   return {
-    front: metadata.structure.front?.sections ? Object.keys(metadata.structure.front.sections) : [],
-    back: metadata.structure.back?.sections ? Object.keys(metadata.structure.back.sections) : []
+    front: metadata.structure.front?.sections 
+      ? Object.keys(metadata.structure.front.sections).filter(s => !deprecatedSections.includes(s)) 
+      : [],
+    back: metadata.structure.back?.sections 
+      ? Object.keys(metadata.structure.back.sections).filter(s => !deprecatedSections.includes(s)) 
+      : []
   };
 }
