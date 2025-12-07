@@ -344,7 +344,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
           onClick={() => router.back()}
           className="px-5 py-3 bg-gray-900 text-white hover:bg-gray-800"
           mode="dark"
-          size="medium"
+          size={{ default: 'small', md: 'medium' }}
         >
           Return to previous page
         </Button>
@@ -369,27 +369,27 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between lg:flex-row lg:items-center lg:justify-between">
         <Button
           variant="ghost"
           icon={IoArrowBackOutline}
           onClick={() => router.back()}
           className="text-sm font-medium"
-          size="medium"
+          size={{ default: 'small', md: 'medium' }}
         >
           Back to previous view
         </Button>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:flex-col-4 items-center gap-3">
           {eventData.status && <EventStatusBadge status={eventData.status} />}
           {canEditEvent && eventData?.status !== 'completed' && !isPostponed && ((eventData?.status || "").toLowerCase() !== "cancelled") && (
             <>
               
               <Button
-                variant="primary"
+                variant="ghost"
                 icon={IoPencilOutline}
                 onClick={handleEditToggle}
-                size="medium"
-                className="inline-flex items-center gap-2"
+                size={{ default: 'small', md: 'medium' }}
+                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-800"
               >
                 {isEditing ? "Cancel" : "Edit"}
               </Button>
@@ -397,12 +397,12 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
               {eventData?.status && ["published"].includes((eventData.status || "").toLowerCase()) && (
                 
                 <Button
-                  variant="primary"
+                  variant="ghost"
                   icon={IoPauseOutline}
                   onClick={() => setShowPostponeModal(true)}
                   disabled={isActionLoading}
-                  size="medium"
-                  className="bg-amber-500 hover:bg-amber-600"
+                  size={{ default: 'small', md: 'medium' }}
+                  className="inline-flex items-center gap-2 bg-gray-600 hover:bg-gray-800"
                 >
                   Postpone
                 </Button>
@@ -414,8 +414,8 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                   variant="ghost"
                   icon={IoArchiveOutline}
                   onClick={() => setShowArchiveModal(true)}
-                  size="medium"
-                  className="bg-amber-500 hover:bg-amber-600 text-white rounded-lg"
+                  size={{ default: 'small', md: 'medium' }}
+                  className="inline-flex items-center gap-2 bg-amber-500 hover:bg-amber-600 dark:bg-amber-500 dark:hover:bg-amber-800"
                 >
                   Archive
                 </Button>
@@ -423,11 +423,11 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
               {eventData?.status && ["published", "postponed"].includes((eventData.status || "").toLowerCase()) && (
                 
                 <Button
-                  variant="danger"
+                  variant="ghost"
                   icon={IoBanOutline}
                   onClick={() => setShowCancelModal(true)}
-                  size="medium"
-                  className="px-4 py-2"
+                  size={{ default: 'small', md: 'medium' }}
+                  className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-800"
                 >
                   Cancel
                 </Button>
@@ -440,7 +440,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_360px]">
         <div className="space-y-6">
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
-            <div className="relative h-72 w-full bg-gray-100 dark:bg-gray-800">
+            <div className="relative h-56 sm:h-72 w-full bg-gray-100 dark:bg-gray-800">
               {eventData.image_url ? (
                 <Image
                   src={eventData.image_url}
@@ -456,24 +456,24 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                 </div>
               )}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-6">
-                <p className="text-sm text-white/80 uppercase tracking-wide">
+                <p className="text-xs sm:text-sm text-white/80 uppercase tracking-wide">
                   {formatDate(eventData.start_datetime_local || eventData.start_datetime, "eeee, MMM dd")}
                 </p>
-                <h1 className="text-3xl font-semibold text-white">
+                <h1 className="text-2xl sm:text-3xl font-semibold text-white">
                   {eventData.title}
                 </h1>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 sm:p-6">
               <div className="rounded-xl bg-gray-50 dark:bg-gray-800/70 p-4 border border-gray-200 dark:border-gray-700">
                 <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
                   <IoCalendarOutline /> Schedule
                 </p>
-                <p className="mt-2 text-lg font-semibold text-gray-900 dark:text-white">
+                <p className="mt-2 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                   {formatDate(eventData.start_datetime_local || eventData.start_datetime)}
                 </p>
-                <p className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
+                <p className="text-sm sm:text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
                   <IoTimeOutline />
                   {`${formatDate(
                     eventData.start_datetime_local || eventData.start_datetime,
@@ -491,7 +491,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                 )}
               </div>
 
-              <div className="rounded-xl bg-gray-50 dark:bg-gray-800/70 p-4 border border-gray-200 dark:border-gray-700">
+              <div className="rounded-xl bg-gray-50 dark:bg-gray-800/70 p-4 sm:p-4 border border-gray-200 dark:border-gray-700">
                 <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2">
                   <IoLocationOutline /> Location
                 </p>
@@ -585,8 +585,8 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
             </section>
           )}
 
-          <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6">
+            <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:p-6">
               <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <IoPricetagOutline /> Requirements
               </h3>
@@ -630,12 +630,12 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                 </p>
               </div>
               {canViewParticipants && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex gap-2 overflow-x-auto no-scrollbar">
                   {PARTICIPANT_TABS.map((tab) => (
                     <Button
                       key={tab.key}
                       variant="secondary"
-                      size="small"
+                      size={{ default: 'small', md: 'small' }}
                       onClick={() => setActiveParticipantTab(tab.key)}
                       className={`${
                         activeParticipantTab === tab.key
@@ -837,6 +837,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
             onClose={() => setShowPostponeModal(false)}
             onSubmit={handlePostponeEvent}
             isSubmitting={isActionLoading}
+            mode="auto"
           />
 
           <ArchiveEventConfirmModal
@@ -845,6 +846,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
             onCancel={() => setShowArchiveModal(false)}
             onConfirm={handleArchiveEvent}
             isSubmitting={isActionLoading}
+            mode="auto"
           />
           <CancelEventConfirmModal
             isOpen={showCancelModal}
@@ -852,6 +854,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
             onCancel={() => setShowCancelModal(false)}
             onConfirm={handleCancelEvent}
             isSubmitting={isActionLoading}
+            mode="auto"
           />
         </>
       )}

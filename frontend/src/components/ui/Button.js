@@ -45,9 +45,9 @@ const Button = ({
       dark: "bg-green-700 text-white rounded-lg hover:bg-green-600 active:bg-green-800 focus:ring-green-500",
     },
     ghost: {
-      auto: "text-gray-700 hover:bg-gray-100 rounded-lg focus:ring-gray-400 dark:text-gray-200 dark:hover:bg-gray-700",
-      light: "text-gray-700 hover:bg-gray-100 rounded-lg focus:ring-gray-400",
-      dark: "text-gray-200 hover:bg-gray-700 rounded-lg focus:ring-gray-400",
+      auto: "text-gray-700 rounded-lg focus:ring-gray-400 dark:text-gray-200",
+      light: "text-gray-700  rounded-lg focus:ring-gray-400",
+      dark: "text-gray-200 rounded-lg focus:ring-gray-400",
     },
     icon: {
       auto: "p-2 text-gray-700 hover:bg-gray-100 rounded-lg focus:ring-gray-400 dark:text-gray-200 dark:hover:bg-gray-700",
@@ -56,11 +56,32 @@ const Button = ({
     },
   };
   
-  // Size styles
+  // Size styles - supports responsive mapping
   const sizes = {
     small: variant === "icon" ? "p-1.5" : "px-3 py-1.5 text-sm gap-1.5",
     medium: variant === "icon" ? "p-2" : "px-4 py-2 text-sm gap-2",
     large: variant === "icon" ? "p-3" : "px-6 py-3 text-base gap-2.5",
+  };
+
+  const breakpoints = ["sm", "md", "lg", "xl", "2xl"];
+
+  const prefixClasses = (prefix, cls) =>
+    cls.split(/\s+/).map((c) => `${prefix}:${c}`).join(" ");
+
+  const getSizeClasses = (sizeProp) => {
+    // sizeProp can be a string or an object map like { default: 'small', md: 'medium' }
+    if (typeof sizeProp === "string") return sizes[sizeProp] || sizes.medium;
+    if (!sizeProp || typeof sizeProp !== "object") return sizes.medium;
+
+    const defaultSizeName = sizeProp.default || sizeProp.base || "medium";
+    const defaultClass = sizes[defaultSizeName] || sizes.medium;
+
+    const bpClasses = Object.keys(sizeProp)
+      .filter((k) => breakpoints.includes(k))
+      .map((bp) => prefixClasses(bp, sizes[sizeProp[bp] || defaultSizeName]))
+      .join(" ");
+
+    return [defaultClass, bpClasses].filter(Boolean).join(" ");
   };
   
   // Icon size
@@ -73,9 +94,13 @@ const Button = ({
   const variantObj = variants[variant] || variants.primary;
   const variantClass = typeof variantObj === 'string' ? variantObj : (variantObj[mode] || variantObj.auto);
 
+  const sizeClass = getSizeClasses(size);
+  const resolvedSizeName = typeof size === 'string' ? size : (size?.default || size?.md || size?.sm || 'medium');
+  const iconSize = iconSizes[resolvedSizeName] || iconSizes['medium'];
+
   return (
     <button
-      className={`${baseStyles} ${variantClass} ${sizes[size]} ${className}`}
+      className={`${baseStyles} ${variantClass} ${sizeClass} ${className}`}
       disabled={disabled || loading}
       {...props}
     >
@@ -102,9 +127,9 @@ const Button = ({
         </svg>
       ) : (
         <>
-          {Icon && iconPosition === "left" && <Icon size={iconSizes[size]} />}
+          {Icon && iconPosition === "left" && <Icon size={iconSize} />}
           {children}
-          {Icon && iconPosition === "right" && <Icon size={iconSizes[size]} />}
+          {Icon && iconPosition === "right" && <Icon size={iconSize} />}
         </>
       )}
     </button>

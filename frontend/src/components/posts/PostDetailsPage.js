@@ -213,7 +213,7 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
               icon={IoArrowBackOutline}
               onClick={handleBack}
               className="mt-4 text-red-800 dark:text-red-200 hover:underline"
-              size="medium"
+              size={{ default: 'small', md: 'medium' }}
             >
               Go Back
             </Button>
@@ -475,6 +475,7 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
         confirmText="Delete"
         confirmVariant="danger"
         loading={actionLoading}
+        mode="auto"
       />
 
       <ConfirmModal
@@ -486,6 +487,7 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
         confirmText="Archive"
         confirmVariant="primary"
         loading={actionLoading}
+        mode="auto"
       />
 
       <ConfirmModal
@@ -497,6 +499,7 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
         confirmText="Unarchive"
         confirmVariant="success"
         loading={actionLoading}
+        mode="auto"
       />
     </div>
   );

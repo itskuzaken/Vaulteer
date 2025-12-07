@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useTheme } from "@/hooks/useTheme";
 
 export default function ModalShell({
   isOpen = true,
@@ -11,8 +12,10 @@ export default function ModalShell({
   onClose,
   role = "dialog",
   size = "md",
+  mode = "auto",
 }) {
   const panelRef = useRef(null);
+  const { resolvedTheme } = useTheme();
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -50,15 +53,16 @@ export default function ModalShell({
 
   if (!isOpen) return null;
 
-  const sizeClass =
-    size === "lg" ? "modal-panel modal-panel--lg" : "modal-panel";
+  const sizeClass = size === "lg" ? "modal-panel modal-panel--lg" : "modal-panel";
+  const effectiveMode = mode === "auto" ? resolvedTheme : mode;
 
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="modal-backdrop" role="presentation" onMouseDown={onClose} data-theme={effectiveMode}>
       <div
         role={role}
         aria-modal="true"
-        className={`${sizeClass}`}
+        className={`${sizeClass} ${effectiveMode === "light" ? "light" : ""}`}
+          data-theme={effectiveMode}
         ref={panelRef}
         onMouseDown={(event) => event.stopPropagation()}
       >
