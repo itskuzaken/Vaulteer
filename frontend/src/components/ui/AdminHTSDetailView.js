@@ -9,6 +9,31 @@ import React from 'react';
  * - Front Page (3 sections): INFORMED CONSENT, DEMOGRAPHIC DATA, EDUCATION & OCCUPATION
  * - Back Page (7 sections): HISTORY OF EXPOSURE, REASONS FOR TESTING, PREVIOUS TEST,
  *   MEDICAL HISTORY, TESTING DETAILS, INVENTORY INFO, HTS PROVIDER DETAILS
+ * 
+ * COMPOSITE FIELD SUPPORT (Phase 2 Implementation):
+ * This component displays composite fields with detailed component breakdowns.
+ * 
+ * Features:
+ * - "Composite" badge for fields with nested components
+ * - Component Breakdown section showing all nested values
+ * - Individual confidence scores for each component
+ * - Mapping strategy indicator (e.g., "composite_fullName")
+ * - Color-coded confidence levels (green=high, yellow=medium, red=low)
+ * 
+ * Composite Field Types (8 types from backend):
+ * 1. fullName: firstName, middleName, lastName, suffix
+ * 2. testDate/birthDate: month, day, year
+ * 3. sex: male, female (checkbox components)
+ * 4. genderIdentity: man, woman, transWoman, transMan, other
+ * 5. civilStatus: single, married, widowed, separated, liveIn
+ * 6. addresses: city, province (currentResidence, permanentResidence, placeOfBirth)
+ * 7. riskFields: no/yes → total, date1, date2, dateMostRecentRisk
+ * 
+ * Data Flow:
+ * - Backend (textractService.js) builds composite fields with components
+ * - This component detects components via value.components property
+ * - Displays both assembled value and individual component breakdown
+ * - Admin can review component-level extraction accuracy
  */
 
 // Field labels mapping from template metadata (88+ fields total)
@@ -277,6 +302,8 @@ const AdminFieldDisplay = ({ field, value, label }) => {
   const extractionMethod = value?.extractionMethod || 'unknown';
   const requiresReview = value?.requiresReview || false;
   const edited = value?.edited || false;
+  const hasComponents = value?.components && typeof value.components === 'object';
+  const mappingStrategy = value?.mappingStrategy;
   
   // Determine confidence level styling
   let confidenceColor = '';
@@ -285,21 +312,29 @@ const AdminFieldDisplay = ({ field, value, label }) => {
   let borderColor = '';
   
   if (confidence >= 0.90) {
-    confidenceColor = 'text-green-700';
+    confidenceColor = 'text-green-700 dark:text-green-400';
     confidenceText = 'High Confidence';
-    confidenceBg = 'bg-green-100';
-    borderColor = 'border-green-400';
+    confidenceBg = 'bg-green-100 dark:bg-green-900/30';
+    borderColor = 'border-green-400 dark:border-green-600';
   } else if (confidence >= 0.70) {
-    confidenceColor = 'text-yellow-700';
+    confidenceColor = 'text-yellow-700 dark:text-yellow-400';
     confidenceText = 'Medium Confidence';
-    confidenceBg = 'bg-yellow-100';
-    borderColor = 'border-yellow-400';
+    confidenceBg = 'bg-yellow-100 dark:bg-yellow-900/30';
+    borderColor = 'border-yellow-400 dark:border-yellow-600';
   } else {
-    confidenceColor = 'text-red-700';
+    confidenceColor = 'text-red-700 dark:text-red-400';
     confidenceText = 'Low Confidence';
-    confidenceBg = 'bg-red-100';
-    borderColor = 'border-red-400';
+    confidenceBg = 'bg-red-100 dark:bg-red-900/30';
+    borderColor = 'border-red-400 dark:border-red-600';
   }
+  
+  // Format field name for component display
+  const formatComponentName = (name) => {
+    return name
+      .replace(/([A-Z])/g, ' $1')
+      .replace(/^./, str => str.toUpperCase())
+      .trim();
+  };
   
   // Render field value
   const renderValue = () => {
@@ -335,50 +370,109 @@ const AdminFieldDisplay = ({ field, value, label }) => {
   };
   
   return (
-    <div className={`relative p-4 border-2 rounded-lg ${borderColor} bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow`}>
-      {/* Field Label */}
-      <div className="flex justify-between items-start mb-2">
-        <label className="text-sm font-bold text-gray-700 dark:text-gray-300">
-          {label}
-        </label>
+    <div className={`relative border-2 rounded-lg ${borderColor} bg-white dark:bg-gray-800 shadow-sm hover:shadow-md transition-shadow`}>
+      {/* Main Field Content */}
+      <div className="p-4">
+        {/* Field Label */}
+        <div className="flex justify-between items-start mb-2">
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-bold text-gray-700 dark:text-gray-300">
+              {label}
+            </label>
+            {hasComponents && (
+              <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-full font-semibold">
+                Composite
+              </span>
+            )}
+          </div>
+          
+          {/* Badges */}
+          <div className="flex gap-2 flex-wrap justify-end">
+            {edited && (
+              <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-1 rounded font-semibold">
+                ✏️ Edited
+              </span>
+            )}
+            {requiresReview && (
+              <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded font-semibold">
+                ⚠️ Review
+              </span>
+            )}
+          </div>
+        </div>
         
-        {/* Badges */}
-        <div className="flex gap-2 flex-wrap justify-end">
-          {edited && (
-            <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-2 py-1 rounded font-semibold">
-              ✏️ Edited
-            </span>
-          )}
-          {requiresReview && (
-            <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-1 rounded font-semibold">
-              ⚠️ Review
-            </span>
+        {/* Field Value */}
+        <div className="mb-3 text-base">
+          {renderValue()}
+        </div>
+        
+        {/* Metadata Bar */}
+        <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
+          {/* Confidence Indicator */}
+          <div className={`flex items-center gap-2 ${confidenceBg} px-3 py-1 rounded-full`}>
+            <div className={`text-xs font-bold ${confidenceColor}`}>
+              {confidenceText}
+            </div>
+            <div className={`text-xs font-mono ${confidenceColor}`}>
+              {(confidence * 100).toFixed(1)}%
+            </div>
+          </div>
+          
+          {/* Extraction Method */}
+          <div className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full font-medium">
+            📊 {extractionMethod}
+          </div>
+          
+          {/* Mapping Strategy (if composite) */}
+          {mappingStrategy && (
+            <div className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 px-3 py-1 rounded-full font-medium">
+              🔗 {mappingStrategy}
+            </div>
           )}
         </div>
       </div>
       
-      {/* Field Value */}
-      <div className="mb-3 text-base">
-        {renderValue()}
-      </div>
-      
-      {/* Metadata Bar */}
-      <div className="flex items-center gap-3 pt-2 border-t border-gray-200 dark:border-gray-700">
-        {/* Confidence Indicator */}
-        <div className={`flex items-center gap-2 ${confidenceBg} dark:opacity-90 px-3 py-1 rounded-full`}>
-          <div className={`text-xs font-bold ${confidenceColor}`}>
-            {confidenceText}
-          </div>
-          <div className={`text-xs font-mono ${confidenceColor}`}>
-            {(confidence * 100).toFixed(1)}%
+      {/* Nested Components Display (for composite fields) */}
+      {hasComponents && (
+        <div className="bg-gradient-to-r from-purple-50 to-indigo-50 dark:from-purple-900/10 dark:to-indigo-900/10 border-t-2 border-purple-200 dark:border-purple-800 p-4">
+          <h6 className="text-xs font-bold text-purple-900 dark:text-purple-300 mb-3 uppercase tracking-wide flex items-center gap-2">
+            <span className="w-5 h-5 rounded-full bg-purple-500 dark:bg-purple-600 text-white flex items-center justify-center text-xs">
+              🔍
+            </span>
+            Component Breakdown
+          </h6>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {Object.entries(value.components).map(([componentKey, componentValue]) => {
+              // Handle component confidence if it's an object with confidence property
+              const isComponentObject = typeof componentValue === 'object' && componentValue !== null && !Array.isArray(componentValue);
+              const compValue = isComponentObject ? componentValue.value : componentValue;
+              const compConfidence = isComponentObject ? componentValue.confidence : null;
+              
+              return (
+                <div key={componentKey} className="bg-white dark:bg-gray-800 rounded-lg border border-purple-200 dark:border-purple-700 p-3 shadow-sm">
+                  <div className="flex items-start justify-between mb-1">
+                    <div className="text-xs font-semibold text-purple-700 dark:text-purple-300">
+                      {formatComponentName(componentKey)}
+                    </div>
+                    {compConfidence !== null && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-mono ${
+                        compConfidence >= 90 ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' :
+                        compConfidence >= 70 ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400' :
+                        'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                      }`}>
+                        {compConfidence.toFixed(0)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm text-gray-900 dark:text-gray-100 font-medium">
+                    {compValue || <span className="text-gray-400 dark:text-gray-500 italic">empty</span>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
-        
-        {/* Extraction Method */}
-        <div className="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-3 py-1 rounded-full font-medium">
-          📊 {extractionMethod}
-        </div>
-      </div>
+      )}
     </div>
   );
 };

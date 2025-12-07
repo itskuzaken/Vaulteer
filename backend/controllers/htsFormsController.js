@@ -35,8 +35,7 @@ const htsFormsController = {
       });
     }
 
-    console.log(`[OCR Analysis] Processing images with server-side enhancement...`);
-    console.log(`[OCR Analysis] Original sizes: front=${frontImage.size} bytes, back=${backImage.size} bytes`);
+    console.log(`🔍 [OCR] Processing images (front: ${(frontImage.size/1024).toFixed(0)}KB, back: ${(backImage.size/1024).toFixed(0)}KB)`);
 
     try {
       // Validate images with enhanced quality checks
@@ -77,7 +76,7 @@ const htsFormsController = {
       
       // If quality issues found, return warning (but don't block - let client-side validation handle it)
       if (qualityIssues.length > 0) {
-        console.log('[OCR Analysis] Quality warnings:', qualityIssues);
+        console.log(`⚠️  [OCR] Quality issues detected: ${qualityIssues.join(', ')}`);
         // Log but continue - preprocessing may improve quality
       }
 
@@ -87,11 +86,10 @@ const htsFormsController = {
         imageProcessor.processForOCR(backImage.buffer)
       ]);
 
-      console.log(`[OCR Analysis] Processed sizes: front=${processedFront.length} bytes, back=${processedBack.length} bytes`);
+      console.log(`✓ [OCR] Enhanced (front: ${(processedFront.length/1024).toFixed(0)}KB, back: ${(processedBack.length/1024).toFixed(0)}KB)`);
 
       // Get extraction options from config (supports A/B testing)
       const extractionOptions = getExtractionOptions();
-      console.log(`[OCR Analysis] Using extraction mode: ${extractionOptions.extractionMode}, useQueries: ${extractionOptions.useQueries}`);
 
       // Use FORMS+LAYOUT approach (modern default method)
       const useLayout = process.env.OCR_USE_LAYOUT !== 'false'; // Default: true
@@ -100,14 +98,14 @@ const htsFormsController = {
       let extractedData;
 
       if (useLegacyMode) {
-        console.log('🔧 [OCR Analysis] Using legacy QUERIES+Hybrid approach (fallback mode)');
+        console.log('🔧 [OCR] Using QUERIES+Hybrid (fallback)');
         extractedData = await textractService.analyzeHTSForm(
           processedFront,
           processedBack,
           extractionOptions
         );
       } else {
-        console.log(`🚀 [OCR Analysis] Using FORMS${useLayout ? '+LAYOUT' : '-only'} approach (production method)`);
+        console.log(`🚀 [OCR] Using ${useLayout ? 'FORMS+LAYOUT' : 'FORMS-only'}`);
         extractedData = await textractService.analyzeHTSFormWithForms(
           processedFront,
           processedBack,
@@ -118,16 +116,12 @@ const htsFormsController = {
         );
       }
 
-      console.log(`[OCR Analysis] Extraction completed with ${extractedData.confidence.toFixed(1)}% confidence`);
-      console.log(`[OCR Analysis] Method: ${extractedData.extractionMethod}, Mode: ${extractedData.extractionMode || 'N/A'}, Template: ${extractedData.templateId || 'N/A'}`);
-      
-      // Log stats if available
-      if (extractedData.stats) {
-        console.log(`[OCR Analysis] Stats: ${extractedData.stats.highConfidence} high, ${extractedData.stats.mediumConfidence} medium, ${extractedData.stats.lowConfidence} low confidence fields`);
-        
-        if (extractedData.stats.extractionMethods) {
-          console.log(`[OCR Analysis] Extraction methods: ${extractedData.stats.extractionMethods.query} query, ${extractedData.stats.extractionMethods.coordinate} coordinate, ${extractedData.stats.extractionMethods.failed} failed`);
-        }
+      // Consolidated completion summary
+      const stats = extractedData.stats || {};
+      console.log(`✅ [OCR] Extraction complete: ${extractedData.confidence.toFixed(1)}% confidence`);
+      console.log(`   ├─ Fields: ${stats.highConfidence || 0}H/${stats.mediumConfidence || 0}M/${stats.lowConfidence || 0}L confidence`);
+      if (stats.extractionMethods) {
+        console.log(`   └─ Methods: ${stats.extractionMethods.query || 0} query, ${stats.extractionMethods.coordinate || 0} coordinate`);
       }
 
       res.json({
@@ -159,7 +153,12 @@ const htsFormsController = {
       testResult,
       extractedDataEncrypted,
       extractedDataIV,
-      extractionConfidence
+      extractionConfidence,
+      extractedDataStructuredEncrypted,
+      extractedDataStructuredIV,
+      fieldComponents,
+      checkboxStates,
+      fieldRegions
     } = req.body;
 
     // Get user_id from authenticated user (set by auth middleware)
@@ -227,6 +226,42 @@ const htsFormsController = {
 
       console.log(`[Submit Form] Uploaded images to S3: ${frontImageS3Key}, ${backImageS3Key}`);
 
+      // Parse nested data structures if provided (v2 format)
+      let fieldComponentsJson = null;
+      let checkboxStatesJson = null;
+      let fieldRegionsJson = null;
+      
+      if (fieldComponents) {
+        try {
+          fieldComponentsJson = typeof fieldComponents === 'string' ? fieldComponents : JSON.stringify(fieldComponents);
+          console.log('[Submit Form] fieldComponents length:', fieldComponentsJson?.length);
+        } catch (err) {
+          console.warn('[Submit Form] Failed to parse fieldComponents:', err.message);
+        }
+      }
+      
+      if (checkboxStates) {
+        try {
+          checkboxStatesJson = typeof checkboxStates === 'string' ? checkboxStates : JSON.stringify(checkboxStates);
+          console.log('[Submit Form] checkboxStates length:', checkboxStatesJson?.length);
+        } catch (err) {
+          console.warn('[Submit Form] Failed to parse checkboxStates:', err.message);
+        }
+      }
+      
+      if (fieldRegions) {
+        try {
+          fieldRegionsJson = typeof fieldRegions === 'string' ? fieldRegions : JSON.stringify(fieldRegions);
+          console.log('[Submit Form] fieldRegions length:', fieldRegionsJson?.length);
+        } catch (err) {
+          console.warn('[Submit Form] Failed to parse fieldRegions:', err.message);
+        }
+      }
+      
+      // Determine structure version based on nested data availability
+      const structureVersion = (extractedDataStructuredEncrypted || fieldComponentsJson) ? 'v2' : 'v1';
+      console.log(`[Submit Form] Using structure version: ${structureVersion}`);
+
       // Create submission with S3 keys and encrypted OCR data
       console.log('[Submit Form] Saving to database...');
       const actualFormId = await htsFormsRepository.createSubmission({
@@ -240,7 +275,13 @@ const htsFormsController = {
         testResult,
         extractedDataEncrypted,
         extractedDataIV,
-        extractionConfidence
+        extractionConfidence,
+        extractedDataStructuredEncrypted: extractedDataStructuredEncrypted || null,
+        extractedDataStructuredIV: extractedDataStructuredIV || null,
+        fieldComponents: fieldComponentsJson,
+        checkboxStates: checkboxStatesJson,
+        fieldRegions: fieldRegionsJson,
+        structureVersion
       });
 
       console.log(`[Submit Form] Form ${actualFormId} created with encrypted OCR data (confidence: ${extractionConfidence}%)`);

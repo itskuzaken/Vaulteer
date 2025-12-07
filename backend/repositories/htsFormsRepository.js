@@ -13,7 +13,14 @@ const htsFormsRepository = {
       testResult,
       extractedDataEncrypted,
       extractedDataIV,
-      extractionConfidence
+      extractionConfidence,
+      extractedDataStructured,
+      extractedDataStructuredEncrypted,
+      extractedDataStructuredIV,
+      fieldComponents,
+      checkboxStates,
+      fieldRegions,
+      structureVersion = 'v2'
     } = data;
     
     // Validate required fields
@@ -25,7 +32,13 @@ const htsFormsRepository = {
       testResult,
       extractedDataEncrypted_length: extractedDataEncrypted?.length,
       extractedDataIV_length: extractedDataIV?.length,
-      extractionConfidence
+      extractionConfidence,
+      structureVersion,
+      hasStructuredData: !!extractedDataStructured,
+      hasEncryptedStructuredData: !!extractedDataStructuredEncrypted,
+      hasFieldComponents: !!fieldComponents,
+      hasCheckboxStates: !!checkboxStates,
+      hasFieldRegions: !!fieldRegions
     });
 
     const pool = getPool();
@@ -44,9 +57,16 @@ const htsFormsRepository = {
           extracted_data_encrypted,
           extracted_data_iv,
           extraction_confidence,
+          extracted_data_structured,
+          extracted_data_structured_encrypted,
+          extracted_data_structured_iv,
+          field_components,
+          checkbox_states,
+          field_regions,
+          structure_version,
           ocr_completed_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
         [
           controlNumber, 
           userId, 
@@ -58,7 +78,14 @@ const htsFormsRepository = {
           testResult,
           extractedDataEncrypted,
           extractedDataIV,
-          extractionConfidence
+          extractionConfidence,
+          extractedDataStructured ? JSON.stringify(extractedDataStructured) : null,
+          extractedDataStructuredEncrypted,
+          extractedDataStructuredIV,
+          fieldComponents ? JSON.stringify(fieldComponents) : null,
+          checkboxStates ? JSON.stringify(checkboxStates) : null,
+          fieldRegions ? JSON.stringify(fieldRegions) : null,
+          structureVersion
         ]
       );
       

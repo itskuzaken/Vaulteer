@@ -71,13 +71,13 @@ async function testCachedOCR() {
     console.log();
 
     // Display structured data by sections
-    if (result.structuredData) {
+    if (result.structuredData && result.structuredData.front && result.structuredData.back) {
       console.log('=' .repeat(60));
       console.log('📂 STRUCTURED DATA BY SECTIONS');
       console.log('=' .repeat(60));
       
       console.log('\n🔹 FRONT PAGE SECTIONS:');
-      for (const [sectionName, sectionData] of Object.entries(result.structuredData.front)) {
+      for (const [sectionName, sectionData] of Object.entries(result.structuredData.front.sections || {})) {
         console.log(`\n  ${sectionName} (${sectionData.totalFields} fields, ${sectionData.avgConfidence}% confidence)`);
         for (const [fieldName, fieldData] of Object.entries(sectionData.fields)) {
           const displayValue = typeof fieldData.value === 'string' && fieldData.value.length > 40 
@@ -88,7 +88,7 @@ async function testCachedOCR() {
       }
       
       console.log('\n\n🔹 BACK PAGE SECTIONS:');
-      for (const [sectionName, sectionData] of Object.entries(result.structuredData.back)) {
+      for (const [sectionName, sectionData] of Object.entries(result.structuredData.back.sections || {})) {
         console.log(`\n  ${sectionName} (${sectionData.totalFields} fields, ${sectionData.avgConfidence}% confidence)`);
         for (const [fieldName, fieldData] of Object.entries(sectionData.fields)) {
           const displayValue = typeof fieldData.value === 'string' && fieldData.value.length > 40 

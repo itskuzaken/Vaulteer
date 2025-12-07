@@ -987,7 +987,9 @@ function extractKeyValuePairs(blocks) {
       kvPairs.push({
         key: keyText,
         value: valueText,
-        confidence: Math.min(keyBlock.Confidence, value?.Confidence || 0)
+        confidence: Math.min(keyBlock.Confidence, value?.Confidence || 0),
+        keyBlock: keyBlock,      // Store original key block for region extraction
+        valueBlock: value        // Store original value block for region extraction
       });
     }
   });
@@ -1016,6 +1018,186 @@ function getText(block, blockMap) {
   }
   
   return text.trim();
+}
+
+/**
+ * Extract checkboxes with SELECTION_STATUS from Textract blocks
+ * @param {Array} blocks - Textract blocks from AnalyzeDocument
+ * @returns {Array} Array of checkbox objects with { id, selectionStatus, confidence, geometry, nearbyText }
+ */
+function extractCheckboxes(blocks) {
+  const checkboxes = [];
+  const blockMap = {};
+  
+  // Build block map for relationship lookup
+  blocks.forEach(block => {
+    blockMap[block.Id] = block;
+  });
+  
+  // Find all SELECTION_ELEMENT blocks (checkboxes)
+  blocks.forEach(block => {
+    if (block.BlockType === 'SELECTION_ELEMENT') {
+      const checkbox = {
+        id: block.Id,
+        selectionStatus: block.SelectionStatus, // SELECTED or NOT_SELECTED
+        confidence: block.Confidence || 0,
+        geometry: block.Geometry,
+        page: block.Page || 1,
+        nearbyText: []
+      };
+      
+      // Find nearby text for context (within 50px)
+      const checkboxX = (checkbox.geometry.BoundingBox.Left + checkbox.geometry.BoundingBox.Width / 2);
+      const checkboxY = (checkbox.geometry.BoundingBox.Top + checkbox.geometry.BoundingBox.Height / 2);
+      
+      blocks.forEach(textBlock => {
+        if (textBlock.BlockType === 'LINE' && textBlock.Page === checkbox.page) {
+          const textX = (textBlock.Geometry.BoundingBox.Left + textBlock.Geometry.BoundingBox.Width / 2);
+          const textY = (textBlock.Geometry.BoundingBox.Top + textBlock.Geometry.BoundingBox.Height / 2);
+          
+          // Calculate distance (normalized to page width)
+          const distance = Math.sqrt(Math.pow(textX - checkboxX, 2) + Math.pow(textY - checkboxY, 2));
+          
+          if (distance < 0.15) { // Within 15% of page width
+            checkbox.nearbyText.push({
+              text: textBlock.Text,
+              distance,
+              confidence: textBlock.Confidence || 0
+            });
+          }
+        }
+      });
+      
+      // Sort nearby text by distance
+      checkbox.nearbyText.sort((a, b) => a.distance - b.distance);
+      
+      checkboxes.push(checkbox);
+    }
+  });
+  
+  console.log(`  ✓ Found ${checkboxes.length} checkboxes (${checkboxes.filter(c => c.selectionStatus === 'SELECTED').length} selected)`);
+  return checkboxes;
+}
+
+/**
+ * Map checkboxes to field names based on nearby text context
+ * @param {Array} checkboxes - Checkboxes from extractCheckboxes()
+ * @param {string} page - 'front' or 'back'
+ * @returns {Object} Mapped checkbox fields
+ */
+function mapCheckboxesToFields(checkboxes, page) {
+  const mappedCheckboxes = {};
+  
+  // Field patterns for checkbox matching
+  const checkboxPatterns = {
+    // Sex
+    'sexMale': /\b(male|m)\b/i,
+    'sexFemale': /\b(female|f)\b/i,
+    
+    // Gender Identity
+    'genderIdentityMan': /\bman\b/i,
+    'genderIdentityWoman': /\bwoman\b/i,
+    'genderIdentityTransWoman': /\btrans(gender)?\s*woman\b/i,
+    'genderIdentityTransMan': /\btrans(gender)?\s*man\b/i,
+    
+    // Civil Status
+    'civilStatusSingle': /\bsingle\b/i,
+    'civilStatusMarried': /\bmarried\b/i,
+    'civilStatusSeparated': /\bseparated\b/i,
+    'civilStatusWidowed': /\bwidowed?\b/i,
+    'civilStatusDivorced': /\bdivorced\b/i,
+    
+    // Educational Attainment
+    'educationNoGrade': /\bno\s+grade\s+completed\b/i,
+    'educationElementary': /\belementary\b/i,
+    'educationHighSchool': /\bhigh\s*school\b/i,
+    'educationCollege': /\bcollege\b/i,
+    'educationVocational': /\bvocational\b/i,
+    'educationPostGraduate': /\bpost\s*graduate\b/i,
+    
+    // Yes/No fields
+    'currentlyInSchoolYes': /\bcurrently.*school.*yes\b/i,
+    'currentlyInSchoolNo': /\bcurrently.*school.*no\b/i,
+    'currentlyWorkingYes': /\bcurrently.*work.*yes\b/i,
+    'currentlyWorkingNo': /\bcurrently.*work.*no\b/i,
+    'livingWithPartnerYes': /\bliving.*partner.*yes\b/i,
+    'livingWithPartnerNo': /\bliving.*partner.*no\b/i,
+    'isPregnantYes': /\bpregnant.*yes\b/i,
+    'isPregnantNo': /\bpregnant.*no\b/i,
+    
+    // Risk Assessment (8 types)
+    'riskSexMaleNo': /\bsex.*male.*no\b/i,
+    'riskSexMaleYes': /\bsex.*male.*yes\b/i,
+    'riskSexFemaleNo': /\bsex.*female.*no\b/i,
+    'riskSexFemaleYes': /\bsex.*female.*yes\b/i,
+    'riskPaidForSexNo': /\bpaid.*sex.*no\b/i,
+    'riskPaidForSexYes': /\bpaid.*sex.*yes\b/i,
+    'riskReceivedPaymentNo': /\breceived.*payment.*no\b/i,
+    'riskReceivedPaymentYes': /\breceived.*payment.*yes\b/i,
+    'riskSexUnderDrugsNo': /\b(sex.*drug|drug.*sex).*no\b/i,
+    'riskSexUnderDrugsYes': /\b(sex.*drug|drug.*sex).*yes\b/i,
+    'riskSharedNeedlesNo': /\b(shared.*needle|needle.*shared).*no\b/i,
+    'riskSharedNeedlesYes': /\b(shared.*needle|needle.*shared).*yes\b/i,
+    'riskBloodTransfusionNo': /\bblood.*transfusion.*no\b/i,
+    'riskBloodTransfusionYes': /\bblood.*transfusion.*yes\b/i,
+    'riskOccupationalExposureNo': /\boccupational.*exposure.*no\b/i,
+    'riskOccupationalExposureYes': /\boccupational.*exposure.*yes\b/i,
+    
+    // Mother HIV Status
+    'motherHIVNo': /\bmother.*hiv.*no\b/i,
+    'motherHIVYes': /\bmother.*hiv.*yes\b/i,
+    'motherHIVDoNotKnow': /\bmother.*hiv.*(don't|do not)\s*know\b/i,
+    
+    // Client Type
+    'clientTypeInpatient': /\binpatient\b/i,
+    'clientTypeOutpatient': /\boutpatient\b/i,
+    'clientTypePDL': /\bpdl\b/i,
+    'clientTypeOutreach': /\boutreach\b/i,
+    
+    // Mode of Reach
+    'modeOfReachClinic': /\bclinic\b/i,
+    'modeOfReachOnline': /\bonline\b/i,
+    'modeOfReachIndex': /\bindex\b/i,
+    'modeOfReachNetworkTesting': /\bnetwork.*test\b/i,
+    'modeOfReachOutreach': /\boutreach\b/i,
+    
+    // Testing Modality
+    'testingModalityFacilityBased': /\bfacility.*based\b/i,
+    'testingModalityNonLaboratory': /\bnon.*laboratory\b/i,
+    'testingModalityCommunityBased': /\bcommunity.*based\b/i,
+    'testingModalitySelfTesting': /\bself.*test\b/i
+  };
+  
+  // Match each checkbox to a field based on nearby text
+  checkboxes.forEach((checkbox, idx) => {
+    const contextText = checkbox.nearbyText.map(t => t.text).join(' ');
+    
+    if (OCR_DEBUG && idx < 5) {
+      console.log(`  [DEBUG] Checkbox ${idx + 1}/${checkboxes.length}: status=${checkbox.selectionStatus}, nearbyText="${contextText.substring(0, 80)}..."`);
+    }
+    
+    for (const [fieldName, pattern] of Object.entries(checkboxPatterns)) {
+      if (pattern.test(contextText)) {
+        mappedCheckboxes[fieldName] = {
+          value: checkbox.selectionStatus, // 'SELECTED' or 'NOT_SELECTED'
+          confidence: checkbox.confidence,
+          rawKey: fieldName,
+          normalizedKey: fieldName.replace(/([A-Z])/g, ' $1').trim().toLowerCase(),
+          mappingStrategy: 'checkbox',
+          page,
+          extractionMethod: 'forms+selection',
+          context: checkbox.nearbyText.slice(0, 3).map(t => t.text) // Top 3 nearest text
+        };
+        
+        if (OCR_DEBUG) {
+          console.log(`  ✓ Checkbox matched: ${fieldName} = ${checkbox.selectionStatus} (${contextText.substring(0, 50)}...)`);
+        }
+        break; // Stop after first match
+      }
+    }
+  });
+  
+  return mappedCheckboxes;
 }
 
 /**
@@ -2134,7 +2316,71 @@ const FORMS_FIELD_MAPPING = {
   // Registration numbers
   'registration number': 'registrationNumber',
   'reg no': 'registrationNumber',
-  'registration no': 'registrationNumber'
+  'registration no': 'registrationNumber',
+  
+  // ========== ADDITIONAL FORM LABEL MAPPINGS ==========
+  // These are standalone field labels that appear in the form
+  
+  // Consent section
+  'name and signature': 'nameAndSignature',
+  'name & signature': 'nameAndSignature',
+  'client name and signature': 'nameAndSignature',
+  
+  // Date component labels (commonly found near date fields)
+  'month': 'month',
+  'day': 'day',
+  'year': 'year',
+  
+  // Birth order label
+  'birth order (i.e. among mother\'s children)': 'birthOrder',
+  'i.e. among mothers children': 'birthOrder',
+  'among mothers children': 'birthOrder',
+  
+  // Civil status options
+  'single': 'civilStatusSingle',
+  'married': 'civilStatusMarried',
+  'separated': 'civilStatusSeparated',
+  'widowed': 'civilStatusWidowed',
+  'divorced': 'civilStatusDivorced',
+  
+  // Testing refusal
+  'refused hiv testing': 'testingRefused',
+  'refused testing': 'testingRefused',
+  'refused': 'testingRefused',
+  'reason for refusal': 'refusalReason',
+  'reason for refusal:': 'refusalReason',
+  
+  // Clinical symptoms
+  'describe s/sx': 'symptoms',
+  'describe s/sx:': 'symptoms',
+  'describe symptoms': 'symptoms',
+  'symptoms': 'symptoms',
+  
+  // WHO staging
+  'world health organization (who) staging': 'whoStaging',
+  'world health organization (who) staging:': 'whoStaging',
+  'who staging': 'whoStaging',
+  'who staging:': 'whoStaging',
+  
+  // HTS form reference (often appears as header/footer text)
+  '(hts': null, // Ignore - likely form code/reference
+  'hts form': null, // Ignore - form identifier
+  
+  // Yes/No response options (common checkbox labels)
+  'yes.': 'yes',
+  'yes': 'yes',
+  'no.': 'no',
+  'no': 'no',
+  
+  // Occupation other
+  'others: teacher': 'occupation',
+  'others:': 'occupationOther',
+  'teacher': 'occupation',
+  
+  // Date of most recent exposure (condomless sex)
+  'date of most recent condomless anal or neo/vaginal sex (mm/yyyy)': 'dateMostRecentRisk',
+  'date of most recent condomless sex': 'dateMostRecentRisk',
+  'date of most recent condomless': 'dateMostRecentRisk'
 };
 
 /**
@@ -2536,15 +2782,75 @@ async function logOCRProcessingStats(sessionId, totalFields, mappedFields, unmap
 }
 
 /**
+ * Extract region (bounding box) from Textract block
+ * @param {Object} block - Textract block with Geometry.BoundingBox
+ * @returns {Object|null} Region object with x, y, width, height, page or null if no geometry
+ */
+function extractRegionFromBlock(block) {
+  if (!block?.Geometry?.BoundingBox) {
+    return null;
+  }
+  
+  const bbox = block.Geometry.BoundingBox;
+  return {
+    x: bbox.Left,
+    y: bbox.Top,
+    width: bbox.Width,
+    height: bbox.Height,
+    page: block.Page || 1 // Default to page 1 if not specified
+  };
+}
+
+/**
+ * Calculate aggregate bounding box encompassing all component regions
+ * @param {Array<Object>} regions - Array of region objects with x, y, width, height
+ * @returns {Object|null} Encompassing region or null if no valid regions
+ */
+function calculateBoundingBox(regions) {
+  const validRegions = regions.filter(r => r && typeof r.x === 'number');
+  
+  if (validRegions.length === 0) {
+    return null;
+  }
+  
+  // Single region - return as is
+  if (validRegions.length === 1) {
+    return { ...validRegions[0] };
+  }
+  
+  // Calculate encompassing box
+  const left = Math.min(...validRegions.map(r => r.x));
+  const top = Math.min(...validRegions.map(r => r.y));
+  const right = Math.max(...validRegions.map(r => r.x + r.width));
+  const bottom = Math.max(...validRegions.map(r => r.y + r.height));
+  
+  return {
+    x: left,
+    y: top,
+    width: right - left,
+    height: bottom - top,
+    page: validRegions[0].page // Use first region's page
+  };
+}
+
+/**
  * Build composite fields from individual components
+ * Enhanced to support accurate HTS form structure with nested fields
  * Handles: fullName (from firstName + middleName + lastName + suffix)
  *          testDate (from Month + Day + Year sequence)
  *          birthDate (from Month + Day + Year sequence)
+ *          sex (from male/female checkboxes)
+ *          genderIdentity (from man/woman/other checkboxes)
+ *          civilStatus (from checkbox group)
+ *          addresses (from city/province pairs)
+ *          risk fields (from no/yes conditional checkboxes)
  * @param {Object} mappedFields - Mapped fields object
  * @param {Array} frontKVPairs - Front page key-value pairs (original order)
  * @param {Array} backKVPairs - Back page key-value pairs (original order)
  */
 function buildCompositeFields(mappedFields, frontKVPairs, backKVPairs) {
+  console.log('🔧 [Composite] Building composite and nested field structures...');
+  
   // ========== Build fullName from components ==========
   if (mappedFields.firstName || mappedFields.middleName || mappedFields.lastName) {
     const nameParts = [
@@ -2556,125 +2862,312 @@ function buildCompositeFields(mappedFields, frontKVPairs, backKVPairs) {
     
     if (nameParts.length > 0) {
       const fullName = nameParts.join(' ').trim();
+      const avgConfidence = Math.round(
+        [mappedFields.firstName, mappedFields.middleName, mappedFields.lastName, mappedFields.suffix]
+          .filter(f => f)
+          .reduce((sum, f) => sum + f.confidence, 0) / nameParts.length
+      );
+      
+      // Extract regions from component fields
+      const componentRegions = [
+        mappedFields.firstName?.valueBlock,
+        mappedFields.middleName?.valueBlock,
+        mappedFields.lastName?.valueBlock,
+        mappedFields.suffix?.valueBlock
+      ].filter(block => block).map(block => extractRegionFromBlock(block)).filter(region => region);
+      
+      // Calculate encompassing bounding box for fullName
+      const fullNameRegion = calculateBoundingBox(componentRegions);
+      
       mappedFields.fullName = {
         value: fullName,
-        confidence: Math.round(
-          [mappedFields.firstName, mappedFields.middleName, mappedFields.lastName, mappedFields.suffix]
-            .filter(f => f)
-            .reduce((sum, f) => sum + f.confidence, 0) / nameParts.length
-        ),
+        confidence: avgConfidence,
         rawKey: 'composite',
         normalizedKey: 'full name',
         mappingStrategy: 'composite',
         page: 'front',
-        extractionMethod: 'forms+layout'
+        extractionMethod: 'forms+layout',
+        region: fullNameRegion,  // Aggregate bounding box
+        components: {
+          firstName: {
+            value: mappedFields.firstName?.value,
+            region: extractRegionFromBlock(mappedFields.firstName?.valueBlock)
+          },
+          middleName: {
+            value: mappedFields.middleName?.value,
+            region: extractRegionFromBlock(mappedFields.middleName?.valueBlock)
+          },
+          lastName: {
+            value: mappedFields.lastName?.value,
+            region: extractRegionFromBlock(mappedFields.lastName?.valueBlock)
+          },
+          suffix: {
+            value: mappedFields.suffix?.value,
+            region: extractRegionFromBlock(mappedFields.suffix?.valueBlock)
+          }
+        }
       };
-      console.log(`  ✓ Built fullName: "${fullName}" (composite from ${nameParts.length} parts)`);
+      console.log(`  ✓ Built fullName: "${fullName}" (composite from ${nameParts.length} parts, ${avgConfidence}% confidence) ${fullNameRegion ? `[region: ${fullNameRegion.x.toFixed(3)},${fullNameRegion.y.toFixed(3)} ${fullNameRegion.width.toFixed(3)}×${fullNameRegion.height.toFixed(3)}]` : '[no region]'}`);
     }
   }
   
   // ========== Build sex from Male/Female SELECTED values ==========
+  // Enhanced: Now uses actual SELECTION_STATUS from Textract instead of string matching
   if (mappedFields.sexMale || mappedFields.sexFemale) {
-    let sexValue = null;
-    let sexConf = 0;
+    const selected = [];
+    const components = {};
     
-    if (mappedFields.sexMale?.value === 'SELECTED' || mappedFields.sexMale?.value === '/') {
-      sexValue = 'Male';
-      sexConf = mappedFields.sexMale.confidence;
-    } else if (mappedFields.sexFemale?.value === 'SELECTED' || mappedFields.sexFemale?.value === '/') {
-      sexValue = 'Female';
-      sexConf = mappedFields.sexFemale.confidence;
+    // Check using actual SelectionStatus from Textract SELECTION_ELEMENT
+    if (mappedFields.sexMale?.value === 'SELECTED') {
+      selected.push('Male');
+      components.male = true;
+    }
+    if (mappedFields.sexFemale?.value === 'SELECTED') {
+      selected.push('Female');
+      components.female = true;
     }
     
-    if (sexValue) {
+    if (selected.length > 0) {
       mappedFields.sex = {
-        value: sexValue,
-        confidence: Math.round(sexConf),
+        value: selected[0], // Primary selection
+        confidence: Math.round((mappedFields.sexMale?.confidence || 0 + mappedFields.sexFemale?.confidence || 0) / 2),
         rawKey: 'composite',
         normalizedKey: 'sex',
         mappingStrategy: 'composite',
         page: 'front',
-        extractionMethod: 'forms+layout'
+        extractionMethod: 'forms+selection',
+        components: components
       };
-      console.log(`  ✓ Built sex: "${sexValue}" (from checkbox selection)`);
+      console.log(`  ✓ Built sex: "${selected.join(', ')}" (checkbox SelectionStatus)`);
     }
   }
   
-  // ========== Build genderIdentity from Man/Woman/Trans SELECTED values ==========
+  // ========== Build genderIdentity from Man/Woman/Trans/Other checkboxes ==========
+  // Enhanced: Now uses actual SELECTION_STATUS from Textract instead of string matching
   if (mappedFields.genderIdentityMan || mappedFields.genderIdentityWoman || 
-      mappedFields.genderIdentityTransWoman || mappedFields.genderIdentityTransMan) {
-    let genderValue = null;
-    let genderConf = 0;
+      mappedFields.genderIdentityTransWoman || mappedFields.genderIdentityTransMan ||
+      mappedFields.otherGenderIdentity) {
+    const selected = [];
+    const components = {};
+    let totalConfidence = 0;
+    let count = 0;
     
-    if (mappedFields.genderIdentityTransWoman?.value === 'SELECTED' || mappedFields.genderIdentityTransWoman?.value === '/') {
-      genderValue = 'Transgender Woman';
-      genderConf = mappedFields.genderIdentityTransWoman.confidence;
-    } else if (mappedFields.genderIdentityTransMan?.value === 'SELECTED' || mappedFields.genderIdentityTransMan?.value === '/') {
-      genderValue = 'Transgender Man';
-      genderConf = mappedFields.genderIdentityTransMan.confidence;
-    } else if (mappedFields.genderIdentityMan?.value === 'SELECTED' || mappedFields.genderIdentityMan?.value === '/') {
-      genderValue = 'Man';
-      genderConf = mappedFields.genderIdentityMan.confidence;
-    } else if (mappedFields.genderIdentityWoman?.value === 'SELECTED' || mappedFields.genderIdentityWoman?.value === '/') {
-      genderValue = 'Woman';
-      genderConf = mappedFields.genderIdentityWoman.confidence;
+    // Check using actual SelectionStatus from Textract SELECTION_ELEMENT
+    if (mappedFields.genderIdentityMan?.value === 'SELECTED') {
+      selected.push('Man');
+      components.man = true;
+      totalConfidence += mappedFields.genderIdentityMan.confidence;
+      count++;
+    }
+    if (mappedFields.genderIdentityWoman?.value === 'SELECTED') {
+      selected.push('Woman');
+      components.woman = true;
+      totalConfidence += mappedFields.genderIdentityWoman.confidence;
+      count++;
+    }
+    if (mappedFields.genderIdentityTransWoman?.value === 'SELECTED') {
+      selected.push('Transgender Woman');
+      components.transWoman = true;
+      totalConfidence += mappedFields.genderIdentityTransWoman.confidence;
+      count++;
+    }
+    if (mappedFields.genderIdentityTransMan?.value === 'SELECTED') {
+      selected.push('Transgender Man');
+      components.transMan = true;
+      totalConfidence += mappedFields.genderIdentityTransMan.confidence;
+      count++;
+    }
+    if (mappedFields.otherGenderIdentity?.value && 
+        mappedFields.otherGenderIdentity.value !== 'SELECTED' && 
+        mappedFields.otherGenderIdentity.value !== 'NOT_SELECTED') {
+      // Text field for "Other" option
+      components.otherGenderIdentity = mappedFields.otherGenderIdentity.value;
+      selected.push(mappedFields.otherGenderIdentity.value);
+      totalConfidence += mappedFields.otherGenderIdentity.confidence;
+      count++;
     }
     
-    if (genderValue) {
+    if (selected.length > 0) {
       mappedFields.genderIdentity = {
-        value: genderValue,
-        confidence: Math.round(genderConf),
+        value: selected[0],
+        confidence: count > 0 ? Math.round(totalConfidence / count) : 0,
         rawKey: 'composite',
         normalizedKey: 'gender identity',
         mappingStrategy: 'composite',
         page: 'front',
-        extractionMethod: 'forms+layout'
+        extractionMethod: 'forms+selection',
+        components: components
       };
-      console.log(`  ✓ Built genderIdentity: "${genderValue}" (from checkbox selection)`);
+      console.log(`  ✓ Built genderIdentity: "${selected.join(', ')}" (checkbox SelectionStatus)`);
+    }
+  }
+  
+  // ========== Build civilStatus from checkbox group ==========
+  // Enhanced: Now uses actual SELECTION_STATUS from Textract instead of string matching
+  if (mappedFields.civilStatusSingle || mappedFields.civilStatusMarried || 
+      mappedFields.civilStatusSeparated || mappedFields.civilStatusWidowed ||
+      mappedFields.civilStatusDivorced) {
+    const selected = [];
+    const components = {};
+    let totalConfidence = 0;
+    let count = 0;
+    
+    const statusMap = {
+      civilStatusSingle: 'Single',
+      civilStatusMarried: 'Married',
+      civilStatusSeparated: 'Separated',
+      civilStatusWidowed: 'Widowed',
+      civilStatusDivorced: 'Divorced'
+    };
+    
+    // Check using actual SelectionStatus from Textract SELECTION_ELEMENT
+    for (const [fieldKey, statusLabel] of Object.entries(statusMap)) {
+      if (mappedFields[fieldKey]?.value === 'SELECTED') {
+        selected.push(statusLabel);
+        components[fieldKey.replace('civilStatus', '').toLowerCase()] = true;
+        totalConfidence += mappedFields[fieldKey].confidence;
+        count++;
+      }
+    }
+    
+    if (selected.length > 0) {
+      mappedFields.civilStatus = {
+        value: selected[0],
+        confidence: count > 0 ? Math.round(totalConfidence / count) : 0,
+        rawKey: 'composite',
+        normalizedKey: 'civil status',
+        mappingStrategy: 'composite',
+        page: 'front',
+        extractionMethod: 'forms+selection',
+        components: components
+      };
+      console.log(`  ✓ Built civilStatus: "${selected.join(', ')}" (checkbox SelectionStatus)`);
+    }
+  }
+  
+  // ========== Build address composites (currentResidence, permanentResidence, placeOfBirth) ==========
+  const addressFields = [
+    { base: 'currentResidence', cityKey: 'currentResidenceCity', provinceKey: 'currentResidenceProvince' },
+    { base: 'permanentResidence', cityKey: 'permanentResidenceCity', provinceKey: 'permanentResidenceProvince' },
+    { base: 'placeOfBirth', cityKey: 'placeOfBirthCity', provinceKey: 'placeOfBirthProvince' }
+  ];
+  
+  for (const { base, cityKey, provinceKey } of addressFields) {
+    if (mappedFields[cityKey] || mappedFields[provinceKey]) {
+      const city = mappedFields[cityKey]?.value || '';
+      const province = mappedFields[provinceKey]?.value || '';
+      const parts = [city, province].filter(p => p && p.trim() !== '');
+      
+      if (parts.length > 0) {
+        const fullAddress = parts.join(', ');
+        const avgConfidence = Math.round(
+          [mappedFields[cityKey], mappedFields[provinceKey]]
+            .filter(f => f)
+            .reduce((sum, f) => sum + f.confidence, 0) / parts.length
+        );
+        
+        mappedFields[base] = {
+          value: fullAddress,
+          confidence: avgConfidence,
+          rawKey: 'composite',
+          normalizedKey: base.replace(/([A-Z])/g, ' $1').trim().toLowerCase(),
+          mappingStrategy: 'composite',
+          page: 'front',
+          extractionMethod: 'forms+layout',
+          components: {
+            city: city,
+            province: province
+          }
+        };
+        console.log(`  ✓ Built ${base}: "${fullAddress}" (composite from city/province)`);
+      }
     }
   }
   
   // ========== Build testDate and birthDate from Month/Day/Year sequences ==========
-  // Strategy: Look for consecutive Month/Day/Year fields in the CSV row order
-  // First set of Month/Day/Year = testDate (rows 9-11 in sample)
-  // Build composite date fields from Month/Day/Year sequences
   const monthDayYearSets = findMonthDayYearSequences(frontKVPairs);
   
   if (monthDayYearSets.length >= 1) {
-    // Identify which sequence is testDate vs birthDate based on year value
-    // Birth year is typically older (< 2010), test year is recent (>= 2020)
     for (const dateSet of monthDayYearSets) {
       const year = parseInt(dateSet.year);
       const dateStr = `${dateSet.month}-${dateSet.day}-${dateSet.year}`;
       const avgConf = Math.round((dateSet.monthConf + dateSet.dayConf + dateSet.yearConf) / 3);
       
+      const dateField = {
+        value: dateStr,
+        confidence: avgConf,
+        rawKey: 'composite',
+        mappingStrategy: 'composite',
+        page: 'front',
+        extractionMethod: 'forms+layout',
+        components: {
+          month: dateSet.month,
+          day: dateSet.day,
+          year: dateSet.year
+        }
+      };
+      
       if (year < 2010) {
-        // This is a birth date
-        mappedFields.birthDate = {
-          value: dateStr,
-          confidence: avgConf,
-          rawKey: 'composite',
-          normalizedKey: 'birth date',
-          mappingStrategy: 'composite',
-          page: 'front',
-          extractionMethod: 'forms+layout'
-        };
-        console.log(`  ✓ Built birthDate: "${dateStr}" (composite from Month/Day/Year sequence)`);
+        mappedFields.birthDate = { ...dateField, normalizedKey: 'birth date' };
+        console.log(`  ✓ Built birthDate: "${dateStr}" (composite from Month/Day/Year)`);
       } else if (year >= 2020) {
-        // This is a test date
-        mappedFields.testDate = {
-          value: dateStr,
-          confidence: avgConf,
-          rawKey: 'composite',
-          normalizedKey: 'test date',
-          mappingStrategy: 'composite',
-          page: 'front',
-          extractionMethod: 'forms+layout'
-        };
-        console.log(`  ✓ Built testDate: "${dateStr}" (composite from Month/Day/Year sequence)`);
+        mappedFields.testDate = { ...dateField, normalizedKey: 'test date' };
+        console.log(`  ✓ Built testDate: "${dateStr}" (composite from Month/Day/Year)`);
       }
     }
   }
+  
+  // ========== Build risk assessment conditional fields (no/yes branches) ==========
+  const riskFields = [
+    { base: 'riskSexMale', statusKey: 'riskSexMaleStatus', totalKey: 'riskSexMaleTotal', date1Key: 'riskSexMaleDate1', date2Key: 'riskSexMaleDate2' },
+    { base: 'riskSexFemale', statusKey: 'riskSexFemaleStatus', totalKey: 'riskSexFemaleTotal', date1Key: 'riskSexFemaleDate1', date2Key: 'riskSexFemaleDate2' },
+    { base: 'riskPaidForSex', statusKey: 'riskPaidForSexStatus', dateKey: 'riskPaidForSexDate' },
+    { base: 'riskReceivedPayment', statusKey: 'riskReceivedPaymentStatus', dateKey: 'riskReceivedPaymentDate' },
+    { base: 'riskSexUnderDrugs', statusKey: 'riskSexUnderDrugsStatus', dateKey: 'riskSexUnderDrugsDate' },
+    { base: 'riskSharedNeedles', statusKey: 'riskSharedNeedlesStatus', dateKey: 'riskSharedNeedlesDate' },
+    { base: 'riskBloodTransfusion', statusKey: 'riskBloodTransfusionStatus', dateKey: 'riskBloodTransfusionDate' },
+    { base: 'riskOccupationalExposure', statusKey: 'riskOccupationalExposureStatus', dateKey: 'riskOccupationalExposureDate' }
+  ];
+  
+  for (const riskField of riskFields) {
+    const statusField = mappedFields[riskField.statusKey];
+    if (statusField) {
+      const components = {
+        no: statusField.value === 'No' || statusField.value === 'NO',
+        yes: statusField.value === 'Yes' || statusField.value === 'YES'
+      };
+      
+      // Add conditional fields if yes is selected
+      if (components.yes) {
+        if (riskField.totalKey && mappedFields[riskField.totalKey]) {
+          components.total = mappedFields[riskField.totalKey].value;
+        }
+        if (riskField.date1Key && mappedFields[riskField.date1Key]) {
+          components.date1 = mappedFields[riskField.date1Key].value;
+        }
+        if (riskField.date2Key && mappedFields[riskField.date2Key]) {
+          components.date2 = mappedFields[riskField.date2Key].value;
+        }
+        if (riskField.dateKey && mappedFields[riskField.dateKey]) {
+          components.dateMostRecentRisk = mappedFields[riskField.dateKey].value;
+        }
+      }
+      
+      mappedFields[riskField.base] = {
+        value: statusField.value,
+        confidence: statusField.confidence,
+        rawKey: 'composite',
+        normalizedKey: riskField.base.replace(/([A-Z])/g, ' $1').trim().toLowerCase(),
+        mappingStrategy: 'composite',
+        page: 'back',
+        extractionMethod: 'forms+layout',
+        components: components
+      };
+      console.log(`  ✓ Built ${riskField.base}: "${statusField.value}" (conditional field)`);
+    }
+  }
+  
+  console.log('✅ [Composite] Composite field building complete');
 }
 
 /**
@@ -2847,6 +3340,261 @@ function findMonthDayYearSequences(kvPairs) {
 }
 
 /**
+ * Build conditional parent-child field relationships based on checkbox state
+ * Handles risk assessment fields where parent checkbox determines nested field assembly
+ * @param {Object} allFields - Merged field mappings from all sources
+ * @param {Array} frontKVPairs - Front page key-value pairs with geometry
+ * @param {Array} backKVPairs - Back page key-value pairs with geometry
+ * @returns {Object} Updated allFields with nested conditional structures
+ */
+function buildConditionalFields(allFields, frontKVPairs = [], backKVPairs = []) {
+  console.log('🔀 Building conditional parent-child field relationships...');
+  
+  // Define parent-child mapping rules for risk assessment fields
+  const conditionalMappings = [
+    {
+      parent: 'riskSexMale',
+      pageType: 'back',
+      nested: {
+        yes: ['total', 'firstDate', 'lastDate'],
+        no: []
+      },
+      proximityRadius: 0.15, // 15% page width
+      requiredFields: ['total'] // Required when parent is SELECTED
+    },
+    {
+      parent: 'riskSexFemale',
+      pageType: 'back',
+      nested: {
+        yes: ['total', 'firstDate', 'lastDate'],
+        no: []
+      },
+      proximityRadius: 0.15,
+      requiredFields: ['total']
+    },
+    {
+      parent: 'riskPaidForSex',
+      pageType: 'back',
+      nested: {
+        yes: ['total', 'firstDate', 'lastDate'],
+        no: []
+      },
+      proximityRadius: 0.15,
+      requiredFields: ['total']
+    },
+    {
+      parent: 'riskReceivedPayment',
+      pageType: 'back',
+      nested: {
+        yes: ['total', 'firstDate', 'lastDate'],
+        no: []
+      },
+      proximityRadius: 0.15,
+      requiredFields: ['total']
+    },
+    {
+      parent: 'riskSexUnderDrugs',
+      pageType: 'back',
+      nested: {
+        yes: ['total', 'firstDate', 'lastDate'],
+        no: []
+      },
+      proximityRadius: 0.15,
+      requiredFields: ['total']
+    },
+    {
+      parent: 'riskSharedNeedles',
+      pageType: 'back',
+      nested: {
+        yes: ['total', 'firstDate', 'lastDate'],
+        no: []
+      },
+      proximityRadius: 0.15,
+      requiredFields: ['total']
+    },
+    {
+      parent: 'riskBloodTransfusion',
+      pageType: 'back',
+      nested: {
+        yes: ['date'],
+        no: []
+      },
+      proximityRadius: 0.15,
+      requiredFields: ['date']
+    },
+    {
+      parent: 'riskOccupationalExposure',
+      pageType: 'back',
+      nested: {
+        yes: ['date'],
+        no: []
+      },
+      proximityRadius: 0.15,
+      requiredFields: ['date']
+    }
+  ];
+
+  const kvPairs = [...frontKVPairs, ...backKVPairs];
+  let conditionalFieldsBuilt = 0;
+
+  for (const mapping of conditionalMappings) {
+    const { parent, pageType, nested, proximityRadius, requiredFields } = mapping;
+    const parentField = allFields[parent];
+
+    // Skip if parent field doesn't exist or is NOT_SELECTED
+    if (!parentField || parentField.value !== 'SELECTED') {
+      console.log(`  ⏭️  Skipping ${parent} (value: ${parentField?.value || 'missing'})`);
+      continue;
+    }
+
+    console.log(`  🔍 Processing ${parent} (SELECTED)`);
+
+    // Get parent field geometry for proximity detection
+    const parentGeometry = parentField.geometry;
+    if (!parentGeometry || !parentGeometry.BoundingBox) {
+      console.log(`  ⚠️  No geometry for ${parent}, skipping proximity detection`);
+      continue;
+    }
+
+    const parentBox = parentGeometry.BoundingBox;
+    const components = { yes: {}, no: {} };
+
+    // Find nested fields using proximity detection
+    for (const childFieldName of nested.yes) {
+      // Look for child fields in nearby KV pairs
+      const nearbyFields = kvPairs.filter(kv => {
+        if (!kv.Key || !kv.Key.Geometry || !kv.Key.Geometry.BoundingBox) return false;
+        
+        const kvBox = kv.Key.Geometry.BoundingBox;
+        
+        // Calculate horizontal and vertical distance
+        const horizontalDist = Math.abs(kvBox.Left - parentBox.Left);
+        const verticalDist = Math.abs(kvBox.Top - parentBox.Top);
+        
+        // Check if within proximity radius
+        return horizontalDist < proximityRadius && verticalDist < proximityRadius;
+      });
+
+      // Try to match child field by pattern
+      let childValue = null;
+      let childConfidence = 0;
+      let childSource = 'proximity';
+
+      for (const kv of nearbyFields) {
+        const keyText = kv.Key.Text.toLowerCase();
+        const valueText = kv.Value?.Text || '';
+
+        // Pattern matching for different child field types
+        if (childFieldName === 'total') {
+          // Look for numeric values near "total" or "number" keywords
+          if ((keyText.includes('total') || keyText.includes('number') || keyText.includes('partner')) && /^\d+$/.test(valueText)) {
+            childValue = parseInt(valueText, 10);
+            childConfidence = kv.Key.Confidence;
+            childSource = 'pattern:total';
+            break;
+          }
+        } else if (childFieldName === 'firstDate' || childFieldName === 'lastDate') {
+          // Look for date patterns near "first" or "last" keywords
+          const isFirstDate = childFieldName === 'firstDate' && (keyText.includes('first') || keyText.includes('earliest'));
+          const isLastDate = childFieldName === 'lastDate' && (keyText.includes('last') || keyText.includes('recent') || keyText.includes('latest'));
+          
+          if ((isFirstDate || isLastDate) && /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(valueText)) {
+            childValue = valueText;
+            childConfidence = kv.Key.Confidence;
+            childSource = `pattern:${childFieldName}`;
+            break;
+          }
+        } else if (childFieldName === 'date') {
+          // Look for generic date fields
+          if ((keyText.includes('date') || keyText.includes('when')) && /\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}/.test(valueText)) {
+            childValue = valueText;
+            childConfidence = kv.Key.Confidence;
+            childSource = 'pattern:date';
+            break;
+          }
+        }
+      }
+
+      // Store found child field with region
+      if (childValue !== null) {
+        // Extract region from the key-value pair geometry
+        let childRegion = null;
+        for (const kv of nearbyFields) {
+          const keyText = kv.Key.Text.toLowerCase();
+          const valueText = kv.Value?.Text || '';
+          
+          // Check if this is the KV pair we matched
+          if ((childFieldName === 'total' && valueText === String(childValue)) ||
+              (childFieldName.includes('Date') && valueText === childValue) ||
+              (childFieldName === 'date' && valueText === childValue)) {
+            // Extract region from value block
+            if (kv.Value?.Geometry?.BoundingBox) {
+              const bbox = kv.Value.Geometry.BoundingBox;
+              childRegion = {
+                x: bbox.Left,
+                y: bbox.Top,
+                width: bbox.Width,
+                height: bbox.Height,
+                page: kv.Value.Page || mapping.pageType === 'front' ? 1 : 2
+              };
+            }
+            break;
+          }
+        }
+        
+        components.yes[childFieldName] = {
+          value: childValue,
+          confidence: childConfidence,
+          extractionMethod: 'conditional',
+          source: childSource,
+          region: childRegion  // Store bounding box coordinates
+        };
+        console.log(`    ✅ Found ${childFieldName}: ${childValue} (confidence: ${childConfidence.toFixed(1)}%) ${childRegion ? `[region: ${childRegion.x.toFixed(3)},${childRegion.y.toFixed(3)} ${childRegion.width.toFixed(3)}×${childRegion.height.toFixed(3)}]` : '[no region]'}`);
+      } else {
+        console.log(`    ⚠️  Child field ${childFieldName} not found in proximity`);
+      }
+    }
+
+    // Validate required fields
+    const missingRequired = requiredFields.filter(field => !components.yes[field]);
+    if (missingRequired.length > 0) {
+      console.log(`    ⚠️  Missing required fields for ${parent}: ${missingRequired.join(', ')}`);
+    }
+
+    // Build nested structure with parent and child regions
+    if (Object.keys(components.yes).length > 0) {
+      // Extract parent region
+      let parentRegion = null;
+      if (parentGeometry?.BoundingBox) {
+        const bbox = parentGeometry.BoundingBox;
+        parentRegion = {
+          x: bbox.Left,
+          y: bbox.Top,
+          width: bbox.Width,
+          height: bbox.Height,
+          page: mapping.pageType === 'front' ? 1 : 2
+        };
+      }
+      
+      allFields[parent] = {
+        ...parentField,
+        components,
+        extractionMethod: 'conditional',
+        hasNestedFields: true,
+        nestedFieldCount: Object.keys(components.yes).length,
+        missingRequiredFields: missingRequired,
+        region: parentRegion  // Store parent field bounding box
+      };
+      conditionalFieldsBuilt++;
+      console.log(`    ✅ Built conditional field ${parent} with ${Object.keys(components.yes).length} nested fields ${parentRegion ? `[region: ${parentRegion.x.toFixed(3)},${parentRegion.y.toFixed(3)} ${parentRegion.width.toFixed(3)}×${parentRegion.height.toFixed(3)}]` : '[no region]'}`);
+    }
+  }
+
+  console.log(`✅ Built ${conditionalFieldsBuilt} conditional field relationships`);
+  return allFields;
+}
+
+/**
  * Enhanced Map Textract FORMS key-value pairs to HTS field structure
  * @param {Array} keyValuePairs - Textract key-value blocks
  * @param {string} pageType - 'front' or 'back'
@@ -2886,7 +3634,8 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
         normalizedKey: mappingResult.normalizedKey,
         mappingStrategy: mappingResult.strategy,
         page: pageType,
-        extractionMethod: 'forms+layout'
+        extractionMethod: 'forms+layout',
+        valueBlock: kvPair.valueBlock  // Store original Textract block for region extraction
       };
       
       console.log(`  ✓ "${kvPair.key}" → ${mappingResult.fieldName}: "${kvPair.value}" (${kvPair.confidence}%) [${mappingResult.strategy}]`);
@@ -2917,7 +3666,7 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
   const mediumConfidence = confidenceScores.filter(conf => conf >= 70 && conf < 90).length;
   const lowConfidence = confidenceScores.filter(conf => conf < 70).length;
   
-  console.log(`📊 Mapping Results: ${mappedCount}/${totalCount} fields mapped (${mappingRate.toFixed(1)}%) in ${processingTime}ms`);
+  console.log(`📊 [Mapping] ${mappedCount}/${totalCount} fields (${mappingRate.toFixed(1)}%) | ${processingTime}ms | ⚡${highConfidence}H ${mediumConfidence}M ${lowConfidence}L`);
   
   // Track unmapped keys asynchronously (don't block processing)
   if (sessionId && unmappedKeys.length > 0) {
@@ -2935,10 +3684,11 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
     });
   }
   
-  // Log unmapped keys for immediate debugging
+  // Log unmapped keys for debugging (limit to 3)
   if (unmappedKeys.length > 0) {
-    console.log(`⚠️  ${unmappedKeys.length} unmapped keys found:`, 
-      unmappedKeys.slice(0, 5).map(uk => uk.originalKey).join(', '));
+    const preview = unmappedKeys.slice(0, 3).map(uk => uk.originalKey).join(', ');
+    const more = unmappedKeys.length > 3 ? ` +${unmappedKeys.length - 3} more` : '';
+    console.log(`⚠️  [Unmapped] ${unmappedKeys.length} keys: ${preview}${more}`);
   }
 
   // Debug log mapping JSON (masked/truncated/dumped depending on env)
@@ -2996,8 +3746,8 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
  */
 function organizeFieldsIntoSections(allFields, correctedData) {
   // Define field-to-section mappings based on DOH HTS Form 2021 official structure
-  // 88 fields across 11 sections (3 front + 8 back)
-  // This structure mirrors template-metadata.json structure.sections and frontend components
+  // Updated with accurate nested composite field structure for checkboxes and multi-part fields
+  // This structure mirrors the actual form layout with proper hierarchy
   const sectionMapping = {
     // ===== FRONT PAGE SECTIONS (3) =====
     'INFORMED CONSENT': [
@@ -3007,91 +3757,70 @@ function organizeFieldsIntoSections(allFields, correctedData) {
       'verbalConsent'
     ],
     'DEMOGRAPHIC DATA': [
-      'testDate',
+      'testDate', // Composite: month, day, year
       'philHealthNumber',
       'philSysNumber',
-      'fullName',
+      'fullName', // Composite: firstName, middleName, lastName, suffix
       'parentalCodeMother',
       'parentalCodeFather',
       'birthOrder',
-      'birthDate',
+      'birthDate', // Composite: month, day, year
       'age',
       'ageMonths',
-      'sex',
-      'genderIdentity',
-      'currentResidence',
-      'permanentResidence',
-      'placeOfBirth',
-      'nationality',
-      'civilStatus',
-      'livingWithPartner',
+      'sex', // Composite: male, female checkboxes
+      'genderIdentity', // Composite: man, woman, otherGenderIdentity
+      'currentResidence', // Composite: city, province
+      'permanentResidence', // Composite: city, province
+      'placeOfBirth', // Composite: city, province
+      'nationality', // Composite: nationalityFilipino, nationalityOther
+      'civilStatus', // Composite: single, married, separated, widowed, divorced
+      'livingWithPartner', // Composite: yes, no checkboxes
       'numberOfChildren',
-      'isPregnant',
-      'parentalCode'
+      'isPregnant' // Composite: yes, no checkboxes
     ],
     'EDUCATION & OCCUPATION': [
-      'educationalAttainment',
-      'currentlyInSchool',
-      'currentlyWorking',
-      'workedOverseas',
-      'overseasReturnYear',
-      'workedOverseasPassedFiveYears'
+      'educationalAttainment', // Composite: noGradeCompleted, elementary, highSchool, college, vocational, postGraduate
+      'currentlyInSchool', // Composite: yes, no checkboxes
+      'currentlyWorking', // Composite: yes (currentOccupation), no (previousOccupation)
+      'workedOverseasPassedFiveYears' // Composite: yes (yearOfReturn, whereWereYouBased), no
     ],
     
-    // ===== BACK PAGE SECTIONS (8) =====
+    // ===== BACK PAGE SECTIONS (7) =====
     'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
-      'motherHIV',
-      'riskAssessment',
-      'riskSexMaleStatus',
-      'riskSexMaleTotal',
-      'riskSexMaleDate1',
-      'riskSexFemaleStatus',
-      'riskSexFemaleTotal',
-      'riskSexFemaleDate1',
-      'riskPaidForSexStatus',
-      'riskReceivedPaymentStatus',
-      'riskSexUnderDrugsStatus',
-      'riskSharedNeedlesStatus',
-      'riskBloodTransfusionStatus',
-      'riskBloodTransfusionDate',
-      'riskSexMale',
-      'riskSexFemale',
-      'riskPaidForSex',
-      'riskReceivedPayment',
-      'riskSexUnderDrugs',
-      'riskSharedNeedles',
-      'riskBloodTransfusion',
-      'riskOccupationalExposure'
+      'motherHIV', // Composite: doNotKnow, no, yes checkboxes
+      'riskSexMale', // Composite: no, yes (with total, date1, date2)
+      'riskSexFemale', // Composite: no, yes (with total, date1, date2)
+      'riskPaidForSex', // Composite: no, yes (with dateMostRecentRisk)
+      'riskReceivedPayment', // Composite: no, yes (with dateMostRecentRisk)
+      'riskSexUnderDrugs', // Composite: no, yes (with dateMostRecentRisk)
+      'riskSharedNeedles', // Composite: no, yes (with dateMostRecentRisk)
+      'riskBloodTransfusion', // Composite: no, yes (with dateMostRecentRisk)
+      'riskOccupationalExposure' // Composite: no, yes (with dateMostRecentRisk)
     ],
     'REASONS FOR HIV TESTING': [
-      'reasonsForTesting',
-      'reasonForTesting'
+      'reasonForTesting' // Composite: multiple checkboxes (hivExposure, recomendedBy, etc.)
     ],
     'PREVIOUS HIV TEST': [
-      'previouslyTested',
-      'previousTestResult',
+      'previouslyTested', // Composite: yes (with date, provider, city, result), no
       'previousTestDate',
-      'previousTestCity'
+      'previousTestProvider',
+      'previousTestCity',
+      'previousTestResult' // Composite: reactive, nonReactive, indeterminate
     ],
     'MEDICAL HISTORY & CLINICAL PICTURE': [
-      'medicalHistory',
-      'clinicalPicture',
+      'medicalHistory', // Composite: TB, STI, PEP, PrEP, HepatitisB, HepatitisC
+      'clinicalPicture', // Composite: asymptomatic, symptomatic (with symptoms)
       'symptoms',
       'whoStaging',
       'noPhysicianStage'
     ],
     'TESTING DETAILS': [
-      'clientType',
-      'modeOfReach',
-      'testingAccepted',
-      'testingModality',
-      'testingDetails',
-      'linkageToTesting',
-      'otherServiceProvided',
-      'linkageToCare',
-      'otherServices'
-    ],
-    'INVENTORY INFORMATION': [
+      'clientType', // Composite: inpatient, outpatient, PDL, outreach, specify
+      'modeOfReach', // Composite: clinic, online, index, networkTesting, outreach
+      'testingDetails', // Composite: testingAccepted/testingRefused with modalities
+      'testingAccepted', // Composite: facilityBasedFTB, nonLaboratoryFTB, communityBased, selfTesting
+      'linkageToTesting', // Composite: referToART, referForConfirmatory, adviseReTesting, etc.
+      'otherServiceProvided', // Composite: hiv101, iecMaterials, riskReductionPlanning, etc.
       'testKitBrand',
       'testKitUsed',
       'testKitLotNumber',
@@ -3102,15 +3831,14 @@ function organizeFieldsIntoSections(allFields, correctedData) {
       'facilityAddress',
       'facilityContactNumber',
       'facilityEmail',
+      'primaryHTSProvider', // Composite: hivCounselor, medicalTechnologist, cbsMotivator, othersSpecify
       'counselorName',
       'counselorRole',
-      'counselorSignature',
-      'primaryHTSProvider',
       'formCompletionDate'
     ],
     'OTHERS': [
-      'condomUse',
-      'typeOfSex'
+      'condomUse', // Composite: always, sometimes, never
+      'typeOfSex' // Composite: oralSex, analInserter, analReceiver, vaginalSex
     ]
   };
   
@@ -3213,6 +3941,7 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
   
   try {
     let frontResult, backResult, frontKVPairs, backKVPairs;
+    let frontCheckboxFields = {}, backCheckboxFields = {};
     
     if (useCachedData) {
       // ========== USE CACHED TEXTRACT RESULTS ==========
@@ -3229,6 +3958,17 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
       // Extract key-value pairs from cached blocks
       frontKVPairs = extractKeyValuePairs(frontResult.Blocks || []);
       backKVPairs = extractKeyValuePairs(backResult.Blocks || []);
+      
+      // Extract checkbox selections from cached blocks
+      console.log('☑️  Extracting checkbox selections from cached data...');
+      const frontCheckboxes = extractCheckboxes(frontResult.Blocks || []);
+      const backCheckboxes = extractCheckboxes(backResult.Blocks || []);
+      
+      frontCheckboxFields = mapCheckboxesToFields(frontCheckboxes, 'front');
+      backCheckboxFields = mapCheckboxesToFields(backCheckboxes, 'back');
+      
+      console.log(`   - Front page: ${Object.keys(frontCheckboxFields).length} checkbox fields mapped`);
+      console.log(`   - Back page: ${Object.keys(backCheckboxFields).length} checkbox fields mapped`);
       
       // Optionally load from CSV for faster processing (CSV is pre-parsed)
       if (frontKVPairs.length === 0) {
@@ -3258,8 +3998,8 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
         }
       }
 
-      // Step 2: Analyze both pages with FORMS + LAYOUT features
-      const featureTypes = useLayout ? ['FORMS', 'LAYOUT'] : ['FORMS'];
+      // Step 2: Analyze both pages with FORMS + LAYOUT + SELECTION_ELEMENT features
+      const featureTypes = useLayout ? ['FORMS', 'LAYOUT', 'SELECTION_ELEMENT'] : ['FORMS', 'SELECTION_ELEMENT'];
       console.log(`🔍 Running AWS Textract analysis with features: ${featureTypes.join(', ')}...`);
       
       const [frontResultLive, backResultLive] = await Promise.all([
@@ -3283,6 +4023,18 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
       // Step 3: Extract key-value pairs from both pages
       frontKVPairs = extractKeyValuePairs(frontResult.Blocks);
       backKVPairs = extractKeyValuePairs(backResult.Blocks);
+      
+      // Step 3.5: Extract checkbox selections from both pages
+      console.log('☑️  Extracting checkbox selections with SELECTION_STATUS...');
+      const frontCheckboxes = extractCheckboxes(frontResult.Blocks);
+      const backCheckboxes = extractCheckboxes(backResult.Blocks);
+      
+      // Map checkboxes to field names
+      const frontCheckboxFields = mapCheckboxesToFields(frontCheckboxes, 'front');
+      const backCheckboxFields = mapCheckboxesToFields(backCheckboxes, 'back');
+      
+      console.log(`   - Front page: ${Object.keys(frontCheckboxFields).length} checkbox fields mapped`);
+      console.log(`   - Back page: ${Object.keys(backCheckboxFields).length} checkbox fields mapped`);
     }
     
     console.log(`📊 Key-value pairs found:`);
@@ -3293,21 +4045,29 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
     const frontMapping = mapTextractKeysToHTSFields(frontKVPairs, 'front', sessionId);
     const backMapping = mapTextractKeysToHTSFields(backKVPairs, 'back', sessionId);
 
-    // Step 5: Merge fields from both pages
+    // Step 5: Merge fields from both pages (including checkbox fields)
     const allFields = {
       ...frontMapping.fields,
-      ...backMapping.fields
+      ...backMapping.fields,
+      ...frontCheckboxFields,
+      ...backCheckboxFields
     };
 
     console.log(`✅ Field mapping complete:`);
     console.log(`   - Front mapped: ${frontMapping.stats.mapped} fields`);
     console.log(`   - Back mapped: ${backMapping.stats.mapped} fields`);
+    console.log(`   - Front checkboxes: ${Object.keys(frontCheckboxFields).length} fields`);
+    console.log(`   - Back checkboxes: ${Object.keys(backCheckboxFields).length} fields`);
     console.log(`   - Total mapped: ${Object.keys(allFields).length} fields`);
     console.log(`   - Total unmapped: ${frontMapping.stats.unmapped + backMapping.stats.unmapped} keys`);
 
     // Step 5.5: Build composite fields from individual components
     console.log('🔧 Building composite fields (fullName, testDate, birthDate)...');
     buildCompositeFields(allFields, frontKVPairs, backKVPairs);
+
+    // Step 5.6: Build conditional parent-child field relationships
+    console.log('🔀 Building conditional field relationships (risk assessment)...');
+    buildConditionalFields(allFields, frontKVPairs, backKVPairs);
 
     // Step 6: Convert to simplified field structure for validation
     const fieldsForValidation = {};
@@ -3338,9 +4098,59 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
     console.log('📂 Organizing fields into structured sections...');
     const structuredData = organizeFieldsIntoSections(allFields, correctedData);
     
+    // Step 11: Extract field components and checkbox states for storage
+    const fieldComponents = {};
+    const checkboxStates = {};
+    
+    for (const [fieldName, fieldData] of Object.entries(allFields)) {
+      // Extract composite/conditional field components
+      if (fieldData.components) {
+        fieldComponents[fieldName] = {
+          type: fieldData.extractionMethod || 'unknown',
+          components: fieldData.components,
+          hasNestedFields: fieldData.hasNestedFields || false,
+          nestedFieldCount: fieldData.nestedFieldCount || 0,
+          missingRequiredFields: fieldData.missingRequiredFields || []
+        };
+      }
+      
+      // Extract checkbox selection states
+      if (fieldData.selectionStatus) {
+        checkboxStates[fieldName] = {
+          status: fieldData.selectionStatus,
+          value: fieldData.value,
+          confidence: fieldData.confidence,
+          geometry: fieldData.geometry
+        };
+      }
+    }
+    
+    console.log(`✅ Extracted ${Object.keys(fieldComponents).length} composite/conditional fields`);
+    console.log(`✅ Extracted ${Object.keys(checkboxStates).length} checkbox states`);
+    
+    // Extract all field regions for coordinate preservation
+    const fieldRegions = {};
+    for (const [fieldName, fieldData] of Object.entries(allFields)) {
+      // Store regions for all fields (base, composite, conditional)
+      if (fieldData.region) {
+        fieldRegions[fieldName] = {
+          region: fieldData.region
+        };
+        
+        // Store component regions if they exist
+        if (fieldData.components) {
+          fieldRegions[fieldName].components = fieldData.components;
+        }
+      }
+    }
+    console.log(`✅ Extracted ${Object.keys(fieldRegions).length} field regions (coordinates)`);
+    
     const resultObject = {
       fields: correctedData,
       structuredData, // New structured format
+      fieldComponents, // Composite/conditional field metadata
+      checkboxStates, // Checkbox selection states
+      fieldRegions, // Bounding box coordinates for all fields
       confidence: overallConfidence,
       stats: {
         totalFields: Object.keys(allFields).length,
@@ -3353,7 +4163,9 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
           query: 0,
           coordinate: 0,
           failed: 97 - Object.keys(allFields).length // Expected 97 total fields
-        }
+        },
+        compositeFields: Object.keys(fieldComponents).length,
+        checkboxFields: Object.keys(checkboxStates).length
       },
       validationSummary,
       validations,

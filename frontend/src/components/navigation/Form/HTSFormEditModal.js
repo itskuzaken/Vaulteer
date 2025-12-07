@@ -19,6 +19,36 @@ import Button from '../../ui/Button';
  *   8. TESTING DETAILS (6 fields)
  *   9. INVENTORY INFORMATION (4 fields)
  *   10. HTS PROVIDER DETAILS (15 fields)
+ * 
+ * COMPOSITE FIELD SUPPORT (Phase 2 Implementation):
+ * This modal supports editing of composite fields with nested components.
+ * Composite fields are assembled from multiple components with individual confidence scores.
+ * 
+ * Composite Field Types (8 types):
+ * 1. fullName: firstName + middleName + lastName + suffix
+ * 2. testDate/birthDate: month + day + year (with semantic year detection)
+ * 3. sex: male/female (checkbox group with components.male, components.female)
+ * 4. genderIdentity: man/woman/transWoman/transMan/other (multi-select checkbox group)
+ * 5. civilStatus: single/married/widowed/separated/liveIn (checkbox group)
+ * 6. addresses (3 types): currentResidence, permanentResidence, placeOfBirth
+ *    - Each has: city + province → "City, Province" format
+ * 7. riskFields (8 types with conditional branches):
+ *    - riskSexMale, riskSexFemale, riskPaidForSex, riskReceivedPayment,
+ *      riskSexUnderDrugs, riskSharedNeedles, riskBloodTransfusion, riskOccupationalExposure
+ *    - Each has: no/yes → if yes: total + date1 + date2 + dateMostRecentRisk
+ * 
+ * Data Flow:
+ * - Backend (textractService.js) builds composite fields with components
+ * - HTSFormManagement.js populates editableData with both main values and component values
+ * - This modal displays individual component fields for editing
+ * - On save, component values are merged back into composite structure
+ * 
+ * Component Fields in UI:
+ * - Name: firstName, middleName, lastName, suffix (lines 210-250)
+ * - Addresses: city, province for each address type (lines 340-390)
+ * - Risk Assessments: status, total, date1, date2 for each risk type (lines 586-750)
+ * - Dates: Currently use HTML date inputs (could be enhanced to show month/day/year components)
+ * - Checkboxes: Currently use select dropdowns (could be enhanced to visual checkbox groups)
  */
 export default function HTSFormEditModal({
   isOpen,

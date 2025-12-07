@@ -137,13 +137,35 @@ export async function encryptFormSubmission(frontImage, backImage, extractedData
   const encryptedFront = await encryptImage(frontImage, key);
   const encryptedBack = await encryptImage(backImage, key);
   
-  // Encrypt extracted data JSON
+  // Encrypt extracted data JSON (flat structure for backward compatibility)
   const encryptedData = await encryptJSON(extractedData, key);
+  
+  // Extract and encrypt nested data structures (v2 format)
+  let encryptedStructuredData = null;
+  let fieldComponents = null;
+  let checkboxStates = null;
+  let fieldRegions = null;
+  
+  if (extractedData.structuredData) {
+    // Encrypt structured data (nested sections)
+    const structuredPayload = {
+      structuredData: extractedData.structuredData,
+      fieldComponents: extractedData.fieldComponents || {},
+      checkboxStates: extractedData.checkboxStates || {},
+      fieldRegions: extractedData.fieldRegions || {}
+    };
+    encryptedStructuredData = await encryptJSON(structuredPayload, key);
+    
+    // Store non-encrypted components for database columns (optional - can be encrypted too)
+    fieldComponents = extractedData.fieldComponents || null;
+    checkboxStates = extractedData.checkboxStates || null;
+    fieldRegions = extractedData.fieldRegions || null;
+  }
   
   // Export the key for storage
   const exportedKey = await exportKey(key);
   
-  return {
+  const result = {
     frontImage: encryptedFront.encryptedData,
     frontImageIV: encryptedFront.iv,
     backImage: encryptedBack.encryptedData,
@@ -152,6 +174,17 @@ export async function encryptFormSubmission(frontImage, backImage, extractedData
     extractedDataIV: encryptedData.iv,
     encryptionKey: exportedKey
   };
+  
+  // Add nested data if available (v2 structure)
+  if (encryptedStructuredData) {
+    result.extractedDataStructuredEncrypted = encryptedStructuredData.encryptedData;
+    result.extractedDataStructuredIV = encryptedStructuredData.iv;
+    result.fieldComponents = fieldComponents;
+    result.checkboxStates = checkboxStates;
+     result.fieldRegions = fieldRegions;
+  }
+  
+  return result;
 }
 
 // Decrypt form submission images

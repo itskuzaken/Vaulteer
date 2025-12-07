@@ -25,15 +25,22 @@ async function runMigration(sqlFilePath) {
     const sql = fs.readFileSync(fullPath, "utf8");
 
     // Split SQL into individual statements (handle multi-statement files)
-    const statements = sql
-      .split(/;\s*\n/)
-      .map((stmt) => stmt.trim())
+    let statements = sql.split(/;\s*\n/);
+    // Clean each statement by removing comment lines and trimming
+    statements = statements
+      .map((stmt) => {
+        // Remove single-line comments (lines starting with --) and inline block comments
+        const lines = stmt.split(/\r?\n/);
+        const cleanedLines = lines.filter(line => {
+          const t = line.trim();
+          return t.length > 0 && !t.startsWith('--') && !t.startsWith('/*') && !t.startsWith('*') && !t.endsWith('*/');
+        });
+        return cleanedLines.join('\n').trim();
+      })
       .filter((stmt) => {
-        // Remove empty statements and SQL comments
+        // Remove empty statements and SQL statements that should be skipped
         return (
           stmt.length > 0 &&
-          !stmt.startsWith("--") &&
-          !stmt.startsWith("/*") &&
           !stmt.match(/^USE\s+/i) && // Skip USE statements (pool already connected)
           !stmt.match(/^SET\s+@/i) // Skip variable declarations that aren't queries
         );
@@ -87,7 +94,13 @@ async function runMigration(sqlFilePath) {
           error.code === "ER_TABLE_EXISTS_ERROR" ||
           error.code === "ER_DUP_ENTRY" ||
           error.message.includes("already exists") ||
-          error.message.includes("Duplicate entry");
+          error.message.includes("Duplicate entry") ||
+          // Common duplicate/exists errors
+          error.message.includes("Duplicate key name") ||
+          error.message.includes("Duplicate column name") ||
+          // Common 'object doesn't exist' errors that are non-fatal for idempotent migrations
+          error.message.includes("doesn't exist") ||
+          error.message.includes("does not exist");
 
         if (isExpectedError) {
           console.log(`⚠️  Expected: ${error.message}`);

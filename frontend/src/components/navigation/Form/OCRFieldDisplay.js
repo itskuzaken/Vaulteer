@@ -2,6 +2,36 @@
  * OCR Field Display Component
  * Displays extracted fields from FORMS+LAYOUT OCR with confidence scores and metadata
  * Organized by form sections for better UX
+ * 
+ * COMPOSITE FIELD SUPPORT (Phase 2 Implementation):
+ * This component displays composite fields with hierarchical nested components.
+ * 
+ * Composite fields are identified by the presence of a "components" property:
+ * {
+ *   value: "assembled value",
+ *   confidence: 95.5,
+ *   components: {
+ *     firstName: "John",
+ *     middleName: "A",
+ *     lastName: "Doe"
+ *   },
+ *   mappingStrategy: "composite_fullName"
+ * }
+ * 
+ * Visual Indicators:
+ * - "Composite" badge on fields with nested components
+ * - Indented component display with purple border and dot markers
+ * - Individual confidence scores for each component (if available)
+ * - Mapping strategy shown at bottom of component tree
+ * 
+ * Supported Composite Types (from backend textractService.js):
+ * 1. fullName (firstName, middleName, lastName, suffix)
+ * 2. testDate/birthDate (month, day, year)
+ * 3. sex (male, female checkboxes)
+ * 4. genderIdentity (man, woman, transWoman, transMan, other multi-select)
+ * 5. civilStatus (single, married, widowed, separated, liveIn checkboxes)
+ * 6. addresses (city, province → "City, Province")
+ * 7. riskFields (no/yes → total, date1, date2, dateMostRecentRisk)
  */
 import { IoCheckmarkCircle, IoAlertCircle, IoWarning, IoInformationCircle, IoDocumentText } from 'react-icons/io5';
 
@@ -107,40 +137,99 @@ export default function OCRFieldDisplay({ extractedData }) {
       .trim();
   };
 
-  // Render a single field with confidence indicator
+  // Render a single field with confidence indicator and nested components
   const renderField = (fieldName, fieldData) => {
     const displayName = formatFieldName(fieldName);
     const value = fieldData?.value || fieldData;
     const fieldConfidence = fieldData?.confidence || 0;
+    const hasComponents = fieldData?.components && typeof fieldData.components === 'object';
     
     return (
-      <div key={fieldName} className="flex items-start justify-between py-2 border-b border-gray-100 dark:border-gray-700 last:border-b-0">
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-medium text-gray-900 dark:text-white">
-            {displayName}
-          </div>
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            {fieldName}
-          </div>
-        </div>
-        <div className="flex-1 min-w-0 ml-4 flex items-start gap-2">
-          {value ? (
-            <>
-              <div className="flex-1 text-sm text-gray-700 dark:text-gray-300 break-words">
-                {typeof value === 'object' ? JSON.stringify(value) : value}
+      <div key={fieldName} className="border-b border-gray-100 dark:border-gray-700 last:border-b-0">
+        {/* Main Field Display */}
+        <div className="flex items-start justify-between py-2">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                {displayName}
               </div>
-              {fieldConfidence > 0 && (
-                <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getConfidenceStyle(fieldConfidence)}`}>
-                  {fieldConfidence.toFixed(0)}%
+              {hasComponents && (
+                <span className="text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded font-medium">
+                  Composite
                 </span>
               )}
-            </>
-          ) : (
-            <div className="text-sm text-gray-400 dark:text-gray-500 italic">
-              Not extracted
             </div>
-          )}
+            <div className="text-xs text-gray-500 dark:text-gray-400">
+              {fieldName}
+            </div>
+          </div>
+          <div className="flex-1 min-w-0 ml-4">
+            <div className="flex items-start gap-2">
+              {value ? (
+                <>
+                  <div className="flex-1 text-sm text-gray-700 dark:text-gray-300 break-words">
+                    {typeof value === 'object' ? JSON.stringify(value) : value}
+                  </div>
+                  {fieldConfidence > 0 && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getConfidenceStyle(fieldConfidence)}`}>
+                      {fieldConfidence.toFixed(0)}%
+                    </span>
+                  )}
+                </>
+              ) : (
+                <div className="text-sm text-gray-400 dark:text-gray-500 italic">
+                  Not extracted
+                </div>
+              )}
+            </div>
+            {/* Region coordinates display (if available) */}
+            {fieldData.region && (
+              <div className="mt-1 text-xs text-gray-500 dark:text-gray-400 font-mono">
+                📍 ({fieldData.region.x.toFixed(3)}, {fieldData.region.y.toFixed(3)}) {fieldData.region.width.toFixed(3)}×{fieldData.region.height.toFixed(3)} | Page {fieldData.region.page}
+              </div>
+            )}
+              </div>
+            )}
+          </div>
         </div>
+        
+        {/* Nested Components Display (if composite field) */}
+        {hasComponents && (
+          <div className="ml-6 mb-2 pb-2 border-l-2 border-purple-200 dark:border-purple-800 pl-4 space-y-1">
+            <div className="text-xs font-semibold text-purple-700 dark:text-purple-300 mb-1">
+              Components:
+            </div>
+            {Object.entries(fieldData.components).map(([componentKey, componentValue]) => (
+              <div key={componentKey} className="flex items-center justify-between text-xs py-1">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-purple-400 dark:bg-purple-600"></span>
+                  <span className="text-gray-600 dark:text-gray-400 font-medium">
+                    {formatFieldName(componentKey)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-700 dark:text-gray-300">
+                    {typeof componentValue === 'object' && componentValue !== null
+                      ? JSON.stringify(componentValue)
+                      : componentValue || <span className="italic text-gray-400">empty</span>}
+                  </span>
+                  {typeof componentValue === 'object' && componentValue?.confidence && (
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${getConfidenceStyle(componentValue.confidence)}`}>
+                      {componentValue.confidence.toFixed(0)}%
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            
+            {/* Show mapping strategy if available */}
+            {fieldData.mappingStrategy && (
+              <div className="text-xs text-gray-500 dark:text-gray-500 italic mt-1 pt-1 border-t border-gray-200 dark:border-gray-700">
+                Strategy: {fieldData.mappingStrategy}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   };
