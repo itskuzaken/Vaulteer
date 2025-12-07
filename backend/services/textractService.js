@@ -2791,6 +2791,12 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
         throw new Error(`Image buffer exceeds 10MB limit (front: ${(frontImageBuffer.length / 1024 / 1024).toFixed(2)}MB, back: ${(backImageBuffer.length / 1024 / 1024).toFixed(2)}MB)`);
       }
       
+      // Debug: Check buffer headers to verify image format
+      const frontHeader = frontImageBuffer.slice(0, 4).toString('hex');
+      const backHeader = backImageBuffer.slice(0, 4).toString('hex');
+      console.log(`   - Front header: ${frontHeader} (${frontHeader === 'ffd8ffe0' || frontHeader === 'ffd8ffe1' ? 'JPEG' : frontHeader === '89504e47' ? 'PNG' : 'UNKNOWN'})`);
+      console.log(`   - Back header: ${backHeader} (${backHeader === 'ffd8ffe0' || backHeader === 'ffd8ffe1' ? 'JPEG' : backHeader === '89504e47' ? 'PNG' : 'UNKNOWN'})`);
+      
       const [frontResultLive, backResultLive] = await Promise.all([
         textractClient.send(new AnalyzeDocumentCommand({
           Document: { Bytes: frontImageBuffer },

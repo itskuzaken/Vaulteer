@@ -89,19 +89,14 @@ const htsFormsController = {
 
       let processedFront, processedBack;
 
-      if (isAlreadyOptimized) {
-        console.log(`✓ [OCR] Images already optimized, skipping backend preprocessing`);
-        processedFront = frontImage.buffer;
-        processedBack = backImage.buffer;
-      } else {
-        console.log(`🔧 [OCR] Preprocessing images on backend...`);
-        // Process images for optimal OCR
-        [processedFront, processedBack] = await Promise.all([
-          imageProcessor.processForOCR(frontImage.buffer),
-          imageProcessor.processForOCR(backImage.buffer)
-        ]);
-        console.log(`✓ [OCR] Enhanced (front: ${(processedFront.length/1024).toFixed(0)}KB, back: ${(processedBack.length/1024).toFixed(0)}KB)`);
-      }
+      // ALWAYS skip backend preprocessing to avoid Sharp-related issues
+      // Frontend preprocessing is sufficient and more reliable
+      console.log(`✓ [OCR] Using images as-is (frontend-preprocessed)`);
+      processedFront = frontImage.buffer;
+      processedBack = backImage.buffer;
+      
+      console.log(`   - Front: ${(processedFront.length/1024).toFixed(0)}KB`);
+      console.log(`   - Back: ${(processedBack.length/1024).toFixed(0)}KB`);
 
       // Use FORMS+LAYOUT approach with nested structure
       const useLayout = process.env.OCR_USE_LAYOUT !== 'false'; // Default: true

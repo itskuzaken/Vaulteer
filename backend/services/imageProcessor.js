@@ -15,7 +15,7 @@ class ImageProcessor {
     const {
       targetWidth = 1600,
       targetHeight = 2133,
-      format = 'jpeg',
+      format = 'png', // Changed to PNG for AWS Textract compatibility with SELECTION_ELEMENT
       quality = 95,
       enableSharpening = true,
       enableNormalization = true
@@ -62,9 +62,13 @@ class ImageProcessor {
     // Enhance contrast (keep in color space)
     pipeline = pipeline.linear(1.1, -(128 * 1.1) + 128); // Contrast +10% (reduced from +20%)
     
-    // Output format
+    // Output format - PNG is more reliable for AWS Textract SELECTION_ELEMENT
     if (format === 'png') {
-      pipeline = pipeline.png({ compressionLevel: 6 });
+      pipeline = pipeline.png({ 
+        compressionLevel: 6,
+        adaptiveFiltering: true,
+        force: true
+      });
     } else {
       pipeline = pipeline.jpeg({ 
         quality, 
@@ -76,9 +80,16 @@ class ImageProcessor {
     
     const processedBuffer = await pipeline.toBuffer();
     
+    // Verify buffer is valid
+    if (!Buffer.isBuffer(processedBuffer) || processedBuffer.length === 0) {
+      throw new Error('Image processing failed: invalid output buffer');
+    }
+    
     console.log('[ImageProcessor] Output:', {
+      format: format,
       size: processedBuffer.length,
       sizeKB: (processedBuffer.length / 1024).toFixed(0) + 'KB',
+      sizeMB: (processedBuffer.length / 1024 / 1024).toFixed(2) + 'MB',
       reduction: ((1 - processedBuffer.length / imageBuffer.length) * 100).toFixed(1) + '%'
     });
     
