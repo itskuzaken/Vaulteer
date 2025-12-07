@@ -70,3 +70,14 @@ AWS_DEPLOYMENT_INSTRUCTIONS.md
 /backend/logs/*.json
 
 /.github/instructions/*
+
+# Ignore SQL migrations and script files (generated / environment-specific)
+/backend/migrations/
+/backend/migrations/**/*.sql
+/backend/migrations/**/*.js
+/scripts/
+/backend/scripts/
+
+# Ignore migration-runner artifacts
+/backend/migrate.js
+
