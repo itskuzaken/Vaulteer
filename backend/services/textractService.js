@@ -1103,428 +1103,6 @@ function calculateAverageConfidence(blocks) {
   return sum / confidenceValues.length;
 }
 
-/**
- * Field mapping dictionary for AWS Textract FORMS feature
- * Maps Textract key-value pair keys to HTS form field names
- * This is a comprehensive mapping for all 97 fields in DOH HTS Form 2021
- */
-const HARD_CODED_FORMS_FIELD_MAPPING = {
-  // ========== FRONT PAGE: INFORMED CONSENT ==========
-  'verbal consent': 'verbalConsent',
-  'verbal consent given': 'verbalConsent',
-  'consent verbal': 'verbalConsent',
-  'verbal': 'verbalConsent',
-  'verbal consent obtained': 'verbalConsent',
-  'verbal approval': 'verbalConsent',
-  
-  // ========== FRONT PAGE: TEST INFORMATION ==========
-  'test date': 'testDate',
-  'date of test': 'testDate',
-  'testing date': 'testDate',
-  'date tested': 'testDate',
-  'date of testing': 'testDate',
-  'test performed on': 'testDate',
-  'screening date': 'testDate',
-  'hiv test date': 'testDate',
-  'testing performed': 'testDate',
-  'test dt': 'testDate',
-  'date test': 'testDate',
-  
-  'control number': 'controlNumber',
-  'control no': 'controlNumber',
-  'control #': 'controlNumber',
-  'serial number': 'controlNumber',
-  'ctrl no': 'controlNumber',
-  'ctrl number': 'controlNumber',
-  'control num': 'controlNumber',
-  
-  // ========== FRONT PAGE: PERSONAL INFORMATION (Q1-Q11) ==========
-  'full name': 'fullName',
-  'name': 'fullName',
-  'client name': 'fullName',
-  'patient name': 'fullName',
-  'full name of client': 'fullName',
-  'patient full name': 'fullName',
-  'complete name': 'fullName',
-  'name of patient': 'fullName',
-  'client full name': 'fullName',
-  'nm': 'fullName',
-  'patient nm': 'fullName',
-  'name of client': 'fullName',
-  
-  'last name': 'lastName',
-  'surname': 'lastName',
-  'family name': 'lastName',
-  'last nm': 'lastName',
-  'family nm': 'lastName',
-  'lastname': 'lastName',
-  
-  'first name': 'firstName',
-  'given name': 'firstName',
-  'first nm': 'firstName',
-  'given nm': 'firstName',
-  'firstname': 'firstName',
-  
-  'middle name': 'middleName',
-  'middle initial': 'middleName',
-  'middle nm': 'middleName',
-  'mi': 'middleName',
-  'm.i.': 'middleName',
-  'middlename': 'middleName',
-  
-  'birthdate': 'birthDate',
-  'date of birth': 'birthDate',
-  'birth date': 'birthDate',
-  'dob': 'birthDate',
-  
-  'age': 'age',
-  'age in years': 'age',
-  'patient age': 'age',
-  'current age': 'age',
-  'years old': 'age',
-  'client age': 'age',
-  'age (years)': 'age',
-  
-  'sex': 'sex',
-  'gender': 'sex',
-  'sex assigned at birth': 'sex',
-  'biological sex': 'sex',
-  'sex at birth': 'sex',
-  
-  'civil status': 'civilStatus',
-  'marital status': 'civilStatus',
-  'status': 'civilStatus',
-  'civil stat': 'civilStatus',
-  'marital stat': 'civilStatus',
-  
-  'philhealth number': 'philHealthNumber',
-  'philhealth no': 'philHealthNumber',
-  'philhealth id': 'philHealthNumber',
-  'phic number': 'philHealthNumber',
-  'philhealth id number': 'philHealthNumber',
-  'philhealth member id': 'philHealthNumber',
-  'phic id': 'philHealthNumber',
-  'phil health id': 'philHealthNumber',
-  'philhealth num': 'philHealthNumber',
-  'phic no': 'philHealthNumber',
-  
-  'address': 'address',
-  'complete address': 'address',
-  'current address': 'address',
-  'residential address': 'address',
-  'home address': 'address',
-  'residence': 'address',
-  'place of residence': 'address',
-  'current residence': 'address',
-  'present address': 'address',
-  'addr': 'address',
-  
-  'contact number': 'contactNumber',
-  'mobile number': 'contactNumber',
-  'phone number': 'contactNumber',
-  'telephone number': 'contactNumber',
-  'mobile no': 'contactNumber',
-  'cell phone': 'contactNumber',
-  'contact no': 'contactNumber',
-  'phone no': 'contactNumber',
-  'cellphone number': 'contactNumber',
-  'tel no': 'contactNumber',
-  'cp no': 'contactNumber',
-  'mobile num': 'contactNumber',
-  'cellphone': 'contactNumber',
-  
-  'email address': 'emailAddress',
-  'email': 'emailAddress',
-  'e-mail': 'emailAddress',
-  'electronic mail': 'emailAddress',
-  'email add': 'emailAddress',
-  'e mail': 'emailAddress',
-  
-  // Facility contact info (back page only)
-  'facility email': 'facilityEmailAddress',
-  'facility email address': 'facilityEmailAddress',
-  'facility contact number': 'facilityContactNumber',
-  'facility contact': 'facilityContactNumber',
-  'facility phone': 'facilityContactNumber',
-  'facility address': 'facilityAddress',
-  'complete mailing address': 'facilityAddress',
-  'mailing address': 'facilityAddress',
-  
-  // Sex and Gender Identity (Q7, Q8)
-  'male': 'sexMale',
-  'female': 'sexFemale',
-  'man': 'genderIdentityMan',
-  'woman': 'genderIdentityWoman',
-  'transgender woman': 'genderIdentityTransWoman',
-  'transgender man': 'genderIdentityTransMan',
-  
-  // ========== FRONT PAGE: TESTING INFORMATION (Q12-Q18) ==========
-  'previously tested': 'previouslyTested',
-  'tested before': 'previouslyTested',
-  'prior testing': 'previouslyTested',
-  'previous test': 'previouslyTested',
-  
-  'previous test result': 'previousTestResult',
-  'last test result': 'previousTestResult',
-  'prior result': 'previousTestResult',
-  
-  'previous test date': 'previousTestDate',
-  'date of previous test': 'previousTestDate',
-  'last test date': 'previousTestDate',
-  
-  'testing reason': 'testingReason',
-  'reason for testing': 'testingReason',
-  'purpose of test': 'testingReason',
-  
-  'hts code': 'htsCode',
-  'hts entry point': 'htsCode',
-  'entry point code': 'htsCode',
-  
-  'screening type': 'screeningType',
-  'type of screening': 'screeningType',
-  
-  'client category': 'clientCategory',
-  'category': 'clientCategory',
-  
-  'partner tested': 'partnerTested',
-  'partner also tested': 'partnerTested',
-  
-  // ========== BACK PAGE: HIV TEST RESULTS (Q19-Q21) ==========
-  'screening test result': 'screeningTestResult',
-  'screening result': 'screeningTestResult',
-  'initial test result': 'screeningTestResult',
-  
-  'confirmatory test result': 'confirmatoryTestResult',
-  'confirmatory result': 'confirmatoryTestResult',
-  'final test result': 'confirmatoryTestResult',
-  
-  'final diagnosis': 'finalDiagnosis',
-  'diagnosis': 'finalDiagnosis',
-  'final result': 'finalDiagnosis',
-  
-  // ========== BACK PAGE: RISK ASSESSMENT (Q22) ==========
-  'multiple partners': 'multiplePartners',
-  'more than one partner': 'multiplePartners',
-  
-  'std symptoms': 'stdSymptoms',
-  'sti symptoms': 'stdSymptoms',
-  'symptoms': 'stdSymptoms',
-  
-  'shared needles': 'sharedNeedles',
-  'needle sharing': 'sharedNeedles',
-  'injection drug use': 'sharedNeedles',
-  
-  'blood transfusion': 'bloodTransfusion',
-  'received blood': 'bloodTransfusion',
-  
-  'sex work': 'sexWork',
-  'commercial sex': 'sexWork',
-  
-  'msm': 'msm',
-  'men who have sex with men': 'msm',
-  
-  'transgender': 'transgender',
-  'trans': 'transgender',
-  
-  'sex with plhiv': 'sexWithPLHIV',
-  'partner with hiv': 'sexWithPLHIV',
-  'plhiv partner': 'sexWithPLHIV',
-  
-  'no risk': 'noRisk',
-  'no identified risk': 'noRisk',
-  
-  // ========== BACK PAGE: REFERRAL & POST-TEST (Q23-Q24) ==========
-  'referred to': 'referredTo',
-  'referral': 'referredTo',
-  'referred for': 'referredTo',
-  
-  'treatment facility': 'treatmentFacility',
-  'treatment center': 'treatmentFacility',
-  'referral facility': 'treatmentFacility',
-  
-  'post test counseling': 'postTestCounseling',
-  'counseling provided': 'postTestCounseling',
-  
-  'art linkage': 'artLinkage',
-  'linked to art': 'artLinkage',
-  'antiretroviral therapy': 'artLinkage',
-  
-  'prevention services': 'preventionServices',
-  'prevention': 'preventionServices',
-  
-  'other services': 'otherServices',
-  'additional services': 'otherServices',
-  
-  // ========== BACK PAGE: INVENTORY (Q25) ==========
-  'test kit brand': 'testKitBrand',
-  'kit brand': 'testKitBrand',
-  'brand': 'testKitBrand',
-  
-  'test kit lot number': 'testKitLotNumber',
-  'lot number': 'testKitLotNumber',
-  'batch number': 'testKitLotNumber',
-  
-  'test kit expiration': 'testKitExpiration',
-  'expiration date': 'testKitExpiration',
-  'expiry date': 'testKitExpiration',
-  
-  // ========== BACK PAGE: HTS PROVIDER (Q26-Q27) ==========
-  'testing facility': 'testingFacility',
-  'facility name': 'testingFacility',
-  'health facility': 'testingFacility',
-  'name of testing facility': 'testingFacility',
-  'testing center': 'testingFacility',
-  'facility': 'testingFacility',
-  'health center': 'testingFacility',
-  'testing site': 'testingFacility',
-  
-  'counselor name': 'counselorName',
-  'counselor': 'counselorName',
-  'tested by': 'counselorName',
-  'hts provider': 'counselorName',
-  'hts counselor': 'counselorName',
-  'test counselor': 'counselorName',
-  'provider name': 'counselorName',
-  'counsellor name': 'counselorName',
-  
-  'counselor signature': 'counselorSignature',
-  'signature': 'counselorSignature',
-  
-  // ========== EXACT CSV KEY MAPPINGS (From HTS-FORM CSV Files) ==========
-  // These are exact patterns observed in the actual CSV files
-  
-  // Name components (patient)
-  'suffix (jr. sr, iii. etc)': 'suffix',
-  'suffix': 'suffix',
-  'jr. sr. iii. etc': 'suffix',
-  
-  // PhilSys ID
-  'philsys number': 'philSysNumber',
-  'philsys no': 'philSysNumber',
-  'philsys id': 'philSysNumber',
-  'philsys registry number (prn)': 'philSysNumber',
-  
-  // Nationality and Birth
-  'filipino': 'nationality',
-  'nationality': 'nationality',
-  'birth order': 'birthOrder',
-  
-  // Location fields
-  'province': 'province',
-  'city/municipality': 'cityMunicipality',
-  'city municipality': 'cityMunicipality',
-  'barangay': 'barangay',
-  
-  // Province of birth
-  'province of birth': 'provinceOfBirth',
-  'city of birth': 'cityOfBirth',
-  'city/municipality of birth': 'cityOfBirth',
-  
-  // Parental codes
-  'first 2 letters of mother\'s first name': 'parentalCodeMother',
-  'mother first name': 'parentalCodeMother',
-  'first 2 letters of father\'s first name': 'parentalCodeFather',
-  'father first name': 'parentalCodeFather',
-  
-  // Education
-  'highest educational attainment': 'educationalAttainment',
-  'educational attainment': 'educationalAttainment',
-  
-  // Testing reason categories
-  'suspected exposure to hiv': 'suspectedExposure',
-  'i had unprotected sex with an hiv-positive partner or plhiv': 'unprotectedWithPLHIV',
-  'i shared needles': 'sharedNeedlesResponse',
-  'my partner had sex with others': 'partnerSexWithOthers',
-  'i was diagnosed with sti': 'diagnosedWithSTI',
-  'i was a victim of rape or sexual abuse': 'victimOfRape',
-  'other reasons': 'otherReason',
-  
-  // Testing facility (back page) - must not map to fullName!
-  'name of testing facility/organization': 'testingFacility',
-  'name of testing facility organization': 'testingFacility',
-  'testing facility organization': 'testingFacility',
-  
-  // Provider information (back page) - must not map to fullName!
-  'name & signature of service provider': 'counselorName',
-  'name signature of service provider': 'counselorName',
-  'service provider name': 'counselorName',
-  'service provider': 'counselorName',
-  
-  // HTS provider selection (back page)
-  'which hts provider are you': 'htsProviderType',
-  'hts provider type': 'htsProviderType',
-  'type of hts provider': 'htsProviderType',
-  
-  // Registration numbers
-  'registration number': 'registrationNumber',
-  'reg no': 'registrationNumber',
-  'registration no': 'registrationNumber',
-  
-  // ========== ADDITIONAL FORM LABEL MAPPINGS ==========
-  // These are standalone field labels that appear in the form
-  
-  // Consent section
-  'name and signature': 'nameAndSignature',
-  'name & signature': 'nameAndSignature',
-  'client name and signature': 'nameAndSignature',
-  
-  // Date component labels (commonly found near date fields)
-  'month': 'month',
-  'day': 'day',
-  'year': 'year',
-  
-  // Birth order label
-  'birth order (i.e. among mother\'s children)': 'birthOrder',
-  'i.e. among mothers children': 'birthOrder',
-  'among mothers children': 'birthOrder',
-  
-  // Civil status options
-  'single': 'civilStatusSingle',
-  'married': 'civilStatusMarried',
-  'separated': 'civilStatusSeparated',
-  'widowed': 'civilStatusWidowed',
-  'divorced': 'civilStatusDivorced',
-  
-  // Testing refusal
-  'refused hiv testing': 'testingRefused',
-  'refused testing': 'testingRefused',
-  'refused': 'testingRefused',
-  'reason for refusal': 'refusalReason',
-  'reason for refusal:': 'refusalReason',
-  
-  // Clinical symptoms
-  'describe s/sx': 'symptoms',
-  'describe s/sx:': 'symptoms',
-  'describe symptoms': 'symptoms',
-  'symptoms': 'symptoms',
-  
-  // WHO staging
-  'world health organization (who) staging': 'whoStaging',
-  'world health organization (who) staging:': 'whoStaging',
-  'who staging': 'whoStaging',
-  'who staging:': 'whoStaging',
-  
-  // HTS form reference (often appears as header/footer text)
-  '(hts': null, // Ignore - likely form code/reference
-  'hts form': null, // Ignore - form identifier
-  
-  // Yes/No response options (common checkbox labels)
-  'yes.': 'yes',
-  'yes': 'yes',
-  'no.': 'no',
-  'no': 'no',
-  
-  // Occupation other
-  'others: teacher': 'occupation',
-  'others:': 'occupationOther',
-  'teacher': 'occupation',
-  
-  // Date of most recent exposure (condomless sex)
-  'date of most recent condomless anal or neo/vaginal sex (mm/yyyy)': 'dateMostRecentRisk',
-  'date of most recent condomless sex': 'dateMostRecentRisk',
-  'date of most recent condomless': 'dateMostRecentRisk'
-};
-
 // Build FORMS_FIELD_MAPPING from template metadata (prefer metadata, fallback to hard-coded)
 function buildFormsFieldMappingFromMetadata(meta) {
   const map = {};
@@ -1596,11 +1174,12 @@ function buildFormsFieldMappingFromMetadata(meta) {
 const FORMS_FIELD_MAPPING = (() => {
   try {
     const metaMap = buildFormsFieldMappingFromMetadata(formMetadata);
-    return { ...HARD_CODED_FORMS_FIELD_MAPPING, ...metaMap };
-  } catch (err) {
-    console.warn('[FORMS_FIELD_MAPPING] Failed to build from metadata, falling back to hard-coded map:', err.message);
-    return { ...HARD_CODED_FORMS_FIELD_MAPPING };
+    if (metaMap && Object.keys(metaMap).length > 0) return metaMap;
+  } catch (error) {
+    console.error('Error building forms field mapping from metadata:', error);
   }
+  // No mapping found - use empty mapping (metadata-first architecture)
+  return {};
 })();
 
 /**
@@ -2965,102 +2544,71 @@ function mapTextractKeysToHTSFields(keyValuePairs, pageType = 'unknown', session
  * @returns {Object} Structured data organized by form sections
  */
 function organizeFieldsIntoSections(allFields, correctedData) {
-  // Define field-to-section mappings based on DOH HTS Form 2021 official structure
-  // Updated with accurate nested composite field structure for checkboxes and multi-part fields
-  // This structure mirrors the actual form layout with proper hierarchy
-  const sectionMapping = {
-    // ===== FRONT PAGE SECTIONS (3) =====
-    'INFORMED CONSENT': [
-      'nameAndSignature',
-      'contactNumber',
-      'emailAddress',
-      'verbalConsent'
-    ],
-    'DEMOGRAPHIC DATA': [
-      'testDate', // Composite: month, day, year
-      'philHealthNumber',
-      'philSysNumber',
-      'fullName', // Composite: firstName, middleName, lastName, suffix
-      'parentalCodeMother',
-      'parentalCodeFather',
-      'birthOrder',
-      'birthDate', // Composite: month, day, year
-      'age',
-      'ageMonths',
-      'sex', // Composite: male, female checkboxes
-      'genderIdentity', // Composite: man, woman, otherGenderIdentity
-      'currentResidence', // Composite: city, province
-      'permanentResidence', // Composite: city, province
-      'placeOfBirth', // Composite: city, province
-      'nationality', // Composite: nationalityFilipino, nationalityOther
-      'civilStatus', // Composite: single, married, separated, widowed, divorced
-      'livingWithPartner', // Composite: yes, no checkboxes
-      'numberOfChildren',
-      'isPregnant' // Composite: yes, no checkboxes
-    ],
-    'EDUCATION & OCCUPATION': [
-      'educationalAttainment', // Composite: noGradeCompleted, elementary, highSchool, college, vocational, postGraduate
-      'currentlyInSchool', // Composite: yes, no checkboxes
-      'currentlyWorking', // Composite: yes (currentOccupation), no (previousOccupation)
-      'workedOverseasPassedFiveYears' // Composite: yes (yearOfReturn, whereWereYouBased), no
-    ],
-    
-    // ===== BACK PAGE SECTIONS (7) =====
-    'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
-      'motherHIV', // Composite: doNotKnow, no, yes checkboxes
-      'riskSexMale', // Composite: no, yes (with total, date1, date2)
-      'riskSexFemale', // Composite: no, yes (with total, date1, date2)
-      'riskPaidForSex', // Composite: no, yes (with dateMostRecentRisk)
-      'riskReceivedPayment', // Composite: no, yes (with dateMostRecentRisk)
-      'riskSexUnderDrugs', // Composite: no, yes (with dateMostRecentRisk)
-      'riskSharedNeedles', // Composite: no, yes (with dateMostRecentRisk)
-      'riskBloodTransfusion', // Composite: no, yes (with dateMostRecentRisk)
-      'riskOccupationalExposure' // Composite: no, yes (with dateMostRecentRisk)
-    ],
-    'REASONS FOR HIV TESTING': [
-      'reasonForTesting' // Composite: multiple checkboxes (hivExposure, recomendedBy, etc.)
-    ],
-    'PREVIOUS HIV TEST': [
-      'previouslyTested', // Composite: yes (with date, provider, city, result), no
-      'previousTestDate',
-      'previousTestProvider',
-      'previousTestCity',
-      'previousTestResult' // Composite: reactive, nonReactive, indeterminate
-    ],
-    'MEDICAL HISTORY & CLINICAL PICTURE': [
-      'medicalHistory', // Composite: TB, STI, PEP, PrEP, HepatitisB, HepatitisC
-      'clinicalPicture', // Composite: asymptomatic, symptomatic (with symptoms)
-      'symptoms',
-      'whoStaging',
-      'noPhysicianStage'
-    ],
-    'TESTING DETAILS': [
-      'clientType', // Composite: inpatient, outpatient, PDL, outreach, specify
-      'modeOfReach', // Composite: clinic, online, index, networkTesting, outreach
-      'testingDetails', // Composite: testingAccepted/testingRefused with modalities
-      'testingAccepted', // Composite: facilityBasedFTB, nonLaboratoryFTB, communityBased, selfTesting
-      'linkageToTesting', // Composite: referToART, referForConfirmatory, adviseReTesting, etc.
-      'otherServiceProvided', // Composite: hiv101, iecMaterials, riskReductionPlanning, etc.
-      'testKitBrand',
-      'testKitUsed',
-      'testKitLotNumber',
-      'testKitExpiration'
-    ],
-    'HTS PROVIDER DETAILS': [
-      'testingFacility',
-      'facilityAddress',
-      'facilityContactNumber',
-      'facilityEmail',
-      'primaryHTSProvider', // Composite: hivCounselor, medicalTechnologist, cbsMotivator, othersSpecify
-      'counselorName',
-      'counselorRole',
-      'formCompletionDate'
-    ],
-    'OTHERS': [
-      'condomUse', // Composite: always, sometimes, never
-      'typeOfSex' // Composite: oralSex, analInserter, analReceiver, vaginalSex
-    ]
+  // Build sectionMapping from template metadata if available. We removed a large hard-coded mapping
+  // to reduce file size and ensure single-source-of-truth (template-metadata.json).
+
+  const buildSectionMappingFromMetadata = meta => {
+    const mapping = {};
+    if (!meta || !meta.structure) return mapping;
+
+    const capitalizeOption = opt => String(opt).trim().replace(/[^a-zA-Z0-9]+/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+
+    const addToSection = (sectionName, key) => {
+      if (!sectionName || !key) return;
+      mapping[sectionName] = mapping[sectionName] || [];
+      if (!mapping[sectionName].includes(key)) mapping[sectionName].push(key);
+    };
+
+    ['front', 'back'].forEach(page => {
+      const pageObj = meta.structure[page];
+      if (!pageObj || !pageObj.sections) return;
+      Object.entries(pageObj.sections).forEach(([sectionName, section]) => {
+        if (!section || !Array.isArray(section.fields)) return;
+        for (const field of section.fields) {
+          if (!field || !field.name) continue;
+          // Add top-level field name
+          addToSection(sectionName, field.name);
+
+          // Add explicit string subfields (month/day/year etc.)
+          if (Array.isArray(field.subfields)) {
+            for (const sf of field.subfields) {
+              if (!sf) continue;
+              if (typeof sf === 'string') {
+                addToSection(sectionName, sf);
+              } else if (typeof sf === 'object' && sf.name) {
+                addToSection(sectionName, sf.name);
+              }
+            }
+          }
+
+          // Add checkbox/option variants (fieldName + OptionName)
+          if (Array.isArray(field.options)) {
+            for (const opt of field.options) {
+              let optText = opt;
+              if (typeof opt === 'object') optText = opt.text || opt.label || opt.name || opt.value;
+              if (!optText) continue;
+              const capped = capitalizeOption(optText);
+              addToSection(sectionName, `${field.name}${capped}`);
+            }
+          }
+        }
+      });
+    });
+
+    return mapping;
   };
+
+  const sectionMapping = (() => {
+    try {
+      const metaMap = buildSectionMappingFromMetadata(formMetadata);
+      // Use metadata-derived mapping if available
+      if (metaMap && Object.keys(metaMap).length > 0) return metaMap;
+    } catch (err) {
+      console.warn('Failed to build section mapping from metadata:', err.message);
+    }
+    // If metadata isn't available, return an empty mapping (no sections)
+    return {};
+  })();
   
   const structured = {
     front: {
@@ -3092,12 +2640,20 @@ function organizeFieldsIntoSections(allFields, correctedData) {
     
     // Only include sections that have data
     if (hasData) {
-      // Determine if this is front or back page section based on official DOH HTS Form 2021 structure
-      const isFrontSection = [
-        'INFORMED CONSENT',
-        'DEMOGRAPHIC DATA',
-        'EDUCATION & OCCUPATION'
-      ].includes(sectionName);
+      // Determine if this is a front or back page section using metadata if present
+      let isFrontSection = false;
+      try {
+        if (formMetadata?.structure?.front?.sections && Object.prototype.hasOwnProperty.call(formMetadata.structure.front.sections, sectionName)) {
+          isFrontSection = true;
+        } else if (formMetadata?.structure?.back?.sections && Object.prototype.hasOwnProperty.call(formMetadata.structure.back.sections, sectionName)) {
+          isFrontSection = false;
+        } else {
+          // Default: place section in 'front' when uncertain
+          isFrontSection = true;
+        }
+      } catch (err) {
+        isFrontSection = true;
+      }
       
       const pageKey = isFrontSection ? 'front' : 'back';
       structured[pageKey].sections[sectionName] = {
