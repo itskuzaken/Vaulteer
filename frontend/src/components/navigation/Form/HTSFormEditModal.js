@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { IoClose, IoCheckmark, IoDocumentText, IoWarning, IoCheckmarkCircle, IoInformationCircle } from 'react-icons/io5';
 import Button from '../../ui/Button';
+import { loadTemplateMetadata, buildSectionMappingFromMetadata } from '../../../utils/templateMetadataLoader';
 
 /**
  * HTS Form Edit Modal - Allows editing of all extracted OCR fields
@@ -19,6 +20,11 @@ import Button from '../../ui/Button';
  *   8. TESTING DETAILS (6 fields)
  *   9. INVENTORY INFORMATION (4 fields)
  *   10. HTS PROVIDER DETAILS (15 fields)
+ * 
+ * METADATA-DRIVEN ARCHITECTURE (Phase 3 Implementation):
+ * Section mappings are now derived from template-metadata.json to ensure
+ * single source of truth between frontend and backend. This eliminates
+ * hard-coded section mappings and ensures consistency.
  * 
  * COMPOSITE FIELD SUPPORT (Phase 2 Implementation):
  * This modal supports editing of composite fields with nested components.
@@ -60,63 +66,63 @@ export default function HTSFormEditModal({
   onFieldChange,
   onMapUnmappedKey
 }) {
+  // State for metadata-derived section mapping
+  const [formFields, setFormFields] = useState(null);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(true);
+
+  // Load template metadata on mount
+  useEffect(() => {
+    async function loadMetadata() {
+      try {
+        const metadata = await loadTemplateMetadata();
+        if (metadata) {
+          const sectionMapping = buildSectionMappingFromMetadata(metadata);
+          setFormFields(sectionMapping);
+        } else {
+          // Fallback to minimal sections if metadata unavailable
+          console.warn('[HTSFormEditModal] Using minimal fallback sections');
+          setFormFields({
+            'INFORMED CONSENT': ['nameAndSignature', 'contactNumber', 'emailAddress', 'verbalConsent'],
+            'DEMOGRAPHIC DATA': ['testDate', 'philHealthNumber', 'firstName', 'lastName', 'birthDate', 'age', 'sex'],
+            'TESTING DETAILS': ['clientType', 'testingModality', 'testingAccepted']
+          });
+        }
+      } catch (error) {
+        console.error('[HTSFormEditModal] Failed to load metadata:', error);
+        // Use minimal fallback on error
+        setFormFields({
+          'INFORMED CONSENT': ['nameAndSignature', 'contactNumber', 'emailAddress', 'verbalConsent'],
+          'DEMOGRAPHIC DATA': ['testDate', 'philHealthNumber', 'firstName', 'lastName', 'birthDate', 'age', 'sex'],
+          'TESTING DETAILS': ['clientType', 'testingModality', 'testingAccepted']
+        });
+      } finally {
+        setIsLoadingMetadata(false);
+      }
+    }
+
+    if (isOpen) {
+      loadMetadata();
+    }
+  }, [isOpen]);
+
   if (!isOpen || !editableData) return null;
 
-  // All available form fields organized by section for mapping
-  // MUST match backend sectionMapping in textractService.js
-  const formFields = {
-    'INFORMED CONSENT': [
-      'nameAndSignature', 'contactNumber', 'emailAddress', 'verbalConsent'
-    ],
-    'DEMOGRAPHIC DATA': [
-      'testDate', 'philHealthNumber', 'philSysNumber', 'fullName',
-      'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
-      'birthDate', 'age', 'ageMonths', 'sex', 'genderIdentity',
-      'currentResidence', 'permanentResidence', 'placeOfBirth',
-      'nationality', 'civilStatus', 'livingWithPartner',
-      'numberOfChildren', 'isPregnant', 'parentalCode'
-    ],
-    'EDUCATION & OCCUPATION': [
-      'educationalAttainment', 'currentlyInSchool', 'currentlyWorking',
-      'workedOverseas', 'overseasReturnYear', 'workedOverseasPassedFiveYears'
-    ],
-    'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
-      'motherHIV', 'riskAssessment',
-      'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1',
-      'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1',
-      'riskPaidForSexStatus', 'riskReceivedPaymentStatus',
-      'riskSexUnderDrugsStatus', 'riskSharedNeedlesStatus',
-      'riskBloodTransfusionStatus', 'riskBloodTransfusionDate',
-      'riskSexMale', 'riskSexFemale', 'riskPaidForSex',
-      'riskReceivedPayment', 'riskSexUnderDrugs', 'riskSharedNeedles',
-      'riskBloodTransfusion', 'riskOccupationalExposure'
-    ],
-    'REASONS FOR HIV TESTING': [
-      'reasonsForTesting', 'reasonForTesting'
-    ],
-    'PREVIOUS HIV TEST': [
-      'previouslyTested', 'previousTestResult', 'previousTestDate', 'previousTestCity'
-    ],
-    'MEDICAL HISTORY & CLINICAL PICTURE': [
-      'medicalHistory', 'clinicalPicture', 'symptoms', 'whoStaging', 'noPhysicianStage'
-    ],
-    'TESTING DETAILS': [
-      'clientType', 'modeOfReach', 'testingAccepted', 'testingModality',
-      'testingDetails', 'linkageToTesting', 'otherServiceProvided',
-      'linkageToCare', 'otherServices'
-    ],
-    'INVENTORY INFORMATION': [
-      'testKitBrand', 'testKitUsed', 'testKitLotNumber', 'testKitExpiration'
-    ],
-    'HTS PROVIDER DETAILS': [
-      'testingFacility', 'facilityAddress', 'facilityContactNumber', 'facilityEmail',
-      'counselorName', 'counselorRole', 'counselorSignature',
-      'primaryHTSProvider', 'formCompletionDate'
-    ],
-    'OTHERS': [
-      'condomUse', 'typeOfSex'
-    ]
-  };
+  // Show loading state while metadata loads
+  if (isLoadingMetadata || !formFields) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl p-8">
+          <div className="flex items-center gap-3">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-red"></div>
+            <span className="text-lg text-gray-700 dark:text-gray-300">Loading form structure...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // formFields is now loaded from template-metadata.json via state (set in useEffect)
+  // No hard-coded constant needed - ensures single source of truth
 
   // Get label for field name
   const getFieldLabel = (fieldName) => {

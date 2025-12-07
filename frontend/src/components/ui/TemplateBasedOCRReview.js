@@ -4,9 +4,17 @@ import React, { useState, useMemo } from 'react';
  * Template-Based OCR Review Component
  * Dynamically organizes fields by category based on HTS form structure
  * Auto-categorizes fields for cleaner, maintainable code
+ * 
+ * NOTE: This component uses hard-coded FIELD_METADATA for field labels and categories.
+ * For section organization, prefer using backend structuredData from textractService.js
+ * which derives sections from template-metadata.json (single source of truth).
+ * 
+ * Future Enhancement: Generate FIELD_METADATA from template-metadata.json to eliminate
+ * this hard-coded mapping and ensure complete consistency with backend.
  */
 
 // Comprehensive field metadata with categories matching HTS Form structure
+// TODO: Replace with metadata-derived labels from template-metadata.json
 const FIELD_METADATA = {
   // Test Result (not on HTS form, only in review)
   testResult: { label: 'Current Test Result', category: 'TEST RESULT', page: 'front', priority: 1 },

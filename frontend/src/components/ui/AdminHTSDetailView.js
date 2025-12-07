@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { loadTemplateMetadata, splitSectionsByPage } from '../../utils/templateMetadataLoader';
 
 /**
  * Admin HTS Form Detail View Component
@@ -9,6 +10,11 @@ import React from 'react';
  * - Front Page (3 sections): INFORMED CONSENT, DEMOGRAPHIC DATA, EDUCATION & OCCUPATION
  * - Back Page (7 sections): HISTORY OF EXPOSURE, REASONS FOR TESTING, PREVIOUS TEST,
  *   MEDICAL HISTORY, TESTING DETAILS, INVENTORY INFO, HTS PROVIDER DETAILS
+ * 
+ * METADATA-DRIVEN ARCHITECTURE (Phase 3 Implementation):
+ * Section mappings are now derived from template-metadata.json to ensure
+ * single source of truth between frontend and backend. This eliminates
+ * hard-coded section mappings and ensures consistency.
  * 
  * COMPOSITE FIELD SUPPORT (Phase 2 Implementation):
  * This component displays composite fields with detailed component breakdowns.
@@ -226,71 +232,19 @@ const TEMPLATE_FIELD_LABELS = {
   counselorSignature: 'Counselor Signature',
   primaryHTSProvider: 'Primary HTS Provider',
   
-  // Form Completion
-  formCompletionDate: 'Form Completion Date',
-  
-  // Other Information
-  condomUse: 'Condom Use',
   typeOfSex: 'Type of Sex'
 };
 
-// Group fields by section following DOH HTS Form 2021 official structure (10 sections total)
-// Front Page: 3 sections | Back Page: 7 sections
-const FRONT_PAGE_SECTIONS = {
-  'INFORMED CONSENT': [
-    'nameAndSignature', 'contactNumber', 'emailAddress', 'verbalConsent'
-  ],
-  'DEMOGRAPHIC DATA': [
-    'testDate', 'philHealthNumber', 'philSysNumber', 'fullName',
-    'parentalCodeMother', 'parentalCodeFather', 'birthOrder',
-    'birthDate', 'age', 'ageMonths', 'sex', 'genderIdentity',
-    'currentResidence', 'permanentResidence', 'placeOfBirth',
-    'nationality', 'civilStatus', 'livingWithPartner',
-    'numberOfChildren', 'isPregnant', 'parentalCode'
-  ],
-  'EDUCATION & OCCUPATION': [
-    'educationalAttainment', 'currentlyInSchool', 'currentlyWorking',
-    'workedOverseas', 'overseasReturnYear', 'workedOverseasPassedFiveYears'
-  ]
-};
-
-const BACK_PAGE_SECTIONS = {
-  'HISTORY OF EXPOSURE / RISK ASSESSMENT': [
-    'motherHIV', 'riskAssessment',
-    'riskSexMaleStatus', 'riskSexMaleTotal', 'riskSexMaleDate1',
-    'riskSexFemaleStatus', 'riskSexFemaleTotal', 'riskSexFemaleDate1',
-    'riskPaidForSexStatus', 'riskReceivedPaymentStatus',
-    'riskSexUnderDrugsStatus', 'riskSharedNeedlesStatus',
-    'riskBloodTransfusionStatus', 'riskBloodTransfusionDate',
-    'riskSexMale', 'riskSexFemale', 'riskPaidForSex',
-    'riskReceivedPayment', 'riskSexUnderDrugs', 'riskSharedNeedles',
-    'riskBloodTransfusion', 'riskOccupationalExposure'
-  ],
-  'REASONS FOR HIV TESTING': [
-    'reasonsForTesting', 'reasonForTesting'
-  ],
-  'PREVIOUS HIV TEST': [
-    'previouslyTested', 'previousTestResult', 'previousTestDate', 'previousTestCity'
-  ],
-  'MEDICAL HISTORY & CLINICAL PICTURE': [
-    'medicalHistory', 'clinicalPicture', 'symptoms', 'whoStaging', 'noPhysicianStage'
-  ],
-  'TESTING DETAILS': [
-    'clientType', 'modeOfReach', 'testingAccepted', 'testingModality',
-    'testingDetails', 'linkageToTesting', 'otherServiceProvided',
-    'linkageToCare', 'otherServices'
-  ],
-  'INVENTORY INFORMATION': [
-    'testKitBrand', 'testKitUsed', 'testKitLotNumber', 'testKitExpiration'
-  ],
-  'HTS PROVIDER DETAILS': [
-    'testingFacility', 'facilityAddress', 'facilityContactNumber', 'facilityEmail',
-    'counselorName', 'counselorRole', 'counselorSignature',
-    'primaryHTSProvider', 'formCompletionDate'
-  ],
-  'OTHERS': [
-    'condomUse', 'typeOfSex'
-  ]
+// Section mappings will be loaded from template-metadata.json
+// Minimal fallback for graceful degradation
+const MINIMAL_FALLBACK_SECTIONS = {
+  front: {
+    'INFORMED CONSENT': ['nameAndSignature', 'contactNumber', 'emailAddress', 'verbalConsent'],
+    'DEMOGRAPHIC DATA': ['testDate', 'philHealthNumber', 'firstName', 'lastName', 'birthDate', 'age', 'sex']
+  },
+  back: {
+    'TESTING DETAILS': ['clientType', 'testingModality', 'testingAccepted']
+  }
 };
 
 /**
@@ -582,6 +536,33 @@ const AdminFieldSection = ({ title, fields, extractedData, sectionData }) => {
  * @param {Object} submissionInfo - Submission metadata (control number, user, date, status)
  */
 const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
+  // State for metadata-derived section mappings
+  const [frontPageSections, setFrontPageSections] = useState(MINIMAL_FALLBACK_SECTIONS.front);
+  const [backPageSections, setBackPageSections] = useState(MINIMAL_FALLBACK_SECTIONS.back);
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(true);
+
+  // Load template metadata on mount
+  useEffect(() => {
+    async function loadMetadata() {
+      try {
+        const metadata = await loadTemplateMetadata();
+        if (metadata) {
+          const { frontPageSections: front, backPageSections: back } = splitSectionsByPage(metadata);
+          setFrontPageSections(front);
+          setBackPageSections(back);
+        } else {
+          console.warn('[AdminHTSDetailView] Using minimal fallback sections');
+        }
+      } catch (error) {
+        console.error('[AdminHTSDetailView] Failed to load metadata:', error);
+      } finally {
+        setIsLoadingMetadata(false);
+      }
+    }
+
+    loadMetadata();
+  }, []);
+
   if (!extractedData) {
     return (
       <div className="p-6 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg">
@@ -619,11 +600,11 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
     detectedFrontFields = totalFrontFields;
     detectedBackFields = totalBackFields;
   } else {
-    // Fallback to hardcoded sections
-    totalFrontFields = Object.values(FRONT_PAGE_SECTIONS).flat().length;
-    totalBackFields = Object.values(BACK_PAGE_SECTIONS).flat().length;
-    detectedFrontFields = Object.values(FRONT_PAGE_SECTIONS).flat().filter(f => fields[f]).length;
-    detectedBackFields = Object.values(BACK_PAGE_SECTIONS).flat().filter(f => fields[f]).length;
+    // Fallback to metadata-derived sections (from state)
+    totalFrontFields = Object.values(frontPageSections).flat().length;
+    totalBackFields = Object.values(backPageSections).flat().length;
+    detectedFrontFields = Object.values(frontPageSections).flat().filter(f => fields[f]).length;
+    detectedBackFields = Object.values(backPageSections).flat().filter(f => fields[f]).length;
   }
   
   return (
@@ -781,8 +762,8 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
             />
           ))
         ) : (
-          // Fallback to hardcoded sections
-          Object.entries(FRONT_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
+          // Fallback to metadata-derived sections (from state)
+          Object.entries(frontPageSections).map(([sectionTitle, sectionFields]) => (
             <AdminFieldSection
               key={sectionTitle}
               title={sectionTitle}
@@ -812,8 +793,8 @@ const AdminHTSDetailView = ({ extractedData, submissionInfo }) => {
             />
           ))
         ) : (
-          // Fallback to hardcoded sections
-          Object.entries(BACK_PAGE_SECTIONS).map(([sectionTitle, sectionFields]) => (
+          // Fallback to metadata-derived sections (from state)
+          Object.entries(backPageSections).map(([sectionTitle, sectionFields]) => (
             <AdminFieldSection
               key={sectionTitle}
               title={sectionTitle}
