@@ -1104,323 +1104,11 @@ function calculateAverageConfidence(blocks) {
 }
 
 /**
- * Parse HTS form data from Textract results
- * Extracts ALL 56 fields from DOH HTS Form 2021 (Questions 1-27 + consent fields)
- * Returns complete JSON matching template-metadata.json structure
- */
-function parseHTSFormData(frontResult, backResult) {
-  const frontBlocks = frontResult.Blocks || [];
-  const backBlocks = backResult.Blocks || [];
-  
-  const frontLines = extractTextLines(frontBlocks);
-  const backLines = extractTextLines(backBlocks);
-  const frontKVPairs = extractKeyValuePairs(frontBlocks);
-  const backKVPairs = extractKeyValuePairs(backBlocks);
-  
-  const allKVPairs = [...frontKVPairs, ...backKVPairs];
-  
-  console.log(`📊 Extracting ALL 56 fields from ${frontBlocks.length} front + ${backBlocks.length} back blocks`);
-  
-  // Extract name components (Question 4 - front page)
-  const nameData = extractFullName(frontBlocks, frontKVPairs);
-  
-  // Extract dates from front page
-  const testDateObj = extractTestDate(frontBlocks);
-  const birthDateObj = extractTestDate(frontBlocks); // Both dates on front page
-  
-  // Calculate age
-  let calculatedAge = null;
-  if (birthDateObj && testDateObj) {
-    const birthYear = parseInt(birthDateObj.year);
-    const testYear = parseInt(testDateObj.year);
-    calculatedAge = testYear - birthYear;
-  }
-  
-  // Build complete extracted data with ALL 56 fields
-  const extractedData = {
-    // ========== TEMPLATE METADATA ==========
-    templateId: formMetadata?.templateId || 'doh-hts-2021',
-    templateName: formMetadata?.name || 'DOH Personal Information Sheet (HTS Form 2021)',
-    extractedAt: new Date().toISOString(),
-    
-    // ========== FRONT PAGE: DEMOGRAPHIC DATA (Q1-12) ==========
-    testDate: testDateObj ? `${testDateObj.month}/${testDateObj.day}/${testDateObj.year}` : null,
-    philHealthNumber: extractPhilHealthNumber(frontBlocks, frontKVPairs),
-    philSysNumber: extractGenericField(frontBlocks, frontKVPairs, /philsys|phil\s*sys/i),
-    
-    firstName: nameData.firstName,
-    middleName: nameData.middleName,
-    lastName: nameData.lastName,
-    suffix: nameData.suffix,
-    fullName: nameData.fullName,
-    
-    parentalCode: extractGenericField(frontBlocks, frontKVPairs, /parental\s*code|mother.*father.*birth/i),
-    
-    birthDate: birthDateObj ? `${birthDateObj.month}/${birthDateObj.day}/${birthDateObj.year}` : null,
-    age: extractAge(frontBlocks, frontKVPairs) || calculatedAge,
-    
-    sex: extractSex(frontBlocks, frontKVPairs),
-    
-    // Q8: Residence fields
-    currentResidenceCity: extractGenericField(frontBlocks, frontKVPairs, /current.*city|current.*municipality/i),
-    currentResidenceProvince: extractGenericField(frontBlocks, frontKVPairs, /current.*province/i),
-    permanentResidenceCity: extractGenericField(frontBlocks, frontKVPairs, /permanent.*city|permanent.*municipality/i),
-    permanentResidenceProvince: extractGenericField(frontBlocks, frontKVPairs, /permanent.*province/i),
-    placeOfBirthCity: extractGenericField(frontBlocks, frontKVPairs, /place.*birth.*city|birth.*municipality/i),
-    placeOfBirthProvince: extractGenericField(frontBlocks, frontKVPairs, /place.*birth.*province|birth.*province/i),
-    
-    nationality: extractGenericField(frontBlocks, frontKVPairs, /nationality/i) || 'Filipino',
-    civilStatus: extractCivilStatus(frontBlocks, frontKVPairs),
-    livingWithPartner: extractCheckbox(frontBlocks, frontKVPairs, /living.*partner|live.*partner/i),
-    numberOfChildren: extractNumber(frontBlocks, frontKVPairs, /number.*children|children/i),
-    isPregnant: extractCheckbox(frontBlocks, frontKVPairs, /pregnant/i),
-    
-    // ========== FRONT PAGE: EDUCATION & OCCUPATION (Q13-16) ==========
-    educationalAttainment: extractCheckbox(frontBlocks, frontKVPairs, /educational.*attainment|highest.*education/i),
-    currentlyInSchool: extractCheckbox(frontBlocks, frontKVPairs, /currently.*school|in\s*school/i),
-    currentlyWorking: extractCheckbox(frontBlocks, frontKVPairs, /currently.*working|working/i),
-    workedOverseas: extractCheckbox(frontBlocks, frontKVPairs, /worked.*overseas|overseas.*abroad/i),
-    overseasReturnYear: extractGenericField(frontBlocks, frontKVPairs, /return.*year|year.*return/i),
-    overseasLocation: extractCheckbox(frontBlocks, frontKVPairs, /ship|land/i),
-    overseasCountry: extractGenericField(frontBlocks, frontKVPairs, /country.*work|work.*country/i),
-    
-    // ========== BACK PAGE: RISK ASSESSMENT (Q17) ==========
-    riskAssessment: extractCheckboxList(backBlocks, backKVPairs, /risk|exposure|history/i),
-    
-    // ========== BACK PAGE: TESTING REASONS (Q18) ==========
-    reasonsForTesting: extractCheckboxList(backBlocks, backKVPairs, /reason.*test|why.*test/i),
-    
-    // ========== BACK PAGE: PREVIOUS HIV TEST (Q19) ==========
-    previouslyTested: extractCheckbox(backBlocks, backKVPairs, /tested.*before|ever.*tested/i),
-    previousTestDate: extractTestDate(backBlocks)?.raw || null,
-    previousTestResult: extractTestResult(backBlocks),
-    
-    // ========== BACK PAGE: MEDICAL HISTORY (Q20-21) ==========
-    medicalHistory: extractCheckboxList(backBlocks, backKVPairs, /medical.*history|health.*condition/i),
-    clinicalPicture: extractCheckbox(backBlocks, backKVPairs, /asymptomatic|symptomatic/i),
-    symptoms: extractGenericField(backBlocks, backKVPairs, /symptom|describe.*s\/sx/i),
-    whoStaging: extractGenericField(backBlocks, backKVPairs, /who.*staging/i),
-    
-    // ========== BACK PAGE: TESTING DETAILS (Q22-25) ==========
-    clientType: extractCheckbox(backBlocks, backKVPairs, /client.*type|type.*client/i),
-    modeOfReach: extractCheckbox(backBlocks, backKVPairs, /mode.*reach|how.*reach/i),
-    testingAccepted: extractCheckbox(backBlocks, backKVPairs, /accepted|refused/i) || 'Accepted',
-    refusalReason: extractGenericField(backBlocks, backKVPairs, /reason.*refusal|why.*refuse/i),
-    otherServices: extractCheckboxList(backBlocks, backKVPairs, /other.*service|additional.*service/i),
-    
-    // ========== BACK PAGE: INVENTORY (Q25) ==========
-    testKitBrand: extractTestKitUsed(backBlocks, backKVPairs),
-    testKitLotNumber: extractGenericField(backBlocks, backKVPairs, /lot.*number|batch.*number/i),
-    testKitExpiration: extractGenericField(backBlocks, backKVPairs, /expir.*date|expiry/i),
-    
-    // ========== BACK PAGE: HTS PROVIDER (Q26-27) ==========
-    testingFacility: extractTestingFacility(backBlocks),
-    counselorName: extractCounselorName(backBlocks, backKVPairs),
-    counselorSignature: null, // Signature requires special handling
-    
-    // ========== FRONT PAGE: INFORMED CONSENT ==========
-    contactNumber: extractContactNumber(frontBlocks, frontKVPairs),
-    emailAddress: extractGenericField(frontBlocks, frontKVPairs, /email/i),
-    
-    // ========== INTERNAL TRACKING ==========
-    controlNumber: extractControlNumber(frontBlocks) || extractControlNumber(backBlocks),
-    frontConfidence: calculateAverageConfidence(frontBlocks),
-    backConfidence: calculateAverageConfidence(backBlocks),
-    
-    _rawData: {
-      frontText: frontLines.map(l => l.text).join('\n'),
-      backText: backLines.map(l => l.text).join('\n'),
-      keyValuePairs: { front: frontKVPairs.length, back: backKVPairs.length, total: allKVPairs.length }
-    }
-  };
-  
-  // Log extraction summary
-  console.log('✅ Extraction complete:');
-  console.log(`   - Test Date: ${extractedData.testDate || 'NOT FOUND'}`);
-  console.log(`   - Name: ${extractedData.fullName || 'NOT FOUND'}`);
-  console.log(`   - Birth Date: ${extractedData.birthDate || 'NOT FOUND'}`);
-  console.log(`   - Sex: ${extractedData.sex || 'NOT FOUND'}`);
-  console.log(`   - Previous Test: ${extractedData.previouslyTested || 'NOT FOUND'}`);
-  console.log(`   - Result: ${extractedData.previousTestResult || 'NOT FOUND'}`);
-  console.log(`   - Facility: ${extractedData.testingFacility || 'NOT FOUND'}`);
-  // Debug log extracted JSON (masked/truncated/dumped depending on env)
-  try {
-    const sessionId = `parse_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-    logExtractedJSON('parseHTSFormData', extractedData, { sessionId });
-  } catch (err) {
-    console.warn('[OCR JSON] parseHTSFormData logging failed:', err.message);
-  }
-  
-  return extractedData;
-}
-
-/**
- * Analyze HTS form images using coordinate-based field extraction
- * NEW: Enhanced OCR mapping with per-field extraction
- * @param {Buffer} frontImageBuffer - Front page image
- * @param {Buffer} backImageBuffer - Back page image
- * @param {Object} options - Extraction options
- * @returns {Promise<Object>} Extracted data with field-level confidence
- */
-async function analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options = {}) {
-  const { useQueries = false, extractionMode = 'forms+layout', preprocessImages = true } = options;
-  
-  console.log(`📤 [Enhanced OCR] Starting field extraction (mode: ${extractionMode}, queries: ${useQueries}, preprocess: ${preprocessImages})...`);
-  
-  try {
-    // Step 0: Preprocess images for better OCR accuracy
-    if (preprocessImages) {
-      console.log('🖼️ Preprocessing images for optimal OCR...');
-      
-      try {
-        const [frontProcessed, backProcessed] = await Promise.all([
-          imagePreprocessor.process(frontImageBuffer, { mode: 'auto' }),
-          imagePreprocessor.process(backImageBuffer, { mode: 'auto' })
-        ]);
-
-        console.log(`✅ [Preprocessing] Front: ${frontProcessed.applied.join(', ')}`);
-        console.log(`✅ [Preprocessing] Back: ${backProcessed.applied.join(', ')}`);
-
-        // Use preprocessed images
-        frontImageBuffer = frontProcessed.buffer;
-        backImageBuffer = backProcessed.buffer;
-      } catch (preprocessError) {
-        console.warn('⚠️ [Preprocessing] Failed, using original images:', preprocessError.message);
-        // Continue with original images if preprocessing fails
-      }
-    }
-
-    let queryResults = null;
-
-    // Step 1: Run Textract with Queries API if enabled (with batching support)
-    if (useQueries && extractionMode !== 'coordinate') {
-      console.log('🔍 Running Textract Queries API with batch support...');
-      
-      const frontQueries = generateHTSFormQueries('front');
-      const backQueries = generateHTSFormQueries('back');
-      
-      // AWS Textract limit: 15 queries per request
-      // Split into batches if needed
-      const frontBatches = batchQueries(frontQueries, 15);
-      const backBatches = batchQueries(backQueries, 15);
-      
-      console.log(`📊 Front page: ${frontQueries.length} queries in ${frontBatches.length} batch(es)`);
-      console.log(`📊 Back page: ${backQueries.length} queries in ${backBatches.length} batch(es)`);
-      
-      // Process batches SEQUENTIALLY to avoid rate limiting
-      // First process front page, then back page with delay between them
-      console.log('🔄 Processing front page batches...');
-      const frontResults = await processBatchQueries(frontImageBuffer, frontBatches);
-      
-      // Add delay between front and back processing
-      if (backBatches.length > 0) {
-        console.log('⏳ Waiting 2s before processing back page...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-      
-      console.log('🔄 Processing back page batches...');
-      const backResults = await processBatchQueries(backImageBuffer, backBatches);
-
-      // Merge results from all batches
-      queryResults = {
-        front: frontResults,
-        back: backResults
-      };
-
-      const totalFields = Object.keys(queryResults.front).length + Object.keys(queryResults.back).length;
-      console.log(`✅ Query extraction complete: Front=${Object.keys(queryResults.front).length}, Back=${Object.keys(queryResults.back).length}, Total=${totalFields}`);
-      
-      // Auto-calibration DISABLED - Use manual calibration scripts instead
-      // To manually calibrate:
-      // - Run: node backend/scripts/recalibrate-front-all-fields.js
-      // - Run: node backend/scripts/recalibrate-back-all-fields.js
-      // - Apply: node backend/scripts/apply-front-calibration.js
-      /*
-      try {
-        const calibrator = new OCRRegionCalibrator();
-        const calibrationResult = calibrator.autoCalibrate(queryResults, 85);
-        
-        if (calibrationResult.stats.front > 0 || calibrationResult.stats.back > 0) {
-          console.log(`🎯 [Auto-Calibration] Front: ${calibrationResult.stats.front} fields, Back: ${calibrationResult.stats.back} fields, Skipped: ${calibrationResult.stats.skipped}`);
-          
-          // Apply updates to in-memory template for this request
-          calibrator.applyUpdates(calibrationResult.updates);
-        }
-      } catch (calibError) {
-        console.warn('⚠️ [Auto-Calibration] Failed:', calibError.message);
-      }
-      */
-      
-      // Generate calibration report if in development/debug mode
-      if (process.env.OCR_DEBUG === 'true' || process.env.NODE_ENV === 'development') {
-        try {
-          const calibrator = new OCRRegionCalibrator();
-          // Note: textractResults only available for last batch in current implementation
-          // For full calibration, consider storing all batch results
-          const calibrationAnalysis = calibrator.analyzeFieldPositions(queryResults, {});
-          
-          const reportPath = path.join(__dirname, '../logs', `ocr-calibration-${Date.now()}.md`);
-          calibrator.saveReport(calibrationAnalysis, reportPath);
-          
-          console.log(`📊 [Calibration] Report generated: ${reportPath}`);
-        } catch (calibError) {
-          console.warn('⚠️ [Calibration] Failed to generate report:', calibError.message);
-        }
-      }
-    }
-
-    // Step 2: Use OCR Field Extractor with hybrid strategy
-    const extractionResult = await ocrFieldExtractor.extractAllFields(
-      frontImageBuffer,
-      backImageBuffer,
-      {
-        queryResults,
-        extractionMode
-      }
-    );
-
-    console.log(`✅ [Enhanced OCR] Extracted ${Object.keys(extractionResult.fields).length} fields`);
-    console.log(`   - High confidence: ${extractionResult.stats.highConfidence}`);
-    console.log(`   - Medium confidence: ${extractionResult.stats.mediumConfidence}`);
-    console.log(`   - Low confidence: ${extractionResult.stats.lowConfidence}`);
-    console.log(`   - Requires review: ${extractionResult.stats.requiresReview}`);
-    
-    if (extractionResult.stats.extractionMethods) {
-      console.log(`   - Query-extracted: ${extractionResult.stats.extractionMethods.query}`);
-      console.log(`   - Coordinate-extracted: ${extractionResult.stats.extractionMethods.coordinate}`);
-      console.log(`   - Failed: ${extractionResult.stats.extractionMethods.failed}`);
-    }
-
-    // Step 3: Apply validation
-    console.log('🔍 Applying validation rules...');
-    const validations = validateAndCorrectFields(extractionResult.fields);
-    const correctedData = applyValidationCorrections(extractionResult.fields, validations);
-    const validationSummary = getValidationSummary(validations);
-
-    console.log(`✅ Validation complete: ${validationSummary.corrected} auto-corrections`);
-
-    return {
-      fields: correctedData,
-      confidence: extractionResult.overallConfidence,
-      stats: extractionResult.stats,
-      validationSummary,
-      validations,
-      extractionMethod: extractionMode,
-      extractionMode: extractionResult.extractionMode,
-      templateId: 'doh-hts-2021-v2'
-    };
-  } catch (error) {
-    console.error('❌ [Enhanced OCR] Extraction failed:', error);
-    throw error;
-  }
-}
-
-/**
  * Field mapping dictionary for AWS Textract FORMS feature
  * Maps Textract key-value pair keys to HTS form field names
  * This is a comprehensive mapping for all 97 fields in DOH HTS Form 2021
  */
-const FORMS_FIELD_MAPPING = {
+const HARD_CODED_FORMS_FIELD_MAPPING = {
   // ========== FRONT PAGE: INFORMED CONSENT ==========
   'verbal consent': 'verbalConsent',
   'verbal consent given': 'verbalConsent',
@@ -1836,6 +1524,84 @@ const FORMS_FIELD_MAPPING = {
   'date of most recent condomless sex': 'dateMostRecentRisk',
   'date of most recent condomless': 'dateMostRecentRisk'
 };
+
+// Build FORMS_FIELD_MAPPING from template metadata (prefer metadata, fallback to hard-coded)
+function buildFormsFieldMappingFromMetadata(meta) {
+  const map = {};
+  if (!meta || !meta.structure) return map;
+
+  const add = (key, fieldName) => {
+    if (!key || !fieldName) return;
+    const normalized = normalizeOCRKey(String(key));
+    if (!normalized) return;
+    // If map doesn't already have this exact normalized key, add it
+    if (!map[normalized]) map[normalized] = fieldName;
+  };
+
+  const addOption = (option, fieldName) => {
+    if (!option) return;
+    // Option can be string or object with name/label
+    let optText = option;
+    if (typeof option === 'object') {
+      optText = option.text || option.label || option.name || option.value;
+    }
+    if (!optText) return;
+    // Map bare option text to a deterministic field name: `${fieldName}${capitalize(option)}`
+    const key = String(optText).trim();
+    const capped = key.replace(/[^a-zA-Z0-9]+/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    add(key, `${fieldName}${capped}`);
+  };
+
+  const walkFields = fields => {
+    if (!Array.isArray(fields)) return;
+    for (const field of fields) {
+      const name = field?.name;
+      if (!name) continue;
+      // Map field labels and queries
+      add(field.label, name);
+      if (field.query) add(field.query, name);
+      if (field.nearbyLabel && field.nearbyLabel.text) add(field.nearbyLabel.text, name);
+      if (field.label && typeof field.label === 'object' && field.label.text) add(field.label.text, name);
+
+      // Map explicit options (checkbox/checkbox-group option values)
+      if (Array.isArray(field.options)) {
+        for (const opt of field.options) addOption(opt, name);
+      }
+
+      // Handle composite subfields (e.g., fullName subfields)
+      if (Array.isArray(field.subfields)) {
+        for (const sub of field.subfields) {
+          // If sub is a string (subfield name), map generic labels like 'day', 'month', 'year'
+          if (typeof sub === 'string') add(sub, sub);
+        }
+      }
+    }
+  };
+
+  // Walk both front/back sections
+  const struct = meta.structure || {};
+  ['front', 'back'].forEach(page => {
+    const pageObj = struct[page];
+    if (!pageObj || !pageObj.sections) return;
+    Object.values(pageObj.sections).forEach(section => {
+      if (!section) return;
+      walkFields(section.fields);
+    });
+  });
+
+  return map;
+}
+
+// Merge hard-coded fallback with dynamically generated mapping (metadata overrides fallback)
+const FORMS_FIELD_MAPPING = (() => {
+  try {
+    const metaMap = buildFormsFieldMappingFromMetadata(formMetadata);
+    return { ...HARD_CODED_FORMS_FIELD_MAPPING, ...metaMap };
+  } catch (err) {
+    console.warn('[FORMS_FIELD_MAPPING] Failed to build from metadata, falling back to hard-coded map:', err.message);
+    return { ...HARD_CODED_FORMS_FIELD_MAPPING };
+  }
+})();
 
 /**
  * Advanced key normalization for better field matching
@@ -3651,149 +3417,6 @@ async function analyzeHTSFormWithForms(frontImageBuffer, backImageBuffer, option
   }
 }
 
-/**
- * Analyze HTS form images and return extracted data (LEGACY)
- * Called by /api/hts-forms/analyze-ocr endpoint BEFORE encryption
- * @deprecated Use analyzeHTSFormEnhanced for better accuracy
- */
-async function analyzeHTSForm(frontImageBuffer, backImageBuffer, options = {}) {
-  // Check if enhanced extraction is enabled (default: true)
-  const useEnhanced = options.useEnhanced !== false;
-  
-  if (useEnhanced) {
-    console.log('🚀 Using enhanced coordinate-based extraction');
-    return await analyzeHTSFormEnhanced(frontImageBuffer, backImageBuffer, options);
-  }
-
-  console.log('📤 [Legacy] Sending raw images to AWS Textract...');
-  
-  try {
-    // Send to Textract (parallel processing)
-    const [frontResult, backResult] = await Promise.all([
-      analyzeDocument(frontImageBuffer, ['FORMS']),
-      analyzeDocument(backImageBuffer, ['FORMS'])
-    ]);
-    
-    console.log('✅ Textract completed. Parsing results...');
-    
-    // Parse extracted data
-    const extractedData = parseHTSFormData(frontResult, backResult);
-    
-    // Apply pattern validation and corrections
-    console.log('🔍 Applying pattern validation...');
-    const validations = validateAndCorrectFields(extractedData);
-    const correctedData = applyValidationCorrections(extractedData, validations);
-    const validationSummary = getValidationSummary(validations);
-    
-    console.log(`✅ Validation complete: ${validationSummary.corrected} auto-corrections, ${validationSummary.validPercentage}% valid`);
-    
-    // Calculate confidence
-    const frontConfidence = calculateAverageConfidence(frontResult.Blocks || []);
-    const backConfidence = calculateAverageConfidence(backResult.Blocks || []);
-    const avgConfidence = (frontConfidence + backConfidence) / 2;
-    
-    // Adjust confidence based on validation results
-    const adjustedConfidence = (avgConfidence + validationSummary.avgConfidence) / 2;
-    
-    console.log(`✅ Extraction complete. Raw confidence: ${avgConfidence.toFixed(2)}%, Adjusted: ${adjustedConfidence.toFixed(2)}%`);
-    
-    return {
-      ...correctedData,
-      confidence: adjustedConfidence,
-      rawConfidence: avgConfidence,
-      frontConfidence,
-      backConfidence,
-      validationSummary,
-      validations,
-      extractionMethod: 'full-page'
-    };
-  } catch (error) {
-    console.error('❌ OCR analysis failed:', error);
-    throw error;
-  }
-}
-
-/**
- * Process encrypted HTS form with Textract OCR
- * @deprecated Use analyzeHTSForm for OCR-first workflow
- */
-async function processEncryptedHTSForm(formId) {
-  const pool = await getPool();
-  
-  try {
-    // Fetch form data from database
-    const [rows] = await pool.query(
-      `SELECT * FROM hts_forms WHERE form_id = ?`,
-      [formId]
-    );
-    
-    if (rows.length === 0) {
-      throw new Error(`Form not found: ${formId}`);
-    }
-    
-    const formData = rows[0];
-    
-    // Update status to processing
-    await pool.query(
-      `UPDATE hts_forms SET ocr_status = 'processing' WHERE form_id = ?`,
-      [formId]
-    );
-    
-    // Decrypt images
-    console.log(`Decrypting images for form ${formId}...`);
-    const { frontImage, backImage } = await decryptFormImages(formData);
-    
-    // Convert base64 to buffer
-    const frontBuffer = Buffer.from(frontImage.split(',')[1] || frontImage, 'base64');
-    const backBuffer = Buffer.from(backImage.split(',')[1] || backImage, 'base64');
-    
-    // Analyze both images with Textract
-    console.log(`Analyzing front image with Textract...`);
-    const frontResult = await analyzeDocument(frontBuffer);
-    
-    console.log(`Analyzing back image with Textract...`);
-    const backResult = await analyzeDocument(backBuffer);
-    
-    // Parse extracted data
-    const extractedData = parseHTSFormData(frontResult, backResult);
-    
-    // Calculate overall confidence
-    const overallConfidence = (
-      (extractedData.frontConfidence + extractedData.backConfidence) / 2
-    ).toFixed(2);
-    
-    // Update database with extracted data
-    await pool.query(
-      `UPDATE hts_forms 
-       SET extracted_data = ?, 
-           extraction_confidence = ?, 
-           extracted_at = NOW(),
-           ocr_status = 'completed'
-       WHERE form_id = ?`,
-      [JSON.stringify(extractedData), overallConfidence, formId]
-    );
-    
-    console.log(`OCR completed for form ${formId} with confidence ${overallConfidence}%`);
-    
-    return {
-      success: true,
-      formId,
-      extractedData,
-      confidence: overallConfidence
-    };
-    
-  } catch (error) {
-    console.error(`OCR failed for form ${formId}:`, error);
-    
-    // Update status to failed
-    await pool.query(
-      `UPDATE hts_forms SET ocr_status = 'failed' WHERE form_id = ?`,
-      [formId]
-    );
-    
-    throw error;
-  }
-}
 
 // ============================================================================
 // MODULE EXPORTS - NESTED STRUCTURE ONLY
@@ -3811,7 +3434,7 @@ module.exports = {
   mapTextractKeysToHTSFields,
   extractTextLines,
   extractKeyValuePairs,
-  processEncryptedHTSForm,
+  // processEncryptedHTSForm deprecated and removed from exports
   
   // Low-level Textract API wrapper (used by analyzeHTSFormWithForms)
   analyzeDocument
