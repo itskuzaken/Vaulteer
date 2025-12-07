@@ -23,7 +23,9 @@ export default function CameraQualityIndicator({ videoRef, isActive }) {
         
         // Capture frame from video
         const video = videoRef.current;
-        if (!video.videoWidth || !video.videoHeight) {
+        
+        // CRITICAL: Null check before accessing video properties
+        if (!video || !video.videoWidth || !video.videoHeight) {
           return;
         }
 
