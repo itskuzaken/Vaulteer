@@ -4,7 +4,7 @@ module.exports = {
       // Backend: Express.js (Port 5000)
       name: "vaulteer-backend",
       cwd: "/opt/vaulteer/backend", 
-      script: "server.js",
+      script: "backend/server.js",
       interpreter: "/usr/bin/node", 
       instances: 1,
       exec_mode: "fork",
