@@ -188,8 +188,6 @@ export default function OCRFieldDisplay({ extractedData }) {
                 📍 ({fieldData.region.x.toFixed(3)}, {fieldData.region.y.toFixed(3)}) {fieldData.region.width.toFixed(3)}×{fieldData.region.height.toFixed(3)} | Page {fieldData.region.page}
               </div>
             )}
-              </div>
-            )}
           </div>
         </div>
         
