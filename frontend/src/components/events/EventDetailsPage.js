@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Button from '@/components/ui/Button';
 import { format } from "date-fns";
 import {
   IoArrowBackOutline,
@@ -19,6 +20,8 @@ import {
   IoPauseOutline,
   IoDocumentTextOutline,
   IoAlertCircleOutline,
+  IoArchiveOutline,
+  IoBanOutline,
 } from "react-icons/io5";
 import { useNotify } from "@/components/ui/NotificationProvider";
 import EventStatusBadge from "@/components/events/EventStatusBadge";
@@ -335,13 +338,15 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
           {error ||
             "This event could not be found or you might not have permission to view it."}
         </p>
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          icon={IoArrowBackOutline}
           onClick={() => router.back()}
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-lg bg-gray-900 text-white hover:bg-gray-800"
+          className="px-5 py-3 bg-gray-900 text-white hover:bg-gray-800"
+          size="medium"
         >
-          <IoArrowBackOutline /> Return to previous page
-        </button>
+          Return to previous page
+        </Button>
       </div>
     );
   }
@@ -364,53 +369,67 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <button
-          type="button"
+        <Button
+          variant="ghost"
+          icon={IoArrowBackOutline}
           onClick={() => router.back()}
-          className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-white hover:text-gray-300"
+          className="text-sm font-medium"
+          size="medium"
         >
-          <IoArrowBackOutline className="text-lg" /> Back to previous view
-        </button>
+          Back to previous view
+        </Button>
         <div className="flex flex-wrap items-center gap-3">
           {eventData.status && <EventStatusBadge status={eventData.status} />}
           {canEditEvent && eventData?.status !== 'completed' && !isPostponed && ((eventData?.status || "").toLowerCase() !== "cancelled") && (
             <>
-              <button
-                type="button"
+              
+              <Button
+                variant="primary"
+                icon={IoPencilOutline}
                 onClick={handleEditToggle}
-                className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700"
+                size="medium"
+                className="inline-flex items-center gap-2"
               >
-                <IoPencilOutline /> {isEditing ? "Cancel" : "Edit"}
-              </button>
+                {isEditing ? "Cancel" : "Edit"}
+              </Button>
               {/* Postpone button — available for published (non-postponed) events */}
               {eventData?.status && ["published"].includes((eventData.status || "").toLowerCase()) && (
-                <button
-                  type="button"
+                
+                <Button
+                  variant="primary"
+                  icon={IoPauseOutline}
                   onClick={() => setShowPostponeModal(true)}
                   disabled={isActionLoading}
-                  className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  size="medium"
+                  className="bg-amber-500 hover:bg-amber-600"
                 >
-                  <IoPauseOutline /> Postpone
-                </button>
+                  Postpone
+                </Button>
               )}
               {/* Postpone button intentionally hidden when event is already postponed */}
               {eventData?.status && ["published", "postponed"].includes((eventData.status || "").toLowerCase()) && (
-                <button
-                  type="button"
+                
+                <Button
+                  variant="ghost"
+                  icon={IoArchiveOutline}
                   onClick={() => setShowArchiveModal(true)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600"
+                  size="medium"
+                  className="bg-amber-500 hover:bg-amber-600 text-white rounded-lg"
                 >
                   Archive
-                </button>
+                </Button>
               )}
               {eventData?.status && ["published", "postponed"].includes((eventData.status || "").toLowerCase()) && (
-                <button
-                  type="button"
+                
+                <Button
+                  variant="danger"
+                  icon={IoBanOutline}
                   onClick={() => setShowCancelModal(true)}
-                  className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+                  size="medium"
+                  className="px-4 py-2"
                 >
                   Cancel
-                </button>
+                </Button>
               )}
             </>
           )}
@@ -612,18 +631,19 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
               {canViewParticipants && (
                 <div className="flex flex-wrap gap-2">
                   {PARTICIPANT_TABS.map((tab) => (
-                    <button
+                    <Button
                       key={tab.key}
-                      type="button"
+                      variant="secondary"
+                      size="small"
                       onClick={() => setActiveParticipantTab(tab.key)}
-                      className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${
+                      className={`${
                         activeParticipantTab === tab.key
                           ? "bg-gray-900 text-white border-gray-900"
                           : "text-gray-600 border-gray-200 dark:border-gray-700 hover:border-gray-400"
                       }`}
                     >
                       {tab.label} ({participantBuckets[tab.key]?.length || 0})
-                    </button>
+                    </Button>
                   ))}
                 </div>
               )}
@@ -711,25 +731,28 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
               {shareUrl}
             </div>
             <div className="flex flex-wrap gap-3">
-              <button
-                type="button"
+              <Button
+                variant="secondary"
+                icon={IoCopyOutline}
                 onClick={handleCopyLink}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
+                size="medium"
+                className="flex-1"
               >
-                <IoCopyOutline /> Copy link
-              </button>
-              <button
-                type="button"
+                Copy link
+              </Button>
+              <Button
+                variant="primary"
+                icon={IoShareSocialOutline}
                 onClick={() =>
                   notify?.push(
                     "Use your preferred channel to share the link.",
                     "info"
                   )
                 }
-                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-gray-900 text-white text-sm font-medium hover:bg-gray-800"
+                size="medium"
               >
-                <IoShareSocialOutline /> Share
-              </button>
+                Share
+              </Button>
             </div>
           </div>
 

@@ -208,13 +208,15 @@ export default function PostDetailsPage({ postUid, currentUser, onBack, onEdit }
         <div className="w-full max-w-5xl">
           <div className="rounded-2xl border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-900/20 p-4 sm:p-6">
             <p className="text-red-800 dark:text-red-200">{error || "Post not found"}</p>
-            <button
+            <Button
+              variant="secondary"
+              icon={IoArrowBackOutline}
               onClick={handleBack}
-              className="mt-4 inline-flex items-center gap-2 text-red-800 dark:text-red-200 hover:underline"
+              className="mt-4 text-red-800 dark:text-red-200 hover:underline"
+              size="medium"
             >
-              <IoArrowBackOutline className="h-5 w-5" />
               Go Back
-            </button>
+            </Button>
           </div>
         </div>
       </div>
