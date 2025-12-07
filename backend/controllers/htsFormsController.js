@@ -88,33 +88,18 @@ const htsFormsController = {
 
       console.log(`✓ [OCR] Enhanced (front: ${(processedFront.length/1024).toFixed(0)}KB, back: ${(processedBack.length/1024).toFixed(0)}KB)`);
 
-      // Get extraction options from config (supports A/B testing)
-      const extractionOptions = getExtractionOptions();
-
-      // Use FORMS+LAYOUT approach (modern default method)
+      // Use FORMS+LAYOUT approach with nested structure
       const useLayout = process.env.OCR_USE_LAYOUT !== 'false'; // Default: true
-      const useLegacyMode = process.env.OCR_USE_LEGACY_QUERIES === 'true'; // Default: false
       
-      let extractedData;
-
-      if (useLegacyMode) {
-        console.log('🔧 [OCR] Using QUERIES+Hybrid (fallback)');
-        extractedData = await textractService.analyzeHTSForm(
-          processedFront,
-          processedBack,
-          extractionOptions
-        );
-      } else {
-        console.log(`🚀 [OCR] Using ${useLayout ? 'FORMS+LAYOUT' : 'FORMS-only'}`);
-        extractedData = await textractService.analyzeHTSFormWithForms(
-          processedFront,
-          processedBack,
-          { 
-            preprocessImages: false, // Already preprocessed above
-            useLayout: useLayout
-          }
-        );
-      }
+      console.log(`🚀 [OCR] Using ${useLayout ? 'FORMS+LAYOUT' : 'FORMS-only'} (nested structure)`);
+      const extractedData = await textractService.analyzeHTSFormWithForms(
+        processedFront,
+        processedBack,
+        { 
+          preprocessImages: false, // Already preprocessed above
+          useLayout: useLayout
+        }
+      );
 
       // Consolidated completion summary
       const stats = extractedData.stats || {};

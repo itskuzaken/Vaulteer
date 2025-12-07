@@ -4341,36 +4341,25 @@ async function processEncryptedHTSForm(formId) {
   }
 }
 
+// ============================================================================
+// MODULE EXPORTS - NESTED STRUCTURE ONLY
+// ============================================================================
+// As of December 2025, only analyzeHTSFormWithForms (nested structure) is supported.
+// All flat structure functions (analyzeHTSForm, parseHTSFormData, individual
+// extraction functions, QUERIES API functions) are deprecated and will be removed.
+// ============================================================================
+
 module.exports = {
-  analyzeDocument,
-  analyzeDocumentWithQueries,
-  extractFromQueryResults,
-  generateHTSFormQueries,
-  batchQueries,
-  processBatchQueries,
-  analyzeHTSForm,
-  analyzeHTSFormEnhanced,
-  analyzeHTSFormWithForms, // NEW: FORMS-only approach
-  mapTextractKeysToHTSFields, // NEW: Field mapping for FORMS
+  // Core OCR function - NESTED STRUCTURE ONLY
+  analyzeHTSFormWithForms,
+  
+  // Supporting functions for nested structure
+  mapTextractKeysToHTSFields,
   extractTextLines,
   extractKeyValuePairs,
-  extractTestResult,
-  extractTestDate,
-  extractFullName,
-  extractPhilHealthNumber,
-  extractTestingFacility,
-  extractControlNumber,
-  extractSex,
-  extractAge,
-  extractCivilStatus,
-  extractContactNumber,
-  extractAddress,
-  extractHTSCode,
-  extractTestKitUsed,
-  extractCounselorName,
-  normalizeNameField,
-  calculateAverageConfidence,
-  parseHTSFormData,
-  processEncryptedHTSForm 
-  // QUERY_ALIAS_MAP removed - deprecated with FORMS+LAYOUT migration
+  processEncryptedHTSForm,
+  
+  // Low-level Textract API wrapper (used by analyzeHTSFormWithForms)
+  analyzeDocument
 };
+
