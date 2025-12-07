@@ -1114,7 +1114,7 @@ export default function HTSFormManagement() {
           enableDenoising: true,
           enableContrast: true,
           enableBinarization: false, // Keep in color
-          quality: 0.95
+          quality: 0.85 // Reduced from 0.95 to stay under AWS 10MB limit
         }),
         preprocessImage(backImage, {
           targetResolution: { width: 1600, height: 2133 },
@@ -1122,7 +1122,7 @@ export default function HTSFormManagement() {
           enableDenoising: true,
           enableContrast: true,
           enableBinarization: false, // Keep in color
-          quality: 0.95
+          quality: 0.85 // Reduced from 0.95 to stay under AWS 10MB limit
         })
       ]);
       
@@ -1136,8 +1136,31 @@ export default function HTSFormManagement() {
       const frontBlob = preprocessDataURLtoBlob(processedFront.processedImage);
       const backBlob = preprocessDataURLtoBlob(processedBack.processedImage);
 
-      console.log(`[OCR] Front blob: ${frontBlob.size} bytes, type: ${frontBlob.type}`);
-      console.log(`[OCR] Back blob: ${backBlob.size} bytes, type: ${backBlob.type}`);
+      // Validate blob creation
+      if (!frontBlob || !backBlob || frontBlob.size === 0 || backBlob.size === 0) {
+        showAlert(
+          "Image Conversion Failed",
+          "Failed to convert images for upload. Please try capturing again.",
+          "error"
+        );
+        return;
+      }
+
+      console.log(`[OCR] Front blob: ${(frontBlob.size / 1024).toFixed(0)}KB, type: ${frontBlob.type}`);
+      console.log(`[OCR] Back blob: ${(backBlob.size / 1024).toFixed(0)}KB, type: ${backBlob.type}`);
+
+      // AWS Textract limit: 10MB per image
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (frontBlob.size > maxSize || backBlob.size > maxSize) {
+        showAlert(
+          "Image Too Large",
+          `Image size exceeds AWS Textract limit (10MB).\n\nFront: ${(frontBlob.size / 1024 / 1024).toFixed(2)}MB\nBack: ${(backBlob.size / 1024 / 1024).toFixed(2)}MB\n\nPlease capture images again with better lighting (not maximum quality).`,
+          "error"
+        );
+        return;
+      }
+
+      console.log("[OCR] ✅ Image validation passed, sending to server...");
 
       const formData = new FormData();
       formData.append('frontImage', frontBlob, 'front.jpg');

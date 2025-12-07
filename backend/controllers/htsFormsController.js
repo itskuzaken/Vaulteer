@@ -119,11 +119,26 @@ const htsFormsController = {
     } catch (error) {
       console.error('[OCR Analysis] Error:', error);
 
+      // Handle specific AWS Textract errors
+      let errorMessage = 'Failed to analyze images';
+      let statusCode = 500;
+      let suggestion = 'Please ensure images are clear and properly oriented';
+
+      if (error.name === 'InvalidParameterException' || error.__type === 'InvalidParameterException') {
+        errorMessage = 'Invalid image format or size';
+        statusCode = 400;
+        suggestion = 'Ensure images are JPEG/PNG format and under 10MB each. Try capturing with lower quality settings.';
+      } else if (error.message && error.message.includes('size')) {
+        errorMessage = 'Image size exceeds limits';
+        statusCode = 400;
+        suggestion = 'Images must be under 10MB each. Please reduce image quality or resolution.';
+      }
+
       // Return user-friendly error message
-      res.status(500).json({
-        error: 'Failed to analyze images',
+      res.status(statusCode).json({
+        error: errorMessage,
         details: error.message,
-        suggestion: 'Please ensure images are clear and properly oriented'
+        suggestion: suggestion
       });
     }
   }),
