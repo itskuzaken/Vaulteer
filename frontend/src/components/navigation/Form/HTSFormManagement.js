@@ -1111,18 +1111,18 @@ export default function HTSFormManagement() {
         preprocessImage(frontImage, {
           targetResolution: { width: 1800, height: 2400 }, // Increased for better OCR quality
           enableDeskew: true,
-          enableDenoising: true,
-          enableContrast: true,
+          enableDenoising: false, // Disable - may cause artifacts
+          enableContrast: false, // Disable - may cause artifacts
           enableBinarization: false, // Keep in color for SELECTION_ELEMENT
-          quality: 0.85 // Balanced quality to stay under AWS 10MB limit
+          quality: 0.92 // Higher quality - less compression artifacts
         }),
         preprocessImage(backImage, {
           targetResolution: { width: 1800, height: 2400 }, // Increased for better OCR quality
           enableDeskew: true,
-          enableDenoising: true,
-          enableContrast: true,
+          enableDenoising: false, // Disable - may cause artifacts
+          enableContrast: false, // Disable - may cause artifacts
           enableBinarization: false, // Keep in color for SELECTION_ELEMENT
-          quality: 0.85 // Balanced quality to stay under AWS 10MB limit
+          quality: 0.92 // Higher quality - less compression artifacts
         })
       ]);
       
