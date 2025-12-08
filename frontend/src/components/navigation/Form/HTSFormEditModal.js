@@ -841,7 +841,7 @@ export default function HTSFormEditModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Birth Order (i.e. among mothers' children)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Birth Order (i.e. among mothers&apos; children)</label>
                 <input
                   type="text"
                   value={editableData.birthOrder || ''}
