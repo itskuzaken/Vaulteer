@@ -167,6 +167,32 @@ export default function OCRFieldDisplay({ extractedData }) {
       .trim();
   };
 
+  // Date helpers - format date values for display purposes
+  const isLikelyDateField = (fieldName) => /date/i.test(fieldName);
+
+  const formatDateDisplay = (value) => {
+    if (value == null) return value;
+    const str = String(value).trim();
+    const mmddyyyy = /^\d{1,2}\/\d{1,2}\/\d{4}$/; // MM/DD/YYYY
+    const mmyyyy = /^\d{1,2}\/\d{4}$/; // MM/YYYY
+    const iso = /^\d{4}-\d{2}-\d{2}$/; // YYYY-MM-DD
+    if (mmddyyyy.test(str) || mmyyyy.test(str)) return str;
+    if (iso.test(str)) {
+      const [y, mo, d] = str.split('-');
+      return `${mo}/${d}/${y}`;
+    }
+    // fallback - if it's a date-like timestamp
+    const asDate = new Date(str);
+    if (!Number.isNaN(asDate.getTime())) {
+      // prefer MM/DD/YYYY
+      const mm = String(asDate.getMonth() + 1).padStart(2, '0');
+      const dd = String(asDate.getDate()).padStart(2, '0');
+      const yyyy = asDate.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    }
+    return str;
+  };
+
   // Render a single field with confidence indicator and nested components
   const renderField = (fieldName, fieldData) => {
     const displayName = formatFieldName(fieldName);
@@ -205,11 +231,11 @@ export default function OCRFieldDisplay({ extractedData }) {
             )}
           </div>
           <div className="flex-1 min-w-0 ml-4">
-            <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2">
               {value ? (
                 <>
                   <div className="flex-1 text-sm text-gray-700 dark:text-gray-300 break-words">
-                    {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+                    {typeof value === 'object' ? JSON.stringify(value) : (isLikelyDateField(fieldName) ? formatDateDisplay(value) : String(value))}
                   </div>
                   {fieldConfidence > 0 && (
                     <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getConfidenceStyle(fieldConfidence)}`}>

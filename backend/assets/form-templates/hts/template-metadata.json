@@ -684,26 +684,6 @@
                 "value": "Female"
               },
               "checkIndicator": "/ (slash mark indicates selected option - select one)"
-            },
-            {
-              "name": "parentalCode",
-              "region": {
-                "x": 0.22,
-                "y": 0.55,
-                "width": 0.031,
-                "height": 0.009
-              },
-              "label": "Parental Code - Mother's First Name (First 2 letters)",
-              "type": "text",
-              "extractionMethod": "query",
-              "query": "What are the first 2 letters of mother's first name?",
-              "required": false,
-              "priority": 3,
-              "nearbyLabel": {
-                "x": 0.02,
-                "y": 0.275,
-                "text": "First 2 letters of mother's FIRST name"
-              }
             }
           ],
           "description": "Patient demographic and personal information"
@@ -965,12 +945,19 @@
                           "width": 0.08,
                           "height": 0.025
                         },
-                        "dateRecent": {
+                        "dateRecentSex": {
                           "x": 0.72,
                           "y": 0.145,
                           "width": 0.2,
                           "height": 0.025
+                        },
+                        "dateRecentCondomlessSex": {
+                          "x": 0.72,
+                          "y": 0.17,
+                          "width": 0.2,
+                          "height": 0.025
                         }
+
                       }
                     }
                   ]
@@ -1002,9 +989,15 @@
                           "width": 0.08,
                           "height": 0.025
                         },
-                        "dateRecent": {
+                        "dateRecentSex": {
                           "x": 0.72,
                           "y": 0.17,
+                          "width": 0.2,
+                          "height": 0.025
+                        },
+                        "dateRecentCondomlessSex": {
+                          "x": 0.72,
+                          "y": 0.195,
                           "width": 0.2,
                           "height": 0.025
                         }

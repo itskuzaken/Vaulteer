@@ -37,7 +37,7 @@ import { loadTemplateMetadata } from '../../../utils/templateMetadataLoader';
  * 1. fullName: firstName + middleName + lastName + suffix
  * 2. testDate/birthDate: month + day + year (backend semantic detection)
  * 3. sex: male/female (checkbox group)
- * 4. genderIdentity: man/woman/transWoman/transMan/other (multi-select)
+ * 4. genderIdentity: man/woman/other (specify if others)
  * 5. civilStatus: single/married/widowed/separated/liveIn (checkbox group)
  * 6. addresses (3 types): currentResidence, permanentResidence, placeOfBirth
  *    - Each has: city + province → assembled as "City, Province"
@@ -335,6 +335,43 @@ export default function HTSFormEditModal({
     return otherServicesOptions.filter(key => editableData[key]);
   };
 
+  // Date format categories (based on template metadata)
+  const monthYearOnlyFields = new Set([
+    'riskSexMaleDate1',
+    'riskSexFemaleDate1',
+    'riskPaidForSexDate',
+    'riskReceivedPaymentDate',
+    'riskSexUnderDrugsDate',
+    'riskSharedNeedlesDate',
+    'riskBloodTransfusionDate',
+    'riskOccupationalExposureDate'
+  ]);
+
+  const fullDateFields = new Set([
+    'testDate',
+    'birthDate',
+    'previousTestDate',
+    'formCompletionDate',
+    'testKitExpiration'
+  ]);
+
+  const getDatePlaceholder = (fieldName) => {
+    if (monthYearOnlyFields.has(fieldName)) return 'MM/YYYY';
+    if (fullDateFields.has(fieldName)) return 'MM/DD/YYYY';
+    return 'MM/DD/YYYY or MM/YYYY';
+  };
+
+  const DateTextInput = ({ fieldKey, value, onChange, className = '' }) => (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={value || ''}
+      onChange={(e) => onChange(fieldKey, e.target.value)}
+      placeholder={getDatePlaceholder(fieldKey)}
+      className={`w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 ${className}`}
+    />
+  );
+
   const toggleOtherServices = (option, checked) => {
     const current = new Set(getOtherServicesArray());
     if (checked) current.add(option); else current.delete(option);
@@ -438,11 +475,11 @@ export default function HTSFormEditModal({
             <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Test Date</label>
-                <input
-                  type="date"
-                  value={editableData.testDate || ''}
-                  onChange={(e) => onFieldChange('testDate', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                <DateTextInput
+                  fieldKey="testDate"
+                  value={editableData.testDate}
+                  onChange={onFieldChange}
+                  className="border-gray-300 dark:border-gray-600 focus:ring-green-500"
                 />
               </div>
               <div>
@@ -518,11 +555,11 @@ export default function HTSFormEditModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Birth Date</label>
-                <input
-                  type="date"
-                  value={editableData.birthDate || ''}
-                  onChange={(e) => onFieldChange('birthDate', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
+                <DateTextInput
+                  fieldKey="birthDate"
+                  value={editableData.birthDate}
+                  onChange={onFieldChange}
+                  className="border-gray-300 dark:border-gray-600 focus:ring-green-500"
                 />
               </div>
               <div>
@@ -804,11 +841,11 @@ export default function HTSFormEditModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Parental Code (Mother first 2 letters)</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Birth Order (i.e. among mothers' children)</label>
                 <input
                   type="text"
-                  value={editableData.parentalCode || ''}
-                  onChange={(e) => onFieldChange('parentalCode', e.target.value)}
+                  value={editableData.birthOrder || ''}
+                  onChange={(e) => onFieldChange('birthOrder', e.target.value)}
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 />
               </div>
@@ -825,7 +862,7 @@ export default function HTSFormEditModal({
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Highest Educational Attainment</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {['noGradeCompleted', 'elementary', 'highSchool', 'college', 'vocational', 'postGraduate'].map(option => (
+                {['noGradeCompleted','preSchool', 'elementary', 'highSchool', 'college', 'vocational', 'postGraduate'].map(option => (
                   <label key={option} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
@@ -1076,12 +1113,11 @@ export default function HTSFormEditModal({
                           </div>
                           <div>
                             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Date (MM/YYYY)</label>
-                            <input
-                              type="text"
-                              value={editableData[dateKey] || ''}
-                              onChange={(e) => onFieldChange(dateKey, e.target.value)}
-                              placeholder="MM/YYYY"
-                              className="w-full px-3 py-2 border border-red-200 dark:border-red-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                            <DateTextInput
+                              fieldKey={dateKey}
+                              value={editableData[dateKey]}
+                              onChange={onFieldChange}
+                              className="border-red-200 dark:border-red-700 focus:ring-red-500"
                             />
                           </div>
                         </div>
@@ -1138,12 +1174,11 @@ export default function HTSFormEditModal({
                       {statusVal === 'yes' ? (
                         <div className="w-full md:max-w-sm">
                           <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Date (MM/YYYY)</label>
-                          <input
-                            type="text"
-                            value={editableData[dateKey] || ''}
-                            onChange={(e) => onFieldChange(dateKey, e.target.value)}
-                            placeholder="MM/YYYY"
-                            className="w-full px-3 py-2 border border-red-200 dark:border-red-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500"
+                          <DateTextInput
+                            fieldKey={dateKey}
+                            value={editableData[dateKey]}
+                            onChange={onFieldChange}
+                            className="border-red-200 dark:border-red-700 focus:ring-red-500"
                           />
                         </div>
                       ) : null}
@@ -1234,11 +1269,11 @@ export default function HTSFormEditModal({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Previous Test Date</label>
-                  <input
-                    type="text"
-                    value={editableData.previousTestDate || ''}
-                    onChange={(e) => onFieldChange('previousTestDate', e.target.value)}
-                    className="w-full px-4 py-2 border border-violet-200 dark:border-violet-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-violet-500"
+                  <DateTextInput
+                    fieldKey="previousTestDate"
+                    value={editableData.previousTestDate}
+                    onChange={onFieldChange}
+                    className="border-violet-200 dark:border-violet-700 focus:ring-violet-500"
                   />
                 </div>
                 <div>
@@ -1578,11 +1613,11 @@ export default function HTSFormEditModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Expiration date</label>
-                <input
-                  type="date"
-                  value={editableData.testKitExpiration || ''}
-                  onChange={(e) => onFieldChange('testKitExpiration', e.target.value)}
-                  className="w-full px-4 py-2 border border-fuchsia-200 dark:border-fuchsia-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-fuchsia-500"
+                <DateTextInput
+                  fieldKey="testKitExpiration"
+                  value={editableData.testKitExpiration}
+                  onChange={onFieldChange}
+                  className="border-fuchsia-200 dark:border-fuchsia-700 focus:ring-fuchsia-500"
                 />
               </div>
             </div>
@@ -1607,11 +1642,11 @@ export default function HTSFormEditModal({
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Form Completion Date</label>
-                <input
-                  type="date"
-                  value={editableData.formCompletionDate || ''}
-                  onChange={(e) => onFieldChange('formCompletionDate', e.target.value)}
-                  className="w-full px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-slate-500"
+                <DateTextInput
+                  fieldKey="formCompletionDate"
+                  value={editableData.formCompletionDate}
+                  onChange={onFieldChange}
+                  className="border-slate-200 dark:border-slate-700 focus:ring-slate-500"
                 />
               </div>
               <div>
