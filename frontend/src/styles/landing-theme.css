@@ -1,0 +1,49 @@
+:root[data-theme='landing'] {
+  --landing-bg: #ffffff;
+  --landing-primary: #BE2B2B; /* Brand-red (refined) */
+  --landing-on-primary: #ffffff;
+  --landing-accent: #2563EB; /* blue */
+  --landing-sun: #F59E0B; /* amber */
+  --landing-text: #111827; /* neutral-900 */
+  --landing-muted: #6B7280;
+  --landing-border: #E6E9EE;
+  --landing-shadow: 0 10px 25px rgba(16, 24, 40, 0.05);
+}
+
+/* Header scrolled / navbar appearance */
+.header-landing {
+  background: transparent;
+  color: var(--landing-on-primary);
+}
+
+.header-landing.scrolled {
+  background: rgba(255,255,255,0.95);
+  color: var(--landing-text);
+  border-bottom: 1px solid var(--landing-border);
+  box-shadow: var(--landing-shadow);
+  backdrop-filter: blur(6px);
+}
+
+/* Link color when scrolled */
+.header-landing .nav-link.scrolled {
+  color: var(--landing-primary);
+}
+
+/* Fallback for non-scrolled link state, when header overlays a dark hero */
+.header-landing .nav-link {
+  color: #ffffff;
+}
+
+/* CTA button style (landing) */
+.btn-landing-primary {
+  background: var(--landing-primary);
+  color: var(--landing-on-primary);
+}
+.btn-landing-primary:hover {
+  background: #a71f1f;
+}
+
+/* Make sure hero overlay remains good */
+.hero-overlay {
+  background: linear-gradient(0deg, rgba(0,0,0,0.18), rgba(0,0,0,0.18));
+}

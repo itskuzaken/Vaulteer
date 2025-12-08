@@ -6,6 +6,7 @@ import Image from "next/image";
 import Script from "next/script";
 import { Inter, Roboto_Mono, Poppins } from "next/font/google";
 import "./globals.css"; // Import global styles
+import "../styles/landing-theme.css"; // Landing page landing-theme tokens
 import "quill/dist/quill.snow.css";
 import "quill/dist/quill.bubble.css";
 import Login from "../services/auth/login";
@@ -35,6 +36,7 @@ const poppins = Poppins({
 function Header() {
   const [isLoginVisible, setLoginVisible] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const isDashboard = pathname.startsWith("/dashboard");
   const isVolunteerSignup = pathname.startsWith("/volunteer/signup");
@@ -52,12 +54,19 @@ function Header() {
     { href: "#contact", label: "Contact" },
   ];
 
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 16);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const headerClasses = `sticky top-0 z-50 header-landing ${
+    scrolled ? "scrolled" : ""
+  } transition-all header-transition`;
+
   return (
-    <header
-      className={`${
-        isDashboard ? "bg-[var(--primary-red)]" : "bg-[var(--light)]"
-      } sticky top-0 text-white flex justify-between items-center p-2 shadow-md z-50`}
-    >
+    <header className={headerClasses}>
       {/* Left: Hamburger (mobile) + Logo */}
       <div className="flex items-center gap-2" suppressHydrationWarning>
         <button
@@ -108,12 +117,12 @@ function Header() {
       </div>
 
       {/* Desktop/Tablet Navigation */}
-      <nav className="hidden sm:flex space-x-8">
+      <nav className="hidden sm:flex space-x-8" role="navigation" aria-label="Primary Navigation">
         {navLinks.map((link) => (
           <a
             key={link.href}
             href={link.href}
-            className="text-[var(--primary-red)] hover:text-[var(--dark)]"
+            className={`nav-link ${scrolled ? 'scrolled' : ''} hover:text-[var(--dark)]`}
           >
             {link.label}
           </a>
@@ -124,9 +133,9 @@ function Header() {
       <div className="hidden sm:flex items-center space-x-4 px-4">
         <button
           onClick={() => setLoginVisible(true)}
-          className="bg-red-700 text-white px-4 py-2 rounded-xl hover:text-[var(--dark)] transition"
+          className={`bg-red-700 text-white px-4 py-2 rounded-xl hover:text-[var(--dark)] transition btn-landing-primary`}
         >
-          Log in
+          Log in/Sign up  
         </button>
       </div>
 
@@ -136,20 +145,9 @@ function Header() {
           onClick={() => setLoginVisible(true)}
           className="bg-red-700 text-white px-4 py-2 rounded-xl hover:text-[var(--dark)] transition font-medium"
         >
-          Log in
+          Log in/Sign up  
         </button>
-        <button
-          onClick={async () => {
-            try {
-              await signup();
-            } catch (err) {
-              alert("Signup failed: " + (err.message || err));
-            }
-          }}
-          className="bg-white text-[var(--primary-red)] px-3 py-1 rounded border border-[var(--primary-red)] hover:bg-[var(--primary-red)] hover:text-white transition font-medium"
-        >
-          Sign up
-        </button>
+
       </div>
 
       {/* Mobile Navigation Drawer */}
@@ -281,6 +279,7 @@ export default function RootLayout({ children }) {
       : (typeof globalThis !== "undefined" &&
           globalThis.__NEXT_ROUTER_PATHNAME__) ||
         ""; // fallback for SSR
+  const isLanding = pathname === "/" || pathname === "/home";
 
   // Catch noisy unhandled promise rejections coming from external scripts
   // (eg. browser extensions / 3rd party bundles like content-all.js) and
@@ -321,6 +320,7 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
     >
       <body
+        data-theme={isLanding ? "landing" : undefined}
         className={`${poppins.className} bg-white text-[var(--primary-red)] font-sans`}
         suppressHydrationWarning={true}
       >

@@ -113,7 +113,7 @@ export default function HomePage() {
         <div className="relative z-10 flex flex-col items-center text-center max-w-7xl mx-auto">
 
           {/* Main Headline */}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black text-white mb-4 sm:mb-6 leading-tight drop-shadow-2xl tracking-tight">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-8xl font-black text-red-600 mb-4 sm:mb-6 leading-tight drop-shadow-2xl tracking-tight">
             BAGANI COMMUNITY CENTER
           </h1>
           
@@ -140,17 +140,21 @@ export default function HomePage() {
             </button>
             <button
               onClick={() => scrollToSection('volunteer')}
-              className="group inline-flex items-center justify-center bg-white hover:bg-gray-50 text-bagani-red font-bold text-base sm:text-lg px-8 sm:px-12 py-4 sm:py-5 rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border-2 border-white"
+              className="group inline-flex items-center justify-center hover:bg-gray-300 text-bagani-red font-bold text-base sm:text-lg px-8 sm:px-12 py-4 sm:py-5 rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 border-2 border-white"
             >
               <span>Join Our Community / Volunteer Signup</span>
-              <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 ml-2  group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
               </svg>
             </button>
           </div>
 
           {/* Scroll Indicator */}
-          <div className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce">
+          <button
+            onClick={() => scrollToSection('news')}
+            aria-label="Scroll down to News"
+            className="absolute bottom-12 left-1/2 -translate-x-1/2 animate-bounce focus:outline-none bg-white/10 hover:bg-white/20 p-2 rounded-full"
+          >
             <svg
               className="w-8 h-8 text-white drop-shadow-lg"
               fill="none"
@@ -162,7 +166,9 @@ export default function HomePage() {
             >
               <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
             </svg>
-          </div>
+            <span className="sr-only">Scroll to News</span>
+          </button>
+
         </div>
       </section>
 
