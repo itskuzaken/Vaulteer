@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { getMyEvents } from "../../../services/eventService";
+import { getMyEvents, getUpcomingEvents } from "../../../services/eventService";
 import EventCard from "@/components/events/EventCard";
 import { useNotify } from "@/components/ui/NotificationProvider";
 import {
@@ -16,7 +16,7 @@ import { buildEventDetailPath } from "@/utils/dashboardRouteHelpers";
 export default function MyEvents() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("registered"); // registered, attended, cancelled
+  const [filter, setFilter] = useState("registered"); // registered, attended, cancelled, upcoming
   const notify = useNotify();
   const router = useRouter();
   const { user } = useDashboardUser();
@@ -34,7 +34,13 @@ export default function MyEvents() {
   const fetchMyEvents = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await getMyEvents(filter);
+      let response;
+      if (filter === "upcoming") {
+        // Fetch upcoming published events (global list)
+        response = await getUpcomingEvents(50);
+      } else {
+        response = await getMyEvents(filter);
+      }
       setEvents(response.data || []);
     } catch (error) {
       console.error("Error fetching my events:", error);
@@ -86,6 +92,14 @@ export default function MyEvents() {
             ? `Cancelled on ${formatDate(event.cancelled_at)}`
             : `Originally scheduled for ${formatDate(event.start_datetime_local || event.start_datetime)}`,
       },
+      upcoming: {
+        pill: "Upcoming",
+        title: "Upcoming events",
+        getDescription: (event) =>
+          event.start_datetime
+            ? `Happening on ${formatDate(event.start_datetime_local || event.start_datetime)}`
+            : "Happening soon",
+      },
     }),
     []
   );
@@ -117,24 +131,17 @@ export default function MyEvents() {
     registered: "You haven't registered for any events yet.",
     attended: "You haven't attended any events yet.",
     cancelled: "You haven't cancelled any events.",
+    upcoming: "There are no upcoming events at the moment.",
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            My Events
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Events you have registered for
-          </p>
-        </div>
-      </div>
+    <div className="flex justify-center w-full">
+      <div className="w-full max-w-7xl px-4 sm:px-6 lg:px-0">
+        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md overflow-hidden">
+          <div className="p-4 md:p-6 space-y-6">
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto no-scrollbar">
         <button
           onClick={() => setFilter("registered")}
           className={`px-4 py-2 font-medium transition-colors ${
@@ -144,6 +151,16 @@ export default function MyEvents() {
           }`}
         >
           Registered
+        </button>
+        <button
+          onClick={() => setFilter("upcoming")}
+          className={`px-4 py-2 font-medium transition-colors ${
+            filter === "upcoming"
+              ? "text-red-600 dark:text-red-400 border-b-2 border-red-600 dark:border-red-400"
+              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+          }`}
+        >
+          Upcoming
         </button>
         <button
           onClick={() => setFilter("attended")}
@@ -179,14 +196,14 @@ export default function MyEvents() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {events.map((event) => (
-              <EventCard
+                <EventCard
                 key={event.uid}
                 event={
                   filter === "registered" && !event.is_registered
                     ? { ...event, is_registered: true }
                     : event
                 }
-                showJoinButton={filter === "registered"}
+                showJoinButton={filter === "registered" || filter === "upcoming"}
                 onClick={() => openEventDetails(event.uid)}
                 contextFooter={renderContextFooter(event)}
               />
@@ -199,6 +216,9 @@ export default function MyEvents() {
           </div>
         </>
       )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
