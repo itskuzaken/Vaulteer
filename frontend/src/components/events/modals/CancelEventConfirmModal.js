@@ -1,6 +1,7 @@
 "use client";
 
 import ModalShell from "@/components/modals/ModalShell";
+import Button from "@/components/ui/Button";
 import { IoCloseCircleOutline } from "react-icons/io5";
 
 export default function CancelEventConfirmModal({
@@ -9,25 +10,16 @@ export default function CancelEventConfirmModal({
   onCancel,
   onConfirm,
   isSubmitting = false,
+  mode = "auto",
 }) {
   const footer = (
     <div className="flex w-full justify-between gap-3">
-      <button
-        type="button"
-        className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-        onClick={onCancel}
-        disabled={isSubmitting}
-      >
+      <Button variant="ghost" onClick={onCancel} disabled={isSubmitting} mode={mode} className="flex-1">
         Keep event
-      </button>
-      <button
-        type="button"
-        onClick={onConfirm}
-        className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isSubmitting}
-      >
+      </Button>
+      <Button variant="danger" onClick={onConfirm} disabled={isSubmitting} mode={mode} className="flex-1">
         {isSubmitting ? "Cancelling..." : "Cancel event"}
-      </button>
+      </Button>
     </div>
   );
 
@@ -35,6 +27,7 @@ export default function CancelEventConfirmModal({
     <ModalShell
       isOpen={isOpen}
       onClose={onCancel}
+      mode={mode}
       title="Cancel this event"
       description="This will cancel the event—participants will be notified and the event will no longer happen."
       footer={footer}

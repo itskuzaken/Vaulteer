@@ -379,7 +379,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
         >
           Back to previous view
         </Button>
-        <div className="flex flex-col sm:flex-row sm:flex-col-4 items-center gap-3">
+        <div className="flex flex-row sm:flex-row sm:items-center sm:justify-between items-center gap-3">
           {eventData.status && <EventStatusBadge status={eventData.status} />}
           {canEditEvent && eventData?.status !== 'completed' && !isPostponed && ((eventData?.status || "").toLowerCase() !== "cancelled") && (
             <>

@@ -11,25 +11,34 @@ export default function HTSFormEditModal({
   editableData,
   onClose,
   onSave,
-  onFieldChange
+  onFieldChange,
+  mode = "auto",
 }) {
   if (!isOpen || !editableData) return null;
 
+  const panelModeClass =
+    mode === "light"
+      ? "bg-white text-slate-900"
+      : mode === "dark"
+      ? "bg-gray-900 text-white"
+      : "bg-white dark:bg-gray-800 text-slate-900 dark:text-white";
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col">
+      <div className={`${panelModeClass} rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col`}>
         {/* Header */}
         <div className="flex-shrink-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
             <IoDocumentText className="w-6 h-6 text-primary-red" />
             Edit Extracted Fields
           </h2>
-          <button
+          <Button
             onClick={onClose}
-            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <IoClose className="w-6 h-6 text-gray-600 dark:text-gray-400" />
-          </button>
+            variant="icon"
+            icon={IoClose}
+            mode={mode}
+            className="rounded-lg"
+          />
         </div>
 
         {/* Scrollable Content */}
@@ -654,6 +663,7 @@ export default function HTSFormEditModal({
               onClick={onClose}
               variant="secondary"
               className="flex-1"
+              mode={mode}
             >
               <IoClose className="w-5 h-5" />
               Cancel
@@ -662,6 +672,7 @@ export default function HTSFormEditModal({
               onClick={onSave}
               variant="primary"
               className="flex-1"
+              mode={mode}
             >
               <IoCheckmark className="w-5 h-5" />
               Save Changes

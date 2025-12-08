@@ -1,12 +1,14 @@
 import React from "react";
 import { confirmLogout } from "../../services/auth/logout";
 import ModalShell from "./ModalShell";
+import Button from "@/components/ui/Button";
 
 export default function LogoutModal({
   isOpen = true,
   onCancel,
   setShowLogoutModal,
   setUser,
+  mode = "auto",
 }) {
   const closeModal = (nextState = false) => {
     if (typeof setShowLogoutModal === "function") {
@@ -21,33 +23,26 @@ export default function LogoutModal({
   };
 
   return (
-    <ModalShell
-      isOpen={isOpen}
-      title="Confirm logout"
-      description="You will be signed out of the dashboard and need to authenticate again."
-      onClose={() => closeModal(false)}
-      footer={
-        <>
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={() => closeModal(false)}
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-danger"
-            onClick={handleLogout}
-          >
-            Logout
-          </button>
-        </>
-      }
-    >
-      <p className="text-sm text-slate-600 dark:text-slate-300">
-        Make sure any unsaved changes are stored before you continue.
-      </p>
-    </ModalShell>
+      <ModalShell
+        isOpen={isOpen}
+        title="Confirm logout"
+        description="You will be signed out of the dashboard and need to authenticate again."
+        onClose={() => closeModal(false)}
+        mode={mode}
+        footer={
+          <>
+            <Button variant="ghost" onClick={() => closeModal(false)} disabled={false} mode={mode}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={handleLogout} mode={mode}>
+              Logout
+            </Button>
+          </>
+        }
+      >
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Make sure any unsaved changes are stored before you continue.
+        </p>
+      </ModalShell>
   );
 }

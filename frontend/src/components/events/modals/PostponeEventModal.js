@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ModalShell from "@/components/modals/ModalShell";
+import Button from "@/components/ui/Button";
 import { IoAlertCircleOutline, IoCalendarOutline } from "react-icons/io5";
 
 function toDateTimeLocalValue(value) {
@@ -25,6 +26,7 @@ export default function PostponeEventModal({
   onClose,
   onSubmit,
   isSubmitting = false,
+  mode = "auto",
 }) {
   const [targetDate, setTargetDate] = useState("");
   const [reason, setReason] = useState("");
@@ -67,22 +69,19 @@ export default function PostponeEventModal({
 
   const footer = (
     <div className="flex w-full justify-between gap-3">
-      <button
-        type="button"
-        className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-        onClick={onClose}
-        disabled={isSubmitting}
-      >
+      <Button variant="ghost" onClick={onClose} disabled={isSubmitting} mode={mode} className="flex-1">
         Cancel
-      </button>
-      <button
+      </Button>
+      <Button
+        variant="primary"
         type="submit"
         form="postpone-event-form"
-        className="flex-1 rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={!isDateValid || isSubmitting}
+        mode={mode}
+        className="flex-1 bg-gray-900 hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700 text-white"
       >
         {isSubmitting ? "Postponing..." : "Confirm postponement"}
-      </button>
+      </Button>
     </div>
   );
 
@@ -90,6 +89,7 @@ export default function PostponeEventModal({
     <ModalShell
       isOpen={isOpen}
       onClose={onClose}
+      mode={mode}
       title={eventTitle ? `Postpone "${eventTitle}"` : "Postpone event"}
       description="Let attendees know the event is temporarily unavailable and provide a tentative return date."
       footer={footer}
