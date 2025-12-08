@@ -183,6 +183,7 @@ export default function ManageEvents({ onNavigate }) {
       handleArchive,
       handlePublish,
       inlineActionLoading,
+      navigateToEventDetail,
     ]
   );
 

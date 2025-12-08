@@ -103,7 +103,7 @@ function AnnouncementsContent({ onNavigate, currentUser }) {
 
   const triggerRefresh = useCallback(() => {
     setRefreshToken((prev) => prev + 1);
-  }, [router]);
+  }, []);
 
   const runInlineMutation = useCallback(
     async (postUid, mutation, successMessage) => {
@@ -240,7 +240,7 @@ function AnnouncementsContent({ onNavigate, currentUser }) {
         notify?.push(error?.message || "Failed to save draft", "error");
       }
     },
-    [activeView, editingPost, notify, triggerRefresh, handleBackToList]
+    [activeView, editingPost, notify, triggerRefresh, handleBackToList, clearEditParamAndSuppress]
   );
 
   const handlePublishPost = useCallback(
@@ -264,7 +264,7 @@ function AnnouncementsContent({ onNavigate, currentUser }) {
         notify?.push(error?.message || "Failed to publish announcement", "error");
       }
     },
-    [activeView, editingPost, notify, triggerRefresh, handleBackToList]
+    [activeView, editingPost, notify, triggerRefresh, handleBackToList, clearEditParamAndSuppress]
   );
 
   const managerActionsProvider = useCallback(

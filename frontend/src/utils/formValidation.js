@@ -134,7 +134,7 @@ export const isSentenceCountInRange = (value, min = 5, max = 10) => {
   return c >= min && c <= max;
 };
 
-export default {
+const validators = {
   isValidName,
   isValidMiddleInitial,
   isValidNickname,
@@ -148,3 +148,5 @@ export default {
   countSentences,
   isSentenceCountInRange,
 };
+
+export default validators;

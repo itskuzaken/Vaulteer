@@ -239,7 +239,7 @@ function NewsUpdatesContent({ onNavigate, currentUser }) {
         notify?.push(error?.message || "Failed to save draft", "error");
       }
     },
-    [activeView, editingPost, notify, triggerRefresh, handleBackToList]
+    [activeView, editingPost, notify, triggerRefresh, handleBackToList, clearEditParamAndSuppress]
   );
 
   const handlePublishPost = useCallback(
@@ -263,7 +263,7 @@ function NewsUpdatesContent({ onNavigate, currentUser }) {
         notify?.push(error?.message || "Failed to publish post", "error");
       }
     },
-    [activeView, editingPost, notify, triggerRefresh, handleBackToList]
+    [activeView, editingPost, notify, triggerRefresh, handleBackToList, clearEditParamAndSuppress]
   );
 
   const managerActionsProvider = useCallback(
