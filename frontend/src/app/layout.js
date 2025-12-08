@@ -43,8 +43,7 @@ function Header() {
 
   const handleLoginClose = () => setLoginVisible(false);
 
-  // Hide header on dashboard routes and volunteer signup page
-  if (isDashboard || isVolunteerSignup) return null;
+  // (Render control moved after hooks to avoid conditional hook calls)
 
   // Navigation links
   const navLinks = [
@@ -55,15 +54,19 @@ function Header() {
   ];
 
   useEffect(() => {
+    if (isDashboard || isVolunteerSignup) return;
     const onScroll = () => setScrolled(window.scrollY > 16);
     window.addEventListener("scroll", onScroll, { passive: true });
     onScroll();
     return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [isDashboard, isVolunteerSignup]);
 
   const headerClasses = `sticky top-0 z-50 header-landing ${
     scrolled ? "scrolled" : ""
   } transition-all header-transition`;
+
+  // Hide header on dashboard routes and volunteer signup page (after hooks)
+  if (isDashboard || isVolunteerSignup) return null;
 
   return (
     <header className={headerClasses}>
