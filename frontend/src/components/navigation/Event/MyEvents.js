@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { getMyEvents, getUpcomingEvents } from "../../../services/eventService";
+import { getMyEvents } from "../../../services/eventService";
+import EventList from "@/components/events/EventList";
+import EventsSection from "@/components/events/EventsSection";
+import Button from "@/components/ui/Button";
 import EventCard from "@/components/events/EventCard";
 import { useNotify } from "@/components/ui/NotificationProvider";
 import {
@@ -36,8 +39,9 @@ export default function MyEvents() {
       setLoading(true);
       let response;
       if (filter === "upcoming") {
-        // Fetch upcoming published events (global list)
-        response = await getUpcomingEvents(50);
+        // We'll let EventList (rendered client-side) handle Upcoming fetching when possible.
+        // Keep local fetching as a fallback for the non-EventList rendering paths.
+        response = { data: [] };
       } else {
         response = await getMyEvents(filter);
       }
@@ -137,55 +141,57 @@ export default function MyEvents() {
   return (
     <div className="flex justify-center w-full">
       <div className="w-full max-w-7xl px-4 sm:px-6 lg:px-0">
-        <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md overflow-hidden">
-          <div className="p-4 md:p-6 space-y-6">
+        <div className="w-full">
+          <EventsSection
+            title="My Events"
+            subtitle="Events you're participating in or upcoming events you can join"
+            actions={null}
+          >
 
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto no-scrollbar">
-        <button
+        <Button
+          size={{ default: "small" }}
+          variant={filter === "registered" ? "primary" : "ghost"}
           onClick={() => setFilter("registered")}
-          className={`px-4 py-2 font-medium transition-colors ${
-            filter === "registered"
-              ? "text-red-600 dark:text-red-400 border-b-2 border-red-600 dark:border-red-400"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          }`}
+          className={filter === "registered" ? "border-b-2 border-red-600 dark:border-red-400" : ""}
         >
           Registered
-        </button>
-        <button
+        </Button>
+        <Button
+          size={{ default: "small" }}
+          variant={filter === "upcoming" ? "primary" : "ghost"}
           onClick={() => setFilter("upcoming")}
-          className={`px-4 py-2 font-medium transition-colors ${
-            filter === "upcoming"
-              ? "text-red-600 dark:text-red-400 border-b-2 border-red-600 dark:border-red-400"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          }`}
+          className={filter === "upcoming" ? "border-b-2 border-red-600 dark:border-red-400" : ""}
         >
           Upcoming
-        </button>
-        <button
+        </Button>
+        <Button
+          size={{ default: "small" }}
+          variant={filter === "attended" ? "primary" : "ghost"}
           onClick={() => setFilter("attended")}
-          className={`px-4 py-2 font-medium transition-colors ${
-            filter === "attended"
-              ? "text-red-600 dark:text-red-400 border-b-2 border-red-600 dark:border-red-400"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          }`}
+          className={filter === "attended" ? "border-b-2 border-red-600 dark:border-red-400" : ""}
         >
           Attended
-        </button>
-        <button
+        </Button>
+        <Button
+          size={{ default: "small" }}
+          variant={filter === "cancelled" ? "primary" : "ghost"}
           onClick={() => setFilter("cancelled")}
-          className={`px-4 py-2 font-medium transition-colors ${
-            filter === "cancelled"
-              ? "text-red-600 dark:text-red-400 border-b-2 border-red-600 dark:border-red-400"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
-          }`}
+          className={filter === "cancelled" ? "border-b-2 border-red-600 dark:border-red-400" : ""}
         >
           Cancelled
-        </button>
+        </Button>
       </div>
 
       {/* Events Grid */}
-      {loading ? (
+      {filter === "upcoming" ? (
+        <EventList
+          lockedFilters={{ status: "published", date_from: new Date().toISOString() }}
+          emptyState={{ title: "No Events Found", message: emptyMessages[filter] }}
+          onEventClick={openEventDetails}
+        />
+      ) : loading ? (
         <EventListSkeleton />
       ) : events.length === 0 ? (
         <EventListEmptyState
@@ -211,12 +217,12 @@ export default function MyEvents() {
           </div>
 
           {/* Event Count */}
-          <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+              <div className="text-center text-sm text-gray-600 dark:text-gray-400">
             Showing {events.length} event{events.length !== 1 ? "s" : ""}
           </div>
         </>
       )}
-          </div>
+      </EventsSection>
         </div>
       </div>
     </div>

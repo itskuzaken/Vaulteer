@@ -7,6 +7,8 @@ import { useNotify } from "@/components/ui/NotificationProvider";
 import EventList from "@/components/events/EventList";
 import { EVENT_STATUS_TABS } from "@/components/events/eventStatusConfig";
 import { IoAddCircleOutline } from "react-icons/io5";
+import Button from "@/components/ui/Button";
+import EventsSection from "@/components/events/EventsSection";
 import { archiveEvent, postponeEvent, publishEvent } from "@/services/eventService";
 import PostponeEventModal from "@/components/events/modals/PostponeEventModal";
 import {
@@ -219,57 +221,56 @@ export default function ManageEvents({ onNavigate }) {
     <>
       <div className="flex justify-center w-full">
         <div className="w-full max-w-7xl px-4 sm:px-6 lg:px-0">
-          <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-md overflow-hidden">
-            <div className="p-4 md:p-6 space-y-6">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex items-center gap-4">
-                  <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600 ring-8 ring-red-100/60 dark:bg-red-900/40 dark:text-red-100 dark:ring-red-900/10">
-                    {ActiveIcon ? <ActiveIcon className="h-6 w-6" /> : null}
-                  </span>
-                  <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                      {activeConfig?.label || "Event oversight"}
-                    </h1>
-                    {activeConfig?.description && (
-                      <p className="text-sm text-gray-600 dark:text-gray-300">
-                        {activeConfig.description}
-                      </p>
-                    )}
-                  </div>
+          <EventsSection
+            title={
+              <div className="flex items-center gap-4">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600 ring-8 ring-red-100/60 dark:bg-red-900/40 dark:text-red-100 dark:ring-red-900/10">
+                  {ActiveIcon ? <ActiveIcon className="h-6 w-6" /> : null}
+                </span>
+                <div>
+                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {activeConfig?.label || "Event oversight"}
+                  </h1>
+                  {activeConfig?.description && (
+                    <p className="text-sm text-gray-600 dark:text-gray-300">
+                      {activeConfig.description}
+                    </p>
+                  )}
                 </div>
-
-                {canManageEvents && (
-                  <button
-                    type="button"
-                    onClick={navigateToCreateEvent}
-                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-semibold text-gray-800 shadow-sm transition-all hover:-translate-y-0.5 hover:border-gray-300 hover:shadow-md dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
-                  >
-                    <IoAddCircleOutline className="h-5 w-5" />
-                    <span>Create Event</span>
-                  </button>
-                )}
               </div>
+            }
+            actions={
+              canManageEvents ? (
+                <Button
+                  size={{ default: "small" }}
+                  variant="primary"
+                  onClick={navigateToCreateEvent}
+                  className="inline-flex items-center gap-2"
+                >
+                  <IoAddCircleOutline className="h-5 w-5" />
+                  <span>Create Event</span>
+                </Button>
+              ) : null
+            }
+          >
 
               <div className="flex flex-wrap items-center gap-3">
                 {EVENT_STATUS_TABS.map((tab) => {
                   const isActive = tab.key === activeTab;
                   const TabIcon = tab.icon;
                   return (
-                    <button
+                    <Button
                       key={tab.key}
-                      type="button"
+                      size={{ default: "small" }}
+                      variant={isActive ? "primary" : "ghost"}
                       onClick={() => setActiveTab(tab.key)}
-                      className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
-                        isActive
-                          ? "border-gray-900 bg-gray-900 text-white shadow-lg shadow-gray-800/40 dark:border-white dark:bg-white dark:text-gray-900"
-                          : "border-transparent bg-gray-100 text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:bg-gray-800 dark:text-gray-300"
-                      }`}
+                      className={isActive ? "shadow-lg" : ""}
                     >
                       <span className="flex items-center gap-2">
                         {TabIcon ? <TabIcon className="h-4 w-4" /> : null}
                         {tab.label}
                       </span>
-                    </button>
+                    </Button>
                   );
                 })}
               </div>
@@ -286,8 +287,7 @@ export default function ManageEvents({ onNavigate }) {
                 refreshToken={refreshToken}
                 authReady={authReady}
               />
-            </div>
-          </div>
+            </EventsSection>
         </div>
       </div>
 
