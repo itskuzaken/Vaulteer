@@ -2,6 +2,7 @@
 
 import React from "react";
 import Button from "./Button";
+import ModalShell from "@/components/modals/ModalShell";
 import { IoCloseOutline, IoAlertCircle, IoWarning, IoInformationCircle, IoCheckmarkCircle } from "react-icons/io5";
 
 const AlertModal = ({
@@ -14,6 +15,7 @@ const AlertModal = ({
   showCancel = false,
   cancelText = "Cancel",
   onConfirm,
+  mode = "auto",
 }) => {
   if (!isOpen) return null;
 
@@ -28,13 +30,13 @@ const AlertModal = ({
   const getIcon = () => {
     switch (type) {
       case "error":
-        return <IoAlertCircle className="text-red-500" size={48} />;
+        return <IoAlertCircle className="text-red-500 dark:text-red-300" size={48} />;
       case "warning":
-        return <IoWarning className="text-yellow-500" size={48} />;
+        return <IoWarning className="text-yellow-500 dark:text-yellow-300" size={48} />;
       case "success":
-        return <IoCheckmarkCircle className="text-green-500" size={48} />;
+        return <IoCheckmarkCircle className="text-green-500 dark:text-green-300" size={48} />;
       default:
-        return <IoInformationCircle className="text-blue-500" size={48} />;
+        return <IoInformationCircle className="text-blue-500 dark:text-blue-300" size={48} />;
     }
   };
 
@@ -51,55 +53,40 @@ const AlertModal = ({
     }
   };
 
+  const panelModeClass =
+    mode === "light"
+      ? "bg-white text-slate-900"
+      : mode === "dark"
+      ? "bg-gray-900 text-white"
+      : "bg-white dark:bg-gray-800 text-slate-900 dark:text-white";
+
+  const footer = (
+    <>
+      {showCancel && (
+        <Button variant="ghost" onClick={onClose} mode={mode}>
+          {cancelText}
+        </Button>
+      )}
+      <Button variant={getButtonVariant()} onClick={handleConfirm} mode={mode}>
+        {confirmText}
+      </Button>
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full animate-fade-in">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {title}
-          </h3>
-          <button
-            onClick={onClose}
-            className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-          >
-            <IoCloseOutline size={24} />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex-shrink-0 mt-1">
-              {getIcon()}
-            </div>
-            <div className="flex-1">
-              <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">
-                {message}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Actions */}
-        <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200 dark:border-gray-700">
-          {showCancel && (
-            <Button
-              variant="ghost"
-              onClick={onClose}
-            >
-              {cancelText}
-            </Button>
-          )}
-          <Button
-            variant={getButtonVariant()}
-            onClick={handleConfirm}
-          >
-            {confirmText}
-          </Button>
-        </div>
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title={title}
+      mode={mode}
+      footer={footer}
+      role="alertdialog"
+    >
+      <div className="flex items-start gap-4">
+        <div className="flex-shrink-0 mt-1">{getIcon()}</div>
+        <div className="flex-1 text-sm text-gray-600 dark:text-gray-300 whitespace-pre-line">{message}</div>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 

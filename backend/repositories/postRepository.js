@@ -33,13 +33,14 @@ async function create(postData) {
   } = postData;
 
   const publish_at = status === "published" ? new Date() : null;
+  const created_at = status === "published" ? new Date() : null;
   const attachmentsJson =
     attachments && attachments.length > 0 ? JSON.stringify(attachments) : null;
 
   const [result] = await getPool().query(
     `INSERT INTO posts 
-      (uid, title, content, post_type, status, author_id, attachments, publish_at, scheduled_for)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (uid, title, content, post_type, status, author_id, attachments, created_at, publish_at, scheduled_for)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       uid,
       title,
@@ -48,6 +49,7 @@ async function create(postData) {
       status,
       author_id,
       attachmentsJson,
+      created_at,
       publish_at,
       scheduled_for,
     ]

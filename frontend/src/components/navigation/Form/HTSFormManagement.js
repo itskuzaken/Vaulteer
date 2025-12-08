@@ -2233,6 +2233,7 @@ export default function HTSFormManagement() {
         message={alertModal.message}
         type={alertModal.type}
         onConfirm={alertModal.onConfirm}
+        mode="auto"
       />
 
       {/* Confirm Modal */}
@@ -2249,6 +2250,7 @@ export default function HTSFormManagement() {
         message={confirmModal.message}
         confirmText={confirmModal.confirmText}
         cancelText={confirmModal.cancelText}
+        mode="auto"
       />
     </>
   );

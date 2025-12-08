@@ -1,0 +1,52 @@
+"use client";
+
+import ModalShell from "@/components/modals/ModalShell";
+import Button from "@/components/ui/Button";
+import { IoArchiveOutline } from "react-icons/io5";
+
+export default function ArchiveEventConfirmModal({
+  isOpen,
+  eventTitle,
+  onCancel,
+  onConfirm,
+  isSubmitting = false,
+  mode = "auto",
+}) {
+  const footer = (
+    <div className="flex w-full justify-between gap-3">
+      <Button variant="ghost" onClick={onCancel} disabled={isSubmitting} mode={mode} className="flex-1">
+        Keep event
+      </Button>
+      <Button variant="primary" onClick={onConfirm} disabled={isSubmitting} mode={mode} className="flex-1 bg-amber-500 hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500 text-white">
+        {isSubmitting ? "Archiving..." : "Archive event"}
+      </Button>
+    </div>
+  );
+
+  return (
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onCancel}
+      mode={mode}
+      title="Archive event"
+      description="This will archive the event for reference and remove it from live listings, but records will be retained for reporting."
+      footer={footer}
+      role="alertdialog"
+    >
+      <div className="space-y-4 text-sm text-gray-600 dark:text-gray-300">
+        <p>
+          You are about to archive <strong>{eventTitle}</strong>. Volunteers will
+          no longer be able to register for this event, and it will be moved to
+          your archived events list.
+        </p>
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800 dark:border-amber-500 dark:bg-amber-900/30 dark:text-amber-100">
+          <IoArchiveOutline className="mt-0.5 text-lg" />
+          <p>
+            This action is reversible — you can publish the event again if you
+            need to restore it.
+          </p>
+        </div>
+      </div>
+    </ModalShell>
+  );
+}

@@ -14,14 +14,13 @@ async function initPool() {
     database: CONFIG.DB_NAME,
     waitForConnections: true,
     connectionLimit: CONFIG.DB_CONN_LIMIT,
-    queueLimit: 0,
-    timezone: "+08:00", // Force UTC+8 timezone (Asia/Manila, Singapore, etc.)
+    // Auto-reconnect on connection errors — handled at initPool level instead of pool option
     // Connection resilience
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000, // 10 seconds
     connectTimeout: 10000, // 10 seconds
     // Auto-reconnect on connection errors
-    maxRetries: 3,
+    // NOTE: maxRetries is not a supported option for mysql2 connections and will throw in future versions.
   });
 
   try {

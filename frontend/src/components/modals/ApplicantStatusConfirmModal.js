@@ -1,4 +1,5 @@
 import ModalShell from "./ModalShell";
+import Button from "@/components/ui/Button";
 
 export default function ApplicantStatusConfirmModal({
   isOpen,
@@ -7,33 +8,25 @@ export default function ApplicantStatusConfirmModal({
   onConfirm,
   onCancel,
   busy,
+  mode = "auto",
 }) {
   if (!isOpen) return null;
 
   return (
     <ModalShell
       isOpen={isOpen}
+      mode={mode}
       title="Confirm status change"
       description={`This will notify admins and update ${applicantName}&rsquo;s workflow immediately.`}
       onClose={onCancel}
       footer={
         <>
-          <button
-            type="button"
-            className="btn btn-outline"
-            onClick={onCancel}
-            disabled={busy}
-          >
+          <Button variant="ghost" onClick={onCancel} disabled={busy} mode={mode}>
             Cancel
-          </button>
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={onConfirm}
-            disabled={busy}
-          >
+          </Button>
+          <Button variant="primary" onClick={onConfirm} disabled={busy} mode={mode}>
             {busy ? "Updating" : "Yes, update"}
-          </button>
+          </Button>
         </>
       }
     >

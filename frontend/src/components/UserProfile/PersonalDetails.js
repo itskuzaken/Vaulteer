@@ -148,8 +148,26 @@ export default function PersonalDetails({ profile, isEditing, editedData, onChan
             <input
               type="tel"
               value={editedData?.mobile_number || ''}
-              onChange={(e) => handleChange('mobile_number', e.target.value)}
-              placeholder="09XX-XXX-XXXX"
+              onChange={(e) => {
+                // Allow only digits and an optional leading '+'; remove letters
+                let v = e.target.value;
+                const hasPlus = v.startsWith('+');
+                // Remove everything except digits
+                const digitsOnly = v.replace(/[^0-9]/g, '');
+                if (hasPlus) {
+                  // For plus-prefixed numbers: +639XXXXXXXXX (13 chars total)
+                  const limited = digitsOnly.slice(0, 12); // '63' + 10 digits
+                  handleChange('mobile_number', `+${limited}`.slice(0, 13));
+                } else {
+                  // Local numbers up to 11 digits: 09XXXXXXXXX
+                  const limited = digitsOnly.slice(0, 11);
+                  handleChange('mobile_number', limited);
+                }
+              }}
+              inputMode="tel"
+              pattern="^\+?\d*$"
+              maxLength={13}
+              placeholder="09123456789 or +639123456789"
               className="mt-1 w-full px-3 py-2 sm:py-2.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm sm:text-base text-gray-900 dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent min-h-[44px]"
               required
             />

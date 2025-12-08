@@ -14,7 +14,7 @@ export const EVENT_STATUS_TABS = [
     label: "Published",
     description: "Live events open for volunteer registration.",
     icon: IoCheckmarkDoneOutline,
-    managerActions: ["postpone", "archive", "delete"],
+    managerActions: ["postpone", "archive", "edit", "cancel"],
     emptyState: {
       message: "There are no published events right now.",
     },
@@ -25,7 +25,7 @@ export const EVENT_STATUS_TABS = [
     label: "Postponed",
     description: "Events paused until a new schedule is announced.",
     icon: IoPauseOutline,
-    managerActions: ["resume", "delete"],
+    managerActions: ["resume", "archive", "edit", "cancel"],
     emptyState: {
       title: "No postponed events",
       message: "Postponed events will appear here when you pause a live event.",
@@ -37,7 +37,7 @@ export const EVENT_STATUS_TABS = [
     label: "Drafts",
     description: "Saved events that still need publishing.",
     icon: IoConstructOutline,
-    managerActions: ["publish", "delete"],
+    managerActions: ["publish", "edit", "delete"],
     emptyState: {
       title: "No drafts yet",
       message: "Create an event draft to see it appear in this list.",
@@ -49,7 +49,7 @@ export const EVENT_STATUS_TABS = [
     label: "Archived",
     description: "Completed and retired events kept for reference.",
     icon: IoArchiveOutline,
-    managerActions: ["publish", "delete"],
+    managerActions: ["publish", "edit", "delete"],
     emptyState: {
       title: "No archived events",
       message: "Archive a finished event to keep it for reporting.",
@@ -73,7 +73,7 @@ export const EVENT_STATUS_TABS = [
     label: "Completed",
     description: "Events that successfully wrapped up.",
     icon: IoDocumentTextOutline,
-    managerActions: ["archive"],
+    managerActions: [],
     emptyState: {
       title: "No completed events",
       message:

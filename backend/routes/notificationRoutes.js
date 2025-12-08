@@ -47,8 +47,10 @@ router.get("/", authenticate, async (req, res) => {
         is_read,
         action_url,
         metadata,
-        CONVERT_TZ(created_at, '+00:00', '+08:00') as created_at,
-        CONVERT_TZ(read_at, '+00:00', '+08:00') as read_at
+        DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as created_at,
+        DATE_FORMAT(CONVERT_TZ(created_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as created_at_local,
+        DATE_FORMAT(CONVERT_TZ(read_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as read_at,
+        DATE_FORMAT(CONVERT_TZ(read_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as read_at_local
       FROM notifications
       WHERE user_id = ?
     `;

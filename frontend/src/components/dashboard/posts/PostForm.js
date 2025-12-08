@@ -178,7 +178,6 @@ export default function PostForm({
       };
 
       await onSaveDraft?.(payload);
-      notify?.push("Draft saved successfully", "success");
     } catch (error) {
       console.error("Error saving draft:", error);
       notify?.push(error.message || "Failed to save draft", "error");
@@ -203,12 +202,6 @@ export default function PostForm({
       };
 
       await onPublish?.(payload);
-      notify?.push(
-        isScheduled
-          ? "Post scheduled successfully"
-          : "Post published successfully",
-        "success"
-      );
     } catch (error) {
       console.error("Error publishing post:", error);
       notify?.push(error.message || "Failed to publish post", "error");

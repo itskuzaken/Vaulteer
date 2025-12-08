@@ -2,7 +2,25 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { convert } from 'html-to-text';
+// Browser-safe HTML->text conversion. We avoid the 'html-to-text' package
+// which may not be available in the client bundle.
+const htmlToPlainText = (html) => {
+  if (!html) return "";
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    // Remove images entirely
+    doc.querySelectorAll('img').forEach((img) => img.remove());
+    // Anchors: keep the text content but ignore href (no additional text)
+    // (No-op because textContent already represents anchor text)
+    const text = doc.body ? doc.body.textContent || '' : '';
+    // Collapse whitespace like 'html-to-text' usually does
+    return text.replace(/\s+/g, ' ').trim();
+  } catch (err) {
+    // Fallback: strip tags with a simple regex (best-effort)
+    return (html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+};
 import {
   IoArrowBackOutline,
   IoDocumentTextOutline,
@@ -31,7 +49,8 @@ import { normalizeAttachmentUrl } from "../../../config/config";
  * @param {Object} props.initialData - Initial form data (for edit mode)
  * @param {Function} props.onSaveDraft - Callback for saving draft
  * @param {Function} props.onPublish - Callback for publishing
- * @param {Function} props.onBack - Callback for back button
+ * @param {Function} props.>JY^&*}<(op89[]\i7
+ * 'u6;) - Callback for back button
  */
 export default function PostForm({
   mode = "create",
@@ -82,13 +101,7 @@ export default function PostForm({
 
     // Validate actual text content, not HTML tags
     if (formData.content) {
-      const plainText = convert(formData.content, {
-        wordwrap: false,
-        selectors: [
-          { selector: 'img', format: 'skip' },
-          { selector: 'a', options: { ignoreHref: true } },
-        ],
-      }).trim();
+      const plainText = htmlToPlainText(formData.content).trim();
 
       if (plainText.length < 50) {
         newErrors.content = `Content must be at least 50 characters (currently ${plainText.length})`;
@@ -221,7 +234,6 @@ export default function PostForm({
       };
 
       await onSaveDraft?.(payload);
-      notify?.push("Draft saved successfully", "success");
     } catch (error) {
       console.error("Error saving draft:", error);
       notify?.push(error.message || "Failed to save draft", "error");
@@ -246,12 +258,6 @@ export default function PostForm({
       };
 
       await onPublish?.(payload);
-      notify?.push(
-        isScheduled
-          ? "Post scheduled successfully"
-          : "Post published successfully",
-        "success"
-      );
     } catch (error) {
       console.error("Error publishing post:", error);
       notify?.push(error.message || "Failed to publish post", "error");

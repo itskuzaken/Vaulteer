@@ -11,6 +11,20 @@ const {
   getApplicantStatusHistory,
   createApplicantWithProfile,
 } = require("../repositories/applicantRepository");
+const {
+  isValidName,
+  isValidMiddleInitial,
+  isValidMobile,
+  normalizeMobile,
+  isNotFutureDate,
+  isValidGraduation,
+  isValidSmallText,
+  isValidSocialUrl,
+  isValidCity,
+  isAlpha,
+  countSentences,
+  isSentenceCountInRange,
+} = require("../utils/formValidators");
 const { getPool } = require("../db/pool");
 const applicationSettingsRepository = require("../repositories/applicationSettingsRepository");
 
@@ -94,6 +108,59 @@ router.post(
       return res.status(400).json({
         error: "Declaration of commitment must be agreed to",
       });
+    }
+
+    // If gender is Other, require genderOther and ensure it contains letters only
+    if (form.gender === "Other") {
+      if (!form.genderOther || !form.genderOther.trim()) {
+        return res.status(400).json({
+          error: "Please specify gender when 'Other' is selected",
+          fields: ["genderOther"],
+        });
+      }
+      if (!isAlpha(form.genderOther)) {
+        return res.status(400).json({
+          error: "Gender (Other) must contain only letters",
+          fields: ["genderOther"],
+        });
+      }
+    }
+
+    // Additional format validations
+    const formatErrors = [];
+    if (!isValidName(form.firstName)) formatErrors.push('firstName');
+    if (!isValidName(form.lastName)) formatErrors.push('lastName');
+    if (form.middleInitial && !isValidMiddleInitial(form.middleInitial)) formatErrors.push('middleInitial');
+    if (!isNotFutureDate(form.birthdate)) formatErrors.push('birthdate');
+    if (!isValidMobile(form.mobileNumber)) formatErrors.push('mobileNumber');
+    if (form.facebook && !isValidSocialUrl(form.facebook,'facebook')) formatErrors.push('facebook');
+    if (form.twitter && !isValidSocialUrl(form.twitter,'twitter')) formatErrors.push('twitter');
+    if (form.instagram && !isValidSocialUrl(form.instagram,'instagram')) formatErrors.push('instagram');
+    if (form.tiktok && !isValidSocialUrl(form.tiktok,'tiktok')) formatErrors.push('tiktok');
+    if (form.graduation && !isValidGraduation(form.graduation)) formatErrors.push('graduation');
+    if (!isValidCity(form.city)) formatErrors.push('city');
+    if (form.position && !isValidSmallText(form.position,100)) formatErrors.push('position');
+    if (form.industry && !isValidSmallText(form.industry,100)) formatErrors.push('industry');
+    if (form.volunteerReason && !isValidSmallText(form.volunteerReason,600)) formatErrors.push('volunteerReason');
+    if (form.volunteerReason && !isSentenceCountInRange(form.volunteerReason,5,10)) formatErrors.push('volunteerReason_sentence_count');
+
+    if (formatErrors.length > 0) {
+      // Provide a clearer message when the sentence count fails on volunteer reason
+      if (formatErrors.includes('volunteerReason_sentence_count')) {
+        return res.status(400).json({
+          error: 'Volunteer reason must be between 5 and 10 sentences',
+          fields: ['volunteerReason'],
+        });
+      }
+      return res.status(400).json({
+        error: 'Invalid form field format',
+        fields: formatErrors,
+      });
+    }
+
+    // Normalize mobile number before saving
+    if (form.mobileNumber) {
+      form.mobileNumber = normalizeMobile(form.mobileNumber);
     }
 
     try {

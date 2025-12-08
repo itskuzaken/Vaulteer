@@ -17,6 +17,7 @@ export default function EventCard({
   onClick,
   managerActions = [],
   contextFooter,
+  
 }) {
   const isClickable = typeof onClick === "function";
 
@@ -117,7 +118,7 @@ export default function EventCard({
               {formatEventType(event.event_type)}
             </span>
             <span className="text-xs font-semibold uppercase tracking-[0.2em] sm:tracking-[0.3em] text-gray-400 dark:text-gray-500 truncate">
-              {formatDate(event.start_datetime)}
+              {formatDate(event.start_datetime_local || event.start_datetime)}
             </span>
           </div>
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white line-clamp-2">
@@ -134,8 +135,8 @@ export default function EventCard({
           <div className="flex items-center gap-2">
             <IoTimeOutline className="text-base sm:text-lg flex-shrink-0" />
             <span className="truncate">
-              {formatTime(event.start_datetime)} -{" "}
-              {formatTime(event.end_datetime)}
+              {formatTime(event.start_datetime_local || event.start_datetime)} -{" "}
+              {formatTime(event.end_datetime_local || event.end_datetime)}
             </span>
           </div>
           {event.location && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useDashboardUser } from "@/hooks/useDashboardUser";
 import { joinEvent, leaveEvent } from "../../services/eventService";
 import { useNotify } from "../ui/NotificationProvider";
 
@@ -16,6 +17,10 @@ export default function JoinEventButton({
   );
   const [isLoading, setIsLoading] = useState(false);
   const notify = useNotify();
+  const { user: dashboardUser } = useDashboardUser();
+  const dashboardRole = (dashboardUser?.role || "").toLowerCase();
+  const isAdmin = dashboardRole === "admin";
+  const isStaff = dashboardRole === "staff";
 
   useEffect(() => {
     if (initialParticipationStatus !== undefined) {
@@ -97,8 +102,10 @@ export default function JoinEventButton({
 
   // Check if event has already started or completed
   const eventStarted = new Date(event.start_datetime) < new Date();
+  const eventEnded =
+    event.end_datetime && new Date(event.end_datetime) < new Date();
   const eventCompleted =
-    event.status === "completed" || event.status === "archived";
+    event.status === "completed" || event.status === "archived" || eventEnded;
 
   if (eventCompleted) {
     return (
@@ -157,17 +164,30 @@ export default function JoinEventButton({
   }
 
   // Not registered or waitlisted - allow joining
+  const joinDisabled = isLoading || isAdmin || isStaff || eventStarted || eventCompleted;
+  const joinLabel = isLoading
+    ? "Processing..."
+    : eventCompleted
+    ? "Event Completed"
+    : eventStarted
+    ? "Already Started"
+    : isFull
+    ? "Join Waitlist"
+    : "Join Event";
+
+  const joinButtonClass = isAdmin || isStaff || eventStarted
+    ? "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400 cursor-not-allowed"
+    : isFull
+    ? "bg-amber-500 text-white"
+    : "bg-[var(--primary-red)] hover:bg-red-700 text-white";
+
   return (
     <button
       onClick={handleJoin}
-      disabled={isLoading}
-      className={`w-full px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-        isFull
-          ? "bg-amber-500 hover:bg-amber-600 text-white"
-          : "bg-[var(--primary-red)] hover:bg-red-700 text-white"
-      }`}
+      disabled={joinDisabled}
+      className={`w-full px-4 py-2 rounded-lg text-sm font-medium ${joinButtonClass}`}
     >
-      {isLoading ? "Processing..." : isFull ? "Join Waitlist" : "Join Event"}
+      {joinLabel}
     </button>
   );
 }

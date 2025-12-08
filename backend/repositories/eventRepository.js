@@ -1,4 +1,5 @@
 const { getPool } = require("../db/pool");
+const { convertUtcIsoToPlus8Input, convertUtcIsoToPlus8Friendly } = require('../utils/datetime');
 const { v4: uuidv4 } = require("uuid");
 
 function parseTags(tagsValue) {
@@ -237,13 +238,18 @@ class EventRepository {
       `SELECT 
         e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
         e.location, e.location_type,
-        CONVERT_TZ(e.start_datetime, '+00:00', '+08:00') as start_datetime,
-        CONVERT_TZ(e.end_datetime, '+00:00', '+08:00') as end_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as start_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as start_datetime_local,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as end_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as end_datetime_local,
         e.max_participants, e.min_participants, e.image_url,
         e.tags, e.created_by_user_id,
-        CONVERT_TZ(e.created_at, '+00:00', '+08:00') as created_at,
-        CONVERT_TZ(e.updated_at, '+00:00', '+08:00') as updated_at,
-        CONVERT_TZ(e.archived_at, '+00:00', '+08:00') as archived_at,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as created_at,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as created_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as updated_at,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as updated_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as archived_at,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as archived_at_local,
         u.name as created_by_name,
         u.email as created_by_email,
         (SELECT COUNT(*) FROM event_participants ep 
@@ -260,6 +266,15 @@ class EventRepository {
 
     const event = rows[0];
     event.tags = parseTags(event.tags);
+    // Add local +08 representations for convenience in the UI
+    try {
+      event.start_datetime_local = convertUtcIsoToPlus8Input(event.start_datetime);
+      event.end_datetime_local = convertUtcIsoToPlus8Input(event.end_datetime);
+      event.start_datetime_local_friendly = convertUtcIsoToPlus8Friendly(event.start_datetime);
+      event.end_datetime_local_friendly = convertUtcIsoToPlus8Friendly(event.end_datetime);
+    } catch (e) {
+      // ignore conversion errors
+    }
     return event;
   }
 
@@ -279,13 +294,18 @@ class EventRepository {
       SELECT 
         e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
         e.location, e.location_type,
-        CONVERT_TZ(e.start_datetime, '+00:00', '+08:00') as start_datetime,
-        CONVERT_TZ(e.end_datetime, '+00:00', '+08:00') as end_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as start_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as start_datetime_local,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as end_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as end_datetime_local,
         e.max_participants, e.min_participants, e.image_url,
         e.tags, e.created_by_user_id,
-        CONVERT_TZ(e.created_at, '+00:00', '+08:00') as created_at,
-        CONVERT_TZ(e.updated_at, '+00:00', '+08:00') as updated_at,
-        CONVERT_TZ(e.archived_at, '+00:00', '+08:00') as archived_at,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as created_at,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as created_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as updated_at,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as updated_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as archived_at,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as archived_at_local,
         u.name as created_by_name,
         (SELECT COUNT(*) FROM event_participants ep 
          WHERE ep.event_id = e.event_id AND ep.status = 'registered') as participant_count,
@@ -307,6 +327,12 @@ class EventRepository {
 
     const events = rows.map((event) => {
       event.tags = parseTags(event.tags);
+      try {
+        event.start_datetime_local = convertUtcIsoToPlus8Input(event.start_datetime);
+        event.end_datetime_local = convertUtcIsoToPlus8Input(event.end_datetime);
+      } catch (e) {
+        // ignore
+      }
       return event;
     });
 
@@ -332,13 +358,18 @@ class EventRepository {
       `SELECT 
         e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
         e.location, e.location_type,
-        CONVERT_TZ(e.start_datetime, '+00:00', '+08:00') as start_datetime,
-        CONVERT_TZ(e.end_datetime, '+00:00', '+08:00') as end_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as start_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as start_datetime_local,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as end_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as end_datetime_local,
         e.max_participants, e.min_participants, e.image_url,
         e.tags, e.created_by_user_id,
-        CONVERT_TZ(e.created_at, '+00:00', '+08:00') as created_at,
-        CONVERT_TZ(e.updated_at, '+00:00', '+08:00') as updated_at,
-        CONVERT_TZ(e.archived_at, '+00:00', '+08:00') as archived_at,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as created_at,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as created_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as updated_at,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as updated_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as archived_at,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as archived_at_local,
         u.name as created_by_name,
         (SELECT COUNT(*) FROM event_participants ep 
          WHERE ep.event_id = e.event_id AND ep.status = 'registered') as participant_count,
@@ -353,10 +384,14 @@ class EventRepository {
       [limit]
     );
 
-    return rows.map((event) => ({
-      ...event,
-      tags: parseTags(event.tags),
-    }));
+    return rows.map((event) => {
+      event.tags = parseTags(event.tags);
+      try {
+        event.start_datetime_local = convertUtcIsoToPlus8Input(event.start_datetime);
+        event.end_datetime_local = convertUtcIsoToPlus8Input(event.end_datetime);
+      } catch (e) {}
+      return event;
+    });
   }
 
   // ============================================
@@ -364,62 +399,76 @@ class EventRepository {
   // ============================================
 
   async registerParticipant(eventUid, userId) {
-    // Get event details
-    const event = await this.getEventByUid(eventUid);
-    if (!event) {
-      throw new Error("Event not found");
-    }
+    // Use a DB transaction to prevent race conditions during capacity checks and registration
+    const pool = getPool();
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
 
-    // Check if already registered
-    const exists = await this.checkParticipantExists(eventUid, userId);
-    if (exists) {
-      throw new Error("Already registered for this event");
-    }
+      // Lock event row
+      const [[eventRow]] = await conn.execute(
+        `SELECT event_id, max_participants FROM events WHERE uid = ? FOR UPDATE`,
+        [eventUid]
+      );
+      if (!eventRow) {
+        throw new Error("Event not found");
+      }
 
-    // Check if user has a historical participation record
-    const [historicalRows] = await getPool().execute(
-      `SELECT participant_id, status FROM event_participants 
-       WHERE event_id = ? AND user_id = ?
-       LIMIT 1`,
-      [event.event_id, userId]
-    );
+      const eventId = eventRow.event_id;
 
-    // Check capacity
-    const isFull = await this.checkEventCapacity(eventUid);
-    const status = isFull ? "waitlisted" : "registered";
+      // Check if already registered
+      const [existingRows] = await conn.execute(
+        `SELECT 1 FROM event_participants WHERE event_id = ? AND user_id = ? AND status IN ('registered','waitlisted') LIMIT 1`,
+        [eventId, userId]
+      );
+      if (existingRows.length > 0) {
+        throw new Error("Already registered for this event");
+      }
 
-    if (historicalRows.length > 0) {
-      const historicalParticipant = historicalRows[0];
-      // Reactivate historical participation (e.g., after cancellation/no_show)
-      await getPool().execute(
-        `UPDATE event_participants 
-         SET status = ?,
-             registration_date = NOW(),
-             cancellation_date = NULL,
-             attendance_marked_at = NULL,
-             attendance_marked_by = NULL
-         WHERE participant_id = ?`,
-        [status, historicalParticipant.participant_id]
+      // Check historical participation
+      const [historicalRows] = await conn.execute(
+        `SELECT participant_id, status FROM event_participants WHERE event_id = ? AND user_id = ? LIMIT 1`,
+        [eventId, userId]
       );
 
-      return {
-        status,
-        message: isFull
-          ? "You were added back to the waitlist"
-          : "Welcome back! Your registration has been restored",
-      };
+      // Count registered participants
+      const [[countRow]] = await conn.execute(
+        `SELECT COUNT(*) AS registered FROM event_participants WHERE event_id = ? AND status = 'registered'`,
+        [eventId]
+      );
+
+      const registeredCount = countRow?.registered || 0;
+      const isFull = eventRow.max_participants ? registeredCount >= eventRow.max_participants : false;
+      const status = isFull ? 'waitlisted' : 'registered';
+
+      if (historicalRows.length > 0) {
+        const historicalParticipant = historicalRows[0];
+        await conn.execute(
+          `UPDATE event_participants SET status = ?, registration_date = NOW(), cancellation_date = NULL, attendance_marked_at = NULL, attendance_marked_by = NULL WHERE participant_id = ?`,
+          [status, historicalParticipant.participant_id]
+        );
+
+        await conn.commit();
+        return { status, message: isFull ? 'You were added back to the waitlist' : 'Welcome back! Your registration has been restored' };
+      }
+
+      await conn.execute(
+        `INSERT INTO event_participants (event_id, user_id, status) VALUES (?, ?, ?)`,
+        [eventId, userId, status]
+      );
+
+      await conn.commit();
+      return { status, message: isFull ? 'Added to waitlist' : 'Successfully registered' };
+    } catch (err) {
+      try {
+        await conn.rollback();
+      } catch (e) {
+        console.warn('Failed to rollback transaction in registerParticipant', e.message || e);
+      }
+      throw err;
+    } finally {
+      conn.release();
     }
-
-    await getPool().execute(
-      `INSERT INTO event_participants (event_id, user_id, status)
-       VALUES (?, ?, ?)`,
-      [event.event_id, userId, status]
-    );
-
-    return {
-      status,
-      message: isFull ? "Added to waitlist" : "Successfully registered",
-    };
   }
 
   async cancelParticipation(eventUid, userId) {
@@ -568,10 +617,14 @@ class EventRepository {
     query += " ORDER BY e.start_datetime ASC";
 
     const [rows] = await getPool().execute(query, params);
-    return rows.map((event) => ({
-      ...event,
-      tags: parseTags(event.tags),
-    }));
+    return rows.map((event) => {
+      event.tags = parseTags(event.tags);
+      try {
+        event.start_datetime_local = convertUtcIsoToPlus8Input(event.start_datetime);
+        event.end_datetime_local = convertUtcIsoToPlus8Input(event.end_datetime);
+      } catch (e) {}
+      return event;
+    });
   }
 
   async getUserParticipationSummary(userId) {
@@ -698,6 +751,30 @@ class EventRepository {
     return this.getEventByUid(eventUid);
   }
 
+  async cancelEvent(eventUid, userId, { reason = null } = {}) {
+    await getPool().execute(
+      `UPDATE events 
+       SET status = 'cancelled'
+       WHERE uid = ?`,
+      [eventUid]
+    );
+
+    // Optionally, record a cancellation update in event_updates for auditing
+    // We try not to fail the cancellation if this insert fails
+    try {
+      await getPool().execute(
+        `INSERT INTO event_updates (event_id, posted_by_user_id, update_type, title, message)
+         VALUES ((SELECT event_id FROM events WHERE uid = ?), ?, 'cancellation', ?, ?)`,
+        [eventUid, userId, 'Event cancelled', reason || 'Cancelled by manager']
+      );
+    } catch (err) {
+      // silent failure — don't let audit insert break cancellation
+      console.warn('Failed to insert event update for cancellation', err.message);
+    }
+
+    return this.getEventByUid(eventUid);
+  }
+
   async postponeEvent(
     eventUid,
     userId,
@@ -727,6 +804,15 @@ class EventRepository {
   async markEventAsCompleted(eventUid) {
     await getPool().execute(
       `UPDATE events SET status = 'completed' WHERE uid = ?`,
+      [eventUid]
+    );
+
+    return this.getEventByUid(eventUid);
+  }
+
+  async markEventAsOngoing(eventUid) {
+    await getPool().execute(
+      `UPDATE events SET status = 'ongoing' WHERE uid = ? AND status = 'published'`,
       [eventUid]
     );
 

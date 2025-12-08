@@ -1,6 +1,7 @@
 "use client";
 
 import ModalShell from "@/components/modals/ModalShell";
+import Button from "@/components/ui/Button";
 import { IoTrashOutline } from "react-icons/io5";
 
 export default function DeleteEventConfirmModal({
@@ -9,25 +10,16 @@ export default function DeleteEventConfirmModal({
   onCancel,
   onConfirm,
   isSubmitting = false,
+  mode = "auto",
 }) {
   const footer = (
     <div className="flex w-full justify-between gap-3">
-      <button
-        type="button"
-        className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:text-gray-200 dark:hover:bg-gray-800"
-        onClick={onCancel}
-        disabled={isSubmitting}
-      >
+      <Button variant="ghost" onClick={onCancel} disabled={isSubmitting} mode={mode} className="flex-1">
         Keep event
-      </button>
-      <button
-        type="button"
-        onClick={onConfirm}
-        className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={isSubmitting}
-      >
+      </Button>
+      <Button variant="danger" onClick={onConfirm} disabled={isSubmitting} mode={mode} className="flex-1">
         {isSubmitting ? "Deleting..." : "Delete event"}
-      </button>
+      </Button>
     </div>
   );
 
@@ -35,6 +27,7 @@ export default function DeleteEventConfirmModal({
     <ModalShell
       isOpen={isOpen}
       onClose={onCancel}
+      mode={mode}
       title="Delete event"
       description="This will permanently remove the event and its registrations."
       footer={footer}

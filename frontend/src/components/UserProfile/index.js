@@ -18,8 +18,8 @@ import {
   calculateProfileCompletion,
   deepClone,
   validateRequiredFields,
-  isValidPhone,
 } from "./ProfileUtils";
+import { normalizeMobile, isValidMobile } from "@/utils/formValidation";
 
 import ProfileHeader from "./ProfileHeader";
 import PersonalDetails from "./PersonalDetails";
@@ -202,14 +202,17 @@ export default function UserProfile() {
         );
       }
 
-      // Validate phone number
-      if (
-        editedPersonalProfile.mobile_number &&
-        !isValidPhone(editedPersonalProfile.mobile_number)
-      ) {
-        throw new Error(
-          "Invalid phone number format. Use: 09XX-XXX-XXXX or +639XXXXXXXXX"
-        );
+      // Validate phone number — normalize first and validate standard mobile format
+      if (editedPersonalProfile.mobile_number) {
+        const normalizedMobile = normalizeMobile(editedPersonalProfile.mobile_number);
+        // Use isValidMobile (normalized '09...' format) to validate
+        if (!isValidMobile(normalizedMobile)) {
+          throw new Error(
+            "Invalid phone number format. Use: 09XX-XXX-XXXX or +639XXXXXXXXX"
+          );
+        }
+        // Persist a normalized format for saving (e.g., 09123456789)
+        editedPersonalProfile.mobile_number = normalizedMobile;
       }
 
       // Save all sections in parallel

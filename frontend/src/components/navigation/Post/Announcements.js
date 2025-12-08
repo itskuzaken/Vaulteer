@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   IoAddCircleOutline,
@@ -38,6 +38,32 @@ function AnnouncementsContent({ onNavigate, currentUser }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeView, setActiveView] = useState("list");
   const [editingPost, setEditingPost] = useState(null);
+  const suppressEditEffect = useRef(false);
+  const clearEditParamAndSuppress = useCallback(() => {
+    try {
+      if (typeof window !== "undefined") {
+        const url = new URL(window.location.href);
+        let changed = false;
+        if (url.searchParams.has("editPostUid")) {
+          url.searchParams.delete("editPostUid");
+          changed = true;
+        }
+        if (url.searchParams.has("postUid")) {
+          url.searchParams.delete("postUid");
+          changed = true;
+        }
+        if (changed) {
+          router.replace(url.pathname + url.search);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to update URL after navigating back from edit", err);
+    }
+    suppressEditEffect.current = true;
+    setTimeout(() => {
+      suppressEditEffect.current = false;
+    }, 0);
+  }, [router]);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null);
   const [modalSubmitting, setModalSubmitting] = useState(false);
@@ -46,7 +72,7 @@ function AnnouncementsContent({ onNavigate, currentUser }) {
   // Check for editPostUid parameter and fetch post for editing
   useEffect(() => {
     const editPostUid = searchParams.get("editPostUid");
-    if (editPostUid && !editingPost) {
+    if (editPostUid && !editingPost && !suppressEditEffect.current) {
       getPostByUid(editPostUid)
         .then((post) => {
           if (post && post.post_type === "announcement") {
@@ -77,7 +103,7 @@ function AnnouncementsContent({ onNavigate, currentUser }) {
 
   const triggerRefresh = useCallback(() => {
     setRefreshToken((prev) => prev + 1);
-  }, []);
+  }, [router]);
 
   const runInlineMutation = useCallback(
     async (postUid, mutation, successMessage) => {
@@ -119,11 +145,13 @@ function AnnouncementsContent({ onNavigate, currentUser }) {
       router.push(detailPath);
     }
   }, [router]);
+  
 
   const handleBackToList = useCallback(() => {
+    clearEditParamAndSuppress();
     setActiveView("list");
     setEditingPost(null);
-  }, []);
+  }, [clearEditParamAndSuppress]);
 
   const handleArchive = useCallback(
     (post) =>
@@ -206,6 +234,7 @@ function AnnouncementsContent({ onNavigate, currentUser }) {
           notify?.push("Draft updated successfully", "success");
         }
         triggerRefresh();
+        clearEditParamAndSuppress();
         handleBackToList();
       } catch (error) {
         notify?.push(error?.message || "Failed to save draft", "error");
@@ -229,6 +258,7 @@ function AnnouncementsContent({ onNavigate, currentUser }) {
           notify?.push("Announcement published successfully", "success");
         }
         triggerRefresh();
+        clearEditParamAndSuppress();
         handleBackToList();
       } catch (error) {
         notify?.push(error?.message || "Failed to publish announcement", "error");

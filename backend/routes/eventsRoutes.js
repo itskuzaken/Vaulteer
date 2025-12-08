@@ -112,6 +112,14 @@ router.post(
   eventsController.archiveEvent
 );
 
+// Cancel event
+router.post(
+  "/:uid/cancel",
+  authenticate,
+  authorizeRoles("admin", "staff"),
+  eventsController.cancelEvent
+);
+
 // Get event statistics
 router.get(
   "/:uid/stats",

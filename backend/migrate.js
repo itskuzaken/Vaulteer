@@ -5,46 +5,111 @@
  * Example: node migrate.js migrations/20251201_initialize_notification_system.sql
  */
 
-const fs = require("fs");
-const path = require("path");
-const { initPool } = require("./db/pool");
+    // Robustly split SQL into statements while handling semicolons inside quotes/backticks
+    function splitStatements(sqlText) {
+      const statements = [];
+      let cur = "";
+      let inSingle = false;
+      let inDouble = false;
+      let inBacktick = false;
+      for (let i = 0; i < sqlText.length; i++) {
+        const ch = sqlText[i];
+        const prev = i > 0 ? sqlText[i - 1] : null;
+        if (ch === "'" && prev !== "\\" && !inDouble && !inBacktick) {
+          inSingle = !inSingle;
+          cur += ch;
+          continue;
+        }
+        if (ch === '"' && prev !== "\\" && !inSingle && !inBacktick) {
+          inDouble = !inDouble;
+          cur += ch;
+          continue;
+        }
+        if (ch === "`" && prev !== "\\" && !inSingle && !inDouble) {
+          inBacktick = !inBacktick;
+          cur += ch;
+          continue;
+        }
 
-async function runMigration(sqlFilePath) {
-  const pool = await initPool();
+        if (ch === ";" && !inSingle && !inDouble && !inBacktick) {
+          const stmt = cur.trim();
+          if (stmt.length > 0) statements.push(stmt);
+          cur = "";
+          continue;
+        }
 
-  try {
-    // Resolve the file path
-    const fullPath = path.resolve(__dirname, sqlFilePath);
-
-    // Check if file exists
-    if (!fs.existsSync(fullPath)) {
-      throw new Error(`Migration file not found: ${fullPath}`);
+        cur += ch;
+      }
+      const last = cur.trim();
+      if (last.length > 0) statements.push(last);
+      return statements;
     }
 
-    console.log(`\n📄 Reading migration file: ${sqlFilePath}`);
-    const sql = fs.readFileSync(fullPath, "utf8");
-
-    // Split SQL into individual statements (handle multi-statement files)
-    let statements = sql.split(/;\s*\n/);
-    // Clean each statement by removing comment lines and trimming
-    statements = statements
-      .map((stmt) => {
-        // Remove single-line comments (lines starting with --) and inline block comments
-        const lines = stmt.split(/\r?\n/);
-        const cleanedLines = lines.filter(line => {
-          const t = line.trim();
-          return t.length > 0 && !t.startsWith('--') && !t.startsWith('/*') && !t.startsWith('*') && !t.endsWith('*/');
-        });
-        return cleanedLines.join('\n').trim();
-      })
-      .filter((stmt) => {
-        // Remove empty statements and SQL statements that should be skipped
+    const statements = splitStatements(sql).map((stmt) => {
+      // Clean each statement by removing comment lines and trimming
+      const lines = stmt.split(/\r?\n/);
+      const cleanedLines = lines.filter((line) => {
+        const t = line.trim();
         return (
-          stmt.length > 0 &&
-          !stmt.match(/^USE\s+/i) && // Skip USE statements (pool already connected)
-          !stmt.match(/^SET\s+@/i) // Skip variable declarations that aren't queries
+          t.length > 0 &&
+          !t.startsWith("--") &&
+          !t.startsWith("/*") &&
+          !t.startsWith("*") &&
+          !t.endsWith("*/")
         );
       });
+      return cleanedLines.join("\n").trim();
+    }).filter((stmt) => {
+      // Remove empty statements and SQL statements that should be skipped
+      return (
+        stmt.length > 0 &&
+        !stmt.match(/^USE\s+/i) && // Skip USE statements (pool already connected)
+        !stmt.match(/^SET\s+@/i) // Skip variable declarations that aren't queries
+      );
+    });
+      let inDouble = false;
+      let inBacktick = false;
+      for (let i = 0; i < sqlText.length; i++) {
+        const ch = sqlText[i];
+        const prev = i > 0 ? sqlText[i - 1] : null;
+        if (ch === "'" && prev !== "\\" && !inDouble && !inBacktick) {
+          inSingle = !inSingle;
+          cur += ch;
+          continue;
+        }
+        if (ch === '"' && prev !== "\\" && !inSingle && !inBacktick) {
+          inDouble = !inDouble;
+          cur += ch;
+          continue;
+        }
+        if (ch === "`" && prev !== "\\" && !inSingle && !inDouble) {
+          inBacktick = !inBacktick;
+          cur += ch;
+          continue;
+        }
+
+        if (ch === ";" && !inSingle && !inDouble && !inBacktick) {
+          const stmt = cur.trim();
+          if (stmt.length > 0) statements.push(stmt);
+          cur = "";
+          continue;
+        }
+
+        cur += ch;
+      }
+      const last = cur.trim();
+      if (last.length > 0) statements.push(last);
+      return statements;
+    }
+
+    const statements = splitStatements(sql).filter((stmt) => {
+      // Remove empty statements and SQL comments as well as USE statements
+      const s = stmt.trim();
+      return (
+        s.length > 0 && !s.startsWith("--") && !s.startsWith("/*") && !s.match(/^USE\s+/i)
+      );
+    });
+>>>>>>> origin/branch-alyana
 
     console.log(`\n🔄 Executing ${statements.length} SQL statements...\n`);
 
@@ -72,12 +137,18 @@ async function runMigration(sqlFilePath) {
         // Handle different types of results
         if (Array.isArray(result) && result.length > 0) {
           // SELECT query - show results
-          if (result.length <= 10) {
-            console.table(result);
-          } else {
+          try {
+            if (result.length <= 10) {
+              console.table(result);
+            } else {
+              console.log(`✅ Returned ${result.length} rows`);
+              console.table(result.slice(0, 5));
+              console.log(`... and ${result.length - 5} more rows`);
+            }
+          } catch (e) {
+            // Fallback to JSON if console.table fails for unexpected data shapes
             console.log(`✅ Returned ${result.length} rows`);
-            console.table(result.slice(0, 5));
-            console.log(`... and ${result.length - 5} more rows`);
+            console.log(JSON.stringify(result.slice(0, 5), null, 2));
           }
         } else if (result.affectedRows !== undefined) {
           // INSERT/UPDATE/DELETE query

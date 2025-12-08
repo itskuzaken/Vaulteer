@@ -9,6 +9,8 @@ export default function EventDetailsContent({ currentUser, onNavigate }) {
   const notify = useNotify();
   const searchParams = useSearchParams();
   const eventUid = searchParams.get("eventUid");
+  const initialEdit = searchParams.get("edit") === "true";
+  const initialCancel = searchParams.get("cancel") === "true";
   const normalizedRole = (currentUser?.role || "volunteer").toLowerCase();
   const fallbackContent =
     normalizedRole === "admin" || normalizedRole === "staff"
@@ -34,5 +36,12 @@ export default function EventDetailsContent({ currentUser, onNavigate }) {
     return null;
   }
 
-  return <EventDetailsPage eventUid={eventUid} currentUser={currentUser} />;
+  return (
+    <EventDetailsPage
+      eventUid={eventUid}
+      currentUser={currentUser}
+      initialEdit={initialEdit}
+      initialCancel={initialCancel}
+    />
+  );
 }

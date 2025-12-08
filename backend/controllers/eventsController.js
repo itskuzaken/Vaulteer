@@ -2,6 +2,7 @@ const eventRepository = require("../repositories/eventRepository");
 const gamificationService = require("../services/gamificationService");
 const { GAMIFICATION_ACTIONS } = require("../config/gamificationRules");
 const { logHelpers } = require("../services/activityLogService");
+const { getPool } = require("../db/pool");
 const notificationService = require("../services/notificationService");
 
 class EventsController {
@@ -14,9 +15,12 @@ class EventsController {
       const eventData = req.body;
       const createdByUserId = req.currentUserId;
 
-      // Validate dates
-      const startDate = new Date(eventData.start_datetime);
-      const endDate = new Date(eventData.end_datetime);
+      const { parseToUtcIso, isPastInPlus8 } = require('../utils/datetime');
+      // Validate dates (treat incoming datetimes as +08 if no timezone specified)
+      const startUtcIso = parseToUtcIso(eventData.start_datetime);
+      const endUtcIso = parseToUtcIso(eventData.end_datetime);
+      const startDate = new Date(startUtcIso);
+      const endDate = new Date(endUtcIso);
 
       if (endDate <= startDate) {
         return res.status(400).json({
@@ -24,11 +28,17 @@ class EventsController {
           message: "End date must be after start date",
         });
       }
-
-      const event = await eventRepository.createEvent(
-        eventData,
-        createdByUserId
-      );
+      // Ensure start date is not in the past (relative to now in +08)
+      if (isPastInPlus8(eventData.start_datetime)) {
+        return res.status(400).json({
+          success: false,
+          message: "Start date cannot be in the past",
+        });
+      }
+      // Normalize datetimes as UTC ISO strings before store
+      eventData.start_datetime = startUtcIso;
+      eventData.end_datetime = endUtcIso;
+      const event = await eventRepository.createEvent(eventData, createdByUserId);
 
       // Log activity via centralized service
       await logHelpers.logEventCreated({
@@ -91,7 +101,16 @@ class EventsController {
       }
 
       // Only event creator can edit (use loose equality to handle type coercion)
-      if (existingEvent.created_by_user_id != userId) {
+      if (existingEvent.status === 'completed') {
+        return res.status(403).json({
+          success: false,
+          message: 'Cannot edit a completed event',
+        });
+      }
+
+      const role = (req.authenticatedUser?.role || '').toLowerCase();
+      const isAdminOrStaff = role === 'admin' || role === 'staff';
+      if (existingEvent.created_by_user_id != userId && !isAdminOrStaff) {
         console.log('[DEBUG] Creator check failed:', {
           existingEventCreatedBy: existingEvent.created_by_user_id,
           existingEventCreatedByType: typeof existingEvent.created_by_user_id,
@@ -100,14 +119,17 @@ class EventsController {
         });
         return res.status(403).json({
           success: false,
-          message: "Only the event creator can edit this event",
+          message: "Only the event creator or admin/staff can edit this event",
         });
       }
 
       // Validate dates if provided
+      const { parseToUtcIso, isPastInPlus8 } = require('../utils/datetime');
       if (updates.start_datetime && updates.end_datetime) {
-        const startDate = new Date(updates.start_datetime);
-        const endDate = new Date(updates.end_datetime);
+        const startUtcIso = parseToUtcIso(updates.start_datetime);
+        const endUtcIso = parseToUtcIso(updates.end_datetime);
+        const startDate = new Date(startUtcIso);
+        const endDate = new Date(endUtcIso);
 
         if (endDate <= startDate) {
           return res.status(400).json({
@@ -115,9 +137,37 @@ class EventsController {
             message: "End date must be after start date",
           });
         }
+        if (isPastInPlus8(updates.start_datetime)) {
+          return res.status(400).json({
+            success: false,
+            message: "Start date cannot be in the past",
+          });
+        }
+        // Normalize
+        updates.start_datetime = startUtcIso;
+        updates.end_datetime = endUtcIso;
       }
 
       const event = await eventRepository.updateEvent(uid, updates);
+
+      // If the event's capacity was increased, promote from waitlist if any
+      try {
+        if (updates.max_participants && Number(updates.max_participants) > Number(existingEvent.max_participants || 0)) {
+          // Try to promote until max is reached
+          while (true) {
+            const promoted = await eventRepository.promoteFromWaitlist(event.event_id);
+            if (!promoted) break;
+            // Notify promoted user
+            try {
+              await notificationService.notifyWaitlistPromotion(event, promoted.user_id);
+            } catch (e) {
+              console.error('Failed to notify promoted user', promoted.user_id, e.message || e);
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to auto-promote waitlist after capacity increase', err.message || err);
+      }
 
       if (!event) {
         return res.status(404).json({
@@ -245,6 +295,14 @@ class EventsController {
       const { uid } = req.params;
       const userId = req.currentUserId;
 
+      const existingEvent = await eventRepository.getEventByUid(uid);
+      if (!existingEvent) {
+        return res.status(404).json({ success: false, message: 'Event not found' });
+      }
+      if (existingEvent.status === 'completed') {
+        return res.status(400).json({ success: false, message: 'Cannot archive a completed event' });
+      }
+
       const event = await eventRepository.archiveEvent(uid, userId);
 
       if (!event) {
@@ -278,6 +336,66 @@ class EventsController {
     }
   }
 
+  async cancelEvent(req, res) {
+    try {
+      const { uid } = req.params;
+      const userId = req.currentUserId;
+
+      const event = await eventRepository.getEventByUid(uid);
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          message: "Event not found",
+        });
+      }
+      if (event.status === 'completed') {
+        return res.status(400).json({ success: false, message: 'Cannot cancel a completed event' });
+      }
+
+      const cancelledEvent = await eventRepository.cancelEvent(uid, userId);
+
+      if (!cancelledEvent) {
+        return res.status(500).json({
+          success: false,
+          message: "Failed to cancel event",
+        });
+      }
+
+      // Log event cancelled
+      await logHelpers.logEventCancelled({
+        eventId: cancelledEvent.event_id,
+        eventUid: cancelledEvent.uid,
+        eventTitle: cancelledEvent.title,
+        performedBy: req.authenticatedUser,
+        metadata: { reason: req.body?.reason || null },
+      });
+
+      // Notify participants that the event was cancelled (in-app + push + email)
+      try {
+        const participants = await eventRepository.getEventParticipants(uid);
+        const participantIds = (participants || []).map((p) => p.user_id);
+        if (participantIds.length > 0) {
+          await notificationService.notifyEventCancelled(cancelledEvent, participantIds);
+        }
+      } catch (notifErr) {
+        console.error("Failed to notify participants about cancellation:", notifErr);
+      }
+
+      res.json({
+        success: true,
+        message: "Event cancelled successfully",
+        data: cancelledEvent,
+      });
+    } catch (error) {
+      console.error("Cancel event error:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to cancel event",
+        error: error.message,
+      });
+    }
+  }
+
   async postponeEvent(req, res) {
     try {
       const { uid } = req.params;
@@ -290,6 +408,9 @@ class EventsController {
           success: false,
           message: "Event not found",
         });
+      }
+      if (existingEvent.status === 'completed') {
+        return res.status(400).json({ success: false, message: 'Cannot postpone a completed event' });
       }
 
       let postponedDate = null;
@@ -545,6 +666,11 @@ class EventsController {
           },
           dedupeSuffix: `promotion-${cancelResult.promotedParticipant.user_id}`,
         });
+        try {
+          await notificationService.notifyWaitlistPromotion(event, cancelResult.promotedParticipant.user_id);
+        } catch (e) {
+          console.warn('Failed to notify waitlist promotion for user', cancelResult.promotedParticipant.user_id, e.message || e);
+        }
       }
 
       res.json({
@@ -659,13 +785,25 @@ class EventsController {
         });
       }
 
-      const validStatuses = [
-        "registered",
-        "waitlisted",
-        "attended",
-        "cancelled",
-        "no_show",
-      ];
+      // Disallow editing completed events
+      if (event.status === 'completed') {
+        return res.status(403).json({
+          success: false,
+          message: 'Cannot edit a completed event',
+        });
+      }
+
+      // Allow event creator and admin/staff to edit participant status
+      const role = (req.authenticatedUser?.role || '').toLowerCase();
+      const isAdminOrStaff = role === 'admin' || role === 'staff';
+      if (!isAdminOrStaff && event.created_by_user_id != req.currentUserId) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not authorized to modify participant status',
+        });
+      }
+
+      const validStatuses = ["attended", "cancelled", "no_show"];
       if (!validStatuses.includes(status)) {
         return res.status(400).json({
           success: false,
@@ -695,7 +833,7 @@ class EventsController {
       let gamificationResult = null;
       if (status === "attended") {
         // Get participant info to check if they are a volunteer
-        const [participantRows] = await eventRepository.getPool().query(
+        const [participantRows] = await getPool().query(
           `SELECT u.role_id, r.role FROM users u
            JOIN roles r ON u.role_id = r.role_id
            WHERE u.user_id = ?`,
@@ -764,7 +902,7 @@ class EventsController {
       );
 
       // Get all participant roles to filter volunteers only
-      const [participantRows] = await eventRepository.getPool().query(
+      const [participantRows] = await getPool().query(
         `SELECT u.user_id, r.role FROM users u
          JOIN roles r ON u.role_id = r.role_id
          WHERE u.user_id IN (?)`,
