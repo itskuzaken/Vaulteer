@@ -8,6 +8,7 @@ import { createUserCard } from "../../card/UserCard";
 import LogFilterSearch from "../../logs/LogFilterSearch";
 import Pagination from "../../pagination/Pagination";
 import { useLogFiltersState } from "../../../hooks/useLogFiltersState";
+import { useDashboardUser } from "../../../hooks/useDashboardUser";
 import ApplicationControlPanel from "./ApplicationControlPanel";
 
 const ITEMS_PER_PAGE = 9;
@@ -73,6 +74,8 @@ export default function ManageApplications({
   profileBasePath = "/dashboard/admin/profile",
 }) {
   const router = useRouter();
+  const { user } = useDashboardUser();
+  const canManageSettings = user?.role === "admin";
   const [applicants, setApplicants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(null);
@@ -329,7 +332,7 @@ export default function ManageApplications({
               <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
                 Manage Applications
               </h1>
-              <ApplicationControlPanel />
+              {canManageSettings && <ApplicationControlPanel />}
             </div>
             
             {/* Filters */}

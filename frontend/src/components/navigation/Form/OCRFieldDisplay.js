@@ -37,7 +37,8 @@ import React, { useState, useEffect } from 'react';
 import { IoCheckmarkCircle, IoAlertCircle, IoWarning, IoInformationCircle, IoDocumentText } from 'react-icons/io5';
 import { loadTemplateMetadata, buildFieldMetadata } from '../../../utils/templateMetadataLoader';
 
-export default function OCRFieldDisplay({ extractedData }) {
+export default function OCRFieldDisplay({ extractedData, variant = 'standalone', className = '' }) {
+  const isEmbedded = variant === 'embedded';
   // State for metadata-driven field labels
   const [fieldMetadata, setFieldMetadata] = useState({});
   const [isLoadingMetadata, setIsLoadingMetadata] = useState(true);
@@ -193,10 +194,34 @@ export default function OCRFieldDisplay({ extractedData }) {
     return str;
   };
 
+  const getCompositeDate = (components = {}) => {
+    const month = components.month || components.mm;
+    const day = components.day || components.dd;
+    const year = components.year || components.yyyy;
+    if (!month || !year) return null;
+    const paddedMonth = month.toString().padStart(2, '0');
+    const paddedDay = day ? day.toString().padStart(2, '0') : null;
+    if (paddedDay) return `${paddedMonth}/${paddedDay}/${year}`;
+    return `${paddedMonth}/${year}`;
+  };
+
+  const getDisplayValue = (fieldName, fieldData) => {
+    if (fieldData == null) return '';
+    const rawValue = fieldData?.value ?? fieldData;
+    if (typeof rawValue === 'string' || typeof rawValue === 'number') return rawValue;
+    if (fieldData?.components && typeof fieldData.components === 'object') {
+      const compositeDate = getCompositeDate(fieldData.components);
+      if (compositeDate) return compositeDate;
+      // Fallback: show object components when no recognizable composite value
+      return JSON.stringify(fieldData.components);
+    }
+    return typeof rawValue === 'object' ? JSON.stringify(rawValue) : String(rawValue);
+  };
+
   // Render a single field with confidence indicator and nested components
   const renderField = (fieldName, fieldData) => {
     const displayName = formatFieldName(fieldName);
-    const value = fieldData?.value || fieldData;
+    const value = getDisplayValue(fieldName, fieldData);
     const fieldConfidence = fieldData?.confidence || 0;
     const hasComponents = fieldData?.components && typeof fieldData.components === 'object';
     const checkIndicator = fieldData?.checkIndicator;
@@ -235,7 +260,7 @@ export default function OCRFieldDisplay({ extractedData }) {
               {value ? (
                 <>
                   <div className="flex-1 text-sm text-gray-700 dark:text-gray-300 break-words">
-                    {typeof value === 'object' ? JSON.stringify(value) : (isLikelyDateField(fieldName) ? formatDateDisplay(value) : String(value))}
+                    {isLikelyDateField(fieldName) ? formatDateDisplay(value) : String(value)}
                   </div>
                   {fieldConfidence > 0 && (
                     <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap ${getConfidenceStyle(fieldConfidence)}`}>
@@ -507,9 +532,9 @@ export default function OCRFieldDisplay({ extractedData }) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${className}`}>
       {/* Extraction Summary */}
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+      <div className={`${isEmbedded ? 'bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700' : 'bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border border-blue-200 dark:border-blue-800'} rounded-lg p-6`}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             OCR Extraction Summary
