@@ -24,6 +24,7 @@
     "concurrently": "^9.1.2"
   },
   "dependencies": {
+    "@babel/parser": "^7.28.5",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
     "firebase-admin": "^13.4.0",

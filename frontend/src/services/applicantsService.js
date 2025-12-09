@@ -46,10 +46,14 @@ export async function getApplicantStatusHistory(userId) {
 }
 
 // Update applicant status (new generic function)
-export async function updateApplicantStatus(userId, status, notes = null) {
+export async function updateApplicantStatus(
+  userId,
+  status,
+  { notes = null, schedule = null } = {}
+) {
   return await fetchWithAuth(`${API_BASE}/applicants/${userId}/status`, {
     method: "PUT",
-    body: JSON.stringify({ status, notes }),
+    body: JSON.stringify({ status, notes, schedule }),
   });
 }
 

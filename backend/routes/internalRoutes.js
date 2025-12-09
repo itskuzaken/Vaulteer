@@ -7,6 +7,7 @@
 const express = require("express");
 const router = express.Router();
 const { getPool } = require("../db/pool");
+const emailService = require("../services/emailService");
 
 /**
  * Health check for internal monitoring
@@ -56,6 +57,25 @@ router.post("/refresh-cache", async (req, res) => {
       success: false,
       error: error.message,
     });
+  }
+});
+
+/**
+ * POST /api/internal/test-email
+ * Body: { to, subject, text, html }
+ * Protected by internalOnly middleware
+ */
+router.post("/test-email", async (req, res) => {
+  try {
+    const { to, subject, text, html } = req.body;
+    if (!to || !subject || (!text && !html)) {
+      return res.status(400).json({ error: 'Missing required to/subject/text/html' });
+    }
+    const result = await emailService.sendEmail(to, subject, html || text, text || '');
+    res.json({ success: result.success, messageId: result.messageId, error: result.error });
+  } catch (error) {
+    console.error('[internal/test-email] error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

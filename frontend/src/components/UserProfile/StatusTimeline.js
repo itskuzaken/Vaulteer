@@ -56,6 +56,17 @@ export default function StatusTimeline({ history, loading }) {
     }
   };
 
+  const formatInterviewDetails = (details) => {
+    if (!details) return null;
+    const when = details.display || formatDate(details.atUtc);
+    const mode = details.mode === "online" ? "Online" : "Onsite";
+    const locationLine =
+      details.mode === "online" ? details.link || "Link to follow" : details.location || "Location to follow";
+    const duration = details.duration || null;
+    const focus = details.focus || null;
+    return { when, mode, locationLine, duration, focus };
+  };
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -135,6 +146,28 @@ export default function StatusTimeline({ history, loading }) {
                       <span className="font-medium">Note:</span> {item.notes}
                     </div>
                   )}
+                  {(() => {
+                    const formatted = formatInterviewDetails(
+                      item.interview_details
+                    );
+                    if (!formatted) return null;
+                    return (
+                      <div className="text-xs text-gray-700 dark:text-gray-300 mt-2 p-2 bg-white dark:bg-gray-800 rounded border border-blue-100 dark:border-blue-800">
+                        <div className="font-medium text-blue-700 dark:text-blue-300 mb-1">Interview Details</div>
+                        <div className="space-y-1">
+                          <div>When: {formatted.when}</div>
+                          <div>Mode: {formatted.mode}</div>
+                          <div>{formatted.locationLine}</div>
+                          {formatted.duration && (
+                            <div>Estimated Duration: {formatted.duration}</div>
+                          )}
+                          {formatted.focus && (
+                            <div>Agenda: {formatted.focus}</div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>

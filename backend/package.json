@@ -4,12 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-      "verify:indices": "node scripts/verify_indices.js",
-      "test:concurrency": "node scripts/test-registration-concurrency.js",
+    "verify:indices": "node scripts/verify_indices.js",
+    "test:concurrency": "node scripts/test-registration-concurrency.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js",
     "dev": "nodemon server.js",
     "migrate": "node migrate.js",
+    "test-email": "node scripts/test-send-email.js",
     "migrate:notifications": "node migrate.js migrations/20251201_initialize_notification_system.sql",
     "check:notifications": "node check-notifications.js",
     "init:user-settings": "node init-user-settings.js"
@@ -29,9 +30,9 @@
     "firebase-admin": "^13.6.0",
     "fuzzyset.js": "^1.0.7",
     "helmet": "^6.2.0",
+    "luxon": "^3.5.0",
     "multer": "^2.0.2",
     "mysql2": "^3.14.0",
-    "luxon": "^3.5.0",
     "node-cron": "^3.0.3",
     "nodemailer": "^7.0.11",
     "sharp": "^0.33.5"

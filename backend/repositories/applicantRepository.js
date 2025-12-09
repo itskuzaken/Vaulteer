@@ -1,4 +1,5 @@
 const { getPool } = require("../db/pool");
+const emailService = require("../services/emailService");
 
 const APPLICATION_STATUSES = new Set([
   "pending",
@@ -33,10 +34,13 @@ async function updateApplicantStatus(
   userId,
   newStatusName,
   changedByUserId,
-  notes = null
+  notes = null,
+  options = {}
 ) {
   const pool = getPool();
   const connection = await pool.getConnection();
+
+  const { interviewDetails = null } = options || {};
 
   try {
     await connection.beginTransaction();
@@ -100,6 +104,18 @@ async function updateApplicantStatus(
     }
     console.log(`[updateApplicantStatus] adminRoleName: ${adminRoleName}`);
 
+    const [[applicantUser]] = await connection.query(
+      `SELECT u.name, u.email, up.position, up.current_status FROM users u LEFT JOIN user_profiles up ON up.user_id = u.user_id WHERE u.user_id = ? LIMIT 1`,
+      [userId]
+    );
+
+    const changesPayload = {
+      old_status: oldStatusName,
+      new_status: newStatusName,
+      notes: notes,
+      interview_details: interviewDetails || undefined,
+    };
+
     // Log the status change in activity_logs
     await connection.query(
       `INSERT INTO activity_logs 
@@ -115,11 +131,7 @@ async function updateApplicantStatus(
         adminRoleName,
         "applicant",
         applicant.applicant_id.toString(),
-        JSON.stringify({
-          old_status: oldStatusName,
-          new_status: newStatusName,
-          notes: notes,
-        }),
+        JSON.stringify(changesPayload),
         `Application status changed from ${oldStatusName} to ${newStatusName}${
           notes ? ": " + notes : ""
         }`,
@@ -153,11 +165,48 @@ async function updateApplicantStatus(
     await connection.commit();
     console.log(`[updateApplicantStatus] transaction committed successfully`);
 
+    // Send applicant notifications (best-effort, do not block response)
+    if (applicantUser?.email) {
+      try {
+        if (newStatusName === "approved" || newStatusName === "rejected") {
+          const content = emailService.generateApplicantDecisionEmail({
+            applicantName: applicantUser.name,
+            status: newStatusName,
+            notes,
+          });
+
+          await emailService.sendEmail(
+            applicantUser.email,
+            content.subject,
+            content.html,
+            content.text
+          );
+        } else if (newStatusName === "interview_scheduled" && interviewDetails) {
+          const content = emailService.generateInterviewScheduleEmail({
+            applicantName: applicantUser.name,
+            interviewDetails,
+            position: applicantUser.position || "Volunteer Position",
+            organizationName: process.env.FRONTEND_ORGANIZATION_NAME || "Vaulteer",
+          });
+
+          await emailService.sendEmail(
+            applicantUser.email,
+            content.subject,
+            content.html,
+            content.text
+          );
+        }
+      } catch (emailErr) {
+        console.error("[updateApplicantStatus] Failed to send email:", emailErr);
+      }
+    }
+
     return {
       userId,
       application_status: newStatusName,
       changed_by: changedByUserId,
       changed_at: new Date(),
+      interview_details: interviewDetails || null,
     };
   } catch (error) {
     console.error(`[updateApplicantStatus] ERROR:`, error);
@@ -222,6 +271,7 @@ async function getApplicantStatusHistory(userId) {
           changed_by_name: row.performed_by_name || "System",
           changed_by_uid: row.performed_by_uid,
           notes: changes?.notes,
+          interview_details: changes?.interview_details || null,
           description: row.description,
         };
       } catch (parseErr) {
@@ -234,6 +284,7 @@ async function getApplicantStatusHistory(userId) {
           changed_by_name: row.performed_by_name || "System",
           changed_by_uid: row.performed_by_uid,
           notes: null,
+          interview_details: null,
           description: row.description,
         };
       }

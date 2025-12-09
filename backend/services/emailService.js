@@ -595,6 +595,143 @@ EmailService.prototype.generateEventReminderEmailText = function (event, recipie
   return `Hi ${recipientName || 'Volunteer'},\n\nThis is a reminder that ${event.title} will start at ${event.start_datetime}.\n\nWe hope to see you there!`;
 };
 
+EmailService.prototype.generateApplicantDecisionEmail = function ({
+  applicantName,
+  status,
+  notes,
+}) {
+  const isApproved = status === "approved";
+  const subject = isApproved
+    ? "Your Vaulteer application was approved"
+    : "Update on your Vaulteer application";
+
+  const decisionText = isApproved
+    ? "Congratulations! Your application has been approved. We are excited to welcome you as a volunteer."
+    : "Thank you for your interest in Vaulteer. After careful review, we are unable to move forward with your application at this time.";
+
+  const nextStepText = isApproved
+    ? "You can now sign in to view available opportunities and complete any onboarding tasks."
+    : "You are welcome to apply again in the future or reach out if you have questions.";
+
+  const notesHtml = notes
+    ? `<p style="margin: 12px 0; padding: 12px; background: #f9fafb; border-left: 4px solid #dc2626; color: #374151;">Note from the team: ${notes}</p>`
+    : "";
+
+  const notesText = notes ? `\nNote from the team: ${notes}\n` : "";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>${subject}</title></head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f4f4; margin: 0; padding: 0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding: 24px 0; background: #f4f4f4;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background: #dc2626; color: #ffffff; padding: 24px 28px; border-radius: 8px 8px 0 0; font-size: 20px; font-weight: 600;">${subject}</td>
+          </tr>
+          <tr>
+            <td style="padding: 28px; color: #111827; font-size: 15px; line-height: 1.6;">
+              <p style="margin: 0 0 14px;">Hi ${applicantName || "there"},</p>
+              <p style="margin: 0 0 12px;">${decisionText}</p>
+              <p style="margin: 0 0 16px;">${nextStepText}</p>
+              ${notesHtml}
+              <p style="margin: 20px 0 8px; color: #6b7280; font-size: 13px;">If you have questions, reply to this email and our team will assist.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const text = `Hi ${applicantName || "there"},\n\n${decisionText}\n\n${nextStepText}${notesText}\nIf you have questions, reply to this email and our team will assist.`;
+
+  return { subject, html, text };
+};
+
+EmailService.prototype.generateInterviewScheduleEmail = function ({
+  applicantName,
+  interviewDetails,
+  position = "Volunteer Position",
+  organizationName = "Vaulteer",
+}) {
+  const subject = "Interview scheduled for your Vaulteer application";
+
+  const formatDisplay = () => {
+    if (interviewDetails?.display) return interviewDetails.display;
+    if (!interviewDetails?.atUtc) return "TBD";
+    try {
+      return new Date(interviewDetails.atUtc).toLocaleString("en-US", {
+        timeZone: "Asia/Manila",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch (_) {
+      return interviewDetails.atUtc;
+    }
+  };
+
+  const whenText = formatDisplay();
+  // try to map a duration if provided
+  const durationNormalized = interviewDetails?.duration
+    ? interviewDetails.duration.replace(/minutes?/i, "minute")
+    : null;
+  const durationText = durationNormalized
+    ? `This will be a ${durationNormalized} ${interviewDetails.mode === 'online' ? 'virtual' : 'in-person'} interview.`
+    : "This interview is expected to last approximately 45 minutes.";
+  const focusText = interviewDetails?.focus
+    ? `We will focus on your ${interviewDetails.focus}.`
+    : "We will focus on your relevant background and problem-solving abilities.";
+  const mode = interviewDetails?.mode || "onsite";
+  const locationLine = mode === "onsite"
+    ? interviewDetails?.location || "Onsite venue to be confirmed"
+    : interviewDetails?.link || "Link to follow";
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>${subject}</title></head>
+<body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f4f4f4; margin: 0; padding: 0;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="padding: 24px 0; background: #f4f4f4;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+          <tr>
+            <td style="background: #2563eb; color: #ffffff; padding: 24px 28px; border-radius: 8px 8px 0 0; font-size: 20px; font-weight: 600;">Interview Scheduled</td>
+          </tr>
+          <tr>
+            <td style="padding: 28px; color: #111827; font-size: 15px; line-height: 1.6;">
+              <p style="margin: 0 0 14px;">Hi ${applicantName || "there"},</p>
+              <p style="margin: 0 0 16px;">Thank you again for your interest in the ${position} position at ${organizationName}. We were impressed with your application and would like to invite you to interview with our team.</p>
+              <p style="margin: 0 0 16px;">${durationText} ${focusText}</p>
+              <div style="margin: 0 0 16px; padding: 14px; background: #f9fafb; border-left: 4px solid #2563eb;">
+                <p style="margin: 0 0 8px; font-weight: 600;">When: <span style="font-weight: 500;">${whenText} (${interviewDetails?.timeZone || "UTC+8"})</span></p>
+                <p style="margin: 0; font-weight: 600;">Mode: <span style="font-weight: 500;">${mode === "online" ? "Online" : "Onsite"}</span></p>
+                <p style="margin: 8px 0 0; color: #374151;">${locationLine}</p>
+              </div>
+              <p style="margin: 0 0 10px;">If you need to reschedule, reply to this email and our team will help you pick a new time.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+  const text = `Hi ${applicantName || "there"},\n\nThank you again for your interest in the ${position} position at ${organizationName}. We were impressed with your application and would like to invite you to interview with our team.\n\n${durationText} ${focusText}\n\nWhen: ${whenText} (${interviewDetails?.timeZone || "UTC+8"})\nMode: ${mode === "online" ? "Online" : "Onsite"}\nDetails: ${locationLine}\n\nIf you need to reschedule, reply to this email and our team will help you pick a new time.`;
+
+  const fullSubject = `Interview Invitation: ${position} Position at ${organizationName}`;
+
+  return { subject: fullSubject, html, text };
+};
+
 // Export singleton instance
 const emailService = new EmailService();
 module.exports = emailService;

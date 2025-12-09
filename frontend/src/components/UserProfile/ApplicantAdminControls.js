@@ -7,6 +7,7 @@ import {
 import StatusSelector from "./StatusSelector";
 import StatusTimeline from "./StatusTimeline";
 import StatusChangeConfirmModal from "./StatusChangeConfirmModal";
+import InterviewScheduleModal from "./InterviewScheduleModal";
 
 export default function ApplicantAdminControls({
   applicantId,
@@ -23,6 +24,8 @@ export default function ApplicantAdminControls({
   const [error, setError] = useState(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingStatus, setPendingStatus] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleData, setScheduleData] = useState(null);
 
   // Define workflow order
   const workflowOrder = [
@@ -130,6 +133,17 @@ export default function ApplicantAdminControls({
       return;
     }
 
+    // Interview scheduling requires extra details before confirmation
+    if (newStatus === "interview_scheduled") {
+      setError(null);
+      setPendingStatus(newStatus);
+      setSelectedStatus(newStatus);
+      setScheduleData(null);
+      setShowScheduleModal(true);
+      setShowConfirmModal(false);
+      return;
+    }
+
     setSelectedStatus(newStatus);
     setPendingStatus(newStatus);
     setShowConfirmModal(true);
@@ -143,7 +157,20 @@ export default function ApplicantAdminControls({
     setError(null);
 
     try {
-      await updateApplicantStatus(applicantId, pendingStatus);
+      const payload = { notes: null, schedule: null };
+
+      if (pendingStatus === "interview_scheduled") {
+        if (!scheduleData) {
+          setShowConfirmModal(false);
+          setShowScheduleModal(true);
+          setError("Please set an interview schedule before confirming.");
+          setProcessing(false);
+          return;
+        }
+        payload.schedule = scheduleData;
+      }
+
+      await updateApplicantStatus(applicantId, pendingStatus, payload);
 
       // Reload history
       try {
@@ -160,6 +187,7 @@ export default function ApplicantAdminControls({
 
       setShowConfirmModal(false);
       setPendingStatus(null);
+      setScheduleData(null);
     } catch (err) {
       console.error("Failed to update applicant status:", err);
       setError(err?.message || "Failed to update status. Please try again.");
@@ -171,9 +199,16 @@ export default function ApplicantAdminControls({
 
   const handleCancelStatusChange = () => {
     setShowConfirmModal(false);
+    setShowScheduleModal(false);
     setPendingStatus(null);
     setSelectedStatus(currentStatus);
     setError(null);
+  };
+
+  const handleScheduleSave = (schedule) => {
+    setScheduleData(schedule);
+    setShowScheduleModal(false);
+    setShowConfirmModal(true);
   };
 
   if (loading) {
@@ -333,6 +368,15 @@ export default function ApplicantAdminControls({
         newStatus={pendingStatus}
         currentStatus={currentStatus}
         processing={processing}
+        schedule={scheduleData}
+      />
+
+      <InterviewScheduleModal
+        isOpen={showScheduleModal}
+        onClose={handleCancelStatusChange}
+        onSave={handleScheduleSave}
+        initialValue={scheduleData}
+        mode="auto"
       />
     </>
   );

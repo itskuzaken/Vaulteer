@@ -226,18 +226,68 @@ router.put(
     console.log("[PUT /:id/status] authenticatedUser:", req.authenticatedUser);
 
     const id = req.params.id;
-    const { status, notes } = req.body;
+    const { status, notes, schedule } = req.body;
 
     if (!status) {
       console.log("[PUT /:id/status] ERROR: Status is missing");
       return res.status(400).json({ error: "Status is required" });
     }
 
+    const normalizedStatus = status.toLowerCase();
+
+    let interviewDetails = null;
+    if (normalizedStatus === "interview_scheduled") {
+      const mode = (schedule?.mode || "").toLowerCase();
+      const atUtc = schedule?.atUtc || schedule?.interviewAtUtc;
+      const display = schedule?.display || schedule?.interviewAtDisplay;
+      const timeZone = schedule?.timeZone || "UTC+8";
+      const location = schedule?.location || null;
+      const link = schedule?.link || null;
+      const duration = schedule?.duration || null; // e.g., '45 minutes'
+      const focus = schedule?.focus || schedule?.purpose || null; // brief agenda/focus
+
+      if (!atUtc || !mode) {
+        return res.status(400).json({
+          error:
+            "Interview schedule requires date/time (UTC) and mode (onsite/online)",
+        });
+      }
+
+      if (!timeZone) {
+        return res
+          .status(400)
+          .json({ error: "Interview schedule requires a timezone" });
+      }
+
+      if (mode === "onsite" && !location) {
+        return res
+          .status(400)
+          .json({ error: "Location is required for onsite interviews" });
+      }
+
+      if (mode === "online" && !link) {
+        return res
+          .status(400)
+          .json({ error: "Link is required for online interviews" });
+      }
+
+      interviewDetails = {
+        atUtc,
+        timeZone,
+        display: display || atUtc,
+        mode,
+        location,
+        link,
+        duration,
+        focus,
+      };
+    }
+
     // Staff can only move to intermediate statuses, admin can approve/reject
     const restrictedStatuses = ["approved", "rejected"];
     if (
       userRole === "staff" &&
-      restrictedStatuses.includes(status.toLowerCase())
+      restrictedStatuses.includes(normalizedStatus)
     ) {
       return res.status(403).json({
         error: "Forbidden: Only admin can approve or reject applications",
@@ -268,9 +318,12 @@ router.put(
 
       const result = await updateApplicantStatus(
         userId,
-        status,
+        normalizedStatus,
         currentUserId,
-        notes
+        notes,
+        {
+          interviewDetails,
+        }
       );
       console.log("[PUT /:id/status] Success:", result);
 

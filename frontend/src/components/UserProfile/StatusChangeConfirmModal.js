@@ -9,6 +9,7 @@ export default function StatusChangeConfirmModal({
   currentStatus,
   processing,
   mode = "auto",
+  schedule = null,
 }) {
   const formatStatusLabel = (status) => {
     if (!status) return "";
@@ -76,6 +77,19 @@ export default function StatusChangeConfirmModal({
             <p className="text-xs text-red-700 dark:text-red-300">
               ✗ This will set the user status to inactive
             </p>
+          </div>
+        )}
+        {newStatus === "interview_scheduled" && schedule && (
+          <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold">Scheduled interview</p>
+            <div className="text-xs text-gray-700 dark:text-gray-300 mt-2">
+              <div>When: {schedule.display || schedule.atUtc}</div>
+              <div>Mode: {schedule.mode === "online" ? "Online" : "Onsite"}</div>
+              {schedule.location && <div>Location: {schedule.location}</div>}
+              {schedule.link && <div>Link: {schedule.link}</div>}
+              {schedule.duration && <div>Duration: {schedule.duration}</div>}
+              {schedule.focus && <div>Agenda: {schedule.focus}</div>}
+            </div>
           </div>
         )}
       </div>
