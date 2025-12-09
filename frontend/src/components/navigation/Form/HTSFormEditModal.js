@@ -995,7 +995,7 @@ export default function HTSFormEditModal({
             </h3>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mother's HIV Status</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mother&apos;s HIV Status</label>
               <div className="flex flex-wrap gap-3">
                 {['doNotKnow', 'no', 'yes'].map(option => (
                   <label key={option} className="flex items-center gap-2 cursor-pointer">
