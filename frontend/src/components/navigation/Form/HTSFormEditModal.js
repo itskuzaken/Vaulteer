@@ -6,54 +6,47 @@ import { loadTemplateMetadata } from '../../../utils/templateMetadataLoader';
 /**
  * HTS Form Edit Modal - Allows editing of all extracted OCR fields
  * Organized by DOH HTS Form 2021 official 11-section structure:
- * 
- * FRONT PAGE (3 sections):
- *   1. INFORMED CONSENT (4 fields)
- *   2. DEMOGRAPHIC DATA (28 fields)
- *   3. EDUCATION & OCCUPATION (8 fields)
- * 
- * BACK PAGE (8 sections):
- *   4. HISTORY OF EXPOSURE / RISK ASSESSMENT (23 fields)
- *   5. REASONS FOR HIV TESTING (2 fields)
- *   6. PREVIOUS HIV TEST (5 fields)
- *   7. MEDICAL HISTORY & CLINICAL PICTURE (10 fields)
- *   8. TESTING DETAILS (6 fields)
- *   9. INVENTORY INFORMATION (4 fields)
- *   10. HTS PROVIDER DETAILS (15 fields)
- *   11. OTHERS - SEXUAL PRACTICES (2 fields)
- * 
- * METADATA-DRIVEN ARCHITECTURE:
+ * * FRONT PAGE (3 sections):
+ * 1. INFORMED CONSENT (4 fields)
+ * 2. DEMOGRAPHIC DATA (28 fields)
+ * 3. EDUCATION & OCCUPATION (8 fields)
+ * * BACK PAGE (8 sections):
+ * 4. HISTORY OF EXPOSURE / RISK ASSESSMENT (23 fields)
+ * 5. REASONS FOR HIV TESTING (2 fields)
+ * 6. PREVIOUS HIV TEST (5 fields)
+ * 7. MEDICAL HISTORY & CLINICAL PICTURE (10 fields)
+ * 8. TESTING DETAILS (6 fields)
+ * 9. INVENTORY INFORMATION (4 fields)
+ * 10. HTS PROVIDER DETAILS (15 fields)
+ * 11. OTHERS - SEXUAL PRACTICES (2 fields)
+ * * METADATA-DRIVEN ARCHITECTURE:
  * Section mappings are dynamically loaded from template-metadata.json via
  * templateMetadataLoader utility, ensuring single source of truth between
  * frontend and backend. Deprecated sections (MIGRATED FLAT FIELDS) are
  * automatically filtered out.
- * 
- * NESTED FIELD SUPPORT (Fully Refactored):
+ * * NESTED FIELD SUPPORT (Fully Refactored):
  * This modal displays individual component fields for editing composite fields.
  * Composite fields are assembled from multiple components on the backend.
  * Visual indicators (purple badges) show which fields are part of composites.
- * 
- * Composite Field Types:
+ * * Composite Field Types:
  * 1. fullName: firstName + middleName + lastName + suffix
  * 2. testDate/birthDate: month + day + year (backend semantic detection)
  * 3. sex: male/female (checkbox group)
  * 4. genderIdentity: man/woman/other (specify if others)
  * 5. civilStatus: single/married/widowed/separated/liveIn (checkbox group)
  * 6. addresses (3 types): currentResidence, permanentResidence, placeOfBirth
- *    - Each has: city + province → assembled as "City, Province"
+ * - Each has: city + province → assembled as "City, Province"
  * 7. riskFields (8 types with conditional branches):
- *    - riskSexMale, riskSexFemale, riskPaidForSex, riskReceivedPayment,
- *      riskSexUnderDrugs, riskSharedNeedles, riskBloodTransfusion, riskOccupationalExposure
- *    - Each has: status (yes/no) → if yes: total + date1 + date2 + dateMostRecentRisk
- * 
- * Data Flow:
+ * - riskSexMale, riskSexFemale, riskPaidForSex, riskReceivedPayment,
+ * riskSexUnderDrugs, riskSharedNeedles, riskBloodTransfusion, riskOccupationalExposure
+ * - Each has: status (yes/no) → if yes: total + date1 + date2 + dateMostRecentRisk
+ * * Data Flow:
  * - Backend (textractService.js) extracts and assembles composite fields with components
  * - HTSFormManagement.js populates editableData with component values for editing
  * - This modal displays individual component fields with composite indicators
  * - On save, HTSFormManagement.js merges component values back into composite structure
  * - Backend receives both composite values and component values for validation
- * 
- * UI Features:
+ * * UI Features:
  * - Composite field indicators: Purple badges show field relationships
  * - Component fields: Individual editable inputs for each component
  * - Section-based layout: Matches physical form structure for intuitive editing
@@ -65,7 +58,7 @@ export default function HTSFormEditModal({
   editableData,
   onClose,
   onSave,
-  onFieldChange,  
+  onFieldChange,
   mode = "system"
 }) {
   const [othersFields, setOthersFields] = useState(null);
@@ -367,8 +360,8 @@ export default function HTSFormEditModal({
     mode === "light"
       ? "bg-white text-slate-900"
       : mode === "dark"
-      ? "bg-gray-900 text-white"
-      : "bg-white dark:bg-gray-800 text-slate-900 dark:text-white";
+        ? "bg-gray-900 text-white"
+        : "bg-white dark:bg-gray-800 text-slate-900 dark:text-white";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4">
@@ -379,16 +372,21 @@ export default function HTSFormEditModal({
             <IoDocumentText className="w-6 h-6 text-primary-red" />
             Edit Extracted Fields (DOH HTS Form 2021)
           </h2>
+          {/* Close Button must be outside h2 but inside header */}
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            <IoClose className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+          </button>
+        </div>
         {/* Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
+
           {/* SECTION 1: INFORMED CONSENT */}
           <div className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
             <h3 className="font-bold text-lg mb-4 text-blue-900 dark:text-blue-100 flex items-center gap-2">
               <span className="bg-blue-600 dark:bg-blue-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">1</span>
               INFORMED CONSENT
             </h3>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Contact Number</label>
                 <input
@@ -398,6 +396,7 @@ export default function HTSFormEditModal({
                   placeholder="+63 XXX XXX XXXX"
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Email Address</label>
                 <input
@@ -504,7 +503,6 @@ export default function HTSFormEditModal({
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-green-500"
                 />
               </div>
-            </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Suffix</label>
                 <input
@@ -800,7 +798,7 @@ export default function HTSFormEditModal({
                     <span className="text-sm text-gray-900 dark:text-gray-100">No</span>
                   </label>
                 </div>
-              </div>              
+              </div>
             </div>
           </div>
 
@@ -814,7 +812,7 @@ export default function HTSFormEditModal({
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Highest Educational Attainment</label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {['noGradeCompleted','preSchool', 'elementary', 'highSchool', 'college', 'vocational', 'postGraduate'].map(option => (
+                {['noGradeCompleted', 'preSchool', 'elementary', 'highSchool', 'college', 'vocational', 'postGraduate'].map(option => (
                   <label key={option} className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="radio"
@@ -997,7 +995,7 @@ export default function HTSFormEditModal({
             </h3>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mother&apos;s HIV Status</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Mother's HIV Status</label>
               <div className="flex flex-wrap gap-3">
                 {['doNotKnow', 'no', 'yes'].map(option => (
                   <label key={option} className="flex items-center gap-2 cursor-pointer">
@@ -1737,7 +1735,7 @@ export default function HTSFormEditModal({
               <span className="bg-indigo-600 dark:bg-indigo-500 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm font-bold">11</span>
               OTHERS (SEXUAL PRACTICES)
             </h3>
-            
+
             {/* Condom Use */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -1780,6 +1778,7 @@ export default function HTSFormEditModal({
               </div>
             </div>
           </div>
+        </div>
 
         {/* Footer with Save/Cancel Buttons */}
         <div className="flex-shrink-0 border-t border-gray-200 dark:border-gray-700 px-6 py-4">
