@@ -1,5 +1,10 @@
-@import "tailwindcss";
+/*
+  Keep font imports before any other rules to satisfy CSS @import ordering (must precede rules).
+  Note: Prefer using a <link rel="stylesheet"> inside `app/head` (Next.js RootLayout) for better performance
+  and to avoid the `@import` rule restrictions in some optimizer plugins.
+*/
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+@import "tailwindcss";
 @import "../styles/design-tokens.css";
 
 :root {

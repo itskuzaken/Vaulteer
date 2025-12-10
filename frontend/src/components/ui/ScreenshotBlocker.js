@@ -11,7 +11,7 @@ export default function ScreenshotBlocker({
   enabled = true,
   watermarkText = "",
   autoHideMs = 3000,
-  blockType = "blur", // 'blur' or 'white'
+  blockType = "white", // 'blur' or 'white'
   onShow = null,
   onHide = null,
 }) {
