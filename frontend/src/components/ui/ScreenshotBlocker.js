@@ -129,7 +129,7 @@ export default function ScreenshotBlocker({
   }, [enabled, autoHideMs, onShow, onHide, active]);
 
   // Visual overlay styles
-  const overlayClasses = blockType === "white" ? "bg-white" : "bg-black/70";
+  const overlayClasses = blockType === "white" ? "bg-white" : "bg-black";
   const textColor = blockType === "white" ? "text-gray-900" : "text-white";
 
   if (!enabled) return null;
