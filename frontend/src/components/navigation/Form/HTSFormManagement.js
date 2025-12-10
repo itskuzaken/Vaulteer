@@ -13,6 +13,7 @@ import AlertModal from "../../ui/AlertModal";
 import ConfirmModal from "../../ui/ConfirmModal";
 import NextImage from 'next/image';
 import { API_BASE } from "../../../config/config";
+import ScreenshotBlocker from "../../ui/ScreenshotBlocker";
 import { encryptFormSubmission } from "../../../utils/imageEncryption";
 import { loadTemplateMetadata, buildSectionMappingFromMetadata } from "../../../utils/templateMetadataLoader";
 import {
@@ -87,6 +88,10 @@ export default function HTSFormManagement() {
     cancelText: "Cancel",
   });
 
+  // Screenshot protection settings
+  const [screenshotProtectionEnabled, setScreenshotProtectionEnabled] = useState(true);
+  const [watermarkText, setWatermarkText] = useState("");
+
   // Helper functions for modals
   const showAlert = useCallback((title, message, type = "info", onConfirm = null) => {
     setAlertModal({
@@ -155,6 +160,35 @@ export default function HTSFormManagement() {
       }
     };
     checkPermission();
+  }, []);
+
+  // Build watermark text using Firebase user info (if available)
+  useEffect(() => {
+    try {
+      const auth = getAuth();
+      const user = auth.currentUser;
+      if (user) {
+        const email = user.email || user.uid || "Protected";
+        const ts = new Date().toLocaleString();
+        setWatermarkText(`${email} • ${ts}`);
+      } else {
+        const ts = new Date().toLocaleString();
+        setWatermarkText(`Protected • ${ts}`);
+      }
+    } catch (err) {
+      setWatermarkText(`Protected • ${new Date().toLocaleString()}`);
+    }
+  }, []);
+
+  // Theme detection for light/dark backdrop choice
+  const [isDarkTheme, setIsDarkTheme] = useState(false);
+  useEffect(() => {
+    try {
+      const root = document.documentElement;
+      setIsDarkTheme(root.classList.contains("dark"));
+    } catch (err) {
+      setIsDarkTheme(false);
+    }
   }, []);
   
   // Cleanup on unmount
@@ -2077,6 +2111,13 @@ export default function HTSFormManagement() {
 
   return (
     <>
+      {/* Screenshot protection overlay - globally covers this component */}
+      <ScreenshotBlocker
+        enabled={screenshotProtectionEnabled}
+        watermarkText={watermarkText}
+        blockType={isDarkTheme ? 'white' : 'blur'}
+        autoHideMs={3000}
+      />
       <div className="space-y-6">
         {/* Tab Navigation */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
