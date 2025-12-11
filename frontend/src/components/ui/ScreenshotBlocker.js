@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
+import { createActivityLog } from "../../services/activityLogService";
 
 /**
  * ScreenshotBlocker component: Best-effort detection & UI overlay
@@ -10,16 +11,16 @@ import { useEffect, useState, useRef } from "react";
 export default function ScreenshotBlocker({
   enabled = true,
   watermarkText = "",
-  autoHideMs = 5000, // auto-hide overlay after this duration (ms); set to 0 to disable auto-hide
+  autoHideMs = 3000,
   showDurationMs = null, // explicit show duration (overrides `autoHideMs` when provided)
-  activationDelayMs = 1, // delay in ms to schedule overlay activation (useful for OS-level screenshots)
   blockType = "white", // 'blur' or 'white'
   onShow = null,
   onHide = null,
 }) {
+  const lastLogTimeRef = useRef(0);
+  const LOG_THROTTLE_MS = 5000; // throttle logs to avoid spamming backend
   const [active, setActive] = useState(false);
   const hideTimeoutRef = useRef(null);
-  const activationTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -31,12 +32,10 @@ export default function ScreenshotBlocker({
         hideTimeoutRef.current = null;
       }
       // If an activation timeout exists (scheduled show), clear it when we actually show
-      if (activationTimeoutRef.current) {
-        clearTimeout(activationTimeoutRef.current);
-        activationTimeoutRef.current = null;
-      }
       setActive(true);
       onShow?.(reason);
+      // Log overlay activation for telemetry (best-effort, fire-and-forget)
+      logOverlayActivation(reason);
       // Auto-hide so it doesn't block forever (show duration can be controlled by showDurationMs)
       const durationMs = typeof showDurationMs === "number" && showDurationMs >= 0 ? showDurationMs : autoHideMs;
       if (durationMs > 0) {
@@ -54,10 +53,7 @@ export default function ScreenshotBlocker({
         hideTimeoutRef.current = null;
       }
       // Also clear scheduled activation if hide occurs before it runs
-      if (activationTimeoutRef.current) {
-        clearTimeout(activationTimeoutRef.current);
-        activationTimeoutRef.current = null;
-      }
+        // activationTimeoutRef removed; no scheduling cleanup required
       setActive(false);
       onHide?.("manual");
     };
@@ -75,19 +71,8 @@ export default function ScreenshotBlocker({
     const onBeforePrint = () => show("print");
     const onAfterPrint = () => hide();
 
-    const scheduleShow = (reason) => {
-      if (!activationDelayMs) {
-        show(reason);
-        return;
-      }
-      if (activationTimeoutRef.current) {
-        clearTimeout(activationTimeoutRef.current);
-      }
-      activationTimeoutRef.current = setTimeout(() => {
-        activationTimeoutRef.current = null;
-        show(reason);
-      }, activationDelayMs);
-    };
+      // Scheduling not necessary; call show immediately
+      const scheduleShow = (reason) => show(reason);
 
     const onKeyDown = (e) => {
       try {
@@ -154,9 +139,8 @@ export default function ScreenshotBlocker({
       window.removeEventListener("screenshot", onNativeScreenshot);
 
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
-      if (activationTimeoutRef.current) clearTimeout(activationTimeoutRef.current);
     };
-  }, [enabled, autoHideMs, activationDelayMs, onShow, onHide, active]);
+  }, [enabled, autoHideMs, onShow, onHide, active]);
 
   // Visual overlay styles
   const overlayClasses = blockType === "white" ? "bg-white" : "bg-black";
@@ -182,3 +166,29 @@ export default function ScreenshotBlocker({
     </div>
   );
 }
+        // Log overlay activation (telemetry)
+        async function logOverlayActivation(reason) {
+          try {
+            const now = Date.now();
+            if (now - lastLogTimeRef.current < LOG_THROTTLE_MS) return; // throttle
+            lastLogTimeRef.current = now;
+
+            // Fire-and-forget: do not await to avoid blocking UI
+            createActivityLog({
+              type: "SECURITY",
+              action: "SCREENSHOT_PROTECTION_TRIGGERED",
+              description: `Screenshot protection overlay shown`,
+              severity: "INFO",
+              metadata: {
+                reason,
+                path: (typeof window !== "undefined" && window.location?.pathname) || null,
+                userAgent: (typeof navigator !== "undefined" && navigator.userAgent) || null,
+                timestamp: new Date().toISOString(),
+              },
+            }).catch((err) => {
+              console.warn("Failed to send overlay activation log:", err);
+            });
+          } catch (err) {
+            console.warn("Error scheduling overlay activation log:", err);
+          }
+        }
