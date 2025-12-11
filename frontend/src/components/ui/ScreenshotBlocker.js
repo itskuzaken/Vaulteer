@@ -11,7 +11,7 @@ export default function ScreenshotBlocker({
   enabled = true,
   watermarkText = "",
   autoHideMs = 3000,
-  activationDelayMs = 0, // delay in ms to schedule overlay activation (useful for OS-level screenshots)
+  activationDelayMs = 1000, // delay in ms to schedule overlay activation (useful for OS-level screenshots)
   blockType = "white", // 'blur' or 'white'
   onShow = null,
   onHide = null,
