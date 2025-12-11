@@ -21,6 +21,7 @@ export default function ScreenshotBlocker({
   const LOG_THROTTLE_MS = 5000; // throttle logs to avoid spamming backend
   const [active, setActive] = useState(false);
   const hideTimeoutRef = useRef(null);
+  const directOverlayRef = useRef(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -32,6 +33,8 @@ export default function ScreenshotBlocker({
         hideTimeoutRef.current = null;
       }
       // If an activation timeout exists (scheduled show), clear it when we actually show
+      // Immediately show a direct DOM overlay to minimize latency before React re-renders
+      showDirectOverlay(reason);
       setActive(true);
       onShow?.(reason);
       // Log overlay activation for telemetry (best-effort, fire-and-forget)
@@ -54,6 +57,7 @@ export default function ScreenshotBlocker({
       }
       // Also clear scheduled activation if hide occurs before it runs
         // activationTimeoutRef removed; no scheduling cleanup required
+      hideDirectOverlay();
       setActive(false);
       onHide?.("manual");
     };
@@ -139,6 +143,8 @@ export default function ScreenshotBlocker({
       window.removeEventListener("screenshot", onNativeScreenshot);
 
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      // clean up direct overlay
+      hideDirectOverlay(true);
     };
   }, [enabled, autoHideMs, onShow, onHide, active]);
 
@@ -147,6 +153,76 @@ export default function ScreenshotBlocker({
   const textColor = blockType === "white" ? "text-gray-900" : "text-white";
 
   if (!enabled) return null;
+
+  // --- Direct overlay helpers ---
+  const DIRECT_ID = "screenshot-protect-direct-overlay";
+  function createDirectOverlayElement() {
+    if (typeof document === 'undefined') return null;
+    let el = document.getElementById(DIRECT_ID);
+    if (!el) {
+      el = document.createElement("div");
+      el.id = DIRECT_ID;
+      el.style.position = "fixed";
+      el.style.inset = "0";
+      el.style.zIndex = "2147483647"; // max z-index to ensure topmost
+      el.style.display = "none";
+      el.style.alignItems = "center";
+      el.style.justifyContent = "center";
+      el.style.pointerEvents = "auto"; // block interactions while shown
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+
+  function showDirectOverlay(reason) {
+    try {
+      const el = createDirectOverlayElement();
+      if (!el) return;
+
+      const bg = blockType === "white" ? "#ffffff" : "#000000";
+      const textColor = blockType === "white" ? "#111827" : "#ffffff";
+
+      el.style.background = bg;
+      el.style.display = "flex";
+      el.innerHTML = `\n        <div style=\"text-align:center;padding:24px;color:${textColor};font-family:Inter,system-ui,Arial,sans-serif;\">\n          <div style=\"font-weight:600;font-size:18px;margin-bottom:6px;\">Sensitive Content Hidden</div>\n          <div style=\"font-size:14px;opacity:0.95;\">This page contains sensitive information — content is temporarily hidden.</div>\n          ${watermarkText ? `<div style=\"margin-top:10px;font-size:12px;opacity:0.85;white-space:nowrap;\">${escapeHtml(watermarkText)}</div>` : ""}\n        </div>\n      `;
+
+      directOverlayRef.current = el;
+      // Setup hide timer if necessary
+      const durationMs = typeof showDurationMs === "number" && showDurationMs >= 0 ? showDurationMs : autoHideMs;
+      if (durationMs > 0) {
+        if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+        hideTimeoutRef.current = setTimeout(() => {
+          hideDirectOverlay();
+          hideTimeoutRef.current = null;
+        }, durationMs);
+      }
+    } catch (err) {
+      console.warn("Failed to create direct overlay", err);
+    }
+  }
+
+  function hideDirectOverlay(remove = false) {
+    try {
+      const el = directOverlayRef.current || (typeof document !== 'undefined' && document.getElementById(DIRECT_ID));
+      if (!el) return;
+      el.style.display = "none";
+      if (remove) {
+        try { el.remove(); } catch (e) { /* ignore */ }
+      }
+      directOverlayRef.current = null;
+    } catch (err) {
+      console.warn("Failed to hide direct overlay", err);
+    }
+  }
+
+  function escapeHtml(unsafe) {
+    return String(unsafe)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\\"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  }
 
   return (
     <div aria-hidden={!active} className={`pointer-events-none fixed inset-0 z-[9999] ${active ? "block" : "hidden"}`}>
