@@ -193,12 +193,16 @@ export default function HTSFormManagement() {
 
   // Activation delay (ms) for screenshot blocker - default to a small delay on Windows
   const [activationDelayMs, setActivationDelayMs] = useState(0);
+  // Show duration in ms - how long the overlay stays visible
+  const [showDurationMs, setShowDurationMs] = useState(3000);
   useEffect(() => {
     try {
       const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
       const isWindows = /Windows\s?NT|Win32|Win64/.test(ua);
       // On Windows, use a short delay to better align with screenshot timing (e.g., Win+Shift+S)
       setActivationDelayMs(isWindows ? 200 : 0);
+      // Use a slightly different show duration on Windows to align with screen snip
+      setShowDurationMs(isWindows ? 2500 : 3000);
     } catch (err) {
       setActivationDelayMs(0);
     }
@@ -2129,6 +2133,7 @@ export default function HTSFormManagement() {
         enabled={screenshotProtectionEnabled}
         watermarkText={watermarkText}
         activationDelayMs={activationDelayMs}
+        showDurationMs={showDurationMs}
         blockType={isDarkTheme ? 'white' : 'blur'}
         autoHideMs={3000}
       />

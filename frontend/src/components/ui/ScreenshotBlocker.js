@@ -10,7 +10,8 @@ import { useEffect, useState, useRef } from "react";
 export default function ScreenshotBlocker({
   enabled = true,
   watermarkText = "",
-  autoHideMs = 500,
+  autoHideMs = 3000,
+  showDurationMs = null, // explicit show duration (overrides `autoHideMs` when provided)
   activationDelayMs = 2000, // delay in ms to schedule overlay activation (useful for OS-level screenshots)
   blockType = "white", // 'blur' or 'white'
   onShow = null,
@@ -36,13 +37,14 @@ export default function ScreenshotBlocker({
       }
       setActive(true);
       onShow?.(reason);
-      // Auto-hide so it doesn't block forever
-      if (autoHideMs > 0) {
+      // Auto-hide so it doesn't block forever (show duration can be controlled by showDurationMs)
+      const durationMs = typeof showDurationMs === "number" && showDurationMs >= 0 ? showDurationMs : autoHideMs;
+      if (durationMs > 0) {
         hideTimeoutRef.current = setTimeout(() => {
           setActive(false);
           hideTimeoutRef.current = null;
           onHide?.("timeout");
-        }, autoHideMs);
+        }, durationMs);
       }
     };
 
