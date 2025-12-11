@@ -10,9 +10,9 @@ import { useEffect, useState, useRef } from "react";
 export default function ScreenshotBlocker({
   enabled = true,
   watermarkText = "",
-  autoHideMs = 3000,
+  autoHideMs = 5000, // auto-hide overlay after this duration (ms); set to 0 to disable auto-hide
   showDurationMs = null, // explicit show duration (overrides `autoHideMs` when provided)
-  activationDelayMs = 2000, // delay in ms to schedule overlay activation (useful for OS-level screenshots)
+  activationDelayMs = 10, // delay in ms to schedule overlay activation (useful for OS-level screenshots)
   blockType = "white", // 'blur' or 'white'
   onShow = null,
   onHide = null,
