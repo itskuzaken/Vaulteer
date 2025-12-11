@@ -11,12 +11,14 @@ export default function ScreenshotBlocker({
   enabled = true,
   watermarkText = "",
   autoHideMs = 3000,
+  activationDelayMs = 0, // delay in ms to schedule overlay activation (useful for OS-level screenshots)
   blockType = "white", // 'blur' or 'white'
   onShow = null,
   onHide = null,
 }) {
   const [active, setActive] = useState(false);
   const hideTimeoutRef = useRef(null);
+  const activationTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -26,6 +28,11 @@ export default function ScreenshotBlocker({
       if (hideTimeoutRef.current) {
         clearTimeout(hideTimeoutRef.current);
         hideTimeoutRef.current = null;
+      }
+      // If an activation timeout exists (scheduled show), clear it when we actually show
+      if (activationTimeoutRef.current) {
+        clearTimeout(activationTimeoutRef.current);
+        activationTimeoutRef.current = null;
       }
       setActive(true);
       onShow?.(reason);
@@ -44,6 +51,11 @@ export default function ScreenshotBlocker({
         clearTimeout(hideTimeoutRef.current);
         hideTimeoutRef.current = null;
       }
+      // Also clear scheduled activation if hide occurs before it runs
+      if (activationTimeoutRef.current) {
+        clearTimeout(activationTimeoutRef.current);
+        activationTimeoutRef.current = null;
+      }
       setActive(false);
       onHide?.("manual");
     };
@@ -61,16 +73,31 @@ export default function ScreenshotBlocker({
     const onBeforePrint = () => show("print");
     const onAfterPrint = () => hide();
 
+    const scheduleShow = (reason) => {
+      if (!activationDelayMs) {
+        show(reason);
+        return;
+      }
+      if (activationTimeoutRef.current) {
+        clearTimeout(activationTimeoutRef.current);
+      }
+      activationTimeoutRef.current = setTimeout(() => {
+        activationTimeoutRef.current = null;
+        show(reason);
+      }, activationDelayMs);
+    };
+
     const onKeyDown = (e) => {
       try {
         const key = e?.key || e?.code || e?.keyCode;
         // 44 = PrintScreen key code
         if (key === "PrintScreen" || key === "Print_Screen" || key === 44) {
-          show("printscreen-key");
+          // Use scheduled show to align overlay activation with OS screenshot timing
+          scheduleShow("printscreen-key");
         }
         // Meta + Shift + S (mac screenshot in some browsers/tools)
         if ((e?.metaKey || e?.ctrlKey) && e?.shiftKey && (e?.key === "S" || e?.key === "s")) {
-          show("meta-shift-s");
+          scheduleShow("meta-shift-s");
         }
       } catch (err) {
         // ignore
@@ -95,7 +122,7 @@ export default function ScreenshotBlocker({
     const onCustomHide = (e) => hide();
 
     // Custom screenshot event from native/webviews (e.g., React Native, cordova)
-    const onNativeScreenshot = (e) => show("native-screenshot");
+    const onNativeScreenshot = (e) => scheduleShow("native-screenshot");
 
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("blur", onBlur);
@@ -125,8 +152,9 @@ export default function ScreenshotBlocker({
       window.removeEventListener("screenshot", onNativeScreenshot);
 
       if (hideTimeoutRef.current) clearTimeout(hideTimeoutRef.current);
+      if (activationTimeoutRef.current) clearTimeout(activationTimeoutRef.current);
     };
-  }, [enabled, autoHideMs, onShow, onHide, active]);
+  }, [enabled, autoHideMs, activationDelayMs, onShow, onHide, active]);
 
   // Visual overlay styles
   const overlayClasses = blockType === "white" ? "bg-white" : "bg-black";

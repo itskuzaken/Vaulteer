@@ -190,6 +190,19 @@ export default function HTSFormManagement() {
       setIsDarkTheme(false);
     }
   }, []);
+
+  // Activation delay (ms) for screenshot blocker - default to a small delay on Windows
+  const [activationDelayMs, setActivationDelayMs] = useState(0);
+  useEffect(() => {
+    try {
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+      const isWindows = /Windows\s?NT|Win32|Win64/.test(ua);
+      // On Windows, use a short delay to better align with screenshot timing (e.g., Win+Shift+S)
+      setActivationDelayMs(isWindows ? 200 : 0);
+    } catch (err) {
+      setActivationDelayMs(0);
+    }
+  }, []);
   
   // Cleanup on unmount
   useEffect(() => {
@@ -2115,6 +2128,7 @@ export default function HTSFormManagement() {
       <ScreenshotBlocker
         enabled={screenshotProtectionEnabled}
         watermarkText={watermarkText}
+        activationDelayMs={activationDelayMs}
         blockType={isDarkTheme ? 'white' : 'blur'}
         autoHideMs={3000}
       />

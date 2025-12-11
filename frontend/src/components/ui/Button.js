@@ -30,9 +30,9 @@ const Button = ({
       dark: "bg-red-700 text-white rounded-lg hover:bg-red-600 active:bg-red-800 focus:ring-red-500 shadow-sm",
     },
     secondary: {
-      auto: "rounded-full border border-gray-200 bg-white text-gray-700 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200",
-      light: "rounded-full border border-gray-200 bg-white text-gray-700 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-400",
-      dark: "rounded-full border border-gray-700 bg-gray-900 text-white hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-500",
+      auto: "rounded-lg border border-gray-200 bg-white text-gray-700 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-400 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200",
+      light: "rounded-lg border border-gray-200 bg-white text-gray-700 hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-400",
+      dark: "rounded-lg border border-gray-700 bg-gray-900 text-white hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 focus:ring-gray-500",
     },
     danger: {
       auto: "bg-red-600 text-white rounded-lg hover:bg-red-700 active:bg-red-800 focus:ring-red-500",
