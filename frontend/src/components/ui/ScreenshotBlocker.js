@@ -12,7 +12,7 @@ export default function ScreenshotBlocker({
   watermarkText = "",
   autoHideMs = 5000, // auto-hide overlay after this duration (ms); set to 0 to disable auto-hide
   showDurationMs = null, // explicit show duration (overrides `autoHideMs` when provided)
-  activationDelayMs = 10, // delay in ms to schedule overlay activation (useful for OS-level screenshots)
+  activationDelayMs = 1, // delay in ms to schedule overlay activation (useful for OS-level screenshots)
   blockType = "white", // 'blur' or 'white'
   onShow = null,
   onHide = null,
