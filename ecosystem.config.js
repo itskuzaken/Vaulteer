@@ -3,14 +3,14 @@ module.exports = {
     {
       // Backend: Express.js (Port 5000)
       name: "vaulteer-backend",
-      cwd: "/opt/Vaulteer/backend", 
+      cwd: "/opt/Vaulteer/backend",
       script: "/server.js",
-      interpreter: "/usr/bin/node", 
+      interpreter: "/usr/bin/node",
       instances: 1,
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
-        TRUST_PROXY: "1", 
+        TRUST_PROXY: "1",
       },
       // Logs now point to the ubuntu user's home directory
       error_file: "/home/ubuntu/vaulteer_logs/backend-error.log",
@@ -24,7 +24,7 @@ module.exports = {
     {
       // Frontend: Next.js (Port 3000)
       name: "vaulteer-frontend",
-      cwd: "/opt/Vaulteer/frontend", 
+      cwd: "/opt/Vaulteer/frontend",
       script: "npx",
       args: "next start -p 3000",
       interpreter: "/usr/bin/node",
