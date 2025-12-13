@@ -10,12 +10,12 @@
   ],
   "scripts": {
     "dev": "concurrently -n \"BACK,FRONT\" -c \"green,blue\" \"npm run backend:dev\" \"npm run frontend:dev\"",
-    "start": "concurrently -n \"BACK,FRONT\" -c \"green,blue\" \"npm run backend:start\" \"npm run frontend:start\"",
     "backend:dev": "cd backend && nodemon server.js",
     "backend:start": "cd backend && node server.js",
-    "frontend:dev": "cd frontend && next dev",
-    "frontend:start": "cd frontend && next build && next start",
-    "frontend:build": "cd frontend && next build",
+    "start": "concurrently -n \"BACK,FRONT\" -c \"green,blue\" \"npm run backend:start\" \"npm run frontend:start\"",
+      "frontend:dev": "cd frontend && npm run dev",
+      "frontend:start": "cd frontend && npm run build && npm run start",
+      "frontend:build": "cd frontend && npm run build",
     "frontend:lint": "cd frontend && next lint",
     "install:all": "npm install",
     "clean": "rm -rf node_modules backend/node_modules frontend/node_modules"
