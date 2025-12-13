@@ -14,6 +14,7 @@ import {
 } from "react-icons/io5";
 import { getAuth } from "firebase/auth";
 import { API_BASE } from "../../../config/config";
+import statsService from "../../../services/statsService";
 import DashboardEventsSidebar from "../../dashboard/DashboardEventsSidebar";
 import LeaderboardCard from "../../gamification/LeaderboardCard";
 import NewsUpdatesCarousel from "../../dashboard/NewsUpdatesCarousel";
@@ -61,6 +62,16 @@ export default function AdminDashboard({ onNavigate }) {
       color: "purple",
       subtitle: "Last 24 hours",
     },
+    {
+      key: "participations_today",
+      title: "Participations Today",
+      icon: IoDocumentTextOutline,
+      color: "rose",
+      subtitle: "HTS Forms submitted",
+      kpiType: "donut",
+      breakdownKey: "participations_today_by_result",
+      trendKey: "participations_trend_last7",
+    },
   ];
 
   // Fetch stats from API
@@ -101,8 +112,26 @@ export default function AdminDashboard({ onNavigate }) {
       }
 
       const result = await response.json();
-      console.log("Stats fetched successfully:", result);
-      return result.data;
+      // Fetch participation stats
+      let participation = {};
+      try {
+        const pResp = await statsService.getParticipationStats();
+        participation = pResp?.data || {};
+      } catch (err) {
+        console.warn("Failed to fetch participation stats:", err);
+      }
+
+      const merged = {
+        ...result.data,
+        participations_today: participation.today || 0,
+        participations_last7: participation.last7 || 0,
+        participations_last30: participation.last30 || 0,
+        participations_today_by_result: participation.today_by_result || {},
+        participations_trend_last7: participation.trend_last7 || [],
+      };
+
+      console.log("Stats fetched successfully:", merged);
+      return merged;
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
       throw error;

@@ -6,6 +6,7 @@
 import React from "react";
 import { IoPulseOutline } from "react-icons/io5";
 import StatsCard from "./StatsCard";
+import DonutKPI from "./DonutKPI";
 import DashboardSectionCard from "./DashboardSectionCard";
 import { useRealtimeStats } from "../../hooks/useRealtimeStats";
 
@@ -74,8 +75,21 @@ export default function RealtimeStatsGrid({
             const value = data ? data[config.key] : 0;
             const isChanged = changedFields.includes(config.key);
 
-            return (
-              <StatsCard
+            // Prepare optional breakdown and trend for donut KPIs
+            const breakdown = data && config.breakdownKey ? data[config.breakdownKey] : (data && data[`${config.key}_by_result`]) || null;
+            const trend = data && (config.trendKey ? data[config.trendKey] : data["trend_last7"]) || null;
+
+            return (config.kpiType === "donut" || config.type === "donut") ? (
+                <DonutKPI
+                  key={config.key || index}
+                  title={config.title}
+                  value={value}
+                  breakdown={breakdown}
+                  subtitle={config.subtitle}
+                  trend={trend}
+                />
+              ) : (
+                <StatsCard
                 key={config.key || index}
                 title={config.title}
                 value={value}
@@ -90,7 +104,8 @@ export default function RealtimeStatsGrid({
                 onClick={config.onClick}
                 showRealtimeIndicator={config.showRealtimeIndicator || false}
               />
-            );
+              )
+            ;
           })}
         </div>
       )}

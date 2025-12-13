@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { authenticate } = require("../middleware/auth");
 const { getPool } = require("../db/pool");
+const statsService = require("../services/statsService");
 
 /**
  * @route   GET /api/stats/dashboard
@@ -240,4 +241,43 @@ router.get("/volunteer", authenticate, async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/stats/participation
+ * @desc    Get participation statistics (HTS form submissions)
+ * @access  Private (staff or admin)
+ */
+router.get("/participation", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const userId = req.firebaseUid;
+
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // Check role (allow staff or admin)
+    const [userRows] = await pool.query(
+      "SELECT u.user_id, r.role FROM users u JOIN roles r ON u.role_id = r.role_id WHERE u.uid = ?",
+      [userId]
+    );
+
+    if (!userRows.length) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const role = userRows[0].role;
+    if (role !== "staff" && role !== "admin") {
+      return res.status(403).json({ error: "Staff or admin access required" });
+    }
+
+    const stats = await statsService.getParticipationStats();
+
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    console.error("Error fetching participation stats:", error);
+    res.status(500).json({ error: "Failed to fetch participation statistics" });
+  }
+});
+
 module.exports = router;
+

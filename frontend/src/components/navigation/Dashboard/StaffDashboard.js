@@ -6,12 +6,14 @@ import {
   IoPeopleOutline,
   IoChatbubbleEllipsesOutline,
   IoCalendarOutline,
+  IoDocumentTextOutline,
   IoStatsChartOutline,
   IoClose,
   IoFlashOutline,
 } from "react-icons/io5";
 import { getAuth } from "firebase/auth";
 import { API_BASE } from "../../../config/config";
+import statsService from "../../../services/statsService";
 import DashboardEventsSidebar from "../../dashboard/DashboardEventsSidebar";
 import LeaderboardCard from "../../gamification/LeaderboardCard";
 import NewsUpdatesCarousel from "../../dashboard/NewsUpdatesCarousel";
@@ -51,6 +53,16 @@ export default function StaffDashboard({ onNavigate }) {
       color: "amber",
       subtitle: "Last 24 hours",
     },
+    {
+      key: "participations_today",
+      title: "Participations Today",
+      icon: IoDocumentTextOutline,
+      color: "rose",
+      subtitle: "HTS Form submissions",
+      kpiType: "donut",
+      breakdownKey: "participations_today_by_result",
+      trendKey: "participations_trend_last7",
+    },
   ];
 
   const fetchStats = async () => {
@@ -88,7 +100,21 @@ export default function StaffDashboard({ onNavigate }) {
       }
 
       const result = await response.json();
-      return result.data;
+      let participation = {};
+      try {
+        const pResp = await statsService.getParticipationStats();
+        participation = pResp?.data || {};
+      } catch (err) {
+        console.warn("Failed to fetch participation stats:", err);
+      }
+
+      return {
+        ...result.data,
+        participations_today: participation.today || 0,
+        participations_last7: participation.last7 || 0,
+        participations_trend_last7: participation.trend_last7 || [],
+        participations_today_by_result: participation.today_by_result || {},
+      };
     } catch (error) {
       console.error("Error fetching staff stats:", error);
       throw error;
