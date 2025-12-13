@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "cross-env CSS_TRANSFORMER_WASM=1 next build",
+    "build": "next build",
     "prestart": "npm run build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "node ./scripts/postinstall.cjs"
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
@@ -16,7 +17,7 @@
     "firebase": "^11.6.0",
     "ionicons": "^7.4.0",
     "isomorphic-dompurify": "^2.33.0",
-    "next": "15.2.5",
+    "next": "^15.5.9",
     "quill": "~2.0.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -28,11 +29,11 @@
     "@tailwindcss/postcss": "^4",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.7",
+    "cross-env": "^7.0.3",
     "eslint": "^9",
     "eslint-config-next": "15.2.5",
-    "tailwindcss": "^4",
-    "cross-env": "^7.0.3",
     "lightningcss": "1.29.2",
+    "tailwindcss": "^4",
     "typescript": "^5.9.3"
   },
   "type": "module"
