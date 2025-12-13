@@ -4,8 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "cross-env CSS_TRANSFORMER_WASM=1 next build",
-    "prestart": "npm run build",
+    "build": "next build",
+    "prestart": "next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -31,8 +31,6 @@
     "eslint": "^9",
     "eslint-config-next": "15.2.5",
     "tailwindcss": "^4",
-    "cross-env": "^7.0.3",
-    "lightningcss": "1.29.2",
     "typescript": "^5.9.3"
   },
   "type": "module"
