@@ -63,6 +63,7 @@ export default function AdminDashboard({ onNavigate }) {
     },
   ];
 
+
   // Fetch stats from API
   const fetchStats = async () => {
     try {
@@ -102,6 +103,7 @@ export default function AdminDashboard({ onNavigate }) {
 
       const result = await response.json();
       console.log("Stats fetched successfully:", result);
+
       return result.data;
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
