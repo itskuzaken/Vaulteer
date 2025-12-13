@@ -68,8 +68,6 @@ async function getHtsParticipationStats() {
   }
 }
 // Event participation functions below
-const { getPool } = require('../db/pool');
-const { DateTime } = require('luxon');
 
 /**
  * Compute date ranges for standard periods
