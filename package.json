@@ -19,8 +19,6 @@
     "frontend:lint": "cd frontend && next lint",
     "install:all": "npm install",
     "clean": "rm -rf node_modules backend/node_modules frontend/node_modules"
-    ,
-    "postinstall": "node ./scripts/postinstall.cjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
