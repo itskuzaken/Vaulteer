@@ -6,6 +6,8 @@ import Image from "next/image";
 import Script from "next/script";
 import { Inter, Roboto_Mono, Poppins } from "next/font/google";
 import "./globals.css"; // Import global styles
+import "quill/dist/quill.snow.css";
+import "quill/dist/quill.bubble.css";
 import Login from "../services/auth/login";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "../services/firebase";
@@ -122,21 +124,9 @@ function Header() {
       <div className="hidden sm:flex items-center space-x-4 px-4">
         <button
           onClick={() => setLoginVisible(true)}
-          className="text-[var(--primary-red)] px-1 py-1 hover:text-[var(--dark)] transition"
+          className="bg-red-700 text-white px-4 py-2 rounded-xl hover:text-[var(--dark)] transition"
         >
           Log in
-        </button>
-        <button
-          onClick={async () => {
-            try {
-              await signup();
-            } catch (err) {
-              alert("Signup failed: " + (err.message || err));
-            }
-          }}
-          className="bg-white text-[var(--primary-red)] px-2 py-1 rounded border border-[var(--primary-red)] hover:bg-[var(--primary-red)] hover:text-white transition"
-        >
-          Sign up
         </button>
       </div>
 
@@ -144,7 +134,7 @@ function Header() {
       <div className="flex sm:hidden items-center space-x-2">
         <button
           onClick={() => setLoginVisible(true)}
-          className="text-[var(--primary-red)] px-2 py-1 hover:text-[var(--dark)] transition font-medium"
+          className="bg-red-700 text-white px-4 py-2 rounded-xl hover:text-[var(--dark)] transition font-medium"
         >
           Log in
         </button>
