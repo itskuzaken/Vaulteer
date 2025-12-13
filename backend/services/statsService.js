@@ -1,4 +1,5 @@
 const { getPool } = require('../db/pool');
+const { DateTime } = require('luxon');
 
 /**
  * Returns participation statistics based on hts_forms submissions
@@ -6,7 +7,7 @@ const { getPool } = require('../db/pool');
  * - breakdown by test_result for today
  * - daily trend for last 7 days
  */
-async function getParticipationStats() {
+async function getHtsParticipationStats() {
   const pool = getPool();
 
   // Use DATE boundaries to keep time zone effects minimal (server-local)
@@ -66,10 +67,7 @@ async function getParticipationStats() {
     throw err;
   }
 }
-
-module.exports = {
-  getParticipationStats,
-};
+// Event participation functions below
 const { getPool } = require('../db/pool');
 const { DateTime } = require('luxon');
 
@@ -133,7 +131,7 @@ async function getStatsForRange(pool, startTs, endTs, eventTypes = []) {
 /**
  * Returns participation stats for requested periods with previous period comparison
  */
-async function getParticipationStats({ periods = ['yesterday', 'last7', 'last30'], eventTypes = [] } = {}) {
+async function getEventParticipationStats({ periods = ['yesterday', 'last7', 'last30'], eventTypes = [] } = {}) {
   const pool = getPool();
   const results = {};
 
@@ -187,4 +185,8 @@ async function getParticipationStats({ periods = ['yesterday', 'last7', 'last30'
   return { periods: results, distribution };
 }
 
-module.exports = { getParticipationStats };
+module.exports = { 
+  getParticipationStats: getHtsParticipationStats,
+  getHtsParticipationStats,
+  getEventParticipationStats,
+};
