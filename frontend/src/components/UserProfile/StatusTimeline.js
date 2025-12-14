@@ -143,7 +143,7 @@ export default function StatusTimeline({ history, loading }) {
                   </div>
                   {item.notes && (
                     <div className="text-xs text-gray-700 dark:text-gray-300 mt-2 p-2 bg-white dark:bg-gray-800 rounded">
-                      <span className="font-medium">Note:</span> {item.notes}
+                      <span className="font-medium">Message:</span> {item.notes}
                     </div>
                   )}
                   {(() => {

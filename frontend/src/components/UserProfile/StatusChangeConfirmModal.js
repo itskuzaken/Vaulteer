@@ -1,3 +1,4 @@
+import { useState } from "react";
 import ModalShell from "@/components/modals/ModalShell";
 import Button from "@/components/ui/Button";
 
@@ -11,6 +12,7 @@ export default function StatusChangeConfirmModal({
   mode = "auto",
   schedule = null,
 }) {
+  const [reason, setReason] = useState("");
   const formatStatusLabel = (status) => {
     if (!status) return "";
     return status
@@ -26,7 +28,13 @@ export default function StatusChangeConfirmModal({
       <Button variant="ghost" onClick={onClose} disabled={processing} mode={mode} className="flex-1">
         Cancel
       </Button>
-      <Button variant="primary" onClick={onConfirm} disabled={processing} mode={mode} className="flex-1">
+      <Button
+        variant="primary"
+        onClick={() => onConfirm(reason)}
+        disabled={processing || (newStatus === "rejected" && reason.trim() === "")}
+        mode={mode}
+        className="flex-1"
+      >
         {processing ? "Processing..." : "Confirm Change"}
       </Button>
     </>
@@ -74,9 +82,25 @@ export default function StatusChangeConfirmModal({
         )}
         {newStatus === "rejected" && (
           <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-            <p className="text-xs text-red-700 dark:text-red-300">
+            <p className="text-xs text-red-700 dark:text-red-300 mb-2">
               ✗ This will set the user status to inactive
             </p>
+            <label className="block text-xs text-gray-700 dark:text-gray-300 mb-1">Message</label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Enter a message to include in the rejection email."
+              className="w-full text-sm p-2 border rounded-md bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200"
+              aria-required={true}
+              required
+              rows={3}
+            />
+            {newStatus === "rejected" && reason.trim() === "" && (
+              <p className="text-xs text-red-600 mt-2">Message is required when rejecting an applicant.</p>
+            )}
+            {newStatus === "rejected" && reason.trim() === "" && (
+              <p className="text-xs text-red-600 mt-1">Message is required when rejecting an applicant.</p>
+            )}
           </div>
         )}
         {newStatus === "interview_scheduled" && schedule && (

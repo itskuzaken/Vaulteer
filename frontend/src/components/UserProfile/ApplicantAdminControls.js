@@ -27,16 +27,11 @@ export default function ApplicantAdminControls({
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleData, setScheduleData] = useState(null);
 
-  // Define workflow order
-  const workflowOrder = [
-    "pending",
-    "under_review",
-    "interview_scheduled",
-    "approved", // Can only reach after interview
-    "rejected", // Can only reach after interview or any stage
-  ];
+  // NOTE: workflowOrder constant was removed as it was defined but unused.
 
-  // Get allowed next statuses based on current status and user role
+  /**
+   * Get allowed next statuses based on current status and user role
+   */
   const getAllowedNextStatuses = (current) => {
     const normalized = (current || "").toLowerCase();
     const isAdmin = currentUserRole?.toLowerCase() === "admin";
@@ -47,8 +42,8 @@ export default function ApplicantAdminControls({
       case "under_review":
         return ["interview_scheduled", "rejected"];
       case "interview_scheduled":
-        // Only admin can approve/reject from interview stage
-        return isAdmin ? ["approved", "rejected"] : [];
+        // Admin and staff can approve or reject from interview stage
+        return ["approved", "rejected"];
       case "approved":
         return []; // Final state, no changes allowed
       case "rejected":
@@ -58,13 +53,17 @@ export default function ApplicantAdminControls({
     }
   };
 
-  // Check if a status transition is allowed
+  /**
+   * Check if a status transition is allowed
+   */
   const isStatusAllowed = (newStatus) => {
     const allowedStatuses = getAllowedNextStatuses(currentStatus);
     return allowedStatuses.includes(newStatus);
   };
 
-  // Get status description
+  /**
+   * Get status description
+   */
   const getStatusDescription = (statusName) => {
     const normalized = (statusName || "").toLowerCase();
     switch (normalized) {
@@ -133,12 +132,15 @@ export default function ApplicantAdminControls({
       return;
     }
 
+    // Always reset scheduleData when initiating a non-interview status change
+    setScheduleData(null);
+
     // Interview scheduling requires extra details before confirmation
     if (newStatus === "interview_scheduled") {
       setError(null);
       setPendingStatus(newStatus);
       setSelectedStatus(newStatus);
-      setScheduleData(null);
+      // NOTE: scheduleData is set to null above to clear old schedule data
       setShowScheduleModal(true);
       setShowConfirmModal(false);
       return;
@@ -150,16 +152,17 @@ export default function ApplicantAdminControls({
     setError(null); // Clear any previous errors
   };
 
-  const handleConfirmStatusChange = async () => {
+  const handleConfirmStatusChange = async (notes = null) => {
     if (!pendingStatus || !applicantId) return;
 
     setProcessing(true);
     setError(null);
 
     try {
-      const payload = { notes: null, schedule: null };
+      const payload = { notes: notes || null, schedule: null };
 
       if (pendingStatus === "interview_scheduled") {
+        // Defensive check: This prevents API call if the schedule modal was dismissed unexpectedly
         if (!scheduleData) {
           setShowConfirmModal(false);
           setShowScheduleModal(true);
@@ -202,12 +205,15 @@ export default function ApplicantAdminControls({
     setShowScheduleModal(false);
     setPendingStatus(null);
     setSelectedStatus(currentStatus);
+    // Reset schedule data if the change was canceled
+    setScheduleData(null); 
     setError(null);
   };
 
   const handleScheduleSave = (schedule) => {
     setScheduleData(schedule);
     setShowScheduleModal(false);
+    // Automatically open the final confirmation modal after saving schedule
     setShowConfirmModal(true);
   };
 
@@ -258,70 +264,77 @@ export default function ApplicantAdminControls({
             Application Progress
           </h4>
           <div className="flex items-center justify-between overflow-x-auto pb-2">
-            {workflowOrder
-              .filter((s) => s !== "rejected")
-              .map((status, index) => {
-                const isCurrent = currentStatus?.toLowerCase() === status;
-                const currentIndex = workflowOrder.indexOf(
-                  currentStatus?.toLowerCase()
-                );
-                const statusIndex = workflowOrder.indexOf(status);
-                const isCompleted =
-                  statusIndex < currentIndex ||
-                  currentStatus?.toLowerCase() === "approved";
-                const isRejected = currentStatus?.toLowerCase() === "rejected";
+            {
+              // Show a single final step which is either 'approved' or 'rejected'
+              (() => {
+                const base = ["pending", "under_review", "interview_scheduled"];
+                const final = (currentStatus && ["approved", "rejected"].includes(currentStatus.toLowerCase()))
+                  ? currentStatus.toLowerCase()
+                  : "approved";
+                const displayWorkflow = [...base, final];
 
-                return (
-                  <div key={status} className="flex items-center flex-1 min-w-0">
-                    <div className="flex flex-col items-center flex-1">
-                      <div
-                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm flex-shrink-0 ${
-                          isCurrent
-                            ? "bg-indigo-600 text-white ring-2 sm:ring-4 ring-indigo-200 dark:ring-indigo-800"
-                            : isCompleted
-                            ? "bg-green-500 text-white"
-                            : "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400"
-                        }`}
-                      >
-                        {isCompleted ? "✓" : index + 1}
+                return displayWorkflow.map((status, index) => {
+                  const isCurrent = currentStatus?.toLowerCase() === status;
+                  const currentIndex = displayWorkflow.indexOf(currentStatus?.toLowerCase());
+                  const statusIndex = displayWorkflow.indexOf(status);
+                  const isCompleted =
+                    statusIndex < currentIndex ||
+                    (currentStatus?.toLowerCase() === "approved" && status === "approved") ||
+                    (currentStatus?.toLowerCase() === "rejected" && status === "rejected");
+                  const isRejectedStep = status === "rejected";
+
+                  return (
+                    <div key={status} className="flex items-center flex-1 min-w-0">
+                      <div className="flex flex-col items-center flex-1">
+                        <div
+                          // FIX: Removed unnecessary class concatenation split error here
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm flex-shrink-0 ${
+                            isCurrent
+                              ? isRejectedStep
+                                ? "bg-red-600 text-white ring-2 sm:ring-4 ring-red-200 dark:ring-red-800"
+                                : "bg-indigo-600 text-white ring-2 sm:ring-4 ring-indigo-200 dark:ring-indigo-800"
+                              : isCompleted
+                              ? "bg-green-500 text-white"
+                              : isRejectedStep
+                              ? "bg-red-100 text-red-700"
+                              : "bg-gray-300 dark:bg-gray-600 text-gray-600 dark:text-gray-400"
+                          }`}
+                        >
+                          {isCompleted ? "✓" : index + 1}
+                        </div>
+                        <span
+                          className={`mt-1 sm:mt-2 text-[10px] sm:text-xs font-medium text-center leading-tight px-1 ${
+                            isCurrent
+                              ? isRejectedStep
+                                ? "text-red-600 dark:text-red-400"
+                                : "text-indigo-600 dark:text-indigo-400"
+                              : isCompleted
+                              ? "text-green-600 dark:text-green-400"
+                              : isRejectedStep
+                              ? "text-red-600 dark:text-red-400"
+                              : "text-gray-500 dark:text-gray-400"
+                          }`}
+                        >
+                          {status
+                            .split("_")
+                            .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                            .join(" ")}
+                        </span>
                       </div>
-                      <span
-                        className={`mt-1 sm:mt-2 text-[10px] sm:text-xs font-medium text-center leading-tight px-1 ${
-                          isCurrent
-                            ? "text-indigo-600 dark:text-indigo-400"
-                            : isCompleted
-                            ? "text-green-600 dark:text-green-400"
-                            : "text-gray-500 dark:text-gray-400"
-                        }`}
-                      >
-                        {status
-                          .split("_")
-                          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                          .join(" ")}
-                      </span>
+                      {index < displayWorkflow.length - 1 && (
+                        <div
+                          className={`h-0.5 sm:h-1 flex-1 mx-1 sm:mx-2 ${
+                            isCompleted
+                              ? "bg-green-500"
+                              : "bg-gray-300 dark:bg-gray-600"
+                          }`}
+                        ></div>
+                      )}
                     </div>
-                    {index <
-                      workflowOrder.filter((s) => s !== "rejected").length -
-                        1 && (
-                      <div
-                        className={`h-0.5 sm:h-1 flex-1 mx-1 sm:mx-2 ${
-                          isCompleted
-                            ? "bg-green-500"
-                            : "bg-gray-300 dark:bg-gray-600"
-                        }`}
-                      ></div>
-                    )}
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
           </div>
-          {currentStatus?.toLowerCase() === "rejected" && (
-            <div className="mt-3 sm:mt-4 p-2 sm:p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded">
-              <p className="text-xs sm:text-sm text-red-600 dark:text-red-400 font-medium text-center">
-                ✗ Application was rejected
-              </p>
-            </div>
-          )}
         </div>
 
         {error && (

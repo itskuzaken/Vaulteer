@@ -66,10 +66,10 @@ export async function approveApplicant(userId) {
 }
 
 // Reject applicant (update status to 'rejected')
-export async function rejectApplicant(userId) {
+export async function rejectApplicant(userId, { notes = null } = {}) {
   return await fetchWithAuth(`${API_BASE}/applicants/${userId}/reject`, {
     method: "PUT",
-    body: JSON.stringify({ status: "rejected" }),
+    body: JSON.stringify({ notes }),
   });
 }
 

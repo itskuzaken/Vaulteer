@@ -1,5 +1,8 @@
 const { getPool } = require("../db/pool");
 const emailService = require("../services/emailService");
+const notificationService = require("../services/notificationService");
+const userRepository = require("./userRepository");
+const userSettingsRepository = require("./userSettingsRepository");
 
 const APPLICATION_STATUSES = new Set([
   "pending",
@@ -163,6 +166,7 @@ async function updateApplicantStatus(
     }
 
     await connection.commit();
+
     console.log(`[updateApplicantStatus] transaction committed successfully`);
 
     // Send applicant notifications (best-effort, do not block response)
@@ -499,6 +503,59 @@ async function createApplicantWithProfile(userData, formData) {
     }
 
     await connection.commit();
+
+    // Notify admins/staff about the new application (best-effort, non-blocking)
+    (async () => {
+      try {
+        const [adminIds, staffIds] = await Promise.all([
+          userRepository.getActiveUsersByRole("admin"),
+          userRepository.getActiveUsersByRole("staff"),
+        ]);
+
+        console.log("[createApplicantWithProfile] adminIds:", adminIds, "staffIds:", staffIds);
+
+        const recipients = Array.from(new Set([...(adminIds || []), ...(staffIds || [])]));
+
+        if (recipients.length > 0) {
+          const title = `📨 New Volunteer Application`;
+          const message = `${userData.name} submitted a new application.`;
+const actionUrl = `/dashboard?content=profile&userUid=${userData.uid}`;
+          const metadata = {
+            source_type: "application",
+            applicantId,
+            userId,
+            applicantUid: userData.uid,
+            notificationKind: "new_application",
+          };
+
+          // Create in-app notifications
+          await notificationService.createBulkNotifications(recipients, {
+            title,
+            message,
+            type: "info",
+            actionUrl,
+            metadata,
+          });
+
+          // Send push notifications to users who have push enabled (if any)
+          try {
+            const pushUsers = await userSettingsRepository.getUsersWithPushEnabled();
+            const pushRecipients = (pushUsers || []).filter((u) => recipients.includes(u.user_id));
+            if (pushRecipients.length > 0) {
+              await notificationService.sendBulkPushNotifications(pushRecipients, {
+                title,
+                body: message,
+                data: { actionUrl, ...metadata },
+              });
+            }
+          } catch (err) {
+            console.error("[createApplicantWithProfile] Error sending push notifications:", err);
+          }
+        }
+      } catch (err) {
+        console.error("[createApplicantWithProfile] Failed to notify admins/staff:", err);
+      }
+    })();
 
     return {
       success: true,

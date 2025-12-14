@@ -11,6 +11,7 @@
     "dev": "nodemon server.js",
     "migrate": "node migrate.js",
     "test-email": "node scripts/test-send-email.js",
+    "test:new-application-notification": "node scripts/test-new-application-notification.js",
     "migrate:notifications": "node migrate.js migrations/20251201_initialize_notification_system.sql",
     "check:notifications": "node check-notifications.js",
     "init:user-settings": "node init-user-settings.js"

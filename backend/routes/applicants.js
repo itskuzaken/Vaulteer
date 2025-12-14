@@ -283,16 +283,9 @@ router.put(
       };
     }
 
-    // Staff can only move to intermediate statuses, admin can approve/reject
-    const restrictedStatuses = ["approved", "rejected"];
-    if (
-      userRole === "staff" &&
-      restrictedStatuses.includes(normalizedStatus)
-    ) {
-      return res.status(403).json({
-        error: "Forbidden: Only admin can approve or reject applications",
-      });
-    }
+    // Admin and staff are allowed to change final statuses (approved/rejected)
+    // No additional role-based restriction here because earlier we confirmed
+    // the user has either 'admin' or 'staff' role.
 
     try {
       const userId = isNaN(id) ? await getUserIdFromUid(id) : parseInt(id);
@@ -314,6 +307,11 @@ router.put(
         );
       } else {
         throw new Error("Authentication required: No user ID found in request");
+      }
+
+      // Require a message when rejecting an applicant
+      if (normalizedStatus === "rejected" && (!notes || !notes.toString().trim())) {
+        return res.status(400).json({ error: "Rejection requires a message" });
       }
 
       const result = await updateApplicantStatus(
@@ -343,21 +341,49 @@ router.get(
 );
 router.put(
   "/:id/approve",
+  authenticate,
   asyncHandler(async (req, res) => {
+    // Only admin or staff may approve via this endpoint
+    const userRole = req.authenticatedUser?.role?.toLowerCase();
+    if (!userRole || !["admin", "staff"].includes(userRole)) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
     // Resolve UID to user_id if needed
     const id = req.params.id;
     const userId = isNaN(id) ? await getUserIdFromUid(id) : parseInt(id);
-    res.json(await approveApplicant(userId));
+
+    // Use current user id from auth middleware
+    const changedByUserId = req.currentUserId || (req.firebaseUid && (await getCurrentUserIdFromFirebaseUid(req.firebaseUid)));
+
+    const result = await updateApplicantStatus(userId, "approved", changedByUserId);
+    res.json(result);
   })
 );
 router.put(
   "/:id/reject",
-  asyncHandler(async (req, res) => {
-    // Resolve UID to user_id if needed
-    const id = req.params.id;
-    const userId = isNaN(id) ? await getUserIdFromUid(id) : parseInt(id);
-    res.json(await rejectApplicant(userId));
-  })
-);
+  authenticate,
+    asyncHandler(async (req, res) => {
+      // Only admin or staff can reject via this route
+      const userRole = req.authenticatedUser?.role?.toLowerCase();
+      if (!userRole || !["admin", "staff"].includes(userRole)) {
+        return res.status(403).json({ error: "Forbidden: Only admin and staff can reject applications" });
+      }
+
+      // Resolve UID to user_id if needed
+      const id = req.params.id;
+      const userId = isNaN(id) ? await getUserIdFromUid(id) : parseInt(id);
+
+      const notes = req.body?.notes;
+      if (!notes || !notes.toString().trim()) {
+        return res.status(400).json({ error: "Rejection requires a message" });
+      }
+
+      // Use updateApplicantStatus so notes are logged and emailed
+      const changedByUserId = req.currentUserId || (await getCurrentUserIdFromFirebaseUid(req.firebaseUid));
+      const result = await updateApplicantStatus(userId, "rejected", changedByUserId, notes);
+      res.json(result);
+        })
+    );
 
 module.exports = router;

@@ -103,11 +103,46 @@ class EmailService {
           text,
           html,
         };
-        const response = await this.client.send(msg);
-        return {
-          success: true,
-          messageId: response[0]?.headers?.["x-message-id"],
-        };
+        // Simple retry for transient SendGrid errors (429 / 5xx)
+        const MAX_RETRIES = 2;
+        let attempt = 0;
+        while (true) {
+          try {
+            const response = await this.client.send(msg);
+            return {
+              success: true,
+              messageId: response[0]?.headers?.["x-message-id"],
+            };
+          } catch (err) {
+            attempt++;
+            const statusCode = err?.response?.statusCode || err?.code || null;
+
+            // Don't retry on auth/permission errors (401/403)
+            if (statusCode === 401 || statusCode === 403) {
+              console.error(`Failed to send email to ${to}: ${err.message}`);
+              console.error("SendGrid response:", err?.response?.body || err);
+              return { success: false, error: err.message, statusCode };
+            }
+
+            // Retry on rate limit or server errors
+            if (
+              attempt <= MAX_RETRIES &&
+              (statusCode === 429 || (statusCode && statusCode >= 500))
+            ) {
+              const backoff = 200 * attempt; // ms
+              console.warn(
+                `SendGrid transient error (status ${statusCode}). Retrying in ${backoff}ms (attempt ${attempt})`
+              );
+              await new Promise((r) => setTimeout(r, backoff));
+              continue;
+            }
+
+            // Non-retriable or exhausted retry attempts
+            console.error(`Failed to send email to ${to}: ${err.message}`);
+            console.error("SendGrid response:", err?.response?.body || err);
+            return { success: false, error: err.message, statusCode };
+          }
+        }
       } else if (this.provider === "smtp") {
         const info = await this.client.sendMail({
           from: `"${this.fromName}" <${this.fromEmail}>`,
@@ -614,10 +649,10 @@ EmailService.prototype.generateApplicantDecisionEmail = function ({
     : "You are welcome to apply again in the future or reach out if you have questions.";
 
   const notesHtml = notes
-    ? `<p style="margin: 12px 0; padding: 12px; background: #f9fafb; border-left: 4px solid #dc2626; color: #374151;">Note from the team: ${notes}</p>`
+    ? `<p style="margin: 12px 0; padding: 12px; background: #f9fafb; border-left: 4px solid #dc2626; color: #374151;">Message from the team: ${notes}</p>`
     : "";
 
-  const notesText = notes ? `\nNote from the team: ${notes}\n` : "";
+  const notesText = notes ? `\nMessage from the team: ${notes}\n` : "";
 
   const html = `
 <!DOCTYPE html>
