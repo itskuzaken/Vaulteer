@@ -98,9 +98,6 @@ export default function StatusChangeConfirmModal({
             {newStatus === "rejected" && reason.trim() === "" && (
               <p className="text-xs text-red-600 mt-2">Message is required when rejecting an applicant.</p>
             )}
-            {newStatus === "rejected" && reason.trim() === "" && (
-              <p className="text-xs text-red-600 mt-1">Message is required when rejecting an applicant.</p>
-            )}
           </div>
         )}
         {newStatus === "interview_scheduled" && schedule && (
