@@ -259,7 +259,7 @@ export default function ApplicantAdminControls({
         </h3>
 
         {/* Workflow Progress */}
-        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
+        <div className="mb-4 sm:mb-6 p-3 sm:p-4 bg-linear-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 rounded-lg border border-indigo-200 dark:border-indigo-800">
           <h4 className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">
             Application Progress
           </h4>
@@ -288,7 +288,7 @@ export default function ApplicantAdminControls({
                       <div className="flex flex-col items-center flex-1">
                         <div
                           // FIX: Removed unnecessary class concatenation split error here
-                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm flex-shrink-0 ${
+                          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm shrink-0 ${
                             isCurrent
                               ? isRejectedStep
                                 ? "bg-red-600 text-white ring-2 sm:ring-4 ring-red-200 dark:ring-red-800"

@@ -200,7 +200,7 @@ export default function NotificationBell({ currentUser }) {
 
       {/* Notification Dropdown */}
       {isOpen && (
-        <div className="fixed sm:absolute right-0 sm:right-0 left-0 sm:left-auto top-0 sm:top-auto sm:mt-2 w-full sm:w-96 md:w-[28rem] bg-white dark:bg-gray-900 sm:rounded-lg shadow-xl border-t sm:border border-gray-200 dark:border-gray-700 z-50 h-full sm:h-auto sm:max-h-[600px] overflow-hidden flex flex-col">
+        <div className="fixed sm:absolute right-0 sm:right-0 left-0 sm:left-auto top-0 sm:top-auto sm:mt-2 w-full sm:w-96 md:w-md bg-white dark:bg-gray-900 sm:rounded-lg shadow-xl border-t sm:border border-gray-200 dark:border-gray-700 z-50 h-full sm:h-auto sm:max-h-150 overflow-hidden flex flex-col">
           {/* Header */}
           <div className="px-4 py-4 sm:py-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between sticky sm:static top-0 bg-white dark:bg-gray-900 z-10">
             <h3 className="text-lg sm:text-lg font-semibold text-gray-900 dark:text-white">
@@ -242,7 +242,7 @@ export default function NotificationBell({ currentUser }) {
           {/* Notification List */}
           <div className="overflow-y-auto flex-1 overscroll-contain">
             {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 sm:py-12 px-4 text-center min-h-[300px] sm:min-h-0">
+              <div className="flex flex-col items-center justify-center py-12 sm:py-12 px-4 text-center min-h-75 sm:min-h-0">
                 <IoNotificationsOutline className="w-12 h-12 sm:w-16 sm:h-16 text-gray-300 dark:text-gray-600 mb-3" />
                 <p className="text-base sm:text-base text-gray-500 dark:text-gray-400 font-medium">
                   No notifications yet
@@ -268,7 +268,7 @@ export default function NotificationBell({ currentUser }) {
                   >
                     <div className="flex items-start gap-2 sm:gap-3">
                       {/* Icon */}
-                      <div className="flex-shrink-0 mt-0.5">
+                      <div className="shrink-0 mt-0.5">
                         <div className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center">
                           {getNotificationIcon(notification.type)}
                         </div>
@@ -288,7 +288,7 @@ export default function NotificationBell({ currentUser }) {
                             onClick={(e) =>
                               handleDelete(notification.notification_id, e)
                             }
-                            className="flex-shrink-0 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors touch-manipulation"
+                            className="shrink-0 p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors touch-manipulation"
                             aria-label="Delete notification"
                           >
                             <IoTrashOutline className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-400 hover:text-red-500" />
@@ -304,7 +304,7 @@ export default function NotificationBell({ currentUser }) {
 
                       {/* Unread indicator */}
                       {!notification.is_read && (
-                        <div className="flex-shrink-0 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-600 rounded-full mt-2"></div>
+                        <div className="shrink-0 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-600 rounded-full mt-2"></div>
                       )}
                     </div>
                   </div>

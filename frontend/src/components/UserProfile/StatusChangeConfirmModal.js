@@ -51,7 +51,7 @@ export default function StatusChangeConfirmModal({
     >
       <div className="space-y-4 text-sm text-gray-600 dark:text-gray-300">
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+          <div className="shrink-0 w-12 h-12 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
             <svg
               className="w-6 h-6 text-amber-600 dark:text-amber-400"
               fill="none"
