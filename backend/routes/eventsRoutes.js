@@ -163,4 +163,52 @@ router.post(
   eventsController.markAttendance
 );
 
+// Get attendance list
+router.get(
+  "/:uid/attendance",
+  authenticate,
+  authorizeRoles("admin", "staff"),
+  eventsController.getAttendance
+);
+
+// Check-in a participant (staff/admin)
+router.post(
+  "/:uid/attendance/checkin",
+  authenticate,
+  authorizeRoles("admin", "staff"),
+  eventsController.checkInParticipant
+);
+
+// Patch attendance for a single participant (staff/admin)
+router.patch(
+  "/:uid/attendance/:participantId",
+  authenticate,
+  authorizeRoles("admin", "staff"),
+  eventsController.patchAttendance
+);
+
+// Auto-flag absences (admin only)
+router.post(
+  "/:uid/attendance/auto-flag",
+  authenticate,
+  authorizeRoles("admin"),
+  eventsController.autoFlagAbsences
+);
+
+// Attendance audit log (admin/staff)
+router.get(
+  "/:uid/attendance/audit",
+  authenticate,
+  authorizeRoles("admin", "staff"),
+  eventsController.getAttendanceAudit
+);
+
+// Attendance report (admin/staff)
+router.get(
+  "/:uid/attendance/report",
+  authenticate,
+  authorizeRoles("admin", "staff"),
+  eventsController.getAttendanceReport
+);
+
 module.exports = router;

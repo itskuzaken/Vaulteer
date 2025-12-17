@@ -4,6 +4,7 @@ const { GAMIFICATION_ACTIONS } = require("../config/gamificationRules");
 const { logHelpers } = require("../services/activityLogService");
 const { getPool } = require("../db/pool");
 const notificationService = require("../services/notificationService");
+const attendanceService = require('../services/attendanceService');
 
 class EventsController {
   // ============================================
@@ -250,6 +251,17 @@ class EventsController {
       const { uid } = req.params;
       const userId = req.currentUserId;
 
+      // If the event is already published, do not re-send notifications.
+      const existing = await eventRepository.getEventByUid(uid);
+      if (existing && existing.status === 'published') {
+        // Return existing event without sending duplicate notifications
+        return res.json({
+          success: true,
+          message: "Event already published",
+          data: existing,
+        });
+      }
+
       const event = await eventRepository.publishEvent(uid, userId);
 
       if (!event) {
@@ -472,13 +484,40 @@ class EventsController {
         filters
       );
 
+      // Add participation status for each event
+      const userId = req.currentUserId;
+      const eventsWithParticipation = await Promise.all(
+        events.map(async (event) => {
+          try {
+            const participationStatus = await eventRepository.getParticipantStatus(
+              event.uid,
+              userId
+            );
+            const isRegistered = participationStatus === "registered" || participationStatus === "waitlisted";
+            return {
+              ...event,
+              is_registered: isRegistered,
+              participation_status: participationStatus,
+            };
+          } catch (error) {
+            // If there's an error getting participation status, return event without it
+            console.warn(`Failed to get participation status for event ${event.uid}:`, error.message);
+            return {
+              ...event,
+              is_registered: false,
+              participation_status: null,
+            };
+          }
+        })
+      );
+
       const limit = pagination?.limit ?? events.length ?? 0;
       const offset = pagination?.offset ?? 0;
       const page = limit > 0 ? Math.floor(offset / limit) + 1 : 1;
 
       res.json({
         success: true,
-        data: events,
+        data: eventsWithParticipation,
         total,
         limit,
         offset,
@@ -514,12 +553,23 @@ class EventsController {
       );
       const isRegistered = participationStatus === "registered" || participationStatus === "waitlisted";
 
+      // Get waitlist position if user is waitlisted
+      let waitlistPosition = null;
+      if (participationStatus === "waitlisted") {
+        try {
+          waitlistPosition = await eventRepository.getWaitlistPosition(uid, userId);
+        } catch (error) {
+          console.warn("Failed to get waitlist position:", error.message);
+        }
+      }
+
       res.json({
         success: true,
         data: {
           ...event,
           is_registered: isRegistered,
           participation_status: participationStatus,
+          waitlist_position: waitlistPosition,
         },
       });
     } catch (error) {
@@ -601,6 +651,27 @@ class EventsController {
         metadata: { role: req.authenticatedUser.role },
       });
 
+      // Award gamification points for event registration
+      if (result.status === 'registered') {
+        try {
+          await gamificationService.awardAction({
+            userId,
+            action: GAMIFICATION_ACTIONS.EVENT_REGISTER,
+            eventId: event.event_id,
+            eventUid: event.uid,
+            metadata: {
+              eventTitle: event.title,
+              userName: req.authenticatedUser.name,
+              userRole: req.authenticatedUser.role,
+            },
+            performedBy: req.authenticatedUser,
+          });
+        } catch (gamificationError) {
+          console.warn("Failed to award gamification points for event registration:", gamificationError);
+          // Don't fail the registration if gamification fails
+        }
+      }
+
       res.json({
         success: true,
         message: result.message,
@@ -634,6 +705,14 @@ class EventsController {
         uid,
         userId
       );
+
+      // If there was no active participation to cancel, return success without logging or gamification
+      if (!cancelResult?.hadParticipation) {
+        return res.json({
+          success: true,
+          message: cancelResult?.message || "No active participation found",
+        });
+      }
 
       // Log activity via centralized service
       await logHelpers.logEventCancellation({
@@ -847,8 +926,9 @@ class EventsController {
             action: GAMIFICATION_ACTIONS.EVENT_ATTEND,
             eventId: event.event_id,
             eventUid: event.uid,
-            metadata: { eventTitle: event.title },
+            metadata: { eventTitle: event.title, eventType: event.event_type },
             performedBy: req.authenticatedUser,
+            pointsOverride: Number(event.event_type_points) || null,
             dedupeSuffix: `attendance-${userId}`,
           });
         }
@@ -927,9 +1007,13 @@ class EventsController {
             action: GAMIFICATION_ACTIONS.EVENT_ATTEND,
             eventId: event.event_id,
             eventUid: event.uid,
-            metadata: { eventTitle: event.title },
+            metadata: { eventTitle: event.title, eventType: event.event_type },
             performedBy: req.authenticatedUser,
+            pointsOverride: Number(event.event_type_points) || null,
             dedupeSuffix: `attendance-${targetId}`,
+          }).catch((e) => {
+            console.warn('Gamification failed during attendance', e.message || e);
+            return null;
           });
         })
       );
@@ -946,6 +1030,130 @@ class EventsController {
         message: "Failed to mark attendance",
         error: error.message,
       });
+    }
+  }
+
+  // Get attendance list (staff/admin only)
+  async getAttendance(req, res) {
+    try {
+      const { uid } = req.params;
+      const event = await eventRepository.getEventByUid(uid);
+      if (!event) {
+        return res.status(404).json({ success: false, message: 'Event not found' });
+      }
+
+      const participants = await eventRepository.getEventParticipants(uid);
+
+      res.json({
+        success: true,
+        data: {
+          attendance_enabled: event.status === 'started',
+          participants,
+        }
+      });
+    } catch (error) {
+      console.error('Get attendance error:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch attendance', error: error.message });
+    }
+  }
+
+  // Check-in a participant (staff/admin)
+  async checkInParticipant(req, res) {
+    try {
+      const { uid } = req.params;
+      const { participantId } = req.body;
+      const performedBy = req.authenticatedUser;
+
+      if (!participantId) {
+        return res.status(400).json({ success: false, message: 'participantId is required' });
+      }
+
+      const updated = await attendanceService.checkIn({ eventUid: uid, participantId, performedBy });
+
+      // Gamification for volunteers
+      try {
+        const [[userRow]] = await getPool().query(
+          `SELECT u.user_id, r.role FROM users u JOIN roles r ON u.role_id = r.role_id WHERE u.user_id = ?`,
+          [updated.user_id]
+        );
+        const role = userRow?.role?.toLowerCase();
+        if (role === 'volunteer') {
+          await gamificationService.awardAction({
+            userId: updated.user_id,
+            action: GAMIFICATION_ACTIONS.EVENT_ATTEND,
+            eventId: (await eventRepository.getEventByUid(uid)).event_id,
+            eventUid: uid,
+            metadata: {},
+            performedBy: req.authenticatedUser,
+            dedupeSuffix: `attendance-${updated.user_id}`,
+          });
+        }
+      } catch (e) {
+        // Log and continue
+        console.warn('Gamification failed during check-in', e.message || e);
+      }
+
+      res.json({ success: true, message: 'Check-in recorded', data: updated });
+    } catch (error) {
+      console.error('Check-in error:', error);
+      res.status(500).json({ success: false, message: 'Failed to check-in participant', error: error.message });
+    }
+  }
+
+  // Patch attendance (admin/staff correction)
+  async patchAttendance(req, res) {
+    try {
+      const { uid, participantId } = req.params;
+      const { newStatus, reason } = req.body;
+      const performedBy = req.authenticatedUser;
+
+      if (!newStatus) {
+        return res.status(400).json({ success: false, message: 'newStatus is required' });
+      }
+
+      const updated = await attendanceService.patchAttendance({ eventUid: uid, participantId: parseInt(participantId, 10), newStatus, performedBy, reason });
+      res.json({ success: true, message: 'Attendance updated', data: updated });
+    } catch (error) {
+      console.error('Patch attendance error:', error);
+      res.status(500).json({ success: false, message: 'Failed to update attendance', error: error.message });
+    }
+  }
+
+  // Auto-flag absences for an event (admin only)
+  async autoFlagAbsences(req, res) {
+    try {
+      const { uid } = req.params;
+      await attendanceService.autoFlagAbsences(uid);
+      res.json({ success: true, message: 'Auto-absencing job started' });
+    } catch (error) {
+      console.error('Auto-flag absences error:', error);
+      res.status(500).json({ success: false, message: 'Failed to run auto-absencing', error: error.message });
+    }
+  }
+
+  // Get attendance audit log
+  async getAttendanceAudit(req, res) {
+    try {
+      const { uid } = req.params;
+      const { participantId, limit = 100, before } = req.query;
+
+      const entries = await eventRepository.getAttendanceAudit(uid, participantId ? parseInt(participantId, 10) : null, parseInt(limit, 10), before || null);
+      res.json({ success: true, data: entries });
+    } catch (error) {
+      console.error('Get attendance audit error:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch attendance audit', error: error.message });
+    }
+  }
+
+  // Get attendance report (summary snapshot)
+  async getAttendanceReport(req, res) {
+    try {
+      const { uid } = req.params;
+      const report = await eventRepository.getAttendanceReport(uid);
+      res.json({ success: true, data: report });
+    } catch (error) {
+      console.error('Get attendance report error:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch attendance report', error: error.message });
     }
   }
 

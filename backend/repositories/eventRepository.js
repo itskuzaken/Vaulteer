@@ -252,12 +252,15 @@ class EventRepository {
         DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as archived_at_local,
         u.name as created_by_name,
         u.email as created_by_email,
+        etd.type_label as event_type_label,
+        etd.points_per_participation as event_type_points,
         (SELECT COUNT(*) FROM event_participants ep 
          WHERE ep.event_id = e.event_id AND ep.status = 'registered') as participant_count,
         (SELECT COUNT(*) FROM event_participants ep 
          WHERE ep.event_id = e.event_id AND ep.status = 'waitlisted') as waitlist_count
       FROM events e
       LEFT JOIN users u ON e.created_by_user_id = u.user_id
+      LEFT JOIN event_type_definitions etd ON e.event_type = etd.type_code
       WHERE e.uid = ?`,
       [eventUid]
     );
@@ -276,6 +279,42 @@ class EventRepository {
       // ignore conversion errors
     }
     return event;
+  }
+
+  async getWaitlistPosition(eventUid, userId) {
+    const event = await this.getEventByUid(eventUid);
+    if (!event) {
+      throw new Error("Event not found");
+    }
+
+    // Only calculate position if user is waitlisted
+    const status = await this.getParticipantStatus(eventUid, userId);
+    if (status !== 'waitlisted') {
+      return null;
+    }
+
+    // Get the user's registration date
+    const [userRows] = await getPool().execute(
+      `SELECT registration_date FROM event_participants 
+       WHERE event_id = ? AND user_id = ? AND status = 'waitlisted'`,
+      [event.event_id, userId]
+    );
+
+    if (userRows.length === 0) {
+      return null;
+    }
+
+    const userRegistrationDate = userRows[0].registration_date;
+
+    // Count how many waitlisted users registered before this user
+    const [positionRows] = await getPool().execute(
+      `SELECT COUNT(*) as position FROM event_participants 
+       WHERE event_id = ? AND status = 'waitlisted' 
+       AND registration_date < ?`,
+      [event.event_id, userRegistrationDate]
+    );
+
+    return (positionRows[0].position || 0) + 1; // Position is 1-indexed
   }
 
   async getAllEvents(filters = {}) {
@@ -416,13 +455,16 @@ class EventRepository {
 
       const eventId = eventRow.event_id;
 
-      // Check if already registered
+      // Check if already registered (registered or waitlisted)
       const [existingRows] = await conn.execute(
-        `SELECT 1 FROM event_participants WHERE event_id = ? AND user_id = ? AND status IN ('registered','waitlisted') LIMIT 1`,
+        `SELECT status FROM event_participants WHERE event_id = ? AND user_id = ? AND status IN ('registered','waitlisted') LIMIT 1`,
         [eventId, userId]
       );
       if (existingRows.length > 0) {
-        throw new Error("Already registered for this event");
+        // If there's already a registration, return the current status so the client can update gracefully
+        const existingStatus = existingRows[0].status;
+        await conn.commit();
+        return { status: existingStatus, message: existingStatus === 'waitlisted' ? 'Already waitlisted for this event' : 'Already registered for this event' };
       }
 
       // Check historical participation
@@ -485,13 +527,14 @@ class EventRepository {
     );
 
     if (result.affectedRows === 0) {
-      throw new Error("Participation not found or already cancelled");
+      // No active registration found — return for graceful handling by callers
+      return { promotedParticipant: null, hadParticipation: false, message: 'No active participation found' };
     }
 
     // Check if someone from waitlist can be promoted
     const promotedParticipant = await this.promoteFromWaitlist(event.event_id);
 
-    return { promotedParticipant };
+    return { promotedParticipant, hadParticipation: true };
   }
 
   async promoteFromWaitlist(eventId) {
@@ -669,6 +712,196 @@ class EventRepository {
     return true;
   }
 
+  /**
+   * Mark a participant as present (check-in).
+   * Ensures event is started, participant is registered, uses row-level locking.
+   */
+  async checkInParticipant(eventUid, participantId, markedByUserId) {
+    const pool = getPool();
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      // Resolve event
+      const [[event]] = await conn.execute(
+        `SELECT event_id, status FROM events WHERE uid = ? FOR UPDATE`,
+        [eventUid]
+      );
+      if (!event) throw new Error('Event not found');
+
+      if (event.status !== 'started') {
+        throw new Error('Event attendance is not enabled');
+      }
+
+      // Lock participant row
+      const [[participant]] = await conn.execute(
+        `SELECT participant_id, user_id, status, attendance_status FROM event_participants WHERE participant_id = ? AND event_id = ? FOR UPDATE`,
+        [participantId, event.event_id]
+      );
+      if (!participant) throw new Error('Participant not found');
+
+      if (participant.status !== 'registered') {
+        throw new Error('Only registered participants may be checked in');
+      }
+
+      const previous = participant.attendance_status || 'unknown';
+
+      if (previous === 'present') {
+        // idempotent no-op
+        await conn.commit();
+        return { participant_id: participantId, attendance_status: 'present', noOp: true };
+      }
+
+      await conn.execute(
+        `UPDATE event_participants SET attendance_status = 'present', attendance_marked_at = NOW(), attendance_marked_by = ?, attendance_updated_at = NOW() WHERE participant_id = ?`,
+        [markedByUserId, participantId]
+      );
+
+      await conn.execute(
+        `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, performed_at) VALUES (?, ?, ?, ?, 'check_in', ?, 'present', NOW())`,
+        [event.event_id, participantId, participant.user_id, markedByUserId, previous]
+      );
+
+      await conn.commit();
+
+      const [rows] = await pool.execute(`SELECT * FROM event_participants WHERE participant_id = ?`, [participantId]);
+      return rows[0];
+    } catch (err) {
+      try { await conn.rollback(); } catch (e) {}
+      throw err;
+    } finally {
+      conn.release();
+    }
+  }
+
+  /**
+   * Patch attendance (admin/staff correction)
+   */
+  async patchAttendance(eventUid, participantId, newStatus, performedByUserId, reason = null) {
+    if (!['present','absent','late','unknown'].includes(newStatus)) {
+      throw new Error('Invalid attendance status');
+    }
+
+    const pool = getPool();
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+
+      const [[event]] = await conn.execute(
+        `SELECT event_id, status FROM events WHERE uid = ? FOR UPDATE`,
+        [eventUid]
+      );
+      if (!event) throw new Error('Event not found');
+
+      const [[participant]] = await conn.execute(
+        `SELECT participant_id, user_id, attendance_status FROM event_participants WHERE participant_id = ? AND event_id = ? FOR UPDATE`,
+        [participantId, event.event_id]
+      );
+      if (!participant) throw new Error('Participant not found');
+
+      const previous = participant.attendance_status || 'unknown';
+      if (previous === newStatus) {
+        // Still record an audit entry for traceability
+        await conn.execute(
+          `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, reason, performed_at) VALUES (?, ?, ?, ?, 'correction', ?, ?, ?, NOW())`,
+          [event.event_id, participantId, participant.user_id, performedByUserId, previous, newStatus, reason]
+        );
+        await conn.commit();
+        return { participant_id: participantId, attendance_status: newStatus, noOp: true };
+      }
+
+      const notePrefix = reason ? `Correction: ${reason}` : null;
+
+      await conn.execute(
+        `UPDATE event_participants SET attendance_status = ?, attendance_marked_at = NOW(), attendance_marked_by = ?, attendance_notes = CONCAT(COALESCE(attendance_notes, ''), ?), attendance_updated_at = NOW() WHERE participant_id = ?`,
+        [newStatus, performedByUserId, notePrefix || '', participantId]
+      );
+
+      await conn.execute(
+        `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, reason, performed_at) VALUES (?, ?, ?, ?, 'correction', ?, ?, ?, NOW())`,
+        [event.event_id, participantId, participant.user_id, performedByUserId, previous, newStatus, reason]
+      );
+
+      await conn.commit();
+
+      const [rows] = await pool.execute(`SELECT * FROM event_participants WHERE participant_id = ?`, [participantId]);
+      return rows[0];
+    } catch (err) {
+      try { await conn.rollback(); } catch (e) {}
+      throw err;
+    } finally {
+      conn.release();
+    }
+  }
+
+  async getAttendanceAudit(eventUid, participantId = null, limit = 100, before = null) {
+    const event = await this.getEventByUid(eventUid);
+    if (!event) throw new Error('Event not found');
+
+    let query = `SELECT * FROM event_attendance_audit WHERE event_id = ?`;
+    const params = [event.event_id];
+    if (participantId) {
+      query += ` AND participant_id = ?`;
+      params.push(participantId);
+    }
+    if (before) {
+      query += ` AND performed_at < ?`;
+      params.push(before);
+    }
+    query += ` ORDER BY performed_at DESC LIMIT ?`;
+    params.push(limit);
+
+    const [rows] = await getPool().execute(query, params);
+    return rows;
+  }
+
+  /**
+   * Auto-flag absences for event (idempotent). Processes in batches.
+   */
+  async autoFlagAbsences(eventUid, batchSize = 500) {
+    const event = await this.getEventByUid(eventUid);
+    if (!event) throw new Error('Event not found');
+
+    const pool = getPool();
+    while (true) {
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+        const [rows] = await conn.execute(
+          `SELECT participant_id, user_id, attendance_status FROM event_participants WHERE event_id = ? AND status = 'registered' AND (attendance_status IS NULL OR attendance_status = 'unknown') LIMIT ${batchSize} FOR UPDATE`,
+          [event.event_id]
+        );
+
+        if (!rows.length) {
+          await conn.commit();
+          conn.release();
+          break;
+        }
+
+        for (const r of rows) {
+          await conn.execute(
+            `UPDATE event_participants SET attendance_status = 'absent', attendance_marked_at = NOW(), attendance_marked_by = NULL, attendance_updated_at = NOW() WHERE participant_id = ?`,
+            [r.participant_id]
+          );
+
+          await conn.execute(
+            `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, reason, dedupe_key, performed_at) VALUES (?, ?, ?, NULL, 'mark_absent', ?, 'absent', 'auto-absent', CONCAT('auto-absent:', ?), NOW())`,
+            [event.event_id, r.participant_id, r.user_id, r.attendance_status || 'unknown', r.participant_id]
+          );
+        }
+
+        await conn.commit();
+        conn.release();
+      } catch (err) {
+        try { await conn.rollback(); } catch (e) {}
+        conn.release();
+        throw err;
+      }
+    }
+
+    return true;
+  }
+
   async checkParticipantExists(eventUid, userId) {
     const event = await this.getEventByUid(eventUid);
     if (!event) return false;
@@ -694,6 +927,22 @@ class EventRepository {
     );
 
     return rows.length > 0 ? rows[0].status : null;
+  }
+
+  async getWaitlistPosition(eventUid, userId) {
+    const event = await this.getEventByUid(eventUid);
+    if (!event) return null;
+
+    const [rows] = await getPool().execute(
+      `SELECT COUNT(*) + 1 as position FROM event_participants 
+       WHERE event_id = ? AND status = 'waitlisted' AND created_at < (
+         SELECT created_at FROM event_participants 
+         WHERE event_id = ? AND user_id = ? AND status = 'waitlisted'
+       )`,
+      [event.event_id, event.event_id, userId]
+    );
+
+    return rows.length > 0 ? rows[0].position : null;
   }
 
   async getParticipantCount(eventUid) {
@@ -861,6 +1110,45 @@ class EventRepository {
     );
 
     return stats[0];
+  }
+
+  async getAttendanceReport(eventUid) {
+    const event = await this.getEventByUid(eventUid);
+    if (!event) throw new Error('Event not found');
+
+    const [counts] = await getPool().execute(
+      `SELECT 
+        SUM(CASE WHEN status = 'registered' THEN 1 ELSE 0 END) as registered_count,
+        SUM(CASE WHEN attendance_status = 'present' THEN 1 ELSE 0 END) as present_count,
+        SUM(CASE WHEN attendance_status = 'absent' THEN 1 ELSE 0 END) as absent_count,
+        SUM(CASE WHEN attendance_status = 'late' THEN 1 ELSE 0 END) as late_count,
+        SUM(CASE WHEN attendance_status IS NULL OR attendance_status = 'unknown' THEN 1 ELSE 0 END) as unknown_count
+       FROM event_participants
+       WHERE event_id = ?`,
+      [event.event_id]
+    );
+
+    const registered = counts[0].registered_count || 0;
+    const present = counts[0].present_count || 0;
+    const absent = counts[0].absent_count || 0;
+    const late = counts[0].late_count || 0;
+    const unknown = counts[0].unknown_count || 0;
+
+    const attendancePct = registered === 0 ? 0 : Math.round((present / registered) * 10000) / 100; // percentage with 2 decimals
+
+    const [absentees] = await getPool().execute(
+      `SELECT ep.participant_id, ep.user_id, u.uid as user_uid, u.name, u.email, ep.attendance_marked_at
+       FROM event_participants ep
+       JOIN users u ON ep.user_id = u.user_id
+       WHERE ep.event_id = ? AND ep.attendance_status = 'absent'`,
+      [event.event_id]
+    );
+
+    return {
+      event: { event_id: event.event_id, uid: event.uid, title: event.title, status: event.status },
+      counts: { registered, present, absent, late, unknown, attendancePct },
+      absentees,
+    };
   }
 
   // ============================================
