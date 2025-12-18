@@ -927,14 +927,19 @@ class EventRepository {
         newStatus = 'late';
       }
 
+      // Ensure we never pass `undefined` into SQL driver params — convert to `null` where appropriate
+      const safeMarkedBy = typeof markedByUserId === 'undefined' ? null : markedByUserId;
+      if (safeMarkedBy === null) console.warn('checkInParticipant: markedByUserId is null/undefined - recording anonymous check-in');
       await conn.execute(
         `UPDATE event_participants SET attendance_status = ?, attendance_marked_at = NOW(), attendance_marked_by = ?, attendance_updated_at = NOW() WHERE participant_id = ?`,
-        [newStatus, markedByUserId, participantId]
+        [newStatus, safeMarkedBy, participantId]
       );
 
+      const safeUserId = typeof participant.user_id === 'undefined' ? null : participant.user_id;
+      if (safeUserId === null) console.warn('checkInParticipant: participant.user_id is null/undefined - anonymous participant');
       await conn.execute(
         `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, performed_at) VALUES (?, ?, ?, ?, 'check_in', ?, ?, NOW())`,
-        [event.event_id, participantId, participant.user_id, markedByUserId, previous, newStatus]
+        [event.event_id, participantId, safeUserId, safeMarkedBy, previous, newStatus]
       );
 
       await conn.commit();

@@ -1128,13 +1128,14 @@ class EventsController {
     try {
       const { uid } = req.params;
       const { participantId } = req.body;
+      const participantIdNum = Number.isFinite(Number(participantId)) ? Number(participantId) : null;
       const performedBy = req.authenticatedUser;
 
-      if (!participantId) {
-        return res.status(400).json({ success: false, message: 'participantId is required' });
+      if (participantIdNum === null) {
+        return res.status(400).json({ success: false, message: 'participantId is required and must be numeric' });
       }
 
-      const updated = await attendanceService.checkIn({ eventUid: uid, participantId, performedBy });
+      const updated = await attendanceService.checkIn({ eventUid: uid, participantId: participantIdNum, performedBy });
 
       // Gamification for volunteers
       try {
