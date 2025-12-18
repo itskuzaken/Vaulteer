@@ -38,11 +38,30 @@ async function createReport(data = {}) {
 
 async function listReportsByEvent(eventId, limit = 20, offset = 0) {
   const pool = getPool();
-  const [rows] = await pool.execute(
-    `SELECT * FROM event_reports WHERE event_id = ? ORDER BY generated_at DESC LIMIT ? OFFSET ?`,
-    [eventId, Number(limit) || 20, Number(offset) || 0]
-  );
-  return rows || [];
+
+  // Validate inputs to avoid prepared-statement runtime errors
+  const eId = Number.isFinite(Number(eventId)) ? Number(eventId) : null;
+  const lim = Number.isFinite(Number(limit)) ? Number(limit) : 20;
+  const off = Number.isFinite(Number(offset)) ? Number(offset) : 0;
+
+  if (eId === null) {
+    const err = new Error('Invalid eventId provided to listReportsByEvent');
+    err.code = 'INVALID_PARAMS';
+    throw err;
+  }
+
+  try {
+    // Note: MySQL prepared statements don't reliably support parameterized LIMIT/OFFSET
+    // across all versions/drivers, so interpolate validated integers directly into SQL.
+    const safeLim = Math.max(0, Math.floor(lim));
+    const safeOff = Math.max(0, Math.floor(off));
+    const sql = `SELECT * FROM event_reports WHERE event_id = ? ORDER BY generated_at DESC LIMIT ${safeLim} OFFSET ${safeOff}`;
+    const [rows] = await pool.execute(sql, [eId]);
+    return rows || [];
+  } catch (err) {
+    console.error('Error executing listReportsByEvent with params', { eventId: eId, limit: lim, offset: off }, err?.message || err);
+    throw err;
+  }
 }
 
 async function findById(reportId) {

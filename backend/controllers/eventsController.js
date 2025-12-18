@@ -44,16 +44,55 @@ class EventsController {
       eventData.start_datetime = startUtcIso;
       eventData.end_datetime = endUtcIso;
 
-      // Validate event_type exists (avoid FK errors)
+      // Validate and normalize event_type (avoid FK errors)
       if (eventData.event_type) {
         const systemRepo = require('../repositories/systemSettingsRepository');
-        const type = await systemRepo.getEventTypeByCode(eventData.event_type);
-        if (!type) {
-          return res.status(400).json({ success: false, message: 'Invalid event_type' });
+        // Normalize to string and trim
+        const rawType = String(eventData.event_type).trim();
+        if (!rawType) {
+          delete eventData.event_type;
+        } else {
+          // Try lookup by code
+          let type = await systemRepo.getEventTypeByCode(rawType);
+
+          // Try lookup by label (case-insensitive)
+          if (!type) {
+            const allTypes = await systemRepo.getEventTypes(false);
+            type = allTypes.find(t => (t.type_label || '').toLowerCase() === rawType.toLowerCase());
+          }
+
+          // Try numeric type_id lookup as a last resort
+          if (!type && /^\d+$/.test(rawType)) {
+            const pool = require('../db/pool').getPool();
+            const [rows] = await pool.query('SELECT type_code FROM event_type_definitions WHERE type_id = ?', [Number(rawType)]);
+            if (rows.length) {
+              const code = rows[0].type_code;
+              type = await systemRepo.getEventTypeByCode(code);
+              if (type) {
+                eventData.event_type = type.type_code;
+              }
+            }
+          }
+
+          if (!type) {
+            return res.status(400).json({ success: false, message: 'Invalid event_type' });
+          }
+
+          // Ensure canonical type_code is stored
+          eventData.event_type = type.type_code;
         }
       }
 
-      const event = await eventRepository.createEvent(eventData, createdByUserId);
+      let event;
+      try {
+        event = await eventRepository.createEvent(eventData, createdByUserId);
+      } catch (err) {
+        // Convert DB FK errors (invalid event_type) into client-friendly 400 responses
+        if (err && err.code === 'ER_NO_REFERENCED_ROW_2') {
+          return res.status(400).json({ success: false, message: 'Invalid event_type' });
+        }
+        throw err;
+      }
 
       // Log activity via centralized service
       await logHelpers.logEventCreated({
@@ -1191,10 +1230,19 @@ class EventsController {
       const event = await eventRepository.getEventByUid(uid);
       if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
 
-      const rows = await reportRepository.listReportsByEvent(event.event_id, 50, 0);
+      const limitParam = Number.isFinite(Number(req.query?.limit)) ? Number(req.query.limit) : 50;
+      const offsetParam = Number.isFinite(Number(req.query?.offset)) ? Number(req.query.offset) : 0;
+      const maxLimit = 100;
+      const lim = Math.min(Math.max(1, limitParam), maxLimit);
+      const off = Math.max(0, offsetParam);
+
+      const rows = await reportRepository.listReportsByEvent(event.event_id, lim, off);
       res.json({ success: true, data: rows });
     } catch (error) {
       console.error('List event reports error:', error);
+      if (error && error.code === 'INVALID_PARAMS') {
+        return res.status(400).json({ success: false, message: error.message });
+      }
       res.status(500).json({ success: false, message: 'Failed to list reports', error: error.message });
     }
   }

@@ -8,6 +8,7 @@ import { useNotify } from '@/components/ui/NotificationProvider';
 export default function EventReportsPanel({ eventUid, currentUser }) {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [generating, setGenerating] = useState(false);
   const notify = useNotify();
 
@@ -17,12 +18,15 @@ export default function EventReportsPanel({ eventUid, currentUser }) {
   const loadReports = useCallback(async () => {
     if (!eventUid) return;
     setLoading(true);
+    setError(null);
     try {
       const res = await listEventReports(eventUid, { limit: 50 });
       setReports(res.data || []);
     } catch (err) {
       console.error('Failed to list reports', err);
-      notify?.push('Failed to load reports', 'error');
+      const msg = (err && err.message) ? err.message : 'Failed to load reports';
+      notify?.push(msg, 'error');
+      setError(msg);
       setReports([]);
     } finally {
       setLoading(false);
@@ -77,7 +81,12 @@ export default function EventReportsPanel({ eventUid, currentUser }) {
         <div>Loading reports…</div>
       ) : (
         <div className="space-y-2">
-          {reports.length === 0 ? (
+          {error ? (
+            <div className="text-sm text-red-500">
+              <div>Failed to load reports: {error}</div>
+              <div className="mt-2"><Button onClick={loadReports}>Retry</Button></div>
+            </div>
+          ) : reports.length === 0 ? (
             <div className="text-sm text-gray-500">No reports available.</div>
           ) : (
             reports.map((r) => (
