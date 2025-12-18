@@ -2,7 +2,7 @@ const { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aw
 const { s3Client } = require('../config/aws');
 const crypto = require('crypto');
 
-const HTS_BUCKET = process.env.S3_HTS_FORMS_BUCKET || 'vaulteer-hts-forms';
+const HTS_BUCKET = process.env.S3_HTS_FORMS_BUCKET || 'hts-forms';
 const BADGES_BUCKET = process.env.S3_BADGES_BUCKET || 'vaulteer-badges';
 
 function selectBucketForKey(key) {
@@ -23,7 +23,7 @@ async function uploadEncryptedImage(imageBuffer, formId, imageSide) {
   const key = `hts-forms/${formId}/${imageSide}-${timestamp}-${randomSuffix}.enc`;
 
   const command = new PutObjectCommand({
-    Bucket: BUCKET_NAME,
+    Bucket: HTS_BUCKET,
     Key: key,
     Body: imageBuffer,
     ContentType: 'application/octet-stream',
@@ -130,8 +130,9 @@ async function uploadBadgeBuffer(buffer, key, contentType = 'image/png', meta = 
  * @returns {Promise<Buffer>} - Image buffer
  */
 async function downloadImage(s3Key) {
+  const targetBucket = selectBucketForKey(s3Key);
   const command = new GetObjectCommand({
-    Bucket: BUCKET_NAME,
+    Bucket: targetBucket,
     Key: s3Key
   });
 

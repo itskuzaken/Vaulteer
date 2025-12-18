@@ -43,6 +43,16 @@ class EventsController {
       // Normalize datetimes as UTC ISO strings before store
       eventData.start_datetime = startUtcIso;
       eventData.end_datetime = endUtcIso;
+
+      // Validate event_type exists (avoid FK errors)
+      if (eventData.event_type) {
+        const systemRepo = require('../repositories/systemSettingsRepository');
+        const type = await systemRepo.getEventTypeByCode(eventData.event_type);
+        if (!type) {
+          return res.status(400).json({ success: false, message: 'Invalid event_type' });
+        }
+      }
+
       const event = await eventRepository.createEvent(eventData, createdByUserId);
 
       // Log activity via centralized service
