@@ -69,21 +69,25 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
   const [participantsVisibility, setParticipantsVisibility] = useState("none");
   const [participantsLoading, setParticipantsLoading] = useState(false);
   const [participantError, setParticipantError] = useState(null);
-  const [activeParticipantTab, setActiveParticipantTab] =
-    useState("registered");
+  const [activeParticipantTab, setActiveParticipantTab] = useState("registered");
   const [isEditing, setIsEditing] = useState(false);
   const [showPostponeModal, setShowPostponeModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(Boolean(initialCancel));
   const [isActionLoading, setIsActionLoading] = useState(false);
+  
+  // State for hydration-safe URL generation
+  const [shareUrl, setShareUrl] = useState("");
 
   const role = (currentUser?.role || "volunteer").toLowerCase();
   const canManageEvent = role === "admin" || role === "staff";
-  // Only the event creator can edit/delete their event — allow admins to edit all events
+  
+  // FIX: Use strict comparison with string conversion to be safe
   const isEventCreator =
     currentUser?.user_id &&
     eventData?.created_by_user_id &&
-    currentUser.user_id == eventData.created_by_user_id;
+    String(currentUser.user_id) === String(eventData.created_by_user_id);
+    
   const canEditEvent = isEventCreator || role === "admin";
   const isPostponed = (eventData?.status || "").toLowerCase() === "postponed";
 
@@ -92,9 +96,11 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
     return buildEventDetailPath(currentUser?.role, eventUid);
   }, [currentUser?.role, eventUid]);
 
-  const shareUrl = useMemo(() => {
-    if (typeof window === "undefined" || !sharePath) return "";
-    return `${window.location.origin}${sharePath}`;
+  // FIX: Move window access to useEffect to prevent hydration mismatch
+  useEffect(() => {
+    if (typeof window !== "undefined" && sharePath) {
+      setShareUrl(`${window.location.origin}${sharePath}`);
+    }
   }, [sharePath]);
 
   const participantSummary = useMemo(() => {
@@ -122,7 +128,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
   }, [canManageEvent, eventData?.is_registered]);
 
   const mutatingParticipantCount = useCallback((statusOrBool, meta = {}) => {
-    // statusOrBool can be: boolean (old behavior) or a boolean + meta or (preferred) a detailed status
     setEventData((prev) => {
       if (!prev) return prev;
 
@@ -131,13 +136,11 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
       const prevWaitlist =
         typeof prev.waitlist_count === "number" ? prev.waitlist_count : 0;
 
-      // Backwards compatible boolean-only call
       if (typeof statusOrBool === "boolean") {
         const isRegistered = statusOrBool;
         const nextCount = isRegistered
           ? prevParticipants + 1
           : Math.max(0, prevParticipants - 1);
-        // Trigger a refresh if requested via meta
         if (meta && meta.refresh) setTimeout(() => { if (typeof loadEventDetails === 'function') loadEventDetails(); }, 50);
         return {
           ...prev,
@@ -146,7 +149,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
         };
       }
 
-      // New behavior: status string in meta or statusOrBool may be a string
       const status = (meta && meta.status) || statusOrBool;
 
       if (status === "registered") {
@@ -167,10 +169,8 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
         };
       }
 
-      // status === null (left) or unknown
       if (status === null) {
         if (meta && meta.refresh) setTimeout(() => { if (typeof loadEventDetails === 'function') loadEventDetails(); }, 50);
-        // If leaving was from waitlist, decrement waitlist, otherwise decrement participants
         if (meta && meta.wasWaitlisted) {
           return {
             ...prev,
@@ -187,10 +187,16 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
 
       return prev;
     });
-  }, [loadEventDetails]);
+  }, []); // loadEventDetails removed from dep array to avoid circle, handled via function scope or ref if needed
 
   const loadEventDetails = useCallback(async () => {
-    if (!eventUid) return;
+    // FIX: Handle missing ID to prevent infinite loading state
+    if (!eventUid) {
+        setError("No event ID provided.");
+        setIsLoading(false);
+        return;
+    }
+
     setIsLoading(true);
     setError(null);
     try {
@@ -256,6 +262,16 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
 
   // Reports: admin/staff-only panel
   const canManageEventForReports = role === 'admin' || role === 'staff';
+
+  // Compute whether to show attendance panel (avoid inline IIFE in JSX)
+  const showAttendancePanel = useMemo(() => {
+    if (!canManageEvent) return false;
+    const start = eventData?.start_datetime ? new Date(eventData.start_datetime) : null;
+    const windowMins = eventData?.attendance_checkin_window_mins ?? 15;
+    const now = new Date();
+    const windowStart = start ? new Date(start.getTime() - windowMins * 60000) : null;
+    return Boolean(windowStart && start && now >= windowStart && now < start && !['cancelled','postponed','completed'].includes((eventData?.status||'').toLowerCase()));
+  }, [canManageEvent, eventData?.start_datetime, eventData?.attendance_checkin_window_mins, eventData?.status]);
 
 
   const handleCopyLink = async () => {
@@ -520,7 +536,8 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                   <p className="mt-2 text-sm sm:text-base">No cover image</p>
                 </div>
               )}
-              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-4 sm:p-6">
+              {/* FIX: Corrected Tailwind gradient syntax */}
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-6">
                 <p className="text-xs sm:text-sm text-white/80 uppercase tracking-wide">
                   {formatDate(eventData.start_datetime_local || eventData.start_datetime, "eeee, MMM dd")}
                 </p>
@@ -798,7 +815,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
               </h3>
             </div>
             <div className="p-3 rounded-xl bg-gray-50 dark:bg-gray-800 text-sm text-gray-600 dark:text-gray-300 break-all">
-              {shareUrl}
+              {shareUrl || "Loading link..."}
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
@@ -825,19 +842,12 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                 Share
               </Button>
             </div>
-            {canManageEvent && (() => {
-              // Show the attendance panel only when check-in window is active (opens X minutes before start and hidden at start)
-              const start = eventData?.start_datetime ? new Date(eventData.start_datetime) : null;
-              const windowMins = eventData?.attendance_checkin_window_mins ?? 15;
-              const now = new Date();
-              const windowStart = start ? new Date(start.getTime() - windowMins * 60000) : null;
-              const canShow = windowStart && start && now >= windowStart && now < start && !['cancelled','postponed','completed'].includes((eventData?.status||'').toLowerCase());
-              return canShow ? (
-                <div className="mt-4">
-                  <AttendancePanel eventUid={eventUid} />
-                </div>
-              ) : null;
-            })()}
+            {/* Attendance panel — computed safely to avoid inline IIFE which can cause TDZ/minification issues */}
+            {canManageEvent && showAttendancePanel && (
+              <div className="mt-4">
+                <AttendancePanel eventUid={eventUid} />
+              </div>
+            )}
           </div>
 
           {/* Participation Section */}

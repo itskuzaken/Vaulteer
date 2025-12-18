@@ -8,42 +8,120 @@ on:
 
 jobs:
   backend-tests:
-    name: Backend unit & integration tests
+    name: Backend Tests
     runs-on: ubuntu-latest
     strategy:
       matrix:
         node-version: [22.x]
     steps:
       - uses: actions/checkout@v4
+      
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+          # CRITICAL: Tells GitHub where to check for cache hash
+          cache-dependency-path: ./backend/package-lock.json 
+
       - name: Install backend deps
         working-directory: ./backend
         run: npm ci
+
+      - name: Sanity check (Schema & Types)
+        working-directory: ./backend
+        # Keeping || true here is okay if this script is experimental
+        run: node scripts/check_events_schema_and_types.js || true 
+
       - name: Run backend tests
         working-directory: ./backend
         run: npm test --silent
 
   frontend-tests:
-    name: Frontend tests (optional)
+    name: Frontend Tests
     runs-on: ubuntu-latest
-    needs: backend-tests
+    # REMOVED: needs: backend-tests (Now runs in parallel)
     strategy:
       matrix:
         node-version: [22.x]
     steps:
       - uses: actions/checkout@v4
+      
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
+          # CRITICAL: Specific path for frontend cache
+          cache-dependency-path: ./frontend/package-lock.json
+
       - name: Install frontend deps
         working-directory: ./frontend
         run: npm ci
+
       - name: Run frontend tests
         working-directory: ./frontend
-        run: npm test --silent -- --runInBand || true
+        # REMOVED: || true (So CI actually fails if your code is broken)
+        # --runInBand is good for CI to prevent memory leaks in Jest
+        run: npm test --silent -- --runInBand
+
+  backend-integration-tests:
+    name: Backend Integration Tests
+    runs-on: ubuntu-latest
+    needs: backend-tests
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: rootpass
+          MYSQL_DATABASE: vaulteer_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd "mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+    env:
+      DB_HOST: 127.0.0.1
+      DB_USER: root
+      DB_PASS: rootpass
+      DB_NAME: vaulteer_db
+      NODE_ENV: test
+    strategy:
+      matrix:
+        node-version: [22.x]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: ./backend/package-lock.json
+
+      - name: Install backend deps
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y default-mysql-client
+
+      - name: Wait for MySQL service
+        run: |
+          for i in `seq 1 60`; do
+            if mysqladmin ping -h 127.0.0.1 --silent; then
+              echo "MySQL is up"; break;
+            fi
+            echo "Waiting for MySQL... ($i)"; sleep 1;
+          done
+
+      - name: Prepare DB schema
+        run: |
+          mysql -h 127.0.0.1 -uroot -prootpass -e "CREATE DATABASE IF NOT EXISTS vaulteer_db;"
+          mysql -h 127.0.0.1 -uroot -prootpass vaulteer_db < vaulteer_db.sql
+
+      - name: Run backend integration tests
+        working-directory: ./
+        run: npx jest "backend/**/__tests__/**/*.integration.test.js" --runInBand --testTimeout=200000

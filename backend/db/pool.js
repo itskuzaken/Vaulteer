@@ -16,7 +16,9 @@ async function initPool() {
     connectionLimit: CONFIG.DB_CONN_LIMIT,
     // Auto-reconnect on connection errors — handled at initPool level instead of pool option
     // Connection resilience
-    enableKeepAlive: true,
+    // Disable keep-alive in test environment to avoid lingering sockets that prevent Jest from
+    // exiting cleanly when tests finish.
+    enableKeepAlive: CONFIG.NODE_ENV === 'test' ? false : true,
     keepAliveInitialDelay: 10000, // 10 seconds
     connectTimeout: 10000, // 10 seconds
     // Auto-reconnect on connection errors

@@ -3,20 +3,32 @@ const { processEncryptedHTSForm } = require('../services/textractService');
 
 // Create queue with error handling
 let textractQueue;
-try {
-  textractQueue = new Bull('textract-ocr', {
-    redis: {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: process.env.REDIS_PORT || 6379
-    }
-  });
-  
-  console.log('✓ Textract queue connected to Redis');
-} catch (error) {
-  console.warn('⚠️  Redis not available - OCR jobs will be disabled');
-  console.warn('   To enable OCR: Install Redis or start Docker container');
+
+// Do not attempt to connect to Redis unless explicitly configured (avoid noisy ECONNREFUSED logs)
+const redisConfigured = Boolean(process.env.REDIS_URL || process.env.REDIS_HOST);
+if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'true') {
+  console.log('ℹ️ Textract queue disabled in test environment');
   textractQueue = null;
+} else if (!redisConfigured) {
+  console.log('ℹ️ Textract queue disabled - no Redis configured (set REDIS_URL or REDIS_HOST to enable)');
+  textractQueue = null;
+} else {
+  try {
+    textractQueue = new Bull('textract-ocr', {
+      redis: {
+        host: process.env.REDIS_HOST || undefined,
+        port: process.env.REDIS_PORT || 6379
+      }
+    });
+    console.log('ℹ️ Textract queue client created (waiting for Redis connection)');
+  } catch (error) {
+    console.warn('⚠️ Redis client creation failed - OCR jobs will be disabled', error?.message || error);
+    textractQueue = null;
+  }
 }
+
+// Throttle repeated error logs to avoid noise when Redis is unreachable
+let _textractQueueErrorLogged = false;
 
 // Process jobs (only if queue is available)
 if (textractQueue) {
@@ -40,8 +52,22 @@ if (textractQueue) {
   });
 
   textractQueue.on('failed', (job, err) => {
-    console.error(`OCR job ${job.id} failed:`, err.message);
+    console.error(`OCR job ${job.id} failed:`, err?.message || err);
   });
+
+  // Log runtime errors from the queue client (throttled)
+  textractQueue.on('error', (err) => {
+    if (!_textractQueueErrorLogged) {
+      console.error('Textract queue error event:', err?.message || err);
+      _textractQueueErrorLogged = true;
+    }
+  });
+
+  // Reset the error throttle if the queue becomes ready/connected
+  if (typeof textractQueue.client === 'object' && textractQueue.client && typeof textractQueue.client.on === 'function') {
+    textractQueue.client.on('ready', () => { _textractQueueErrorLogged = false; console.log('Textract queue client ready'); });
+    textractQueue.client.on('connect', () => { _textractQueueErrorLogged = false; console.log('Textract queue client connected'); });
+  }
 }
 
 /**
