@@ -1244,8 +1244,8 @@ export default function HTSFormManagement() {
 
       // Convert preprocessed images to blob
       console.log("[OCR] Converting preprocessed images to blobs");
-      const frontBlob = preprocessDataURLtoBlob(processedFront.processedImage);
-      const backBlob = preprocessDataURLtoBlob(processedBack.processedImage);
+      let frontBlob = preprocessDataURLtoBlob(processedFront.processedImage);
+      let backBlob = preprocessDataURLtoBlob(processedBack.processedImage);
 
       // Validate blob creation
       if (!frontBlob || !backBlob || frontBlob.size === 0 || backBlob.size === 0) {
@@ -1260,15 +1260,66 @@ export default function HTSFormManagement() {
       console.log(`[OCR] Front blob: ${(frontBlob.size / 1024).toFixed(0)}KB, type: ${frontBlob.type}`);
       console.log(`[OCR] Back blob: ${(backBlob.size / 1024).toFixed(0)}KB, type: ${backBlob.type}`);
 
-      // AWS Textract limit: 10MB per image
-      const maxSize = 10 * 1024 * 1024; // 10MB
-      if (frontBlob.size > maxSize || backBlob.size > maxSize) {
+      // Limits: AWS Textract enforces 10MB per image; reverse proxies may have a smaller combined multipart limit
+      const perImageMax = 10 * 1024 * 1024; // 10MB per image
+      const combinedMax = 25 * 1024 * 1024; // combined front + back (adjust as needed)
+
+      let totalSize = frontBlob.size + backBlob.size;
+
+      // If either per-image or combined limits are exceeded, attempt iterative compression before failing
+      if (frontBlob.size > perImageMax || backBlob.size > perImageMax || totalSize > combinedMax) {
+        console.log('[OCR] Image size(s) exceed limits — attempting automatic compression to fit server limits');
+        let quality = 0.8; // start with moderate compression
+        const minQuality = 0.55; // do not go below this (avoid too much loss)
+        const qualityStep = 0.1;
+
+        let compressedFront = frontBlob;
+        let compressedBack = backBlob;
+
+        while ((compressedFront.size > perImageMax || compressedBack.size > perImageMax || (compressedFront.size + compressedBack.size) > combinedMax) && quality >= minQuality) {
+          console.log(`[OCR] Trying compression at quality=${quality}`);
+          // Re-run the preprocess step with reduced quality & lower resolution to save bytes
+          const [reFront, reBack] = await Promise.all([
+            preprocessImage(frontImage, {
+              targetResolution: { width: Math.round(1400 * (quality / 0.8)), height: Math.round(1866 * (quality / 0.8)) },
+              enableDeskew: true,
+              quality
+            }),
+            preprocessImage(backImage, {
+              targetResolution: { width: Math.round(1400 * (quality / 0.8)), height: Math.round(1866 * (quality / 0.8)) },
+              enableDeskew: true,
+              quality
+            })
+          ]);
+
+          compressedFront = preprocessDataURLtoBlob(reFront.processedImage);
+          compressedBack = preprocessDataURLtoBlob(reBack.processedImage);
+          totalSize = compressedFront.size + compressedBack.size;
+
+          console.log(`[OCR] After compression: front ${(compressedFront.size/1024/1024).toFixed(2)}MB, back ${(compressedBack.size/1024/1024).toFixed(2)}MB, combined ${(totalSize/1024/1024).toFixed(2)}MB`);
+
+          quality -= qualityStep;
+        }
+
+        // If still too large after compression attempts, show helpful error and abort
+        if (compressedFront.size > perImageMax || compressedBack.size > perImageMax || (compressedFront.size + compressedBack.size) > combinedMax) {
+          showAlert(
+            "Image Too Large",
+            `Combined images exceed upload limit (${((compressedFront.size + compressedBack.size) / 1024 / 1024).toFixed(2)}MB). Please reduce resolution or re-capture images at lower quality.`,
+            "error"
+          );
+          return;
+        }
+
+        // Replace blobs with compressed ones
+        frontBlob = compressedFront;
+        backBlob = compressedBack;
+        console.log(`[OCR] Automatic compression succeeded: combined ${(totalSize/1024/1024).toFixed(2)}MB`);
         showAlert(
-          "Image Too Large",
-          `Image size exceeds AWS Textract limit (10MB).\n\nFront: ${(frontBlob.size / 1024 / 1024).toFixed(2)}MB\nBack: ${(backBlob.size / 1024 / 1024).toFixed(2)}MB\n\nPlease capture images again with better lighting (not maximum quality).`,
-          "error"
+          "Images Compressed",
+          `Images automatically compressed to ${(totalSize/1024/1024).toFixed(2)}MB total to fit upload constraints.`,
+          "info"
         );
-        return;
       }
 
       console.log("[OCR] ✅ Image validation passed, sending to server...");
