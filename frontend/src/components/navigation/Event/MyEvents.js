@@ -112,8 +112,8 @@ export default function MyEvents() {
     const meta = statusMeta[filter];
     if (!meta) return null;
     return (
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 px-4 py-3 flex items-start justify-between gap-3">
-        <div>
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 sm:gap-3">
+        <div className="min-w-0 flex-1">
           <p className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">
             {meta.pill}
           </p>
@@ -124,7 +124,7 @@ export default function MyEvents() {
             {meta.getDescription(event)}
           </p>
         </div>
-        <span className="px-3 py-1 text-xs font-semibold rounded-full bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300">
+        <span className="px-2 sm:px-3 py-1 text-xs font-semibold rounded-full bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 self-start sm:self-center shrink-0">
           {meta.pill}
         </span>
       </div>
@@ -139,8 +139,8 @@ export default function MyEvents() {
   };
 
   return (
-    <div className="flex justify-center w-full">
-      <div className="w-full max-w-7xl px-4 sm:px-6 lg:px-0">
+    <div className="flex justify-center w-full ">
+      <div className="w-full max-w-7xl">
         <div className="w-full">
           <EventsSection
             title="My Events"
@@ -149,36 +149,36 @@ export default function MyEvents() {
           >
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto no-scrollbar">
+      <div className="flex gap-1 sm:gap-2 border-b border-gray-200 dark:border-gray-700 overflow-x-auto no-scrollbar pb-1">
         <Button
-          size={{ default: "small" }}
+          size={{ default: "small", sm: "medium" }}
           variant={filter === "registered" ? "primary" : "ghost"}
           onClick={() => setFilter("registered")}
-          className={filter === "registered" ? "border-b-2 border-red-600 dark:border-red-400" : ""}
+          className={`${filter === "registered" ? "border-b-2 border-red-600 dark:border-red-400" : ""} shrink-0`}
         >
           Registered
         </Button>
         <Button
-          size={{ default: "small" }}
+          size={{ default: "small", sm: "medium" }}
           variant={filter === "upcoming" ? "primary" : "ghost"}
           onClick={() => setFilter("upcoming")}
-          className={filter === "upcoming" ? "border-b-2 border-red-600 dark:border-red-400" : ""}
+          className={`${filter === "upcoming" ? "border-b-2 border-red-600 dark:border-red-400" : ""} shrink-0`}
         >
           Upcoming
         </Button>
         <Button
-          size={{ default: "small" }}
+          size={{ default: "small", sm: "medium" }}
           variant={filter === "attended" ? "primary" : "ghost"}
           onClick={() => setFilter("attended")}
-          className={filter === "attended" ? "border-b-2 border-red-600 dark:border-red-400" : ""}
+          className={`${filter === "attended" ? "border-b-2 border-red-600 dark:border-red-400" : ""} shrink-0`}
         >
           Attended
         </Button>
         <Button
-          size={{ default: "small" }}
+          size={{ default: "small", sm: "medium" }}
           variant={filter === "cancelled" ? "primary" : "ghost"}
           onClick={() => setFilter("cancelled")}
-          className={filter === "cancelled" ? "border-b-2 border-red-600 dark:border-red-400" : ""}
+          className={`${filter === "cancelled" ? "border-b-2 border-red-600 dark:border-red-400" : ""} shrink-0`}
         >
           Cancelled
         </Button>
@@ -200,7 +200,7 @@ export default function MyEvents() {
         />
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {events.map((event) => (
                 <EventCard
                 key={event.uid}
@@ -217,7 +217,7 @@ export default function MyEvents() {
           </div>
 
           {/* Event Count */}
-              <div className="text-center text-sm text-gray-600 dark:text-gray-400">
+          <div className="text-center text-sm text-gray-600 dark:text-gray-400 mt-6 sm:mt-8">
             Showing {events.length} event{events.length !== 1 ? "s" : ""}
           </div>
         </>

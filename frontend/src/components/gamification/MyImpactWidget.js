@@ -10,8 +10,6 @@ import {
 } from "react-icons/io5";
 import DashboardSectionCard from "../ui/DashboardSectionCard";
 
-const LEVEL_STEP = 100; // Keep in sync with backend gamificationRules
-
 const ACTION_LABELS = {
   EVENT_REGISTER: "Registered for an event",
   WAITLIST_JOIN: "Joined the waitlist",
@@ -47,23 +45,22 @@ export default function MyImpactWidget({ summary }) {
   const eventsRegistered = stats?.events_registered ?? 0;
   const currentStreak = stats?.current_streak ?? 0;
   const longestStreak = stats?.longest_streak ?? 0;
-  const nextLevel = summary?.nextLevel;
-  const currentLevel = nextLevel?.currentLevel ?? stats?.current_level ?? 1;
-  const levelStart = nextLevel?.nextThreshold
-    ? Math.max(0, nextLevel.nextThreshold - LEVEL_STEP)
-    : Math.floor(totalPoints / LEVEL_STEP) * LEVEL_STEP;
-  const levelWidth = Math.max(
-    LEVEL_STEP,
-    (nextLevel?.nextThreshold || LEVEL_STEP) - levelStart
-  );
-  const levelProgress = Math.min(
-    100,
-    Math.max(0, ((totalPoints - levelStart) / levelWidth) * 100)
-  );
-  const pointsToNext = Math.max(
-    0,
-    nextLevel?.remaining ?? LEVEL_STEP - (totalPoints % LEVEL_STEP)
-  );
+
+  // New linear-per-level system data
+  // Uses pre-calculated thresholds from points_level_thresholds table
+  // Formula: XP_Required(L) = 100 × (0.25 × L + 1) where L is current level
+  const levelData = summary?.levelData || null;
+  const currentLevel = levelData?.currentLevel ?? stats?.current_level ?? 1;
+  const currentThreshold = levelData?.currentThreshold ?? 0; // Points needed for current level
+  const nextThreshold = levelData?.nextThreshold ?? 125; // Points needed for next level
+  const pointsToNext = levelData?.pointsToNext ?? Math.max(0, nextThreshold - lifetimePoints);
+
+  // Calculate progress percentage within current level
+  // Progress = (current_points - current_level_threshold) / (next_level_threshold - current_level_threshold)
+  const levelProgress = currentThreshold < nextThreshold
+    ? Math.min(100, Math.max(0, ((lifetimePoints - currentThreshold) / (nextThreshold - currentThreshold)) * 100))
+    : 100; // Max level reached
+
   const recentEvents = summary?.recentEvents?.slice(0, 4) || [];
   const lastUpdated = stats?.updated_at || stats?.last_rewarded_at;
 
@@ -80,7 +77,7 @@ export default function MyImpactWidget({ summary }) {
       label: "Lifetime Points",
       value: lifetimePoints.toLocaleString(),
       icon: <IoMedalOutline className="w-5 h-5 text-amber-500" />,
-      helper: `${eventsRegistered} total registrations`,
+      helper: `Level ${currentLevel} • ${eventsRegistered} total registrations`,
     },
     {
       label: "Events Attended",
@@ -142,7 +139,9 @@ export default function MyImpactWidget({ summary }) {
         <p className="text-[0.65rem] sm:text-xs text-slate-500 dark:text-slate-400 mt-2">
           {isLoading
             ? "Crunching numbers..."
-            : `${pointsToNext} pts until level ${currentLevel + 1}`}
+            : levelData?.isMaxLevel
+            ? "Maximum level reached! 🎉"
+            : `${pointsToNext.toLocaleString()} pts until level ${currentLevel + 1}`}
         </p>
       </div>
 

@@ -67,4 +67,16 @@ function isReady() {
   return ready;
 }
 
-module.exports = { initPool, getPool, isReady };
+async function closePool() {
+  if (!pool) return;
+  try {
+    if (pool && pool.end) await pool.end();
+    pool = null;
+    ready = false;
+    console.log('✓ MySQL pool closed');
+  } catch (e) {
+    console.warn('Failed to close MySQL pool', e?.message || e);
+  }
+}
+
+module.exports = { initPool, getPool, isReady, closePool };

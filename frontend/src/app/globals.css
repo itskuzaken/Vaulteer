@@ -552,11 +552,6 @@ body {
 /* Mobile optimizations */
 @media (max-width: 767px) {
   /* Ensure touch-friendly hit areas (minimum 44x44px) */
-  button,
-  a {
-    min-width: 2.75rem;
-    min-height: 2.75rem;
-  }
 
   /* Optimize font sizes for mobile readability */
   body {

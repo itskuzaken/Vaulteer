@@ -60,6 +60,23 @@ function startEventCompletionScheduler() {
               previousStatus: prevStatus,
               newStatus: 'completed',
             });
+                  // Trigger auto-absencing to mark unknown participants as absent (idempotent)
+                  try {
+                    const attendanceService = require('../services/attendanceService');
+                    await attendanceService.autoFlagAbsences(row.uid);
+                    console.log(`[EventCompletionScheduler] Auto-absenced event ${row.uid}`);
+                  } catch (e) {
+                    console.error('[EventCompletionScheduler] Auto-absencing failed for', row.uid, e.message || e);
+                  }
+
+                  // Enqueue achievements processing for this event (MVP: punctual_pro)
+                  try {
+                    const achievementsQueue = require('../jobs/achievementsQueue');
+                    await achievementsQueue.enqueueEventCompleted(updated.event_id);
+                    console.log(`[EventCompletionScheduler] Enqueued achievements processing for event ${row.uid}`);
+                  } catch (err) {
+                    console.error('[EventCompletionScheduler] Failed to enqueue achievements job for', row.uid, err.message || err);
+                  }
           }
           console.log(`[EventCompletionScheduler] Marked event ${row.uid} as completed`);
         } catch (err) {

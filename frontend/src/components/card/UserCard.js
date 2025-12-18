@@ -57,6 +57,43 @@ export function createUserCard({
         "bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800",
       dot: "bg-red-500",
     },
+    // Additional statuses
+    underreview: {
+      ring: "ring-2 ring-indigo-500",
+      badge:
+        "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
+      dot: "bg-indigo-500",
+    },
+    "under_review": {
+      ring: "ring-2 ring-indigo-500",
+      badge:
+        "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
+      dot: "bg-indigo-500",
+    },
+    "under review": {
+      ring: "ring-2 ring-indigo-500",
+      badge:
+        "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800",
+      dot: "bg-indigo-500",
+    },
+    interviewscheduled: {
+      ring: "ring-2 ring-blue-500",
+      badge:
+        "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+      dot: "bg-blue-500",
+    },
+    "interview_scheduled": {
+      ring: "ring-2 ring-blue-500",
+      badge:
+        "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+      dot: "bg-blue-500",
+    },
+    "interview scheduled": {
+      ring: "ring-2 ring-blue-500",
+      badge:
+        "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800",
+      dot: "bg-blue-500",
+    },
   };
 
   const status = (user.status || "active").toLowerCase();

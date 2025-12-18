@@ -56,7 +56,7 @@ function CalendarCell({
           ? defaultClasses
           : mutedClasses
       } ${
-        hasEvents && !isSelected ? "border border-[var(--primary-red)]/40" : ""
+        hasEvents && !isSelected ? "border border-(--primary-red)/40" : ""
       }`}
       aria-pressed={isSelected}
     >
@@ -64,7 +64,7 @@ function CalendarCell({
         {format(date, "d")}
       </span>
       {hasEvents && !isSelected && (
-        <span className="mt-0.5 sm:mt-1 w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-[var(--primary-red)]" />
+        <span className="mt-0.5 sm:mt-1 w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-(--primary-red)" />
       )}
       {isSelected && (
         <span className="mt-0.5 sm:mt-1 text-[0.5rem] sm:text-[10px] uppercase tracking-tight opacity-80">
@@ -210,10 +210,10 @@ export default function DashboardEventsSidebar() {
               type="button"
               key={event.uid}
               onClick={() => openEventDetails(event.uid)}
-              className="w-full text-left p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-[var(--primary-red)] focus:outline-none focus:ring-2 focus:ring-[var(--primary-red)]/60 transition-colors"
+              className="w-full text-left p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-(--primary-red) focus:outline-none focus:ring-2 focus:ring-(--primary-red)/60 transition-colors"
             >
               <p className="text-[0.65rem] sm:text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-1.5 sm:gap-2">
-                <IoTimeOutline className="text-sm sm:text-base flex-shrink-0" />{" "}
+                <IoTimeOutline className="text-sm sm:text-base shrink-0" />{" "}
                 {startTime} – {endTime}
               </p>
               <p className="mt-1 text-sm sm:text-base font-semibold text-gray-900 dark:text-white line-clamp-2">
@@ -221,7 +221,7 @@ export default function DashboardEventsSidebar() {
               </p>
               {event.location && (
                 <p className="mt-1 flex items-center gap-1 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
-                  <IoLocationOutline className="flex-shrink-0 text-sm" />
+                  <IoLocationOutline className="shrink-0 text-sm" />
                   <span className="line-clamp-1">{event.location}</span>
                 </p>
               )}

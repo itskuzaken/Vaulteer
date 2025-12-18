@@ -211,4 +211,26 @@ router.get(
   eventsController.getAttendanceReport
 );
 
+// Reports endpoints (stored snapshots)
+router.get(
+  '/:uid/reports',
+  authenticate,
+  authorizeRoles('admin', 'staff'),
+  eventsController.listEventReports
+);
+
+router.post(
+  '/:uid/reports/generate',
+  authenticate,
+  authorizeRoles('admin', 'staff'),
+  eventsController.generateEventReport
+);
+
+router.get(
+  '/:uid/reports/:reportId/download',
+  authenticate,
+  authorizeRoles('admin', 'staff'),
+  eventsController.downloadEventReport
+);
+
 module.exports = router;

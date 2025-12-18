@@ -5,6 +5,30 @@
  * Example: node migrate.js migrations/20251201_initialize_notification_system.sql
  */
 
+const fs = require("fs");
+const path = require("path");
+const { initPool } = require("./db/pool");
+
+async function runMigration(migrationFile) {
+  try {
+    // Resolve migration file path
+    const migrationPath = path.isAbsolute(migrationFile)
+      ? migrationFile
+      : path.join(__dirname, migrationFile);
+
+    // Check if file exists
+    if (!fs.existsSync(migrationPath)) {
+      console.error(`\n❌ Migration file not found: ${migrationPath}`);
+      process.exit(1);
+    }
+
+    console.log(`\n${"=".repeat(60)}`);
+    console.log(`📄 Running migration: ${path.basename(migrationPath)}`);
+    console.log(`${"=".repeat(60)}`);
+
+    // Read the SQL file
+    const sql = fs.readFileSync(migrationPath, "utf8");
+
     // Robustly split SQL into statements while handling semicolons inside quotes/backticks
     function splitStatements(sqlText) {
       const statements = [];
@@ -12,9 +36,11 @@
       let inSingle = false;
       let inDouble = false;
       let inBacktick = false;
+      
       for (let i = 0; i < sqlText.length; i++) {
         const ch = sqlText[i];
         const prev = i > 0 ? sqlText[i - 1] : null;
+        
         if (ch === "'" && prev !== "\\" && !inDouble && !inBacktick) {
           inSingle = !inSingle;
           cur += ch;
@@ -40,79 +66,19 @@
 
         cur += ch;
       }
+      
       const last = cur.trim();
       if (last.length > 0) statements.push(last);
       return statements;
     }
 
-    const statements = splitStatements(sql).map((stmt) => {
-      // Clean each statement by removing comment lines and trimming
-      const lines = stmt.split(/\r?\n/);
-      const cleanedLines = lines.filter((line) => {
-        const t = line.trim();
-        return (
-          t.length > 0 &&
-          !t.startsWith("--") &&
-          !t.startsWith("/*") &&
-          !t.startsWith("*") &&
-          !t.endsWith("*/")
-        );
-      });
-      return cleanedLines.join("\n").trim();
-    }).filter((stmt) => {
-      // Remove empty statements and SQL statements that should be skipped
-      return (
-        stmt.length > 0 &&
-        !stmt.match(/^USE\s+/i) && // Skip USE statements (pool already connected)
-        !stmt.match(/^SET\s+@/i) // Skip variable declarations that aren't queries
-      );
-    });
-      let inDouble = false;
-      let inBacktick = false;
-      for (let i = 0; i < sqlText.length; i++) {
-        const ch = sqlText[i];
-        const prev = i > 0 ? sqlText[i - 1] : null;
-        if (ch === "'" && prev !== "\\" && !inDouble && !inBacktick) {
-          inSingle = !inSingle;
-          cur += ch;
-          continue;
-        }
-        if (ch === '"' && prev !== "\\" && !inSingle && !inBacktick) {
-          inDouble = !inDouble;
-          cur += ch;
-          continue;
-        }
-        if (ch === "`" && prev !== "\\" && !inSingle && !inDouble) {
-          inBacktick = !inBacktick;
-          cur += ch;
-          continue;
-        }
-
-        if (ch === ";" && !inSingle && !inDouble && !inBacktick) {
-          const stmt = cur.trim();
-          if (stmt.length > 0) statements.push(stmt);
-          cur = "";
-          continue;
-        }
-
-        cur += ch;
-      }
-      const last = cur.trim();
-      if (last.length > 0) statements.push(last);
-      return statements;
-    }
-
-    const statements = splitStatements(sql).filter((stmt) => {
-      // Remove empty statements and SQL comments as well as USE statements
-      const s = stmt.trim();
-      return (
-        s.length > 0 && !s.startsWith("--") && !s.startsWith("/*") && !s.match(/^USE\s+/i)
-      );
-    });
->>>>>>> origin/branch-alyana
+    const statements = splitStatements(sql).map(s => s.trim()).filter(s => s.length > 0 && !s.match(/^USE\s+/i));
 
     console.log(`\n🔄 Executing ${statements.length} SQL statements...\n`);
 
+
+    // Initialize pool
+    const pool = await initPool();
     let successCount = 0;
     let errorCount = 0;
 
@@ -190,11 +156,10 @@
     console.log(`   Errors: ${errorCount}`);
     console.log(`${"=".repeat(60)}\n`);
 
-    await pool.end();
+    if (pool && pool.end) await pool.end();
     process.exit(errorCount > 0 ? 1 : 0);
   } catch (error) {
     console.error("\n❌ Migration failed:", error.message);
-    await pool.end();
     process.exit(1);
   }
 }

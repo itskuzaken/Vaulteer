@@ -131,7 +131,9 @@ async function authenticate(req, res, next) {
     return res.status(401).json({ error: "Invalid token" });
   }
 }
-function requireRole(allowedRoles) {
+function requireRole(...roles) {
+  // Accept either multiple role args or a single array: requireRole('admin','staff') or requireRole(['admin'])
+  const allowedRoles = roles.length === 1 && Array.isArray(roles[0]) ? roles[0] : roles;
   return (req, res, next) => {
     // assumes role resolved earlier and attached to req.currentUserRole
     const userRole = req.currentUserRole;

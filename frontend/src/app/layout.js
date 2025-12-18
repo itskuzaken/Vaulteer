@@ -5,6 +5,25 @@ import React, { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { Inter, Roboto_Mono, Poppins } from "next/font/google";
 import "./globals.css"; // Import global styles
+
+// Early crypto.randomUUID shim (runs immediately at module load) —
+// Some third-party bundles (Grammarly, Agents, etc.) call crypto.randomUUID
+// synchronously during their init. The React effect shim may be too late, so
+// install a lightweight fallback now to avoid uncaught exceptions.
+if (typeof window !== "undefined" && typeof crypto !== "undefined" && typeof crypto.randomUUID !== "function") {
+  try {
+    crypto.randomUUID = function randomUUIDFallback() {
+      const bytes = crypto.getRandomValues(new Uint8Array(16));
+      bytes[6] = (bytes[6] & 0x0f) | 0x40; // version 4
+      bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant
+      const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+      return `${hex.substr(0,8)}-${hex.substr(8,4)}-${hex.substr(12,4)}-${hex.substr(16,4)}-${hex.substr(20,12)}`;
+    };
+    console.log("[Compat] early crypto.randomUUID shim installed");
+  } catch (err) {
+    console.warn("[Compat] failed to install early crypto.randomUUID shim:", err);
+  }
+}
 import Login from "../services/auth/login";
 import { usePathname } from "next/navigation";
 import { signup } from "../services/auth/signup";
@@ -277,10 +296,45 @@ export default function RootLayout({ children }) {
           globalThis.__NEXT_ROUTER_PATHNAME__) ||
         ""; // fallback for SSR
 
-  // Catch noisy unhandled promise rejections coming from external scripts
-  // (eg. browser extensions / 3rd party bundles like content-all.js) and
-  // quietly handle the ones that are known and not actionable for the app.
+  // Install small compatibility shims and helpful dev logging
   useEffect(() => {
+    // 1) crypto.randomUUID shim — some third-party bundles (eg. Grammarly,
+    // Agents bundles) assume this exists and will throw otherwise.
+    try {
+      if (typeof window !== "undefined" && typeof crypto !== "undefined" && typeof crypto.randomUUID !== "function") {
+        crypto.randomUUID = function randomUUIDFallback() {
+          const bytes = crypto.getRandomValues(new Uint8Array(16));
+          // Per RFC 4122 v4
+          bytes[6] = (bytes[6] & 0x0f) | 0x40;
+          bytes[8] = (bytes[8] & 0x3f) | 0x80;
+          const hex = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+          return `${hex.substr(0,8)}-${hex.substr(8,4)}-${hex.substr(12,4)}-${hex.substr(16,4)}-${hex.substr(20,12)}`;
+        };
+        console.log("[Compat] crypto.randomUUID shim installed");
+      }
+    } catch (err) {
+      console.warn("[Compat] failed to install crypto.randomUUID shim:", err);
+    }
+
+    // 2) Auth state debug hook (dev-only): print whether a user is signed in so
+    // we can quickly see why 401s may be happening in the browser.
+    try {
+      // Import lazily to avoid loading firebase on server
+      const { auth } = require("../services/firebase");
+      if (auth && typeof auth.onAuthStateChanged === "function") {
+        const unsubscribe = auth.onAuthStateChanged((u) => {
+          // Only print a small amount (uid + email) to aid debugging, avoid tokens
+          console.info("[Auth] state change — user present:", !!u, u ? { uid: u.uid, email: u.email } : null);
+        });
+        return () => unsubscribe();
+      }
+    } catch (err) {
+      /* silent */
+    }
+
+    // 3) Catch noisy unhandled promise rejections coming from external scripts
+    // (eg. browser extensions / 3rd party bundles like content-all.js) and
+    // quietly handle the ones that are known and not actionable for the app.
     function onUnhandled(e) {
       try {
         const msg = e?.reason?.message || String(e?.reason || "");

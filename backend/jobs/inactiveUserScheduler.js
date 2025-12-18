@@ -7,20 +7,57 @@ const {
 } = require("../services/activityLogService");
 
 const TIMEZONE = process.env.CRON_TIMEZONE || "Asia/Manila";
-const INACTIVITY_WINDOW_DAYS = parseInt(
-  process.env.INACTIVE_AFTER_DAYS || "14",
-  10
-);
 
-function buildCutoffDate() {
+// Default fallback if setting not present
+const DEFAULT_INACTIVITY_DAYS = parseInt(process.env.INACTIVE_AFTER_DAYS || "14", 10);
+
+const { getSettingValue } = require('../repositories/systemSettingsRepository');
+
+function buildCutoffDate(days) {
   const now = new Date();
-  now.setDate(now.getDate() - INACTIVITY_WINDOW_DAYS);
+  now.setDate(now.getDate() - days);
   return now;
 }
 
 async function markInactiveUsers() {
   const pool = getPool();
-  const cutoffDate = buildCutoffDate();
+
+  // Check if auto-deactivation is enabled
+  try {
+    const enabled = await getSettingValue('system', 'enable_auto_deactivate', true);
+    if (!(String(enabled).toLowerCase() === 'true' || enabled === true)) {
+      console.log('[InactiveUserJob] Auto-deactivate is disabled via system setting, skipping.');
+      return 0;
+    }
+  } catch (err) {
+    console.warn('[InactiveUserJob] Failed to read enable_auto_deactivate, defaulting to enabled', err);
+  }
+
+  // Retrieve configured inactivity window from system settings (category: system)
+  let inactivityValue = DEFAULT_INACTIVITY_DAYS;
+  let inactivityUnit = 'days';
+  try {
+    const configuredValue = await getSettingValue('system', 'inactive_after_days', DEFAULT_INACTIVITY_DAYS);
+    inactivityValue = Number.isFinite(Number(configuredValue)) ? parseInt(configuredValue, 10) : DEFAULT_INACTIVITY_DAYS;
+  } catch (err) {
+    console.warn('[InactiveUserJob] Failed to read system setting inactive_after_days, using default', err);
+    inactivityValue = DEFAULT_INACTIVITY_DAYS;
+  }
+
+  try {
+    const configuredUnit = await getSettingValue('system', 'inactive_after_unit', 'days');
+    inactivityUnit = String(configuredUnit || 'days').toLowerCase();
+    if (!['days', 'weeks', 'months'].includes(inactivityUnit)) inactivityUnit = 'days';
+  } catch (err) {
+    console.warn('[InactiveUserJob] Failed to read system setting inactive_after_unit, defaulting to days', err);
+    inactivityUnit = 'days';
+  }
+
+  // Convert value+unit to days
+  const unitMultiplier = inactivityUnit === 'weeks' ? 7 : (inactivityUnit === 'months' ? 30 : 1);
+  const inactivityDays = Math.max(1, Math.floor(inactivityValue * unitMultiplier));
+
+  const cutoffDate = buildCutoffDate(inactivityDays);
 
   const [result] = await pool.query(
     `UPDATE users

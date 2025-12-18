@@ -368,4 +368,22 @@ router.get('/recommendations', async (req, res) => {
   }
 });
 
+
+// Admin approves an OCR submission (credits the reviewer)
+router.post('/approve', async (req, res) => {
+  try {
+    const { submissionId, reviewerId, userId } = req.body;
+    if (!submissionId || !reviewerId || !userId) return res.status(400).json({ error: 'submissionId, reviewerId and userId required' });
+
+    // Enqueue achievements job
+    const { enqueueOcrApproved } = require('../jobs/achievementsQueue');
+    await enqueueOcrApproved({ submissionId, reviewerId, userId });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Error handling OCR approve:', err);
+    res.status(500).json({ error: 'Failed to process approval' });
+  }
+});
+
 module.exports = router;

@@ -31,4 +31,5 @@ export async function getParticipationStats() {
   }
 }
 
-export default { getParticipationStats };
+const statsService = { getParticipationStats };
+export default statsService;

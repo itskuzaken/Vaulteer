@@ -14,6 +14,7 @@ const { startPostScheduler } = require("./jobs/postScheduler");
 const { startEventCompletionScheduler, stopEventCompletionScheduler } = require("./jobs/eventCompletionScheduler");
 const { startEventReminderScheduler, stopEventReminderScheduler } = require("./jobs/eventReminderScheduler");
 const { textractQueue } = require("./jobs/textractQueue");
+const { achievementsQueue } = require("./jobs/achievementsQueue");
 const { apiLimiter } = require("./middleware/rateLimiter");
 const { errorHandler, notFoundHandler } = require("./middleware/errorHandler");
 
@@ -38,7 +39,7 @@ const templateMetadataRoute = require("./routes/templateMetadataRoutes");
 // Middleware for internal-only routes
 const internalOnly = require("./middleware/internalOnly");
 
-if (!admin.apps.length) {
+if (!admin.apps || !admin.apps.length) {
   try {
     // Support three ways to provide the Firebase service account:
     // 1) FIREBASE_SERVICE_ACCOUNT_JSON - raw JSON string
@@ -90,6 +91,13 @@ if (!admin.apps.length) {
 }
 
 const app = express();
+
+// Some test harnesses (and older supertest versions) call `app.address()` when passed the app.
+// Express apps don't implement `address()` directly, so provide a safe shim that returns null.
+// This causes supertest to call `app.listen(0)` and run the app on an ephemeral port for the test.
+if (typeof app.address !== 'function') {
+  app.address = () => null;
+}
 
 // If the app is behind a reverse proxy (nginx), Express needs to be told to trust
 // the proxy so middleware such as express-rate-limit can parse X-Forwarded-For.
@@ -171,6 +179,7 @@ app.use("/api/profile", profileRoute);
 app.use("/api/events", eventsRoute);
 app.use("/api/gamification", gamificationRoute);
 app.use("/api/application", applicationSettingsRoute);
+app.use("/api/system-settings", require("./routes/systemSettingsRoutes"));
 app.use("/api/posts", postsRoute);
 app.use("/api/hts-forms", htsFormsRoute);
 app.use("/api/ocr-feedback", ocrFeedbackRoute);
@@ -237,6 +246,12 @@ if (require.main === module) {
   start();
 }
 
+// Export the express app for testing. Tests use this app with supertest which will start
+// the server on an ephemeral port when needed.
+module.exports = app;
+// Also expose the `start` function for programmatic control (e.g., production startup)
+module.exports.start = start;
+
 // Graceful shutdown: stop scheduled tasks on process termination
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down...');
@@ -259,4 +274,4 @@ process.on('SIGTERM', async () => {
   process.exit(0);
 });
 
-module.exports = { app, start };
+// NOTE: do not override module.exports further; `module.exports` is the express `app`.

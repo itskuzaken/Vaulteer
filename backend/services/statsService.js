@@ -183,8 +183,42 @@ async function getEventParticipationStats({ periods = ['yesterday', 'last7', 'la
   return { periods: results, distribution };
 }
 
+/**
+ * Get event participation stats for an arbitrary start/end ISO range and its previous period
+ */
+async function getEventStatsForRange(startIso, endIso, eventTypes = []) {
+  const pool = getPool();
+  const current = await getStatsForRange(pool, startIso, endIso, eventTypes);
+
+  // compute previous-period (elastic previous span)
+  const startDt = DateTime.fromISO(startIso, { zone: 'utc' }).startOf('day');
+  const endDt = DateTime.fromISO(endIso, { zone: 'utc' }).startOf('day');
+  const spanDays = Math.round(endDt.diff(startDt, 'days').days) || 1;
+  const prevStart = startDt.minus({ days: spanDays });
+  const prevEnd = startDt;
+  const previous = await getStatsForRange(pool, prevStart.toISO(), prevEnd.toISO(), eventTypes);
+
+  const delta = (curr, prev) => {
+    if (prev === 0) return null;
+    return Number(((curr - prev) / prev) * 100).toFixed(1);
+  };
+
+  return {
+    current,
+    previous,
+    deltas: {
+      total: delta(current.total, previous.total),
+      registered: delta(current.registered, previous.registered),
+      attended: delta(current.attended, previous.attended),
+      waitlisted: delta(current.waitlisted, previous.waitlisted),
+      cancelled: delta(current.cancelled, previous.cancelled),
+    },
+  };
+}
+
 module.exports = { 
   getParticipationStats: getHtsParticipationStats,
   getHtsParticipationStats,
   getEventParticipationStats,
+  getEventStatsForRange,
 };

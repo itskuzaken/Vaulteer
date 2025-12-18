@@ -6,6 +6,7 @@ import {
   IoRocketOutline,
   IoSaveOutline,
 } from "react-icons/io5";
+import { useSystemSettings } from "../admin/settings/useSystemSettings";
 
 const DEFAULT_FORM_VALUES = {
   title: "",
@@ -23,6 +24,8 @@ const DEFAULT_FORM_VALUES = {
   requirements: "",
   contact_email: "",
   contact_phone: "",
+  attendance_checkin_window_mins: 15,
+  attendance_grace_mins: 10,
 };
 
 const ACTION_LABELS = {
@@ -130,6 +133,8 @@ export const mapEventToFormValues = (eventData = {}) => {
     requirements: eventData.requirements || "",
     contact_email: eventData.contact_email || "",
     contact_phone: eventData.contact_phone || "",
+    attendance_checkin_window_mins: eventData.attendance_checkin_window_mins ?? DEFAULT_FORM_VALUES.attendance_checkin_window_mins,
+    attendance_grace_mins: eventData.attendance_grace_mins ?? DEFAULT_FORM_VALUES.attendance_grace_mins,
   });
 };
 
@@ -154,6 +159,8 @@ const normalizeFormPayload = (formData) => ({
   requirements: formData.requirements || "",
   contact_email: formData.contact_email || "",
   contact_phone: formData.contact_phone || "",
+  attendance_checkin_window_mins: normalizeNumber(formData.attendance_checkin_window_mins, null),
+  attendance_grace_mins: normalizeNumber(formData.attendance_grace_mins, null),
 });
 
 export default function EventForm({
@@ -174,6 +181,28 @@ export default function EventForm({
     setFormData(buildEventFormInitialValues(initialValues));
     setErrors({});
   }, [initialValues]);
+
+  const { settings: systemSettings } = useSystemSettings('events');
+
+  // When creating a new event, prefer the system defaults (if configured) over hard-coded module defaults
+  useEffect(() => {
+    if (mode !== 'create' || !systemSettings || systemSettings.length === 0) return;
+
+    // Only apply system defaults if the form still has the module defaults (i.e. user hasn't edited the fields)
+    if (
+      formData.attendance_checkin_window_mins === DEFAULT_FORM_VALUES.attendance_checkin_window_mins &&
+      formData.attendance_grace_mins === DEFAULT_FORM_VALUES.attendance_grace_mins
+    ) {
+      const check = systemSettings.find(s => s.key === 'attendance_checkin_window_mins');
+      const grace = systemSettings.find(s => s.key === 'attendance_grace_mins');
+
+      setFormData(prev => ({
+        ...prev,
+        attendance_checkin_window_mins: check && check.value !== undefined ? Number(check.value) : prev.attendance_checkin_window_mins,
+        attendance_grace_mins: grace && grace.value !== undefined ? Number(grace.value) : prev.attendance_grace_mins,
+      }));
+    }
+  }, [mode, systemSettings, formData.attendance_checkin_window_mins, formData.attendance_grace_mins]);
 
   const actionLabels = ACTION_LABELS[mode] || ACTION_LABELS.create;
 
@@ -241,6 +270,21 @@ export default function EventForm({
       ) {
         newErrors.registration_deadline =
           "Registration deadline must be before event start";
+      }
+    }
+
+    // Validate attendance timings if provided
+    if (formData.attendance_checkin_window_mins !== undefined && formData.attendance_checkin_window_mins !== null && formData.attendance_checkin_window_mins !== '') {
+      const n = Number(formData.attendance_checkin_window_mins);
+      if (!Number.isInteger(n) || n < 0) {
+        newErrors.attendance_checkin_window_mins = 'Enter a non-negative integer';
+      }
+    }
+
+    if (formData.attendance_grace_mins !== undefined && formData.attendance_grace_mins !== null && formData.attendance_grace_mins !== '') {
+      const n = Number(formData.attendance_grace_mins);
+      if (!Number.isInteger(n) || n < 0) {
+        newErrors.attendance_grace_mins = 'Enter a non-negative integer';
       }
     }
 
@@ -631,6 +675,50 @@ export default function EventForm({
                   className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   placeholder="+63 912 345 6789"
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Attendance */}
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Attendance
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Check-in window (minutes)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  name="attendance_checkin_window_mins"
+                  value={formData.attendance_checkin_window_mins}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                {errors.attendance_checkin_window_mins && (
+                  <p className="mt-1 text-sm text-red-500">{errors.attendance_checkin_window_mins}</p>
+                )}
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">How many minutes before start does check-in open (default: 15)</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Grace period (minutes)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  name="attendance_grace_mins"
+                  value={formData.attendance_grace_mins}
+                  onChange={handleChange}
+                  className="w-full px-4 py-2 border rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                />
+                {errors.attendance_grace_mins && (
+                  <p className="mt-1 text-sm text-red-500">{errors.attendance_grace_mins}</p>
+                )}
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">How many minutes after start count as late arrivals (default: 10)</p>
               </div>
             </div>
           </div>

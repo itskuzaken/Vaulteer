@@ -13,6 +13,11 @@ import {
   IoCheckmarkCircleOutline,
   IoAnalyticsOutline,
   IoGridOutline,
+  IoSettingsOutline,
+  IoTrophyOutline,
+  IoNotificationsOutline,
+  IoServerOutline,
+  IoScanOutline,
 } from "react-icons/io5";
 
 const adminMenu = {
@@ -67,6 +72,38 @@ const adminMenu = {
     label: "Activity Logs",
     icon: IoAnalyticsOutline,
     subSections: [],
+  },
+  "system-settings": {
+    label: "System Settings",
+    icon: IoSettingsOutline,
+    defaultSubSection: "gamification",
+    subSections: [
+      {
+        key: "gamification",
+        label: "Gamification",
+        icon: IoTrophyOutline,
+      },
+      {
+        key: "events",
+        label: "Events",
+        icon: IoCalendarOutline,
+      },
+      {
+        key: "notifications",
+        label: "Notifications",
+        icon: IoNotificationsOutline,
+      },
+      {
+        key: "system",
+        label: "System",
+        icon: IoServerOutline,
+      },
+      {
+        key: "ocr",
+        label: "OCR",
+        icon: IoScanOutline,
+      },
+    ],
   },
 };
 

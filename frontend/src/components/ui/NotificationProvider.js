@@ -47,9 +47,9 @@ export function NotificationProvider({ children }) {
         icon: <IoWarningOutline className="w-5 h-5 flex-shrink-0" />,
       },
       info: {
-        bg: "bg-red-50 dark:bg-red-900/20",
-        border: "border-red-200 dark:border-red-800",
-        text: "text-red-800 dark:text-red-200",
+        bg: "bg-blue-50 dark:bg-blue-900/20",
+        border: "border-blue-200 dark:border-blue-800",
+        text: "text-blue-800 dark:text-blue-200",
         icon: <IoInformationCircleOutline className="w-5 h-5 flex-shrink-0" />,
       },
     };

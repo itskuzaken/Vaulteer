@@ -126,7 +126,7 @@ export default function StaffDashboard({ onNavigate }) {
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-6 animate-fadeIn">
         <div className="space-y-6">
           {showWelcome && (
-            <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-xl shadow-lg p-6 text-white relative">
+            <div className="bg-linear-to-r from-green-600 to-green-700 rounded-xl shadow-lg p-6 text-white relative">
               <button
                 onClick={() => setShowWelcome(false)}
                 className="absolute top-4 right-4 p-1 rounded-lg hover:bg-white/20 transition-colors"

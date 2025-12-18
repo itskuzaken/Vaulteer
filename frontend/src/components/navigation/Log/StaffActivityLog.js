@@ -7,13 +7,11 @@ import {
   IoCalendarOutline,
   IoCreateOutline,
   IoMailOutline,
-  IoDownloadOutline,
 } from "react-icons/io5";
 import { useNotify } from "../../ui/NotificationProvider";
 import {
   fetchActivityLogs,
   fetchActivityLogStats,
-  exportActivityLogs,
 } from "../../../services/activityLogService";
 import Pagination from "../../pagination/Pagination";
 import LogFilterSearch from "../../logs/LogFilterSearch";
@@ -255,24 +253,6 @@ export default function StaffActivityLog() {
     }
   };
 
-  const handleExportLogs = async () => {
-    try {
-      const params = createLogQueryParams(
-        filters,
-        debouncedSearch,
-        ITEMS_PER_PAGE,
-        currentPage
-      );
-      delete params.limit;
-      delete params.offset;
-      await exportActivityLogs(params);
-      notify?.push("Activity log exported successfully", "success");
-    } catch (error) {
-      console.error("Error exporting logs:", error);
-      notify?.push("Failed to export logs", "error");
-    }
-  };
-
   const formatTimestamp = (timestamp, metadata = null) => {
     if (!timestamp) return "Unknown";
 
@@ -325,22 +305,6 @@ export default function StaffActivityLog() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-            Track your actions and activities in the system
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleExportLogs}
-            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          >
-            <IoDownloadOutline className="w-5 h-5" />
-            Export Activity
-          </button>
-        </div>
-      </div>
 
       <LogFilterSearch
         filters={filters}

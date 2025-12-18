@@ -17,6 +17,13 @@ import PostDetailsContent from "../../../../components/navigation/Post/PostDetai
 import UserSettings from "../../../../components/navigation/Settings/UserSettings";
 import NotificationsPage from "../../../../components/notifications/NotificationsPage";
 
+// System Settings Pages
+import GamificationSettings from "../../../../components/admin/settings/GamificationSettings";
+import EventsSettings from "../../../../components/admin/settings/EventsSettings";
+import NotificationsSettings from "../../../../components/admin/settings/NotificationsSettings";
+import SystemSettings from "../../../../components/admin/settings/SystemSettings";
+import OcrSettings from "../../../../components/admin/settings/OcrSettings";
+
 const adminMainRoutes = {
   dashboard: {
     label: "Dashboard",
@@ -112,6 +119,37 @@ const adminSubRoutes = {
     parent: "manage-events",
     component: CreateEvent,
     withNavigate: true,
+  },
+  // System Settings sub-routes
+  "gamification": {
+    key: "gamification",
+    label: "Gamification Settings",
+    parent: "system-settings",
+    component: GamificationSettings,
+  },
+  "events": {
+    key: "events",
+    label: "Events Settings",
+    parent: "system-settings",
+    component: EventsSettings,
+  },
+  "notifications": {
+    key: "notifications",
+    label: "Notifications Settings",
+    parent: "system-settings",
+    component: NotificationsSettings,
+  },
+  "system": {
+    key: "system",
+    label: "System Settings",
+    parent: "system-settings",
+    component: SystemSettings,
+  },
+  "ocr": {
+    key: "ocr",
+    label: "OCR Settings",
+    parent: "system-settings",
+    component: OcrSettings,
   },
   // Settings are a single combined page (UserSettings); individual setting
   // sub-routes like 'appearance' and 'user-account-settings' have been

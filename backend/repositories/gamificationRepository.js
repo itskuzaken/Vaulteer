@@ -2,6 +2,38 @@ const { getPool } = require("../db/pool");
 const { calculateLevel } = require("../config/gamificationRules");
 
 class GamificationRepository {
+  constructor() {
+    // simple in-memory cache for thresholds
+    this._thresholdsCache = null;
+    this._thresholdsCachedAt = 0;
+    this._thresholdsTTL = 60 * 60 * 1000; // 1 hour
+  }
+
+  async getPointsThresholds() {
+    const now = Date.now();
+    if (this._thresholdsCache && now - this._thresholdsCachedAt < this._thresholdsTTL) {
+      return this._thresholdsCache;
+    }
+    const pool = getPool();
+    const [rows] = await pool.query(
+      `SELECT level, points_cumulative, points_required_for_next, reward_title
+         FROM points_level_thresholds ORDER BY level ASC`
+    );
+    this._thresholdsCache = rows;
+    this._thresholdsCachedAt = Date.now();
+    return rows;
+  }
+
+  async getThresholdForLevel(level) {
+    const thresholds = await this.getPointsThresholds();
+    return thresholds.find((t) => t.level === level) || null;
+  }
+
+  invalidateThresholdsCache() {
+    this._thresholdsCache = null;
+    this._thresholdsCachedAt = 0;
+  }
+
   async withTransaction(work) {
     const pool = getPool();
     const connection = await pool.getConnection();
@@ -145,7 +177,7 @@ class GamificationRepository {
   async syncLevel(userId) {
     const pool = getPool();
     const [[stats]] = await pool.query(
-      "SELECT total_points FROM user_gamification_stats WHERE user_id = ?",
+      "SELECT lifetime_points, current_level FROM user_gamification_stats WHERE user_id = ?",
       [userId]
     );
 
@@ -154,12 +186,29 @@ class GamificationRepository {
       return this.syncLevel(userId);
     }
 
-    const level = calculateLevel(stats.total_points);
+    const thresholds = await this.getPointsThresholds();
+
+    // Determine current level from lifetime_points using thresholds (hard-stop)
+    const lifetime = Number(stats.lifetime_points || 0);
+    let newLevel = 1;
+    for (let i = thresholds.length - 1; i >= 0; i--) {
+      const t = thresholds[i];
+      if (lifetime >= Number(t.points_cumulative)) {
+        newLevel = t.level;
+        break;
+      }
+    }
+
+    // Compute points to next level
+    const next = thresholds.find((t) => t.level === newLevel + 1);
+    const pointsToNext = next ? Math.max(0, Number(next.points_cumulative) - lifetime) : 0;
+
     await pool.query(
-      "UPDATE user_gamification_stats SET current_level = ? WHERE user_id = ?",
-      [level, userId]
+      "UPDATE user_gamification_stats SET current_level = ?, points_to_next_level = ? WHERE user_id = ?",
+      [newLevel, pointsToNext, userId]
     );
-    return level;
+
+    return newLevel;
   }
 
   async getStats(userId) {
@@ -175,6 +224,7 @@ class GamificationRepository {
   async getRecentEvents(userId, limit = 10) {
     const pool = getPool();
     const safeLimit = Math.max(1, Math.min(limit, 50));
+
     const [rows] = await pool.query(
       `SELECT action, points_delta, metadata, created_at
          FROM gamification_events
@@ -191,6 +241,29 @@ class GamificationRepository {
           ? JSON.parse(row.metadata)
           : row.metadata,
     }));
+  }
+
+  async getUserLevelStats(userId) {
+    const pool = getPool();
+    await this.ensureStatsRow(userId);
+    const [[row]] = await pool.query(
+      `SELECT u.user_id, u.role_id, u.uid, s.total_points, s.lifetime_points, s.current_level, s.points_to_next_level
+         FROM user_gamification_stats s
+         JOIN users u ON u.user_id = s.user_id
+         WHERE s.user_id = ?`,
+      [userId]
+    );
+    return row || null;
+  }
+
+  async updateUserLevel(userId, newLevel, pointsToNext) {
+    const pool = getPool();
+    await pool.query(
+      `UPDATE user_gamification_stats SET current_level = ?, points_to_next_level = ?, updated_at = NOW() WHERE user_id = ?`,
+      [newLevel, pointsToNext, userId]
+    );
+    // Invalidate any caches elsewhere
+    return true;
   }
 
   async getUserBadges(userId) {
@@ -239,6 +312,16 @@ class GamificationRepository {
 
       return true;
     });
+  }
+
+  async getBadgeByCode(badgeCode) {
+    if (!badgeCode) return null;
+    const pool = getPool();
+    const [rows] = await pool.query(
+      `SELECT * FROM achievements WHERE badge_code = ? LIMIT 1`,
+      [badgeCode]
+    );
+    return rows[0] || null;
   }
 
   async recalculateUser(userId) {
@@ -326,6 +409,154 @@ class GamificationRepository {
       [safeLimit]
     );
     return rows;
+  }
+
+  async initializeUserLevelStats(userId) {
+    const pool = getPool();
+    await pool.query(
+      `INSERT INTO user_gamification_stats
+       (user_id, total_points, lifetime_points, current_level, points_to_next_level, created_at, updated_at)
+       VALUES (?, 0, 0, 1, 125, NOW(), NOW())
+       ON DUPLICATE KEY UPDATE updated_at = NOW()`,
+      [userId]
+    );
+    return true;
+  }
+
+  /* Achievement mapping repository helpers */
+
+  async getAchievementMappings({ eventId = null, eventType = null, triggerAction = null, targetRole = null } = {}) {
+    const pool = getPool();
+    const clauses = ["eam.is_active = 1"];
+    const params = [];
+
+    if (eventId !== null) {
+      clauses.push("(eam.event_id = ?)");
+      params.push(eventId);
+    }
+
+    if (eventType !== null) {
+      clauses.push("(eam.event_type = ?)");
+      params.push(eventType);
+    }
+
+    if (triggerAction !== null) {
+      clauses.push("eam.trigger_action = ?");
+      params.push(triggerAction);
+    }
+
+    if (targetRole !== null) {
+      // allow explicit target role OR 'any' wildcard to match all roles
+      clauses.push("((eam.target_role = ?) OR (eam.target_role = 'any'))");
+      params.push(targetRole);
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+    const [rows] = await pool.query(
+      `SELECT eam.*, a.achievement_name, a.badge_code, a.achievement_points
+         FROM event_achievement_mappings eam
+         JOIN achievements a ON eam.achievement_id = a.achievement_id
+         ${where}
+         ORDER BY eam.mapping_id ASC`,
+      params
+    );
+
+    return rows || [];
+  }
+
+  async createAchievementMapping({ achievementId, eventId = null, eventType = null, triggerAction = 'EVENT_ATTEND', targetRole = 'volunteer', createdBy = null }) {
+    const pool = getPool();
+    const [res] = await pool.query(
+      `INSERT INTO event_achievement_mappings (achievement_id, event_id, event_type, trigger_action, target_role, is_active, created_by_user_id)
+         VALUES (?, ?, ?, ?, ?, 1, ?)`,
+      [achievementId, eventId, eventType, triggerAction, targetRole, createdBy]
+    );
+
+    const mappingId = res.insertId;
+    const [[row]] = await pool.query(
+      `SELECT eam.*, a.achievement_name, a.badge_code, a.achievement_points
+         FROM event_achievement_mappings eam
+         JOIN achievements a ON eam.achievement_id = a.achievement_id
+         WHERE eam.mapping_id = ? LIMIT 1`,
+      [mappingId]
+    );
+
+    return row || null;
+  }
+
+  async updateAchievementMapping(mappingId, updates = {}) {
+    const pool = getPool();
+    const allowed = ['event_id', 'event_type', 'trigger_action', 'target_role', 'is_active'];
+    const sets = [];
+    const params = [];
+
+    Object.entries(updates).forEach(([k, v]) => {
+      if (!allowed.includes(k)) return;
+      sets.push(`${k} = ?`);
+      params.push(v);
+    });
+
+    if (sets.length === 0) return null;
+
+    params.push(mappingId);
+    await pool.query(`UPDATE event_achievement_mappings SET ${sets.join(', ')} WHERE mapping_id = ?`, params);
+
+    const [[row]] = await pool.query(
+      `SELECT eam.*, a.achievement_name, a.badge_code, a.achievement_points
+         FROM event_achievement_mappings eam
+         JOIN achievements a ON eam.achievement_id = a.achievement_id
+         WHERE eam.mapping_id = ? LIMIT 1`,
+      [mappingId]
+    );
+
+    return row || null;
+  }
+
+  async deleteAchievementMapping(mappingId) {
+    const pool = getPool();
+    const [res] = await pool.query(`DELETE FROM event_achievement_mappings WHERE mapping_id = ?`, [mappingId]);
+    return res.affectedRows > 0;
+  }
+
+  async getAchievementsForEvent({ eventId = null, eventType = null, triggerAction = null, targetRole = null } = {}) {
+    const pool = getPool();
+    const clauses = ["eam.is_active = 1"];
+    const params = [];
+
+    if (triggerAction) {
+      clauses.push("eam.trigger_action = ?");
+      params.push(triggerAction);
+    }
+
+    if (eventId !== null) {
+      clauses.push("(eam.event_id = ?)");
+      params.push(eventId);
+    }
+
+    if (eventType !== null) {
+      clauses.push("(eam.event_type = ?)");
+      params.push(eventType);
+    }
+
+    if (targetRole !== null) {
+      // allow explicit target role OR 'any' wildcard to match all roles
+      clauses.push("((eam.target_role = ?) OR (eam.target_role = 'any'))");
+      params.push(targetRole);
+    }
+
+    const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+
+    const [rows] = await pool.query(
+      `SELECT DISTINCT a.*
+         FROM event_achievement_mappings eam
+         JOIN achievements a ON eam.achievement_id = a.achievement_id
+         ${where}
+         ORDER BY a.achievement_id ASC`,
+      params
+    );
+
+    return rows || [];
   }
 }
 

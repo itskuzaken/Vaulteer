@@ -5,6 +5,10 @@ const { logHelpers } = require("../services/activityLogService");
 const { getPool } = require("../db/pool");
 const notificationService = require("../services/notificationService");
 const attendanceService = require('../services/attendanceService');
+const reportRepository = require('../repositories/reportRepository');
+const { reportQueue } = require('../jobs/reportGenerationQueue');
+const reportWorker = require('../workers/reportWorker');
+const s3Service = require('../services/s3Service');
 
 class EventsController {
   // ============================================
@@ -998,7 +1002,7 @@ class EventsController {
       const gamificationResults = await Promise.all(
         attendees.map((participantId) => {
           const targetId = parseInt(participantId, 10);
-          if (Number.isNaN(targetId) || !volunteerIds.has(targetId)) {
+          if (Number.isNaN(targetId)) {
             return Promise.resolve(null);
           }
 
@@ -1044,10 +1048,23 @@ class EventsController {
 
       const participants = await eventRepository.getEventParticipants(uid);
 
+      // Compute attendance check-in availability: opens X minutes before start, not visible after start
+      const now = new Date();
+      const startTs = event.start_datetime ? new Date(event.start_datetime) : null;
+      const windowMins = Number(event.attendance_checkin_window_mins || 15);
+      let attendanceEnabled = false;
+      if (startTs) {
+        const windowStart = new Date(startTs.getTime() - windowMins * 60000);
+        // visible only from windowStart up to but not including start
+        attendanceEnabled = now >= windowStart && now < startTs && !['cancelled','postponed','completed'].includes((event.status||'').toLowerCase());
+      }
+
       res.json({
         success: true,
         data: {
-          attendance_enabled: event.status === 'started',
+          attendance_enabled: attendanceEnabled,
+          checkin_window_mins: windowMins,
+          attendance_grace_mins: Number(event.attendance_grace_mins || 10),
           participants,
         }
       });
@@ -1154,6 +1171,79 @@ class EventsController {
     } catch (error) {
       console.error('Get attendance report error:', error);
       res.status(500).json({ success: false, message: 'Failed to fetch attendance report', error: error.message });
+    }
+  }
+
+  // List stored reports for an event
+  async listEventReports(req, res) {
+    try {
+      const { uid } = req.params;
+      const event = await eventRepository.getEventByUid(uid);
+      if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+      const rows = await reportRepository.listReportsByEvent(event.event_id, 50, 0);
+      res.json({ success: true, data: rows });
+    } catch (error) {
+      console.error('List event reports error:', error);
+      res.status(500).json({ success: false, message: 'Failed to list reports', error: error.message });
+    }
+  }
+
+  // Trigger generation of a report (enqueue job)
+  async generateEventReport(req, res) {
+    try {
+      const { uid } = req.params;
+      const { format = 'csv', includePii = false } = req.body || {};
+      const userId = req.currentUserId;
+
+      const event = await eventRepository.getEventByUid(uid);
+      if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+      const dedupeKey = `${event.event_id}:${event.end_datetime}`;
+      const existing = await reportRepository.findByDedupeKey(dedupeKey);
+      if (existing) {
+        return res.json({ success: true, message: 'Report already exists', data: existing });
+      }
+
+      const jobData = { eventId: event.event_id, format, includePii: Boolean(includePii), dedupeKey, requestedBy: userId };
+
+      // Enqueue job
+      if (reportQueue && typeof reportQueue.add === 'function') {
+        await reportQueue.add(jobData);
+        // Also attempt to ensure worker runs in-process if no external queue
+        if (!reportQueue.process && typeof reportWorker.generateAttendanceReport === 'function') {
+          // best-effort generate immediately
+          reportWorker.generateAttendanceReport(jobData).catch((e)=>console.error('Immediate report generation failed:', e));
+        }
+      } else if (typeof reportWorker.generateAttendanceReport === 'function') {
+        // Fallback: run synchronously but don't block request excessively (fire and forget)
+        reportWorker.generateAttendanceReport(jobData).catch((e)=>console.error('Report generation failed:', e));
+      }
+
+      res.json({ success: true, message: 'Report generation queued', data: { dedupeKey } });
+    } catch (error) {
+      console.error('Generate event report error:', error);
+      res.status(500).json({ success: false, message: 'Failed to generate report', error: error.message });
+    }
+  }
+
+  // Download a generated report (returns presigned URL)
+  async downloadEventReport(req, res) {
+    try {
+      const { uid, reportId } = req.params;
+      const event = await eventRepository.getEventByUid(uid);
+      if (!event) return res.status(404).json({ success: false, message: 'Event not found' });
+
+      const report = await reportRepository.findById(parseInt(reportId, 10));
+      if (!report) return res.status(404).json({ success: false, message: 'Report not found' });
+
+      if (!report.s3_key) return res.status(404).json({ success: false, message: 'Report file not available' });
+
+      const url = await s3Service.getPresignedDownloadUrl(report.s3_key);
+      res.json({ success: true, data: { downloadUrl: url } });
+    } catch (error) {
+      console.error('Download event report error:', error);
+      res.status(500).json({ success: false, message: 'Failed to fetch download URL', error: error.message });
     }
   }
 

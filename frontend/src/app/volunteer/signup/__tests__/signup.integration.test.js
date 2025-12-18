@@ -2,6 +2,11 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import SignupPage from '../page';
 
+// Mock application settings fetch to avoid loading spinner during tests
+jest.mock('@/services', () => ({
+  getApplicationSettings: jest.fn(() => Promise.resolve({ success: true, data: { is_open: true, deadline: null } })),
+}));
+
 describe('volunteer signup page', () => {
   test('gender other requires alpha input', async () => {
     render(<SignupPage />);

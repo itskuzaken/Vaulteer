@@ -90,3 +90,26 @@ echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab/backend/scripts/
 # Ignore migration-runner artifacts
 /backend/migrate.js
 
+# Ignore IDE config files
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+# Ignore OS generated files
+Thumbs.db
+Desktop.ini
+
+# Ignore test output files
+/backend/__tests__/output/
+/backend/__tests__/output/*
+!/backend/__tests__/output/.gitkeep
+/backend/__tests__/temp/
+/backend/__tests__/temp/*
+!/backend/__tests__/temp/.gitkeep
+/frontend/src/__tests__/*
+
+.github/prompts/*
+
+backend/# Join Waitlist Feature Plan.prompt.md
+backend/__tests__/*
+backend/scripts/*

@@ -1,7 +1,5 @@
 import { useState, useCallback } from "react";
 import { QuickActionCard } from "../../card/DashboardCard";
-import RealtimeStatsGrid from "../../ui/RealtimeStatsGrid";
-import DashboardSectionCard from "../../ui/DashboardSectionCard";
 import QuickActionsSection from "../../ui/QuickActionsSection";
 import {
   IoDocumentTextOutline,
@@ -107,7 +105,7 @@ export default function VolunteerDashboard({
       <div className="space-y-6">
         {/* Welcome Section */}
         {showWelcome && (
-          <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white relative">
+          <div className="bg-linear-to-r from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 text-white relative">
             <button
               onClick={() => setShowWelcome(false)}
               className="absolute top-4 right-4 p-1 rounded-lg hover:bg-white/20 transition-colors"

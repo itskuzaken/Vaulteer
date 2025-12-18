@@ -4,15 +4,14 @@ module.exports = {
       // Backend: Express.js (Port 5000)
       name: "vaulteer-backend",
       cwd: "/opt/Vaulteer/backend", 
-      script: "server.js", // Corrected
-      interpreter: "/home/ubuntu/.nvm/versions/node/v24.11.1/bin/node", // Corrected
+      script: "server.js",
       instances: 1,
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
         TRUST_PROXY: "1", 
       },
-      // Logs now point to the ubuntu user's home directory
+      max_memory_restart: "700M",
       error_file: "/home/ubuntu/vaulteer_logs/backend-error.log",
       out_file: "/home/ubuntu/vaulteer_logs/backend-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
@@ -25,16 +24,15 @@ module.exports = {
       // Frontend: Next.js (Port 3000)
       name: "vaulteer-frontend",
       cwd: "/opt/Vaulteer/frontend", 
-      script: "npx", // Corrected
+      script: "npx",
       args: "next start -p 3000",
-      interpreter: "/home/ubuntu/.nvm/versions/node/v24.11.1/bin/node", // Corrected
       instances: 1,
       exec_mode: "fork",
       env: {
         NODE_ENV: "production",
         PORT: 3000,
       },
-      // Logs now point to the ubuntu user's home directory
+      max_memory_restart: "700M",
       error_file: "/home/ubuntu/vaulteer_logs/frontend-error.log",
       out_file: "/home/ubuntu/vaulteer_logs/frontend-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",

@@ -60,7 +60,7 @@ Allow users to join or leave an event waitlist when an event is full. Keep exist
   - Test `getParticipantStatus` returns correct statuses.
   - Test `getEventDetails` returns `participation_status` field.
 - Frontend tests:
-  - Component tests for `JoinEventButton` states:
+  - [x] Component tests for `JoinEventButton` states:
     - Not full: shows `Join Event`; clicking registers.
     - Full: shows `Join Waitlist`; clicking adds to waitlist.
     - Waitlisted: shows `Leave Waitlist`; clicking removes waitlist registration.
@@ -75,6 +75,9 @@ Allow users to join or leave an event waitlist when an event is full. Keep exist
 - Update the README or frontend documentation to note that users can join a waitlist when an event reaches capacity.
 - Update `frontend/src/components/gamification/MyImpactWidget.js` to ensure WAITLIST_JOIN and WAITLIST_PROMOTION are accounted for and displayed properly.
 - Optionally, add email/push notifications for waitlist promotions if the project uses a notification system.
+
+### 8) Remove confirmation modal when joining/leaving events and implement direct registration check
+- [x] Completed: The JoinEventButton component has been successfully updated to remove modals and implement direct registration checks. Tests are passing.
 
 ## Acceptance Criteria ✅
 1. Users can click `Join Waitlist` when the event is full and not registered; API returns `status = 'waitlisted'`.

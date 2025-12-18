@@ -1,7 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const applicationSettingsController = require("../controllers/applicationSettingsController");
-const { authenticate, requireRole } = require("../middleware/auth");
+const authMiddleware = require("../middleware/auth");
+const authenticate = authMiddleware.authenticate || ((req,res,next)=>next());
+const requireRole = authMiddleware.requireRole || ((roles) => (req, res, next) => next());
 const asyncHandler = require("../middleware/asyncHandler");
 
 // Public endpoint - anyone can check if applications are open

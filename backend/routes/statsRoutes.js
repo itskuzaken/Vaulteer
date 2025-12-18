@@ -5,16 +5,60 @@ const { getPool } = require("../db/pool");
 const statsService = require("../services/statsService");
 
 /**
+ * Helper function to get date range based on range parameter
+ */
+function getDateRange(range) {
+  const now = new Date();
+  switch(range) {
+    case 'yesterday':
+      const yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      yesterday.setHours(0, 0, 0, 0);
+      const yesterdayEnd = new Date(yesterday);
+      yesterdayEnd.setHours(23, 59, 59, 999);
+      return { start: yesterday, end: yesterdayEnd };
+    
+    case 'last7':
+      const last7 = new Date(now);
+      last7.setDate(last7.getDate() - 7);
+      return { start: last7, end: now };
+    
+    case 'last30':
+      const last30 = new Date(now);
+      last30.setDate(last30.getDate() - 30);
+      return { start: last30, end: now };
+    
+    default:
+      // Default to last 7 days
+      const defaultLast7 = new Date(now);
+      defaultLast7.setDate(defaultLast7.getDate() - 7);
+      return { start: defaultLast7, end: now };
+  }
+}
+
+/**
  * @route   GET /api/stats/dashboard
- * @desc    Get dashboard statistics (Admin only)
+ * @desc    Get dashboard statistics with breakdowns (Admin only)
  * @access  Private (Admin)
+ * @query   range - Time range filter: yesterday | last7 | last30
  */
 router.get("/dashboard", authenticate, async (req, res) => {
   try {
     const pool = getPool();
     const userId = req.firebaseUid;
+    const range = req.query.range || 'last7';
+    const compare = req.query.compare === 'true';
 
-    console.log("[Stats Dashboard] Firebase UID:", userId);
+    // If custom date range provided, use those ISO params (expected format: YYYY-MM-DD or ISO)
+    let start, end;
+    if (req.query.start && req.query.end) {
+      start = new Date(req.query.start);
+      end = new Date(req.query.end);
+    } else {
+      ({ start, end } = getDateRange(range));
+    }
+
+    console.log("[Stats Dashboard] Firebase UID:", userId, "Range:", range, "Compare:", compare, "Start:", start, "End:", end);
 
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -37,31 +81,186 @@ router.get("/dashboard", authenticate, async (req, res) => {
       return res.status(403).json({ error: "Admin access required" });
     }
 
-    // Fetch statistics
+    // Date range for filtering is already computed above (from range or start/end params)
+    
+    // Fetch total volunteers count (all statuses, regardless of date)
     const [totalVolunteers] = await pool.query(
-      "SELECT COUNT(*) as count FROM users u JOIN roles r ON u.role_id = r.role_id WHERE r.role = 'volunteer' AND u.status = 'active'"
+      `SELECT COUNT(*) as count 
+       FROM users u 
+       JOIN roles r ON u.role_id = r.role_id 
+       WHERE r.role = 'volunteer'`
     );
 
+    // Fetch volunteers breakdown by status
+    const [volunteersBreakdown] = await pool.query(
+      `SELECT u.status, COUNT(*) as count
+       FROM users u
+       JOIN roles r ON u.role_id = r.role_id
+       WHERE r.role = 'volunteer'
+       GROUP BY u.status`
+    );
+
+    // Fetch total staff count (all statuses, regardless of date)
     const [totalStaff] = await pool.query(
-      "SELECT COUNT(*) as count FROM users u JOIN roles r ON u.role_id = r.role_id WHERE r.role = 'staff' AND u.status = 'active'"
+      `SELECT COUNT(*) as count 
+       FROM users u 
+       JOIN roles r ON u.role_id = r.role_id 
+       WHERE r.role = 'staff'`
     );
 
+    // Fetch staff breakdown by status
+    const [staffBreakdown] = await pool.query(
+      `SELECT u.status, COUNT(*) as count
+       FROM users u
+       JOIN roles r ON u.role_id = r.role_id
+       WHERE r.role = 'staff'
+       GROUP BY u.status`
+    );
+
+    // Fetch total applications count (filtered by date range)
     const [totalApplicants] = await pool.query(
       `SELECT COUNT(DISTINCT a.applicant_id) as count 
        FROM applicants a 
-       JOIN application_statuses s ON a.status_id = s.status_id 
-       WHERE s.status_name = 'pending'`
+       WHERE a.application_date >= ? AND a.application_date <= ?`,
+      [start, end]
     );
 
-    const [recentLogs] = await pool.query(
-      "SELECT COUNT(*) as count FROM activity_logs WHERE created_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)"
+    // Fetch applications breakdown by status (filtered by date range)
+    const [applicationsBreakdown] = await pool.query(
+      `SELECT s.status_name, COUNT(*) as count
+       FROM applicants a
+       JOIN application_statuses s ON a.status_id = s.status_id
+       WHERE a.application_date >= ? AND a.application_date <= ?
+       GROUP BY s.status_name`,
+      [start, end]
     );
+
+    // Fetch event participation stats. Use preset helper for known periods or custom helper for arbitrary ranges
+    let eventStats = { periods: {} };
+    if (['yesterday','last7','last30'].includes(range)) {
+      eventStats = await statsService.getEventParticipationStats({ periods: [range] });
+    } else {
+      const ev = await statsService.getEventStatsForRange(start.toISOString(), end.toISOString());
+      eventStats.periods.custom = { current: ev.current, previous: ev.previous, deltas: ev.deltas };
+    }
+
+    // Format breakdown data
+    const volunteersBreakdownObj = {};
+    volunteersBreakdown.forEach(row => {
+      volunteersBreakdownObj[row.status] = row.count;
+    });
+
+    const staffBreakdownObj = {};
+    staffBreakdown.forEach(row => {
+      staffBreakdownObj[row.status] = row.count;
+    });
+
+    // Ensure all possible application statuses are present (default 0)
+    const [allAppStatuses] = await pool.query(
+      `SELECT status_name FROM application_statuses`
+    );
+
+    const applicationsBreakdownObj = {};
+    allAppStatuses.forEach(s => {
+      applicationsBreakdownObj[s.status_name] = 0;
+    });
+
+    applicationsBreakdown.forEach(row => {
+      applicationsBreakdownObj[row.status_name] = row.count;
+    });
+
+    // Format event participation breakdown
+    const eventParticipation = eventStats?.periods?.[range]?.current || {};
+    const eventParticipationsBreakdownObj = {
+      registered: eventParticipation.registered || 0,
+      attended: eventParticipation.attended || 0,
+      cancelled: eventParticipation.cancelled || 0,
+      waitlisted: eventParticipation.waitlisted || 0,
+    };
+
+    // If compare=true, compute previous period values and deltas for date-filtered metrics
+    let previous = null;
+    let deltas = null;
+
+    if (compare) {
+      // previous applicant range (elastic previous span)
+      const span = end.getTime() - start.getTime();
+      const prevStart = new Date(start.getTime() - span);
+      const prevEnd = new Date(start.getTime() - 1);
+
+      const [prevTotalApplicants] = await pool.query(
+        `SELECT COUNT(DISTINCT a.applicant_id) as count 
+         FROM applicants a 
+         WHERE a.application_date >= ? AND a.application_date <= ?`,
+        [prevStart, prevEnd]
+      );
+
+      const [prevApplicationsBreakdown] = await pool.query(
+        `SELECT s.status_name, COUNT(*) as count
+         FROM applicants a
+         JOIN application_statuses s ON a.status_id = s.status_id
+         WHERE a.application_date >= ? AND a.application_date <= ?
+         GROUP BY s.status_name`,
+        [prevStart, prevEnd]
+      );
+
+      // seed previous breakdowns with all statuses
+      const prevApplicationsBreakdownObj = {};
+      allAppStatuses.forEach(s => {
+        prevApplicationsBreakdownObj[s.status_name] = 0;
+      });
+      prevApplicationsBreakdown.forEach(row => {
+        prevApplicationsBreakdownObj[row.status_name] = row.count;
+      });
+
+      // Event stats: use existing service for presets, or custom range helper
+      let eventPrev = { total: 0, registered: 0, attended: 0, cancelled: 0, waitlisted: 0 };
+      if (['yesterday','last7','last30'].includes(range)) {
+        const ev = eventStats?.periods?.[range];
+        if (ev && ev.previous) {
+          eventPrev = ev.previous;
+        }
+      } else {
+        const ev = await statsService.getEventStatsForRange(start.toISOString(), end.toISOString());
+        eventPrev = ev.previous || {};
+      }
+
+      // percent change helper
+      const pct = (curr, prev) => {
+        if (prev === 0) return null;
+        return Number(((curr - prev) / prev) * 100).toFixed(1);
+      };
+
+      previous = {
+        total_applicants: prevTotalApplicants[0]?.count || 0,
+        applications_breakdown: prevApplicationsBreakdownObj,
+        event_participations: eventPrev.total || 0,
+        event_participations_breakdown: {
+          registered: eventPrev.registered || 0,
+          attended: eventPrev.attended || 0,
+          cancelled: eventPrev.cancelled || 0,
+          waitlisted: eventPrev.waitlisted || 0,
+        },
+      };
+
+      deltas = {
+        total_applicants: pct(totalApplicants[0]?.count || 0, previous.total_applicants),
+        event_participations: pct(eventParticipation.total || 0, previous.event_participations),
+      };
+    }
 
     const stats = {
+      range,
       total_volunteers: totalVolunteers[0]?.count || 0,
+      volunteers_breakdown: volunteersBreakdownObj,
       total_staff: totalStaff[0]?.count || 0,
+      staff_breakdown: staffBreakdownObj,
       total_applicants: totalApplicants[0]?.count || 0,
-      recent_activity: recentLogs[0]?.count || 0,
+      applications_breakdown: applicationsBreakdownObj,
+      event_participations: eventParticipation.total || 0,
+      event_participations_breakdown: eventParticipationsBreakdownObj,
+      ...(previous ? { previous } : {}),
+      ...(deltas ? { deltas } : {}),
     };
 
     console.log("[Stats Dashboard] Stats calculated:", stats);

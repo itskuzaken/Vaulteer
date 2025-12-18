@@ -1286,6 +1286,18 @@ export default function HTSFormManagement() {
         body: formData
       });
 
+      // Handle specific HTTP errors first
+      if (response.status === 413) {
+        console.error('[OCR] Server returned 413 Request Entity Too Large');
+        // Friendly message for users: guide on reducing image size/quality
+        showAlert(
+          "Image Too Large",
+          "One or more uploaded images exceed the server's allowed size (Request Entity Too Large).\n\nPlease reduce image quality or resolution and try again. Note: AWS Textract enforces a 10MB per-image limit.",
+          "error"
+        );
+        return;
+      }
+
       // Check if response is JSON before parsing
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {

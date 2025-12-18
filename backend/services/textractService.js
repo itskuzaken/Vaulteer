@@ -2299,6 +2299,7 @@ function buildConditionalFields(allFields, frontKVPairs = [], backKVPairs = []) 
 
     const parentBox = parentGeometry.BoundingBox;
     const components = { yes: {}, no: {} };
+    let foundAnyNearby = false;
 
     // Find nested fields using proximity detection
     for (const childFieldName of nested.yes) {
@@ -2315,6 +2316,8 @@ function buildConditionalFields(allFields, frontKVPairs = [], backKVPairs = []) 
         // Check if within proximity radius
         return horizontalDist < proximityRadius && verticalDist < proximityRadius;
       });
+
+      if (nearbyFields.length > 0) foundAnyNearby = true;
 
       // Try to match child field by pattern
       let childValue = null;
@@ -2403,7 +2406,7 @@ function buildConditionalFields(allFields, frontKVPairs = [], backKVPairs = []) 
     }
 
     // Build nested structure with parent and child regions
-    if (Object.keys(components.yes).length > 0) {
+    if (Object.keys(components.yes).length > 0 || foundAnyNearby) {
       // Extract parent region
       let parentRegion = null;
       if (parentGeometry?.BoundingBox) {

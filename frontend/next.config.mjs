@@ -34,35 +34,45 @@ const nextConfig = {
     NEXT_PUBLIC_FIREBASE: NEXT_PUBLIC_FIREBASE_JSON,
   },
   async headers() {
+    // Only enable the Cross-Origin-Opener-Policy header in production/secure environments.
+    // Browsers ignore COOP when the origin is not potentially trustworthy (non-HTTPS and not localhost).
+    const commonHeaders = [
+      {
+        key: "X-Frame-Options",
+        value: "DENY",
+      },
+      {
+        key: "X-Content-Type-Options",
+        value: "nosniff",
+      },
+      {
+        key: "Referrer-Policy",
+        value: "strict-origin-when-cross-origin",
+      },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(self), microphone=(), geolocation=()",
+      },
+      {
+        key: "X-XSS-Protection",
+        value: "1; mode=block",
+      },
+    ];
+
+    const headers = [];
+
+    // If we're running in production (HTTPS), include COOP for cross-origin isolation features.
+    if (!isDev) {
+      headers.push({ key: "Cross-Origin-Opener-Policy", value: "same-origin-allow-popups" });
+    }
+
+    // Append the rest of the security headers
+    headers.push(...commonHeaders);
+
     return [
       {
         source: "/:path*",
-        headers: [
-          {
-            key: "Cross-Origin-Opener-Policy",
-            value: "same-origin-allow-popups",
-          },
-          {
-            key: "X-Frame-Options",
-            value: "DENY",
-          },
-          {
-            key: "X-Content-Type-Options",
-            value: "nosniff",
-          },
-          {
-            key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
-          },
-          {
-            key: "Permissions-Policy",
-            value: "camera=(self), microphone=(), geolocation=()",
-          },
-          {
-            key: "X-XSS-Protection",
-            value: "1; mode=block",
-          },
-        ],
+        headers: headers,
       },
     ];
   },

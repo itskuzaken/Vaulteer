@@ -114,6 +114,7 @@ function buildConditionalFields(allFields, frontKVPairs = [], backKVPairs = []) 
     const parentBox = parentGeometry.BoundingBox;
     const components = { yes: {}, no: {} };
 
+    let foundNearby = false;
     for (const childFieldName of nested.yes) {
       const nearbyFields = kvPairs.filter(kv => {
         if (!kv.Key || !kv.Key.Geometry || !kv.Key.Geometry.BoundingBox) return false;
@@ -124,6 +125,8 @@ function buildConditionalFields(allFields, frontKVPairs = [], backKVPairs = []) 
         
         return horizontalDist < proximityRadius && verticalDist < proximityRadius;
       });
+
+      if (nearbyFields.length > 0) foundNearby = true;
 
       let childValue = null;
       let childConfidence = 0;
@@ -172,7 +175,8 @@ function buildConditionalFields(allFields, frontKVPairs = [], backKVPairs = []) 
 
     const missingRequired = requiredFields.filter(field => !components.yes[field]);
 
-    if (Object.keys(components.yes).length > 0) {
+    // Only attach components if we found nearby candidate fields OR we successfully parsed at least one child
+    if (Object.keys(components.yes).length > 0 || foundNearby) {
       allFields[parent] = {
         ...parentField,
         components,
@@ -437,6 +441,8 @@ describe('buildConditionalFields', () => {
 
       const result = buildConditionalFields(allFields, [], backKVPairs);
 
+      expect(result.riskSexMale).toBeDefined();
+      expect(result.riskSexMale.components).toBeDefined();
       expect(result.riskSexMale.components.yes.total).toBeUndefined();
       expect(result.riskSexMale.missingRequiredFields).toContain('total');
     });

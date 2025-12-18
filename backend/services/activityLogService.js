@@ -697,6 +697,17 @@ const logHelpers = {
       metadata: { ...metadata, badgeCode, badgeName, eventId, eventUid, timestamp: toIsoPlus8() },
     }),
 
+  logLevelUp: ({ userId, userName, newLevel, lifetimePoints, rewards = {}, performedBy }) =>
+    createLog({
+      type: LOG_TYPES.GAMIFICATION,
+      action: "LEVEL_UP",
+      performedBy: performedBy || { userId, name: "System", role: "system" },
+      targetResource: { type: "user", id: userId, name: userName },
+      description: `Leveled up to ${newLevel}`,
+      severity: SEVERITY_LEVELS.INFO,
+      metadata: { ...rewards, newLevel, lifetimePoints, timestamp: toIsoPlus8() },
+    }),
+
   logGamificationAdjustment: ({
     userId,
     userName,

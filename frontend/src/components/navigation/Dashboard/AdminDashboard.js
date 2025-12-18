@@ -14,7 +14,6 @@ import {
 } from "react-icons/io5";
 import { getAuth } from "firebase/auth";
 import { API_BASE } from "../../../config/config";
-import statsService from "../../../services/statsService";
 import DashboardEventsSidebar from "../../dashboard/DashboardEventsSidebar";
 import LeaderboardCard from "../../gamification/LeaderboardCard";
 import NewsUpdatesCarousel from "../../dashboard/NewsUpdatesCarousel";
@@ -36,46 +35,41 @@ export default function AdminDashboard({ onNavigate }) {
       title: "Total Volunteers",
       icon: IoPeopleOutline,
       color: "blue",
-      subtitle: "Active members",
-      onClick: () => handleQuickAction("manage-users", "volunteers"),
+      subtitle: "All volunteer members",
+      breakdownKey: "volunteers_breakdown",
+      onClick: () => handleQuickAction("manage-volunteer"),
     },
     {
       key: "total_staff",
       title: "Staff Members",
       icon: IoPersonOutline,
       color: "green",
-      subtitle: "Active staff",
-      onClick: () => handleQuickAction("manage-users", "staff"),
+      subtitle: "All staff members",
+      breakdownKey: "staff_breakdown",
+      onClick: () => handleQuickAction("manage-staff"),
     },
     {
       key: "total_applicants",
-      title: "Pending Applications",
+      title: "Applications",
       icon: IoDocumentTextOutline,
       color: "amber",
-      subtitle: "Awaiting approval",
-      onClick: () => handleQuickAction("manage-users", "applicants"),
+      subtitle: "All applications",
+      breakdownKey: "applications_breakdown",
+      onClick: () => handleQuickAction("manage-applications"),
     },
     {
-      key: "recent_activity",
-      title: "Recent Activity",
+      key: "event_participations",
+      title: "Event Participations",
       icon: IoStatsChartOutline,
       color: "purple",
-      subtitle: "Last 24 hours",
-    },
-    {
-      key: "participations_today",
-      title: "Participations Today",
-      icon: IoDocumentTextOutline,
-      color: "rose",
-      subtitle: "HTS Forms submitted",
-      kpiType: "donut",
-      breakdownKey: "participations_today_by_result",
-      trendKey: "participations_trend_last7",
+      subtitle: "All event sign-ups",
+      breakdownKey: "event_participations_breakdown",
+      onClick: () => handleQuickAction("manage-events"),
     },
   ];
 
   // Fetch stats from API
-  const fetchStats = async () => {
+  const fetchStats = async (opts = 'last7') => {
     try {
       const auth = getAuth();
       const user = auth.currentUser;
@@ -92,9 +86,21 @@ export default function AdminDashboard({ onNavigate }) {
         throw new Error("No authentication token");
       }
 
-      console.log("Fetching stats with auth token...");
+      // Build query string - support backwards compatibility where caller passes a string
+      let qs = '';
+      if (typeof opts === 'string') {
+        qs = `range=${opts}`;
+      } else if (opts && typeof opts === 'object') {
+        if (opts.range && opts.range !== 'custom') qs = `range=${opts.range}`;
+        if (opts.compare) qs += `${qs ? '&' : ''}compare=true`;
+        if (opts.range === 'custom' && opts.start && opts.end) {
+          qs += `${qs ? '&' : ''}start=${encodeURIComponent(opts.start)}&end=${encodeURIComponent(opts.end)}`;
+        }
+      }
 
-      const response = await fetch(`${API_BASE}/stats/dashboard`, {
+      console.log("Fetching stats with auth token and params:", qs);
+
+      const response = await fetch(`${API_BASE}/stats/dashboard?${qs}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
@@ -112,26 +118,9 @@ export default function AdminDashboard({ onNavigate }) {
       }
 
       const result = await response.json();
-      // Fetch participation stats
-      let participation = {};
-      try {
-        const pResp = await statsService.getParticipationStats();
-        participation = pResp?.data || {};
-      } catch (err) {
-        console.warn("Failed to fetch participation stats:", err);
-      }
-
-      const merged = {
-        ...result.data,
-        participations_today: participation.today || 0,
-        participations_last7: participation.last7 || 0,
-        participations_last30: participation.last30 || 0,
-        participations_today_by_result: participation.today_by_result || {},
-        participations_trend_last7: participation.trend_last7 || [],
-      };
-
-      console.log("Stats fetched successfully:", merged);
-      return merged;
+      console.log("Stats fetched successfully:", result.data);
+      
+      return result.data;
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
       throw error;
@@ -151,7 +140,7 @@ export default function AdminDashboard({ onNavigate }) {
         <div className="space-y-6">
           {/* Welcome Section */}
           {showWelcome && (
-            <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-xl shadow-lg p-6 text-white relative">
+            <div className="bg-linear-to-r from-red-600 to-red-700 rounded-xl shadow-lg p-6 text-white relative">
               <button
                 onClick={() => setShowWelcome(false)}
                 className="absolute top-4 right-4 p-1 rounded-lg hover:bg-white/20 transition-colors"

@@ -73,3 +73,15 @@ module.exports = {
   textractQueue,
   enqueueOCRJob
 };
+
+async function closeTextractQueue() {
+  if (!textractQueue) return;
+  try {
+    await textractQueue.close();
+    console.log('✓ Textract queue closed');
+  } catch (e) {
+    console.warn('Failed to close textract queue', e?.message || e);
+  }
+}
+
+module.exports.closeTextractQueue = closeTextractQueue;

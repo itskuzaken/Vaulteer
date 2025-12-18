@@ -15,10 +15,13 @@ export default function StatsCard({
   isChanged = false,
   trend = null,
   trendValue = null,
+  delta = null,
   loading = false,
   animationDuration = 1000,
   onClick = null,
   showRealtimeIndicator = false,
+  kpi = null,
+  kpiPosition = "right",
 }) {
   const animatedValue = useAnimatedCounter(value || 0, animationDuration);
   const [showPulse, setShowPulse] = useState(false);
@@ -75,39 +78,23 @@ export default function StatsCard({
   const colors = colorClasses[color] || colorClasses.gray;
 
   // hover and shadow should match QuickActionCard for consistent UX
-  const hoverTransform = "hover:-translate-y-0.5 hover:shadow-md";
+  const hoverTransform = "hover:shadow-md hover:border-red-500 dark:hover:border-[var(--primary-red)]/40";
   const cursorClass = onClick ? "cursor-pointer" : "";
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 sm:p-4 shadow-sm transition-all duration-300 ${
+      className={`relative overflow-visible rounded-xl sm:rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-3 sm:p-4 shadow-sm transition-all duration-300 ${
         cursorClass + " " + hoverTransform
-      } ${showPulse ? `ring-2 ${colors.pulse} animate-pulse-ring` : ""}`}
+      }`}
       onClick={onClick}
       style={{ minHeight: 44 }}
+      aria-busy={loading ? "true" : "false"}
     >
-      {/* Loading Overlay */}
-      {loading && (
-        <div className="absolute inset-0 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm flex items-center justify-center z-10">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-red-600"></div>
-        </div>
-      )}
+      {/* Loading indicator (non-overlapping) */}
+      {/* Do not use an overlay to avoid obscuring content; show inline spinner instead */}
+      {/* `aria-busy` is set on root div below when needed */}
 
-      {/* Update Indicator */}
-      {showPulse && (
-        <div className="absolute top-2 right-2">
-          <span className="relative flex h-3 w-3">
-            <span
-              className={`animate-ping absolute inline-flex h-full w-full rounded-full ${colors.dot} opacity-75`}
-            ></span>
-            <span
-              className={`relative inline-flex rounded-full h-3 w-3 ${colors.dot}`}
-            ></span>
-          </span>
-        </div>
-      )}
-
-      <div className="flex items-start justify-between gap-3 sm:gap-4">
+      <div className={`flex ${kpiPosition === "bottom" ? "flex-col" : "items-start justify-between"} gap-3 sm:gap-4`}>
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {Icon && (
             <span
@@ -116,9 +103,14 @@ export default function StatsCard({
               <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
             </span>
           )}
-          <p className="text-[0.65rem] sm:text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400">
-            {title}
-          </p>
+          <div className="min-w-0 flex-1">
+            <p
+            className={`text-[0.65rem] sm:text-xs font-medium uppercase tracking-wide text-gray-600 dark:text-gray-400 ${onClick ? 'cursor-pointer' : ''}`}
+            onClick={onClick}
+          >
+              {title}
+            </p>
+          </div>
         </div>
 
         {trend && trendValue && (
@@ -134,17 +126,61 @@ export default function StatsCard({
         )}
       </div>
 
-      <div
-        className={`mt-3 text-xl sm:text-2xl font-semibold leading-tight ${colors.value} transition-all duration-300`}
-      >
-        {" "}
-        {loading ? "--" : animatedValue.toLocaleString()}
+      <div className={`flex ${kpiPosition === "bottom" ? "flex-col" : "items-center justify-between"} gap-4 mt-3`}>
+        {/* Left side: Value and Subtitle */}
+        <div className="flex-1 min-w-0">
+          <div
+            className={`text-xl sm:text-2xl font-semibold leading-tight ${colors.value} transition-all duration-300 ${onClick ? 'cursor-pointer' : ''}`}
+            aria-live="polite"
+            onClick={onClick}
+          >
+            {loading ? (
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600" aria-hidden="true" />
+                <span>Loading</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2">
+                <span>{animatedValue.toLocaleString()}</span>
+                {/* Inline comparative indicator when delta is provided */}
+                {delta != null && delta !== undefined && delta !== 'new' && (() => {
+                    const numericDelta = Number(delta);
+                    if (isNaN(numericDelta)) return null;
+                    
+                    const isPositive = numericDelta >= 0;
+                    const absValue = Math.abs(numericDelta);
+                    const displayValue = absValue.toFixed(1);
+                    const arrow = isPositive ? '▲' : '▼';
+                    const sign = isPositive ? '+' : '-';
+                    
+                    // Render as a compact trend chip to match the top "trend" badge style
+                    return (
+                      <span
+                        aria-label={`Change: ${sign}${displayValue}%`}
+                        title={`${sign}${displayValue}%`}
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${isPositive ? 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-300' : 'bg-rose-50 text-rose-600 dark:bg-rose-500/10 dark:text-rose-300'}`}
+                      >
+                        {arrow} {displayValue}%
+                      </span>
+                    );
+                  })() }
+              </div>
+            )}
+          </div>
+          {!loading && subtitle && (
+            <p className="mt-1 text-[0.65rem] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
+              {subtitle}
+            </p>
+          )}
+        </div>
+
+        {/* Right side or Bottom: DonutKPI (if provided) */}
+        {kpi && (
+          <div className={`shrink-0 ${kpiPosition === "bottom" ? "w-full" : ""}`}>
+            {kpi}
+          </div>
+        )}
       </div>
-      {!loading && subtitle && (
-        <p className="mt-1 text-[0.65rem] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
-          {subtitle}
-        </p>
-      )}
 
       {/* Hover Effect Border (color aware) */}
       {(() => {

@@ -127,3 +127,54 @@ export async function markAttendance(eventUid, attendees) {
     body: JSON.stringify({ attendees }),
   });
 }
+
+// ============================================
+// ATTENDANCE APIs (staff/admin)
+// ============================================
+
+export async function getAttendance(eventUid) {
+  return fetchWithAuth(`/events/${eventUid}/attendance`);
+}
+
+export async function checkInParticipant(eventUid, participantId) {
+  return fetchWithAuth(`/events/${eventUid}/attendance/checkin`, {
+    method: 'POST',
+    body: JSON.stringify({ participantId }),
+  });
+}
+
+export async function patchAttendance(eventUid, participantId, newStatus, reason = null) {
+  return fetchWithAuth(`/events/${eventUid}/attendance/${participantId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ newStatus, reason }),
+  });
+}
+
+export async function getAttendanceAudit(eventUid, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return fetchWithAuth(`/events/${eventUid}/attendance/audit${qs ? `?${qs}` : ''}`);
+}
+
+export async function autoFlagAbsences(eventUid) {
+  return fetchWithAuth(`/events/${eventUid}/attendance/auto-flag`, { method: 'POST' });
+}
+
+// ============================================
+// REPORTS (ADMIN/STAFF)
+// ============================================
+
+export async function listEventReports(eventUid, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return fetchWithAuth(`/events/${eventUid}/reports${qs ? `?${qs}` : ''}`);
+}
+
+export async function generateEventReport(eventUid, options = {}) {
+  return fetchWithAuth(`/events/${eventUid}/reports/generate`, {
+    method: 'POST',
+    body: JSON.stringify(options),
+  });
+}
+
+export async function getEventReportDownloadUrl(eventUid, reportId) {
+  return fetchWithAuth(`/events/${eventUid}/reports/${reportId}/download`);
+}

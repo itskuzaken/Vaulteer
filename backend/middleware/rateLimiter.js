@@ -32,6 +32,15 @@ const apiLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false, // Disable `X-RateLimit-*` headers
+  handler: (req, res /*, next */) => {
+    const who = getClientIp(req);
+    console.warn(`[rateLimiter] apiLimiter blocked ${who} ${req.method} ${req.originalUrl}`);
+    // Attempt to compute a sensible Retry-After in seconds
+    let retryAfterSec = Math.ceil((req.rateLimit && req.rateLimit.resetTime ? (req.rateLimit.resetTime - Date.now()) / 1000 : (15 * 60)));
+    if (!isFinite(retryAfterSec) || retryAfterSec < 1) retryAfterSec = Math.ceil(15 * 60);
+    res.set('Retry-After', String(retryAfterSec));
+    res.status(429).json({ error: 'Too many requests from this IP, please try again later.', retryAfter: retryAfterSec });
+  }
 });
 
 /**
@@ -55,6 +64,14 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Count only failed requests (helps reduce false positives)
+  handler: (req, res /*, next */) => {
+    const who = req.firebaseUid ? `uid:${req.firebaseUid}` : getClientIp(req);
+    console.warn(`[rateLimiter] authLimiter blocked ${who} ${req.method} ${req.originalUrl}`);
+    let retryAfterSec = Math.ceil((req.rateLimit && req.rateLimit.resetTime ? (req.rateLimit.resetTime - Date.now()) / 1000 : (15 * 60)));
+    if (!isFinite(retryAfterSec) || retryAfterSec < 1) retryAfterSec = Math.ceil(15 * 60);
+    res.set('Retry-After', String(retryAfterSec));
+    res.status(429).json({ error: 'Too many authentication attempts, please try again later.', retryAfter: retryAfterSec });
+  }
 });
 
 /**

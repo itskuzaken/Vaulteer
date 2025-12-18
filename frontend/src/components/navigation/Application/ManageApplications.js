@@ -309,7 +309,7 @@ export default function ManageApplications({
           className={`fixed top-6 left-1/2 -translate-x-1/2 z-50 px-6 py-3 rounded-md shadow-md text-white text-center font-semibold ${
             notification.type === "success"
               ? "bg-green-600"
-              : "bg-[var(--color-brand-primary)]"
+              : "bg-(--color-brand-primary)"
           }`}
           role="status"
           aria-live="polite"
@@ -364,7 +364,7 @@ export default function ManageApplications({
                 </div>
               ) : !hasResults ? (
                 <div className="text-center text-sm md:text-base text-gray-500 py-12">
-                  <div className="mb-2 font-semibold text-[var(--color-text-subtle)]">
+                  <div className="mb-2 font-semibold text-(--color-text-subtle)">
                     No applicants found
                   </div>
                   <button

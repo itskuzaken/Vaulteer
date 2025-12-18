@@ -9,6 +9,9 @@ import StatsCard from "./StatsCard";
 import DonutKPI from "./DonutKPI";
 import DashboardSectionCard from "./DashboardSectionCard";
 import { useRealtimeStats } from "../../hooks/useRealtimeStats";
+import useWindowSize from "../../hooks/useWindowSize";
+// Comparison / delta calculation removed — no computeDelta import
+// breakdowns are provided by the parent `fetchCallback` and available via `data`
 
 const GRID_COL_CLASS = {
   1: "lg:grid-cols-1",
@@ -40,28 +43,71 @@ export default function RealtimeStatsGrid({
   action = null,
   className = "",
 }) {
+  // Time range selector & comparison removed — grid always shows current period
+
+  // Memoize the fetch callback so the hook only re-subscribes when relevant params change.
+  const fetchWithRange = React.useCallback(() => {
+    // Simplified: always call fetchCallback with no comparison options
+    if (typeof fetchCallback !== 'function') return Promise.resolve(null);
+    return fetchCallback();
+  }, [fetchCallback]);
+
   const {
     data,
     loading,
     error,
     changedFields = [],
-  } = useRealtimeStats(fetchCallback, {
+    refresh,
+  } = useRealtimeStats(fetchWithRange, {
     channel,
     interval: updateInterval,
     enableAnimations: true,
     onUpdate: onStatsUpdate,
   });
+  // derive breakdowns from central `data` returned by fetchCallback
+  const [localFlash, setLocalFlash] = React.useState(false);
 
-  const lgColsClass = GRID_COL_CLASS[gridCols] || GRID_COL_CLASS[4];
+  const { width: windowWidth } = useWindowSize();
+
+  // Responsive settings
+  const donutSize = windowWidth && windowWidth < 640 ? 56 : windowWidth && windowWidth < 1024 ? 64 : 72;
+  const kpiPositionResolved = windowWidth && windowWidth < 640 ? "bottom" : "right";
+
+  // Avoid rendering a 3-column layout. Choose column counts that exclude 3.
+  const columns = React.useMemo(() => {
+    if (!windowWidth) return Math.min(4, gridCols);
+    // Large screens -> up to 4 columns
+    if (windowWidth >= 1200) return Math.min(2, gridCols);
+    // Medium screens -> 2 columns
+    if (windowWidth >= 900) return Math.min(2, gridCols);
+    // Small tablets / large phones -> 2 columns
+    if (windowWidth >= 640) return Math.min(2, gridCols);
+    // Mobile -> 2 columns (requested behavior)
+    return Math.min(2, gridCols);
+  }, [windowWidth, gridCols]);
+
   const IconComponent = icon || IoPulseOutline;
+  // Date range UI removed — KPI always reflects current totals
+
+
+  // Refresh handled by realtime hook; keep localFlash behavior on manual refresh if used
+  React.useEffect(() => {
+    if (typeof refresh !== "function") return;
+  }, [refresh]);
+
+  // Analytics for range changes removed (no selector)
 
   return (
     <DashboardSectionCard
       title={title}
       subtitle={subtitle}
       icon={IconComponent}
-      action={action}
       className={className}
+      action={
+        <div className="flex items-center gap-2">
+          {action}
+        </div>
+      }
     >
       {error ? (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
@@ -69,44 +115,55 @@ export default function RealtimeStatsGrid({
         </div>
       ) : (
         <div
-          className={`grid grid-cols-2 sm:grid-cols-2 md:grid-cols-2 ${lgColsClass} gap-3 sm:gap-4`}
+          className={`grid gap-3 sm:gap-4`}
+          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
         >
-          {statsConfig.map((config, index) => {
-            const value = data ? data[config.key] : 0;
-            const isChanged = changedFields.includes(config.key);
+          {statsConfig
+            .filter((c) => c.key !== 'recent_activity') // Filter out recent_activity
+            .map((config, index) => {
+              const value = data ? data[config.key] : 0;
+              const isChanged = changedFields.includes(config.key) || localFlash;
 
-            // Prepare optional breakdown and trend for donut KPIs
-            const breakdown = data && config.breakdownKey ? data[config.breakdownKey] : (data && data[`${config.key}_by_result`]) || null;
-            const trend = data && (config.trendKey ? data[config.trendKey] : data["trend_last7"]) || null;
+              // Get breakdown data if specified
+              const breakdown = data && config.breakdownKey ? data[config.breakdownKey] : null;
 
-            return (config.kpiType === "donut" || config.type === "donut") ? (
+              // Comparison removed — no delta provided
+              const delta = null;
+
+              // Build DonutKPI node if breakdown exists
+              const kpiNode = breakdown ? (
                 <DonutKPI
+                  title={null}
+                  value={value}
+                  breakdown={breakdown}
+                  size={donutSize}
+                  subtitle={null}
+                  hoverLegend={true}
+                  position="overlay"
+                />
+              ) : null;
+
+              return (
+                <StatsCard
                   key={config.key || index}
                   title={config.title}
                   value={value}
-                  breakdown={breakdown}
+                  icon={config.icon}
+                  color={config.color || "gray"}
                   subtitle={config.subtitle}
-                  trend={trend}
+                  isChanged={isChanged}
+                  trend={config.trend}
+                  trendValue={config.trendValue}
+                  delta={delta}
+                  loading={loading && !data}
+                  animationDuration={config.animationDuration || 1000}
+                  onClick={config.onClick}
+                  showRealtimeIndicator={config.showRealtimeIndicator || false}
+                  kpi={kpiNode}
+                  kpiPosition={kpiPositionResolved}
                 />
-              ) : (
-                <StatsCard
-                key={config.key || index}
-                title={config.title}
-                value={value}
-                icon={config.icon}
-                color={config.color || "gray"}
-                subtitle={config.subtitle}
-                isChanged={isChanged}
-                trend={config.trend}
-                trendValue={config.trendValue}
-                loading={loading && !data}
-                animationDuration={config.animationDuration || 1000}
-                onClick={config.onClick}
-                showRealtimeIndicator={config.showRealtimeIndicator || false}
-              />
-              )
-            ;
-          })}
+              );
+            })}
         </div>
       )}
     </DashboardSectionCard>

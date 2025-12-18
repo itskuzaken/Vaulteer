@@ -142,6 +142,23 @@ async function notifyBadgeUnlocked({ userId, badge, context = {} }) {
   });
 }
 
+async function notifyLevelUp({ userId, newLevel, rewards = {}, context = {} }) {
+  if (!userId || !newLevel) return null;
+
+  const title = `Level Up! Level ${newLevel}`;
+  const message = rewards?.reward_title
+    ? `You reached Level ${newLevel}: ${rewards.reward_title}`
+    : `You reached Level ${newLevel}!`;
+
+  return createNotification({
+    userId,
+    title,
+    message,
+    type: "success",
+    metadata: { newLevel, rewards, notificationKind: "level_up", ...context },
+  });
+}
+
 /**
  * Send push notification via Firebase Cloud Messaging
  * @param {string} fcmToken - FCM device token
@@ -773,4 +790,5 @@ module.exports = {
   notifyAnnouncementPublished,
   notifyWaitlistPromotion,
   notifyEventReminder,
+  notifyLevelUp,
 };

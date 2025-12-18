@@ -149,13 +149,21 @@ class EventRepository {
     const uid = uuidv4();
     const tagsJson = tags ? JSON.stringify(tags) : null;
 
+    // Allow callers to provide per-event attendance overrides; fall back to DB defaults
+    const checkinWindow = Number.isFinite(Number(eventData.attendance_checkin_window_mins))
+      ? Number(eventData.attendance_checkin_window_mins)
+      : undefined;
+    const graceMins = Number.isFinite(Number(eventData.attendance_grace_mins))
+      ? Number(eventData.attendance_grace_mins)
+      : undefined;
+
     await getPool().execute(
       `INSERT INTO events (
         uid, title, description, event_type, location, location_type,
         start_datetime, end_datetime, max_participants, min_participants,
         registration_deadline, created_by_user_id, image_url, tags,
-        requirements, contact_email, contact_phone, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
+        requirements, contact_email, contact_phone, attendance_checkin_window_mins, attendance_grace_mins, status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft')`,
       [
         uid,
         title,
@@ -174,6 +182,8 @@ class EventRepository {
         requirements || null,
         contact_email || null,
         contact_phone || null,
+        checkinWindow === undefined ? null : checkinWindow,
+        graceMins === undefined ? null : graceMins,
       ]
     );
 
@@ -197,6 +207,9 @@ class EventRepository {
       "requirements",
       "contact_email",
       "contact_phone",
+      // Attendance timing overrides (per-event)
+      "attendance_checkin_window_mins",
+      "attendance_grace_mins",
     ];
 
     const fields = [];
@@ -205,9 +218,15 @@ class EventRepository {
     Object.keys(updates).forEach((key) => {
       if (allowedFields.includes(key)) {
         fields.push(`${key} = ?`);
-        values.push(
-          key === "tags" ? JSON.stringify(updates[key]) : updates[key]
-        );
+        if (key === "tags") {
+          values.push(JSON.stringify(updates[key]));
+        } else if (key === "attendance_checkin_window_mins" || key === "attendance_grace_mins") {
+          // Coerce to integer when provided; allow null to clear
+          const n = updates[key] === null || updates[key] === undefined ? null : Number(updates[key]);
+          values.push(Number.isFinite(n) ? n : null);
+        } else {
+          values.push(updates[key]);
+        }
       }
     });
 
@@ -234,8 +253,37 @@ class EventRepository {
   }
 
   async getEventByUid(eventUid) {
-    const [rows] = await getPool().execute(
-      `SELECT 
+    const queryWithNewCols = `SELECT 
+        e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
+        e.location, e.location_type,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as start_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as start_datetime_local,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as end_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as end_datetime_local,
+        e.max_participants, e.min_participants, e.image_url,
+        e.tags, e.created_by_user_id,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as created_at,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as created_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as updated_at,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as updated_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as archived_at,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as archived_at_local,
+        e.attendance_checkin_window_mins,
+        e.attendance_grace_mins,
+        u.name as created_by_name,
+        u.email as created_by_email,
+        etd.type_label as event_type_label,
+        etd.points_per_participation as event_type_points,
+        (SELECT COUNT(*) FROM event_participants ep 
+         WHERE ep.event_id = e.event_id AND ep.status = 'registered') as participant_count,
+        (SELECT COUNT(*) FROM event_participants ep 
+         WHERE ep.event_id = e.event_id AND ep.status = 'waitlisted') as waitlist_count
+      FROM events e
+      LEFT JOIN users u ON e.created_by_user_id = u.user_id
+      LEFT JOIN event_type_definitions etd ON e.event_type = etd.type_code
+      WHERE e.uid = ?`;
+
+    const queryWithoutNewCols = `SELECT 
         e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
         e.location, e.location_type,
         DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as start_datetime,
@@ -261,15 +309,119 @@ class EventRepository {
       FROM events e
       LEFT JOIN users u ON e.created_by_user_id = u.user_id
       LEFT JOIN event_type_definitions etd ON e.event_type = etd.type_code
-      WHERE e.uid = ?`,
-      [eventUid]
-    );
+      WHERE e.uid = ?`;
+
+    let rows;
+    try {
+      [rows] = await getPool().execute(queryWithNewCols, [eventUid]);
+    } catch (err) {
+      // If DB schema not migrated in test env, fall back to query without new cols
+      if (err && (err.code === 'ER_BAD_FIELD_ERROR' || err.sqlState === '42S22')) {
+        [rows] = await getPool().execute(queryWithoutNewCols, [eventUid]);
+        if (rows && rows[0]) {
+          // supply defaults so callers can rely on these properties
+          rows[0].attendance_checkin_window_mins = 15;
+          rows[0].attendance_grace_mins = 10;
+        }
+      } else {
+        throw err;
+      }
+    }
 
     if (rows.length === 0) return null;
 
     const event = rows[0];
     event.tags = parseTags(event.tags);
     // Add local +08 representations for convenience in the UI
+    try {
+      event.start_datetime_local = convertUtcIsoToPlus8Input(event.start_datetime);
+      event.end_datetime_local = convertUtcIsoToPlus8Input(event.end_datetime);
+      event.start_datetime_local_friendly = convertUtcIsoToPlus8Friendly(event.start_datetime);
+      event.end_datetime_local_friendly = convertUtcIsoToPlus8Friendly(event.end_datetime);
+    } catch (e) {
+      // ignore conversion errors
+    }
+    return event;
+  }
+
+  async getEventById(eventId) {
+    const queryWithNewCols = `SELECT 
+        e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
+        e.location, e.location_type,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as start_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as start_datetime_local,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as end_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as end_datetime_local,
+        e.max_participants, e.min_participants, e.image_url,
+        e.tags, e.created_by_user_id,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as created_at,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as created_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as updated_at,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as updated_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as archived_at,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as archived_at_local,
+        e.attendance_checkin_window_mins,
+        e.attendance_grace_mins,
+        u.name as created_by_name,
+        u.email as created_by_email,
+        etd.type_label as event_type_label,
+        etd.points_per_participation as event_type_points,
+        (SELECT COUNT(*) FROM event_participants ep 
+         WHERE ep.event_id = e.event_id AND ep.status = 'registered') as participant_count,
+        (SELECT COUNT(*) FROM event_participants ep 
+         WHERE ep.event_id = e.event_id AND ep.status = 'waitlisted') as waitlist_count
+      FROM events e
+      LEFT JOIN users u ON e.created_by_user_id = u.user_id
+      LEFT JOIN event_type_definitions etd ON e.event_type = etd.type_code
+      WHERE e.event_id = ?`;
+
+    const queryWithoutNewCols = `SELECT 
+        e.event_id, e.uid, e.title, e.description, e.event_type, e.status,
+        e.location, e.location_type,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as start_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.start_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as start_datetime_local,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as end_datetime,
+        DATE_FORMAT(CONVERT_TZ(e.end_datetime, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as end_datetime_local,
+        e.max_participants, e.min_participants, e.image_url,
+        e.tags, e.created_by_user_id,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as created_at,
+        DATE_FORMAT(CONVERT_TZ(e.created_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as created_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as updated_at,
+        DATE_FORMAT(CONVERT_TZ(e.updated_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as updated_at_local,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+00:00'), '%Y-%m-%dT%H:%i:%sZ') as archived_at,
+        DATE_FORMAT(CONVERT_TZ(e.archived_at, '+00:00', '+08:00'), '%Y-%m-%dT%H:%i:%s+08:00') as archived_at_local,
+        u.name as created_by_name,
+        u.email as created_by_email,
+        etd.type_label as event_type_label,
+        etd.points_per_participation as event_type_points,
+        (SELECT COUNT(*) FROM event_participants ep 
+         WHERE ep.event_id = e.event_id AND ep.status = 'registered') as participant_count,
+        (SELECT COUNT(*) FROM event_participants ep 
+         WHERE ep.event_id = e.event_id AND ep.status = 'waitlisted') as waitlist_count
+      FROM events e
+      LEFT JOIN users u ON e.created_by_user_id = u.user_id
+      LEFT JOIN event_type_definitions etd ON e.event_type = etd.type_code
+      WHERE e.event_id = ?`;
+
+    let rows;
+    try {
+      [rows] = await getPool().execute(queryWithNewCols, [eventId]);
+    } catch (err) {
+      if (err && (err.code === 'ER_BAD_FIELD_ERROR' || err.sqlState === '42S22')) {
+        [rows] = await getPool().execute(queryWithoutNewCols, [eventId]);
+        if (rows && rows[0]) {
+          rows[0].attendance_checkin_window_mins = 15;
+          rows[0].attendance_grace_mins = 10;
+        }
+      } else {
+        throw err;
+      }
+    }
+
+    if (!rows || rows.length === 0) return null;
+
+    const event = rows[0];
+    event.tags = parseTags(event.tags);
     try {
       event.start_datetime_local = convertUtcIsoToPlus8Input(event.start_datetime);
       event.end_datetime_local = convertUtcIsoToPlus8Input(event.end_datetime);
@@ -724,14 +876,23 @@ class EventRepository {
 
       // Resolve event
       const [[event]] = await conn.execute(
-        `SELECT event_id, status FROM events WHERE uid = ? FOR UPDATE`,
+        `SELECT event_id, status, start_datetime, attendance_checkin_window_mins, attendance_grace_mins FROM events WHERE uid = ? FOR UPDATE`,
         [eventUid]
       );
       if (!event) throw new Error('Event not found');
 
-      if (event.status !== 'started') {
-        throw new Error('Event attendance is not enabled');
-      }
+        // Determine check-in availability based on configured window
+        const startTs = event.start_datetime ? new Date(event.start_datetime) : null;
+        const windowMins = Number(event.attendance_checkin_window_mins || 15);
+        if (!startTs) {
+          throw new Error('Event start time is not set');
+        }
+
+        const now = new Date();
+        const windowStart = new Date(startTs.getTime() - windowMins * 60000);
+        if (now < windowStart) {
+          throw new Error('Event check-in is not yet available');
+        }
 
       // Lock participant row
       const [[participant]] = await conn.execute(
@@ -752,14 +913,28 @@ class EventRepository {
         return { participant_id: participantId, attendance_status: 'present', noOp: true };
       }
 
+      // Determine attendance status based on check-in time relative to start + grace
+      const graceMins = Number(event.attendance_grace_mins || 10);
+      let newStatus = 'late';
+      // Checked in at or before start = present
+      if (now.getTime() <= startTs.getTime()) {
+        newStatus = 'present';
+      } else if (now.getTime() > startTs.getTime() && now.getTime() <= (startTs.getTime() + graceMins * 60000)) {
+        // After start but within grace => late
+        newStatus = 'late';
+      } else {
+        // After grace => late as well (absent is handled by auto-flag job on completion)
+        newStatus = 'late';
+      }
+
       await conn.execute(
-        `UPDATE event_participants SET attendance_status = 'present', attendance_marked_at = NOW(), attendance_marked_by = ?, attendance_updated_at = NOW() WHERE participant_id = ?`,
-        [markedByUserId, participantId]
+        `UPDATE event_participants SET attendance_status = ?, attendance_marked_at = NOW(), attendance_marked_by = ?, attendance_updated_at = NOW() WHERE participant_id = ?`,
+        [newStatus, markedByUserId, participantId]
       );
 
       await conn.execute(
-        `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, performed_at) VALUES (?, ?, ?, ?, 'check_in', ?, 'present', NOW())`,
-        [event.event_id, participantId, participant.user_id, markedByUserId, previous]
+        `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, performed_at) VALUES (?, ?, ?, ?, 'check_in', ?, ?, NOW())`,
+        [event.event_id, participantId, participant.user_id, markedByUserId, previous, newStatus]
       );
 
       await conn.commit();

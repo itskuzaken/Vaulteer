@@ -78,7 +78,7 @@ export default function EventCard({
 
   return (
     <div
-      className={`group flex h-full flex-col overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-0 text-left shadow-md transition-all duration-300 ${hoverClasses} ${focusRing} dark:border-gray-700 dark:bg-gray-900 min-h-[44px] ${
+      className={`group flex h-full flex-col overflow-hidden rounded-xl sm:rounded-2xl border border-gray-200 bg-white p-0 text-left shadow-md transition-all duration-300 ${hoverClasses} ${focusRing} dark:border-gray-700 dark:bg-gray-900 min-h-11 ${
         isClickable ? "cursor-pointer" : ""
       }`}
       onClick={isClickable ? onClick : undefined}
@@ -93,7 +93,7 @@ export default function EventCard({
             alt={event.title}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
-            className="object-cover transition-transform duration-[900ms] ease-out group-hover:scale-105"
+            className="object-cover transition-transform duration-900 ease-out group-hover:scale-105"
             priority={false}
           />
         ) : (
@@ -133,7 +133,7 @@ export default function EventCard({
 
         <div className="flex flex-col gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600 dark:text-gray-300">
           <div className="flex items-center gap-2">
-            <IoTimeOutline className="text-base sm:text-lg flex-shrink-0" />
+            <IoTimeOutline className="text-base sm:text-lg shrink-0" />
             <span className="truncate">
               {formatTime(event.start_datetime_local || event.start_datetime)} -{" "}
               {formatTime(event.end_datetime_local || event.end_datetime)}
@@ -141,12 +141,12 @@ export default function EventCard({
           </div>
           {event.location && (
             <div className="flex items-center gap-2">
-              <IoLocationOutline className="text-base sm:text-lg flex-shrink-0" />
+              <IoLocationOutline className="text-base sm:text-lg shrink-0" />
               <span className="line-clamp-1">{event.location}</span>
             </div>
           )}
           <div className="flex items-center gap-2">
-            <IoPeopleOutline className="text-base sm:text-lg flex-shrink-0" />
+            <IoPeopleOutline className="text-base sm:text-lg shrink-0" />
             <span
               className={`font-semibold ${
                 isNearCapacity ? "text-amber-600 dark:text-amber-400" : ""
@@ -187,6 +187,7 @@ export default function EventCard({
                 event={event}
                 isRegistered={event.is_registered}
                 participationStatus={event.participation_status}
+                waitlistPosition={event.waitlist_position}
                 onStatusChange={() => {
                   // Refresh event data if needed
                 }}

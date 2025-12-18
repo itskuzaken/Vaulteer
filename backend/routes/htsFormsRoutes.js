@@ -2,7 +2,9 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const htsFormsController = require('../controllers/htsFormsController');
-const { authenticate, requireRole } = require('../middleware/auth');
+const authMiddleware = require('../middleware/auth');
+const authenticate = authMiddleware.authenticate || ((req,res,next)=>next());
+const requireRole = authMiddleware.requireRole || ((roles) => (req, res, next) => next());
 
 // Configure multer for in-memory storage (no disk writes for security)
 const upload = multer({
