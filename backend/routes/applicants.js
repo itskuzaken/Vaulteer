@@ -288,6 +288,16 @@ router.post(
         });
       }
 
+      // Handle DB lock wait timeout as a transient server-side condition (ask client to retry)
+      if (error && (error.code === 'ER_LOCK_WAIT_TIMEOUT' || (error.original && error.original.errno === 1205) || (error.errno === 1205))) {
+        console.error('[POST /api/applicants] Database lock wait timeout encountered while saving application.');
+        return res.status(503).json({
+          error: 'Database busy: could not save application',
+          message: error.message || 'Database lock wait timeout. Try again in a moment.',
+          code: 'DB_LOCK_TIMEOUT'
+        });
+      }
+
       // Generic error
       res.status(500).json({
         error: "Failed to submit application",

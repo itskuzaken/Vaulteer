@@ -787,25 +787,60 @@ async function validateAndInsertCertificates({ applicantId, profileId, formData,
       throw new Error(`Certificate verification failed for ${reqTraining}: ${err.message}`);
     }
 
-    // Insert certificate record
+    // Insert certificate record using provided transaction connection to avoid lock waits
     await createCertificateRecord(applicantId, reqTraining, cert.s3Key, {
       original_filename: cert.filename || null,
       mimetype: cert.mime || null,
       size: cert.size || null,
       uploaded_by: currentUserId || null
-    });
+    }, connection);
   }
 }
 
-async function createCertificateRecord(applicantId, trainingName, s3Key, meta = {}) {
+async function createCertificateRecord(applicantId, trainingName, s3Key, meta = {}, connection = null) {
   const pool = getPool();
+  const conn = connection || pool;
   const { original_filename = null, mimetype = null, size = null, uploaded_by = null } = meta;
-  const [result] = await pool.execute(
-    `INSERT INTO user_training_certificates (applicant_id, training_name, s3_key, original_filename, mimetype, size, uploaded_by, uploaded_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
-    [applicantId, trainingName, s3Key, original_filename, mimetype, size, uploaded_by]
-  );
-  return { id: result.insertId };
+
+  // If a transactional connection was provided, use it so the insert participates in the same transaction
+  if (connection) {
+    console.log(`[createCertificateRecord] inserting certificate for applicant ${applicantId} (training=${trainingName}) using transactional connection`);
+    try {
+      const [result] = await conn.query(
+        `INSERT INTO user_training_certificates (applicant_id, training_name, s3_key, original_filename, mimetype, size, uploaded_by, uploaded_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+        [applicantId, trainingName, s3Key, original_filename, mimetype, size, uploaded_by]
+      );
+      return { id: result.insertId };
+    } catch (err) {
+      // Enhance lock wait timeout messaging to aid debugging
+      if (err && (err.errno === 1205 || err.code === 'ER_LOCK_WAIT_TIMEOUT')) {
+        const e = new Error(`Database lock wait timeout while inserting training certificate for applicant ${applicantId}. This often indicates concurrent transactions holding locks; consider retrying the operation.`);
+        e.original = err;
+        e.code = err.code || 'ER_LOCK_WAIT_TIMEOUT';
+        throw e;
+      }
+      throw err;
+    }
+  }
+
+  // Fallback: use pool.execute when no connection provided (standalone usage)
+  try {
+    const [result] = await pool.execute(
+      `INSERT INTO user_training_certificates (applicant_id, training_name, s3_key, original_filename, mimetype, size, uploaded_by, uploaded_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+      [applicantId, trainingName, s3Key, original_filename, mimetype, size, uploaded_by]
+    );
+    return { id: result.insertId };
+  } catch (err) {
+    if (err && (err.errno === 1205 || err.code === 'ER_LOCK_WAIT_TIMEOUT')) {
+      const e = new Error(`Database lock wait timeout while inserting training certificate for applicant ${applicantId}. This often indicates concurrent transactions holding locks; consider retrying the operation.`);
+      e.original = err;
+      e.code = err.code || 'ER_LOCK_WAIT_TIMEOUT';
+      throw e;
+    }
+    throw err;
+  }
 }
 
 async function getCertificatesForApplicant(applicantId) {
