@@ -88,15 +88,23 @@ export default function DashboardEventsSidebar() {
   const fetchEvents = useCallback(async () => {
     try {
       setIsLoading(true);
-      const start = format(startOfMonth(currentMonth), "yyyy-MM-dd");
-      const end = format(endOfMonth(currentMonth), "yyyy-MM-dd");
 
-      const response = await getAllEvents({
-        status: "published",
-        date_from: start,
-        date_to: end,
-        limit: 200,
-      });
+      // Build validated date filters to avoid sending malformed query params
+      const startDate = startOfMonth(currentMonth);
+      const endDate = endOfMonth(currentMonth);
+
+      const start = format(startDate, "yyyy-MM-dd");
+      const end = format(endDate, "yyyy-MM-dd");
+
+      // Validate YYYY-MM-DD format strictly
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      const filters = { status: "published", limit: 100 };
+      if (dateRegex.test(start)) filters.date_from = start;
+      else console.warn('DashboardEventsSidebar: computed invalid start date, skipping date_from filter', start);
+      if (dateRegex.test(end)) filters.date_to = end;
+      else console.warn('DashboardEventsSidebar: computed invalid end date, skipping date_to filter', end);
+
+      const response = await getAllEvents(filters);
 
       setMonthlyEvents(response.data || []);
     } catch (error) {

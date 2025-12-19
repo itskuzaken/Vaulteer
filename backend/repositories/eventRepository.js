@@ -40,6 +40,25 @@ function sanitizeFilterValue(value) {
   return value;
 }
 
+function sanitizeDateFilter(value) {
+  // Accept ISO date (YYYY-MM-DD) or full ISO datetime; reject malformed values
+  const v = sanitizeFilterValue(value);
+  if (!v) return null;
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  // ISO datetime
+  if (/^\d{4}-\d{2}-\d{2}T/.test(v)) return v;
+  // Try parsing as a Date and format to YYYY-MM-DD
+  const d = new Date(v);
+  if (!isNaN(d.getTime())) {
+    const yyyy = d.getUTCFullYear();
+    const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(d.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  return null;
+}
+
 function parseNumericFilter(value) {
   const sanitized = sanitizeFilterValue(value);
   if (sanitized === null) return null;
@@ -80,12 +99,12 @@ function buildEventFilterWhereClause(filters = {}) {
     addClause("e.location_type = ?", locationType);
   }
 
-  const dateFrom = sanitizeFilterValue(filters.date_from);
+  const dateFrom = sanitizeDateFilter(filters.date_from);
   if (dateFrom) {
     addClause("e.start_datetime >= ?", dateFrom);
   }
 
-  const dateTo = sanitizeFilterValue(filters.date_to);
+  const dateTo = sanitizeDateFilter(filters.date_to);
   if (dateTo) {
     addClause("e.end_datetime <= ?", dateTo);
   }
@@ -1431,3 +1450,6 @@ class EventRepository {
 }
 
 module.exports = new EventRepository();
+// Export helpers for controllers/tests
+module.exports.sanitizeDateFilter = sanitizeDateFilter;
+module.exports.buildEventFilterWhereClause = buildEventFilterWhereClause;
