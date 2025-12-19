@@ -614,9 +614,10 @@ class EventRepository {
       );
       if (existingRows.length > 0) {
         // If there's already a registration, return the current status so the client can update gracefully
+        // Do not return a user-facing message here to avoid overriding the standard success flows in callers.
         const existingStatus = existingRows[0].status;
         await conn.commit();
-        return { status: existingStatus, message: existingStatus === 'waitlisted' ? 'Already waitlisted for this event' : 'Already registered for this event' };
+        return { status: existingStatus };
       }
 
       // Check historical participation
@@ -881,6 +882,14 @@ class EventRepository {
       );
       if (!event) throw new Error('Event not found');
 
+      // --- FIX: ENFORCE EVENT STATUS ---
+      // Prevent check-ins for events that are not actionable (only 'published' or 'ongoing' are allowed)
+      const validStatuses = ['published', 'ongoing'];
+      if (!validStatuses.includes((event.status || '').toLowerCase())) {
+        throw new Error(`Cannot check in: Event is ${event.status}`);
+      }
+      // ---------------------------------
+
         // Determine check-in availability based on configured window
         const startTs = event.start_datetime ? new Date(event.start_datetime) : null;
         const windowMins = Number(event.attendance_checkin_window_mins || 15);
@@ -914,16 +923,18 @@ class EventRepository {
       }
 
       // Determine attendance status based on check-in time relative to start + grace
+      // Business rule: users are considered "present" if they check in at or before
+      // the start time OR within the configured grace period after start.
+      // They are only marked 'late' if they check in after start + grace minutes.
       const graceMins = Number(event.attendance_grace_mins || 10);
+      const graceMs = graceMins * 60000;
       let newStatus = 'late';
-      // Checked in at or before start = present
-      if (now.getTime() <= startTs.getTime()) {
+      const startPlusGrace = startTs.getTime() + graceMs;
+      if (now.getTime() <= startPlusGrace) {
+        // On time (including early and within grace window)
         newStatus = 'present';
-      } else if (now.getTime() > startTs.getTime() && now.getTime() <= (startTs.getTime() + graceMins * 60000)) {
-        // After start but within grace => late
-        newStatus = 'late';
       } else {
-        // After grace => late as well (absent is handled by auto-flag job on completion)
+        // After grace window -> late
         newStatus = 'late';
       }
 
@@ -1080,6 +1091,52 @@ class EventRepository {
     }
 
     return true;
+  }
+
+  /**
+   * Finalize attendance after event completion: convert registered -> attended for those
+   * who were checked-in by staff (attendance_marked_by IS NOT NULL and attendance_status in present/late).
+   * Idempotent.
+   */
+  async finalizeAttendedParticipants(eventUid) {
+    const event = await this.getEventByUid(eventUid);
+    if (!event) throw new Error('Event not found');
+
+    const pool = getPool();
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [rows] = await conn.execute(
+        `SELECT participant_id, user_id, attendance_status, attendance_marked_by FROM event_participants WHERE event_id = ? AND status = 'registered' AND attendance_status IN ('present','late') AND attendance_marked_by IS NOT NULL FOR UPDATE`,
+        [event.event_id]
+      );
+
+      if (!rows.length) {
+        await conn.commit();
+        conn.release();
+        return 0;
+      }
+
+      for (const r of rows) {
+        await conn.execute(
+          `UPDATE event_participants SET status = 'attended', attendance_updated_at = NOW() WHERE participant_id = ?`,
+          [r.participant_id]
+        );
+
+        await conn.execute(
+          `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, performed_at) VALUES (?, ?, ?, ?, 'finalize_attended', ?, 'attended', NOW())`,
+          [event.event_id, r.participant_id, r.user_id, r.attendance_marked_by, r.attendance_status || 'unknown']
+        );
+      }
+
+      await conn.commit();
+      conn.release();
+      return rows.length;
+    } catch (err) {
+      try { await conn.rollback(); } catch (e) {}
+      conn.release();
+      throw err;
+    }
   }
 
   async checkParticipantExists(eventUid, userId) {

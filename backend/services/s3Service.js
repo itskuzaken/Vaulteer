@@ -4,9 +4,14 @@ const crypto = require('crypto');
 
 const HTS_BUCKET = process.env.S3_HTS_FORMS_BUCKET || 'hts-forms';
 const BADGES_BUCKET = process.env.S3_BADGES_BUCKET || 'vaulteer-badges';
+// Support both correctly spelled and misspelled env var for backward compatibility
+const TRAINING_CERTIFICATES_BUCKET = process.env.S3_TRAINING_CERTIFICATES_BUCKET || process.env.S3_TRAINTING_CERTIFICATES_BUCKET || 'vaulteer-training-certificates';
 
 function selectBucketForKey(key) {
-  if (typeof key === 'string' && (key.startsWith('badges/') || key.startsWith('achievement_badges/'))) return BADGES_BUCKET;
+  if (typeof key === 'string') {
+    if (key.startsWith('badges/') || key.startsWith('achievement_badges/')) return BADGES_BUCKET;
+    if (key.startsWith('vol-cert/')) return TRAINING_CERTIFICATES_BUCKET;
+  }
   return HTS_BUCKET;
 }
 
@@ -149,6 +154,27 @@ async function downloadImage(s3Key) {
 }
 
 /**
+ * HEAD object to verify existence and optionally return metadata
+ * @param {string} s3Key
+ * @param {string} bucket
+ */
+async function headObject(s3Key, bucket) {
+  const targetBucket = bucket || selectBucketForKey(s3Key);
+  const { HeadObjectCommand } = require('@aws-sdk/client-s3');
+  const command = new HeadObjectCommand({ Bucket: targetBucket, Key: s3Key });
+  try {
+    const res = await s3Client.send(command);
+    return res; // contains metadata like ContentLength, ContentType
+  } catch (err) {
+    // Convert not found into a friendly falsey response
+    if (err && (err.name === 'NotFound' || err.$metadata?.httpStatusCode === 404)) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+/**
  * Delete image from S3
  * @param {string} s3Key - S3 object key
  */
@@ -170,9 +196,13 @@ module.exports = {
   uploadBadgeBuffer,
   downloadImage,
   deleteImage,
+  headObject,
   // Export buckets for other modules/tests
   HTS_BUCKET,
   BADGES_BUCKET,
+  TRAINING_CERTIFICATES_BUCKET,
+  // Test helper
+  __getBucketForKey: selectBucketForKey,
 };
 
 /**

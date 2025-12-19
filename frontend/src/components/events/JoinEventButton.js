@@ -63,21 +63,7 @@ export default function JoinEventButton({
       console.error("Error joining event:", error);
       const msg = error?.message || "Failed to join event";
 
-      // If backend reports the user is already registered (race/stale UI),
-      // treat as info and update local state to reflect reality so UI shows "Leave Event"
-      if (/already registered/i.test(msg)) {
-        setParticipationStatus("registered");
-        if (onStatusChange) {
-          try {
-            onStatusChange(true, { status: "registered" });
-          } catch (e) {
-            onStatusChange(true);
-          }
-        }
-        notify?.push("You are already registered for this event", "info");
-      } else {
-        notify?.push(msg, "error");
-      }
+      notify?.push(msg, "error");
     } finally {
       setIsLoading(false);
     }

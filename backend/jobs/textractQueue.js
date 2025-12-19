@@ -55,8 +55,27 @@ if (textractQueue) {
     console.error(`OCR job ${job.id} failed:`, err?.message || err);
   });
 
-  // Log runtime errors from the queue client (throttled)
+  // Helper to detect connection refused AggregateError or single error
+  function _isConnectionRefusedError(err) {
+    if (!err) return false;
+    if (err.code === 'ECONNREFUSED') return true;
+    if (Array.isArray(err.errors) && err.errors.length && err.errors.every(e => e && e.code === 'ECONNREFUSED')) return true;
+    if (typeof err.message === 'string' && err.message.includes('ECONNREFUSED')) return true;
+    return false;
+  }
+
+  // Log runtime errors from the queue client (throttled). If Redis is unreachable, disable the queue to avoid noisy logs.
   textractQueue.on('error', (err) => {
+    if (_isConnectionRefusedError(err)) {
+      if (!_textractQueueErrorLogged) {
+        console.warn('⚠️ Redis connection refused for textract queue. OCR queue will be disabled until Redis is available. Set REDIS_HOST or start Redis.');
+        _textractQueueErrorLogged = true;
+      }
+      // Disable operational queue to prevent further enqueue attempts
+      textractQueue = null;
+      return;
+    }
+
     if (!_textractQueueErrorLogged) {
       console.error('Textract queue error event:', err?.message || err);
       _textractQueueErrorLogged = true;
@@ -64,7 +83,7 @@ if (textractQueue) {
   });
 
   // Reset the error throttle if the queue becomes ready/connected
-  if (typeof textractQueue.client === 'object' && textractQueue.client && typeof textractQueue.client.on === 'function') {
+  if (typeof textractQueue?.client === 'object' && textractQueue.client && typeof textractQueue.client.on === 'function') {
     textractQueue.client.on('ready', () => { _textractQueueErrorLogged = false; console.log('Textract queue client ready'); });
     textractQueue.client.on('connect', () => { _textractQueueErrorLogged = false; console.log('Textract queue client connected'); });
   }

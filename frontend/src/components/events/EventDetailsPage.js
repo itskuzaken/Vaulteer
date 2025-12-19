@@ -22,6 +22,7 @@ import {
   IoAlertCircleOutline,
   IoArchiveOutline,
   IoBanOutline,
+  IoQrCodeOutline,
 } from "react-icons/io5";
 import { useNotify } from "@/components/ui/NotificationProvider";
 import EventStatusBadge from "@/components/events/EventStatusBadge";
@@ -42,6 +43,7 @@ import ArchiveEventConfirmModal from "@/components/events/modals/ArchiveEventCon
 import CancelEventConfirmModal from "@/components/events/modals/CancelEventConfirmModal";
 import AttendancePanel from '@/components/events/AttendancePanel';
 import EventReportsPanel from '@/components/events/EventReportsPanel';
+import Modal from '@/components/modals/ModalShell';
 
 const formatDate = (value, pattern = "MMMM dd, yyyy") => {
   if (!value) return "–";
@@ -71,9 +73,13 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
   const [participantError, setParticipantError] = useState(null);
   const [activeParticipantTab, setActiveParticipantTab] = useState("registered");
   const [isEditing, setIsEditing] = useState(false);
+  
+  // Modal States
   const [showPostponeModal, setShowPostponeModal] = useState(false);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(Boolean(initialCancel));
+  const [showAttendanceModal, setShowAttendanceModal] = useState(false);
+  
   const [isActionLoading, setIsActionLoading] = useState(false);
   
   // State for hydration-safe URL generation
@@ -82,7 +88,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
   const role = (currentUser?.role || "volunteer").toLowerCase();
   const canManageEvent = role === "admin" || role === "staff";
   
-  // FIX: Use strict comparison with string conversion to be safe
   const isEventCreator =
     currentUser?.user_id &&
     eventData?.created_by_user_id &&
@@ -96,7 +101,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
     return buildEventDetailPath(currentUser?.role, eventUid);
   }, [currentUser?.role, eventUid]);
 
-  // FIX: Move window access to useEffect to prevent hydration mismatch
   useEffect(() => {
     if (typeof window !== "undefined" && sharePath) {
       setShareUrl(`${window.location.origin}${sharePath}`);
@@ -126,6 +130,21 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
     if (canManageEvent) return true;
     return Boolean(eventData?.is_registered);
   }, [canManageEvent, eventData?.is_registered]);
+
+  // Logic to determine if attendance button should be shown
+  const canShowAttendanceButton = useMemo(() => {
+    const start = eventData?.start_datetime ? new Date(eventData.start_datetime) : null;
+    const windowMins = eventData?.attendance_checkin_window_mins ?? 15;
+    const now = new Date();
+    const windowStart = start ? new Date(start.getTime() - windowMins * 60000) : null;
+    
+    // Show if check-in window has started and event is not cancelled
+    return Boolean(
+      windowStart && 
+      now >= windowStart && 
+      !['cancelled'].includes((eventData?.status||'').toLowerCase())
+    );
+  }, [eventData]);
 
   const mutatingParticipantCount = useCallback((statusOrBool, meta = {}) => {
     setEventData((prev) => {
@@ -187,10 +206,9 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
 
       return prev;
     });
-  }, []); // loadEventDetails removed from dep array to avoid circle, handled via function scope or ref if needed
+  }, []);
 
   const loadEventDetails = useCallback(async () => {
-    // FIX: Handle missing ID to prevent infinite loading state
     if (!eventUid) {
         setError("No event ID provided.");
         setIsLoading(false);
@@ -260,19 +278,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
     loadParticipants();
   }, [eventData, loadParticipants]);
 
-  // Reports: admin/staff-only panel
   const canManageEventForReports = role === 'admin' || role === 'staff';
-
-  // Compute whether to show attendance panel (avoid inline IIFE in JSX)
-  const showAttendancePanel = useMemo(() => {
-    if (!canManageEvent) return false;
-    const start = eventData?.start_datetime ? new Date(eventData.start_datetime) : null;
-    const windowMins = eventData?.attendance_checkin_window_mins ?? 15;
-    const now = new Date();
-    const windowStart = start ? new Date(start.getTime() - windowMins * 60000) : null;
-    return Boolean(windowStart && start && now >= windowStart && now < start && !['cancelled','postponed','completed'].includes((eventData?.status||'').toLowerCase()));
-  }, [canManageEvent, eventData?.start_datetime, eventData?.attendance_checkin_window_mins, eventData?.status]);
-
 
   const handleCopyLink = async () => {
     if (typeof navigator === "undefined" || !navigator.clipboard) {
@@ -362,7 +368,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
       notify?.push("Event archived", "success");
       setShowArchiveModal(false);
       await loadEventDetails();
-      // once archived, navigate back to list for admin view
       router.back();
     } catch (err) {
       console.error("Failed to archive event", err);
@@ -473,7 +478,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
               >
                 {isEditing ? "Cancel" : "Edit"}
               </Button>
-              {/* Postpone button — available for published (non-postponed) events */}
               {eventData?.status && ["published"].includes((eventData.status || "").toLowerCase()) && (
                 <Button
                   variant="ghost"
@@ -486,7 +490,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                   Postpone
                 </Button>
               )}
-              {/* Archive button */}
               {eventData?.status && ["published", "postponed"].includes((eventData.status || "").toLowerCase()) && (
                 <Button
                   variant="ghost"
@@ -498,7 +501,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                   Archive
                 </Button>
               )}
-              {/* Cancel button */}
               {eventData?.status && ["published", "postponed"].includes((eventData.status || "").toLowerCase()) && (
                 <Button
                   variant="ghost"
@@ -536,7 +538,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                   <p className="mt-2 text-sm sm:text-base">No cover image</p>
                 </div>
               )}
-              {/* FIX: Corrected Tailwind gradient syntax */}
               <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-6">
                 <p className="text-xs sm:text-sm text-white/80 uppercase tracking-wide">
                   {formatDate(eventData.start_datetime_local || eventData.start_datetime, "eeee, MMM dd")}
@@ -547,7 +548,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
               </div>
             </div>
 
-            {/* Event Info Cards - Responsive Grid */}
+            {/* Event Info Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 p-4 sm:p-6">
               <div className="rounded-xl bg-gray-50 dark:bg-gray-800/70 p-3 sm:p-4 border border-gray-200 dark:border-gray-700">
                 <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-400 flex items-center gap-2 mb-2">
@@ -668,7 +669,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
             </section>
           )}
 
-          {/* Requirements and Tags - Mobile Responsive */}
+          {/* Requirements and Tags */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:p-6">
               <h3 className="text-base font-semibold text-gray-900 dark:text-white flex items-center gap-2 mb-3">
@@ -703,16 +704,29 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
 
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:p-6">
             <div className="flex flex-col gap-4 mb-4">
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Participants
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {canViewParticipants
-                    ? "Live list of confirmed and waitlisted participants"
-                    : "Register to see who else is attending."}
-                </p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                    Participants
+                  </h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    {canViewParticipants
+                      ? "Live list of confirmed and waitlisted participants"
+                      : "Register to see who else is attending."}
+                  </p>
+                </div>
+                {canManageEvent && canShowAttendanceButton && (
+                  <Button
+                    variant="primary"
+                    icon={IoQrCodeOutline}
+                    onClick={() => setShowAttendanceModal(true)}
+                    className="shrink-0"
+                  >
+                    Take Attendance
+                  </Button>
+                )}
               </div>
+              
               {canViewParticipants && (
                 <div className="flex flex-wrap gap-2 sm:gap-3">
                   {PARTICIPANT_TABS.map((tab) => (
@@ -842,12 +856,6 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                 Share
               </Button>
             </div>
-            {/* Attendance panel — computed safely to avoid inline IIFE which can cause TDZ/minification issues */}
-            {canManageEvent && showAttendancePanel && (
-              <div className="mt-4">
-                <AttendancePanel eventUid={eventUid} />
-              </div>
-            )}
           </div>
 
           {/* Participation Section */}
@@ -923,10 +931,24 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
       </div>
 
       {canManageEvent && (
-        <div className="mt-6">
+        <div className="mt-6 flex flex-col gap-6">
           <EventReportsPanel eventUid={eventUid} currentUser={currentUser} />
         </div>
       )}
+
+      {/* --- ATTENDANCE MODAL (Using ModalShell) --- */}
+      <Modal
+        isOpen={showAttendanceModal}
+        onClose={() => setShowAttendanceModal(false)}
+        title="Attendance Management"
+        description={eventData?.title}
+        size="lg"
+      >
+        {/* Fixed height container allows internal scroll of AttendancePanel to work properly */}
+        <div className="h-[75vh] sm:h-[80vh] w-full">
+          <AttendancePanel eventUid={eventUid} />
+        </div>
+      </Modal>
 
       {canEditEvent && (
         <>

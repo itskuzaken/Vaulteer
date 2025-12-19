@@ -86,9 +86,56 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
       const redisUrl = process.env.REDIS_URL || `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}`;
       reportQueue = new Bull('report-generation-queue', redisUrl);
 
-      // Throttle error logs for this queue
+      // Throttle error logs for this queue and degrade to in-memory fallback on connection refused
       let _reportQueueErrorLogged = false;
+      function _isConnRefused(err) {
+        if (!err) return false;
+        if (err.code === 'ECONNREFUSED') return true;
+        if (Array.isArray(err.errors) && err.errors.length && err.errors.every(e => e && e.code === 'ECONNREFUSED')) return true;
+        if (typeof err.message === 'string' && err.message.includes('ECONNREFUSED')) return true;
+        return false;
+      }
       reportQueue.on('error', (err) => {
+        if (_isConnRefused(err)) {
+          if (!_reportQueueErrorLogged) {
+            console.warn('⚠️ Redis connection refused for report queue. Falling back to in-memory queue until Redis is available.');
+            _reportQueueErrorLogged = true;
+          }
+          // Replace reportQueue with in-memory fallback to avoid further connection attempts
+          reportQueue = {
+            jobs: [],
+            _processor: null,
+            add: async (data, opts = {}) => {
+              const job = { data, opts, _attempts: 0 };
+              reportQueue.jobs.push(job);
+              if (reportQueue._processor) reportQueue.drain();
+              return job;
+            },
+            process: (handler) => {
+              reportQueue._processor = handler;
+              if (reportQueue.jobs.length > 0) reportQueue.drain();
+            },
+            async drain() {
+              if (!reportQueue._processor) return;
+              while (reportQueue.jobs.length) {
+                const job = reportQueue.jobs.shift();
+                try { await reportQueue._processor(job); } catch (e) {
+                  job._attempts = (job._attempts || 0) + 1;
+                  const maxAttempts = (job.opts && job.opts.attempts) || 1;
+                  if (job._attempts < maxAttempts) {
+                    const delay = (job.opts && job.opts.backoff && job.opts.backoff.delay) || 1000;
+                    await new Promise((r) => setTimeout(r, delay));
+                    reportQueue.jobs.push(job);
+                  } else {
+                    console.error('Report job permanently failed:', e);
+                  }
+                }
+              }
+            }
+          };
+          return;
+        }
+
         if (!_reportQueueErrorLogged) {
           console.error('Report queue error event:', err?.message || err);
           _reportQueueErrorLogged = true;

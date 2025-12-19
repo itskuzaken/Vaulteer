@@ -47,7 +47,7 @@ function startEventReminderScheduler() {
             eventId: e.event_id,
             eventUid: e.uid,
             eventTitle: e.title,
-            performedBy: { userId: 'system', name: 'system' },
+            performedBy: { userId: 'system', name: 'system', role: 'system' },
             previousStatus: null,
             newStatus: 'reminder.sent',
           });

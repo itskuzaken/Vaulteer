@@ -11,6 +11,36 @@ const reportWorker = require('../workers/reportWorker');
 const s3Service = require('../services/s3Service');
 
 class EventsController {
+  // Normalize event timestamps so consumers always see +08 representations
+  _normalizeEventToPlus8(event) {
+    if (!event) return event;
+    try {
+      // Prefer explicit local columns if available
+      if (event.start_datetime_local) {
+        event.start_datetime = event.start_datetime_local;
+      }
+      if (event.end_datetime_local) {
+        event.end_datetime = event.end_datetime_local;
+      }
+      // Ensure friendly local strings are present
+      const { convertUtcIsoToPlus8Input, convertUtcIsoToPlus8Friendly } = require('../utils/datetime');
+      if (!event.start_datetime_local && event.start_datetime) {
+        event.start_datetime_local = convertUtcIsoToPlus8Input(event.start_datetime);
+      }
+      if (!event.end_datetime_local && event.end_datetime) {
+        event.end_datetime_local = convertUtcIsoToPlus8Input(event.end_datetime);
+      }
+      if (!event.start_datetime_local_friendly && event.start_datetime) {
+        event.start_datetime_local_friendly = convertUtcIsoToPlus8Friendly(event.start_datetime);
+      }
+      if (!event.end_datetime_local_friendly && event.end_datetime) {
+        event.end_datetime_local_friendly = convertUtcIsoToPlus8Friendly(event.end_datetime);
+      }
+    } catch (e) {
+      // ignore conversion errors
+    }
+    return event;
+  }
   // ============================================
   // ADMIN/STAFF EVENT MANAGEMENT
   // ============================================
@@ -124,6 +154,9 @@ class EventsController {
         }
       }
 
+      // Ensure timestamps are presented as +08 for clients
+      this._normalizeEventToPlus8(event);
+
       res.status(201).json({
         success: true,
         message: "Event created successfully",
@@ -203,6 +236,8 @@ class EventsController {
       }
 
       const event = await eventRepository.updateEvent(uid, updates);
+      // Ensure timestamps are presented as +08 for clients
+      this._normalizeEventToPlus8(event);
 
       // If the event's capacity was increased, promote from waitlist if any
       try {
@@ -547,6 +582,8 @@ class EventsController {
               userId
             );
             const isRegistered = participationStatus === "registered" || participationStatus === "waitlisted";
+            // Normalize times to +08
+            this._normalizeEventToPlus8(event);
             return {
               ...event,
               is_registered: isRegistered,
@@ -555,6 +592,7 @@ class EventsController {
           } catch (error) {
             // If there's an error getting participation status, return event without it
             console.warn(`Failed to get participation status for event ${event.uid}:`, error.message);
+            this._normalizeEventToPlus8(event);
             return {
               ...event,
               is_registered: false,
@@ -616,6 +654,9 @@ class EventsController {
         }
       }
 
+      // Normalize event timestamps to +08 before sending
+      this._normalizeEventToPlus8(event);
+
       res.json({
         success: true,
         data: {
@@ -640,10 +681,13 @@ class EventsController {
       const limit = parseInt(req.query.limit) || 10;
       const events = await eventRepository.getUpcomingEvents(limit);
 
+      // Normalize timestamps for each event to +08
+      const normalized = events.map(e => this._normalizeEventToPlus8(e));
+
       res.json({
         success: true,
-        data: events,
-        count: events.length,
+        data: normalized,
+        count: normalized.length,
       });
     } catch (error) {
       console.error("Get upcoming events error:", error);
@@ -826,10 +870,13 @@ class EventsController {
 
       const events = await eventRepository.getParticipantEvents(userId, status);
 
+      // Normalize to +08 for each event
+      const normalized = events.map(e => this._normalizeEventToPlus8(e));
+
       res.json({
         success: true,
-        data: events,
-        count: events.length,
+        data: normalized,
+        count: normalized.length,
       });
     } catch (error) {
       console.error("Get my events error:", error);
@@ -1097,15 +1144,20 @@ class EventsController {
 
       const participants = await eventRepository.getEventParticipants(uid);
 
-      // Compute attendance check-in availability: opens X minutes before start, not visible after start
+      // Compute attendance check-in availability:
+      // - opens X minutes before start (checkin window)
+      // - remains open through the configured grace period after start
       const now = new Date();
       const startTs = event.start_datetime ? new Date(event.start_datetime) : null;
       const windowMins = Number(event.attendance_checkin_window_mins || 15);
+      const graceMins = Number(event.attendance_grace_mins || 10);
       let attendanceEnabled = false;
       if (startTs) {
         const windowStart = new Date(startTs.getTime() - windowMins * 60000);
-        // visible only from windowStart up to but not including start
-        attendanceEnabled = now >= windowStart && now < startTs && !['cancelled','postponed','completed'].includes((event.status||'').toLowerCase());
+        // Keep check-in enabled from windowStart while the event is active (not cancelled/postponed/completed/archived).
+        // This allows staff to check in participants after the grace window (they will be marked 'late' by server-side logic),
+        // but prevents check-ins once the event is finalized.
+        attendanceEnabled = now >= windowStart && !['cancelled','postponed','completed','archived'].includes((event.status||'').toLowerCase());
       }
 
       res.json({

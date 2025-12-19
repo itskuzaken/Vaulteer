@@ -61,9 +61,16 @@ async function createLog({
         changes, description, severity, ip_address, user_agent, session_id, metadata`;
     let placeholders = "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?";
 
+    // Normalize performedBy and ensure safe defaults for system/internal actions
+    const performedByNormalized = {
+      userId: performedBy && performedBy.userId ? performedBy.userId : "system",
+      name: performedBy && performedBy.name ? performedBy.name : "system",
+      role: performedBy && performedBy.role ? performedBy.role : "system",
+    };
+
     // Set performed_by_user_id to NULL for system operations to avoid FK constraint
     const performedByUserId =
-      performedBy.userId === "system" ? null : performedBy.userId;
+      performedByNormalized.userId === "system" ? null : performedByNormalized.userId;
 
     // Normalize metadata.timestamp to +08 ISO if present
     let normalizedMetadata = metadata;
@@ -80,8 +87,8 @@ async function createLog({
       type,
       action,
       performedByUserId,
-      performedBy.name,
-      performedBy.role,
+      performedByNormalized.name,
+      performedByNormalized.role,
       targetResource?.type || null,
       targetResource?.id || null,
       changes ? JSON.stringify(changes) : null,

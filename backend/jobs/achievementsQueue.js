@@ -48,8 +48,26 @@ if (achievementsQueue) {
     console.error(`Achievements job ${job.id} failed:`, err?.message || err);
   });
 
+  // Helper to detect connection refused errors
+  function _isConnRefused(err) {
+    if (!err) return false;
+    if (err.code === 'ECONNREFUSED') return true;
+    if (Array.isArray(err.errors) && err.errors.length && err.errors.every(e => e && e.code === 'ECONNREFUSED')) return true;
+    if (typeof err.message === 'string' && err.message.includes('ECONNREFUSED')) return true;
+    return false;
+  }
+
   // Catch queue-level errors (throttled)
   achievementsQueue.on('error', (err) => {
+    if (_isConnRefused(err)) {
+      if (!_achievementsQueueErrorLogged) {
+        console.warn('⚠️ Redis connection refused for achievements queue. Achievements jobs will be disabled until Redis is available.');
+        _achievementsQueueErrorLogged = true;
+      }
+      achievementsQueue = null; // disable queue
+      return;
+    }
+
     if (!_achievementsQueueErrorLogged) {
       console.error('Achievements queue error event:', err?.message || err);
       _achievementsQueueErrorLogged = true;
@@ -57,7 +75,7 @@ if (achievementsQueue) {
   });
 
   // Reset throttle on client ready/connect
-  if (typeof achievementsQueue.client === 'object' && achievementsQueue.client && typeof achievementsQueue.client.on === 'function') {
+  if (typeof achievementsQueue?.client === 'object' && achievementsQueue.client && typeof achievementsQueue.client.on === 'function') {
     achievementsQueue.client.on('ready', () => { _achievementsQueueErrorLogged = false; console.log('Achievements queue client ready'); });
     achievementsQueue.client.on('connect', () => { _achievementsQueueErrorLogged = false; console.log('Achievements queue client connected'); });
   }

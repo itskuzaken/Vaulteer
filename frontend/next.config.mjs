@@ -25,7 +25,7 @@ const nextConfig = {
   },
   allowedDevOrigins: [
     "http://localhost:3000",
-    "http://192.168.1.14:3000",
+    "http://192.168.1.17:3000",
     "https://vaulteer.kuzaken.tech",
   ],
   // Provide a convenience single JSON env var for `NEXT_PUBLIC_FIREBASE` during dev

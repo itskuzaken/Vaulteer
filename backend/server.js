@@ -35,6 +35,7 @@ const userSettingsRoute = require("./routes/userSettingsRoutes");
 const htsFormsRoute = require("./routes/htsFormsRoutes");
 const ocrFeedbackRoute = require("./routes/ocrFeedback");
 const templateMetadataRoute = require("./routes/templateMetadataRoutes");
+const s3Route = require("./routes/s3Routes");
 
 // Middleware for internal-only routes
 const internalOnly = require("./middleware/internalOnly");
@@ -184,6 +185,7 @@ app.use("/api/posts", postsRoute);
 app.use("/api/hts-forms", htsFormsRoute);
 app.use("/api/ocr-feedback", ocrFeedbackRoute);
 app.use("/api/template-metadata", templateMetadataRoute);
+app.use('/api/s3', s3Route);
 
 app.get("/api", (req, res) => {
   res.json({

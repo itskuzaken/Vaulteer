@@ -502,6 +502,20 @@ async function createApplicantWithProfile(userData, formData) {
       }
     }
 
+    // 10. Persist uploaded certificate metadata (if provided)
+    // Expected format: formData.trainingCertificates = [{ trainingName, s3Key, filename, mime, size }]
+    // 10. Persist uploaded certificate metadata (if provided)
+    if (formData.trainingCertificates && Array.isArray(formData.trainingCertificates) && formData.trainingCertificates.length > 0) {
+      // Delegate validation + insertion to helper to allow easier testing and S3 verification
+      await validateAndInsertCertificates({
+        applicantId,
+        profileId,
+        formData,
+        currentUserId: req.currentUserId || userId,
+        connection
+      });
+    }
+
     await connection.commit();
 
     // Notify admins/staff about the new application (best-effort, non-blocking)
@@ -695,4 +709,73 @@ module.exports = {
   updateApplicantStatus,
   getApplicantStatusHistory,
   createApplicantWithProfile,
+  // Certificate helpers
+  createCertificateRecord,
+  getCertificatesForApplicant,
+  validateAndInsertCertificates,
 };
+
+const s3Service = require('../services/s3Service');
+
+/**
+ * Validate uploaded certificates, verify existence on S3, and insert records
+ * Accepts connection to support transactional usage
+ */
+async function validateAndInsertCertificates({ applicantId, profileId, formData, currentUserId, connection = null }) {
+  const pool = getPool();
+  const conn = connection || pool;
+
+  const requiredTrainings = (formData.volunteerTrainings || []).filter(t => t !== 'None in the list');
+  const certs = Array.isArray(formData.trainingCertificates) ? formData.trainingCertificates : [];
+  const certMap = {};
+  for (const c of certs) {
+    if (c && c.trainingName) certMap[c.trainingName] = c;
+  }
+
+  for (const reqTraining of requiredTrainings) {
+    const cert = certMap[reqTraining];
+    if (!cert || !cert.s3Key) {
+      throw new Error(`Missing certificate for required training: ${reqTraining}`);
+    }
+
+    // Verify the object exists in S3
+    try {
+      const head = await s3Service.headObject(cert.s3Key);
+      if (!head) {
+        throw new Error(`Certificate file not found on S3 for training: ${reqTraining}`);
+      }
+    } catch (err) {
+      // If underlying error is a not-found, convert to user friendly message
+      throw new Error(`Certificate verification failed for ${reqTraining}: ${err.message}`);
+    }
+
+    // Insert certificate record
+    await createCertificateRecord(applicantId, reqTraining, cert.s3Key, {
+      original_filename: cert.filename || null,
+      mimetype: cert.mime || null,
+      size: cert.size || null,
+      uploaded_by: currentUserId || null
+    });
+  }
+}
+
+async function createCertificateRecord(applicantId, trainingName, s3Key, meta = {}) {
+  const pool = getPool();
+  const { original_filename = null, mimetype = null, size = null, uploaded_by = null } = meta;
+  const [result] = await pool.execute(
+    `INSERT INTO user_training_certificates (applicant_id, training_name, s3_key, original_filename, mimetype, size, uploaded_by, uploaded_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, NOW())`,
+    [applicantId, trainingName, s3Key, original_filename, mimetype, size, uploaded_by]
+  );
+  return { id: result.insertId };
+}
+
+async function getCertificatesForApplicant(applicantId) {
+  const pool = getPool();
+  const [rows] = await pool.execute(
+    `SELECT id, training_name, s3_key, original_filename, mimetype, size, uploaded_by, uploaded_at
+     FROM user_training_certificates WHERE applicant_id = ? ORDER BY uploaded_at ASC`,
+    [applicantId]
+  );
+  return rows || [];
+}

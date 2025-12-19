@@ -43,6 +43,14 @@ describe('EventRepository attendance methods', () => {
     await expect(eventRepository.checkInParticipant('evt-uid', 123, 45)).rejects.toThrow('Event check-in is not yet available');
   });
 
+  test('checkInParticipant throws when event status is not actionable', async () => {
+    // event is completed (not actionable) — check-in should be rejected even if within window
+    const soon = new Date(Date.now() + 1 * 60000).toISOString();
+    mockConn.execute.mockResolvedValueOnce([[{ event_id: 6, status: 'completed', start_datetime: soon, attendance_checkin_window_mins: 15 }]]);
+
+    await expect(eventRepository.checkInParticipant('evt-uid', 123, 45)).rejects.toThrow('Cannot check in: Event is completed');
+  });
+
   test('checkInParticipant success updates and returns participant', async () => {
     // event row (FOR UPDATE)
     // Make event start 1 minute in the future, window 15 -> now is within window
@@ -84,8 +92,28 @@ describe('EventRepository attendance methods', () => {
     expect(mockConn.commit).toHaveBeenCalled();
   });
 
-  test('checkInParticipant marks late when checked in after start', async () => {
-    // event started 1 minute ago -> check-in now should be allowed and marked late
+  test('checkInParticipant before start (within check-in window) is present', async () => {
+    // event starts in 7 minutes, window default 15 -> check-in allowed and should be present
+    const startsSoon = new Date(Date.now() + 7 * 60000).toISOString();
+    mockConn.execute
+      // event
+      .mockResolvedValueOnce([[{ event_id: 5, status: 'published', start_datetime: startsSoon, attendance_checkin_window_mins: 15, attendance_grace_mins: 10 }]])
+      // participant select
+      .mockResolvedValueOnce([[{ participant_id: 130, user_id: 80, status: 'registered', attendance_status: 'unknown' }]])
+      // update
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      // audit
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    mockPool.execute.mockResolvedValueOnce([[{ participant_id: 130, attendance_status: 'present' }]]);
+
+    const res = await eventRepository.checkInParticipant('evt-uid', 130, 55);
+    expect(res.attendance_status).toBe('present');
+    expect(mockConn.commit).toHaveBeenCalled();
+  });
+
+  test('checkInParticipant treats check-in within grace after start as present', async () => {
+    // event started 1 minute ago -> check-in now should be allowed and is WITHIN grace (default 10) -> present
     const started = new Date(Date.now() - 1 * 60000).toISOString();
     mockConn.execute
       // event
@@ -97,9 +125,29 @@ describe('EventRepository attendance methods', () => {
       // audit
       .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
-    mockPool.execute.mockResolvedValueOnce([[{ participant_id: 124, attendance_status: 'late' }]]);
+    mockPool.execute.mockResolvedValueOnce([[{ participant_id: 124, attendance_status: 'present' }]]);
 
     const res = await eventRepository.checkInParticipant('evt-uid', 124, 46);
+    expect(res.attendance_status).toBe('present');
+    expect(mockConn.commit).toHaveBeenCalled();
+  });
+
+  test('checkInParticipant marks late when checked in after grace window', async () => {
+    // event started 11 minutes ago with grace 10 -> check-in now should be marked late
+    const started = new Date(Date.now() - 11 * 60000).toISOString();
+    mockConn.execute
+      // event
+      .mockResolvedValueOnce([[{ event_id: 5, status: 'published', start_datetime: started, attendance_checkin_window_mins: 15, attendance_grace_mins: 10 }]] )
+      // participant select
+      .mockResolvedValueOnce([[{ participant_id: 125, user_id: 79, status: 'registered', attendance_status: 'unknown' }]] )
+      // update
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      // audit
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    mockPool.execute.mockResolvedValueOnce([[{ participant_id: 125, attendance_status: 'late' }]]);
+
+    const res = await eventRepository.checkInParticipant('evt-uid', 125, 47);
     expect(res.attendance_status).toBe('late');
     expect(mockConn.commit).toHaveBeenCalled();
   });

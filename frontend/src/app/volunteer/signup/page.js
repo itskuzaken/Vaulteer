@@ -5,6 +5,7 @@ import Link from "next/link";
 import { auth, googleProvider } from "../../../services/firebase";
 import { API_BASE } from "../../../config/config";
 import { submitVolunteerApplication } from "../../../services/applicantsService";
+import { apiCall } from "../../../utils/apiUtils";
 import { getApplicationSettings } from "@/services";
 import {
   isValidName,
@@ -56,6 +57,7 @@ export default function VolunteerSignupPage() {
     volunteerDays: [],
     volunteerFrequency: "",
     volunteerTrainings: [],
+    trainingCertificates: [],
     volunteerReason: "",
     declarationCommitment: "",
   });
@@ -168,9 +170,78 @@ export default function VolunteerSignupPage() {
       } else {
         updatedArr = arr.filter((v) => v !== value);
       }
+      // If the checkbox is a training being unchecked, remove any uploaded certificate
+      if (field === 'volunteerTrainings' && !checked) {
+        return { ...prev, [field]: updatedArr, trainingCertificates: (prev.trainingCertificates || []).filter(c => c.trainingName !== value) };
+      }
       return { ...prev, [field]: updatedArr };
     });
   };
+
+  // Upload helpers
+  const updateCertificateState = (trainingName, patch) => {
+    setForm(prev => {
+      const list = Array.isArray(prev.trainingCertificates) ? [...prev.trainingCertificates] : [];
+      const idx = list.findIndex(c => c.trainingName === trainingName);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...patch };
+      } else {
+        list.push({ trainingName, ...patch });
+      }
+      return { ...prev, trainingCertificates: list };
+    });
+  };
+
+  const handleFileSelect = async (e, trainingName) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    // clear any existing certificate-related global error when user starts a new upload
+    setErrors(prev => ({ ...prev, trainingCertificates: undefined }));
+
+    // basic client-side checks
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setErrors(prev => ({ ...prev, trainingCertificates: `File too large for ${trainingName} (max 10MB)` }));
+      return;
+    }
+    const allowed = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowed.includes(file.type)) {
+      setErrors(prev => ({ ...prev, trainingCertificates: `Invalid file type for ${trainingName}` }));
+      return;
+    }
+
+    updateCertificateState(trainingName, { filename: file.name, mime: file.type, size: file.size, uploadStatus: 'uploading', lastError: undefined });
+    try {
+      // Request presigned URL
+      const presign = await apiCall(`${API_BASE}/s3/presign`, {
+        method: 'POST',
+        body: JSON.stringify({ fileName: file.name, contentType: file.type, trainingName }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!presign || !presign.uploadUrl) throw new Error('Failed to get upload URL');
+
+      // Upload directly to S3
+      const res = await fetch(presign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+
+      updateCertificateState(trainingName, { s3Key: presign.s3Key, uploadStatus: 'done', lastError: undefined });
+      // clear any global certificate errors on success
+      setErrors(prev => ({ ...prev, trainingCertificates: undefined }));
+    } catch (err) {
+      // Use console.warn instead of console.error to avoid Next.js dev overlay for handled errors
+      console.warn('Upload error for', trainingName, err);
+      updateCertificateState(trainingName, { uploadStatus: 'failed', lastError: err.message });
+      setErrors(prev => ({ ...prev, trainingCertificates: `Upload failed for ${trainingName}: ${err.message}` }));
+    }
+  };
+
+  const removeCertificate = (trainingName) => {
+    // clear any certificate validation errors when user removes a certificate
+    setErrors(prev => ({ ...prev, trainingCertificates: undefined }));
+    setForm(prev => ({ ...prev, trainingCertificates: (prev.trainingCertificates || []).filter(c => c.trainingName !== trainingName)}));
+  }; 
 
   // Today's date for date inputs (yyyy-mm-dd)
   const today = typeof window !== "undefined" ? new Date().toISOString().split("T")[0] : "";
@@ -512,6 +583,16 @@ export default function VolunteerSignupPage() {
         "Please select how often you can volunteer.";
     if (!form.volunteerTrainings.length)
       newErrors.volunteerTrainings = "Please select at least one training.";
+
+    // Ensure required trainings have uploaded certificates (excluding 'None in the list')
+    const requiredTrainings = (form.volunteerTrainings || []).filter(t => t !== 'None in the list');
+    if (requiredTrainings.length) {
+      const certs = form.trainingCertificates || [];
+      const missing = requiredTrainings.filter(t => !certs.find(c => c.trainingName === t && c.s3Key && c.uploadStatus === 'done'));
+      if (missing.length) {
+        newErrors.trainingCertificates = `Please upload certificates for: ${missing.join(', ')}`;
+      }
+    }
     if (!form.volunteerReason.trim() || !isValidSmallText(form.volunteerReason, 600))
       newErrors.volunteerReason = "Please write your reason for volunteering (max 600 characters).";
     else if (!isSentenceCountInRange(form.volunteerReason, 5, 10)) {
@@ -1962,28 +2043,70 @@ export default function VolunteerSignupPage() {
                     "HIV Testing",
                     "Community-Based HIV Screening",
                     "Case Management / Life Coaching",
-                  ].map((training) => (
-                    <label
-                      key={training}
-                      className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation"
-                    >
-                      <input
-                        type="checkbox"
-                        name="volunteerTrainings"
-                        value={training}
-                        checked={form.volunteerTrainings.includes(training)}
-                        onChange={(e) =>
-                          handleCheckboxArray(e, "volunteerTrainings")
-                        }
-                        className="mr-2 w-4 h-4"
-                      />
-                      {training}
-                    </label>
-                  ))}
+                  ].map((training) => {
+                    const selected = form.volunteerTrainings.includes(training);
+                    const slug = String(training).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                    const cert = (form.trainingCertificates || []).find(c => c.trainingName === training);
+                    return (
+                      <div key={training} className="mb-1">
+                        <label className="inline-flex items-center text-gray-800 cursor-pointer text-sm sm:text-base touch-manipulation">
+                          <input
+                            type="checkbox"
+                            name="volunteerTrainings"
+                            value={training}
+                            checked={selected}
+                            onChange={(e) => handleCheckboxArray(e, "volunteerTrainings")}
+                            className="mr-2 w-4 h-4"
+                          />
+                          {training}
+                        </label>
+                        {selected && training !== 'None in the list' && (
+                          <div className="ml-6 mt-1">
+                            {cert && cert.uploadStatus === 'done' ? (
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-700">{cert.filename}</span>
+                                <span className="text-green-600 text-sm">Uploaded</span>
+                                <button type="button" className="text-red-600 text-sm" onClick={() => removeCertificate(training)}>Remove</button>
+                              </div>
+                            ) : cert && cert.uploadStatus === 'uploading' ? (
+                              <div className="text-sm text-gray-700">Uploading...</div>
+                            ) : cert && cert.uploadStatus === 'failed' ? (
+                              <div className="flex items-center gap-3">
+                                <div className="text-sm text-red-600">Upload failed: {cert.lastError || 'Please try again.'}</div>
+                                <button
+                                  type="button"
+                                  className="text-blue-600 text-sm"
+                                  onClick={() => { setErrors(prev => ({ ...prev, trainingCertificates: undefined })); updateCertificateState(training, { uploadStatus: undefined, lastError: undefined, filename: undefined, s3Key: undefined }); }}
+                                >
+                                  Retry
+                                </button>
+                              </div>
+                            ) : (
+                              <input
+                                data-testid={`upload-${slug}`}
+                                id={`file-${slug}`}
+                                type="file"
+                                accept="application/pdf,image/*"
+                                onChange={(e) => handleFileSelect(e, training)}
+                                className="mt-1 dark:text-gray-900 text-sm dark:border-gray-600 border border-gray-300 rounded px-2 py-1 touch-manipulation"
+                                disabled={cert && cert.uploadStatus === 'uploading'}
+                                aria-disabled={cert && cert.uploadStatus === 'uploading'}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
                 {errors.volunteerTrainings && (
                   <p className="text-red-600 text-xs sm:text-sm">
                     {errors.volunteerTrainings}
+                  </p>
+                )}
+                {errors.trainingCertificates && (
+                  <p role="alert" className="text-red-600 text-xs sm:text-sm mt-2">
+                    {errors.trainingCertificates}
                   </p>
                 )}
               </div>
