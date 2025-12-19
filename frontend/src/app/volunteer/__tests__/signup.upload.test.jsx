@@ -19,14 +19,14 @@ describe('Volunteer signup upload flow', () => {
     jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
 
-  test('shows file input when training selected and uploads file', async () => {
+  test('attaches file in memory when training selected', async () => {
     const { apiCall } = require('../../../utils/apiUtils');
-    apiCall.mockResolvedValue({ uploadUrl: 'https://example.com/upload', s3Key: 'vol-cert/42/test.pdf' });
+    // Ensure no presign is called on selection
+    apiCall.mockResolvedValue({});
 
-    // Mock global fetch for the PUT to presigned URL
-    global.fetch = jest.fn().mockResolvedValue({ ok: true });
+    global.fetch = jest.fn();
 
-    const { container } = render(<VolunteerSignupPage />);
+    render(<VolunteerSignupPage />);
 
     // Select the HIV Testing checkbox
     const checkbox = screen.getByLabelText('HIV Testing');
@@ -37,11 +37,58 @@ describe('Volunteer signup upload flow', () => {
     const file = new File(['dummy'], 'cert.pdf', { type: 'application/pdf' });
     fireEvent.change(input, { target: { files: [file] } });
 
-    // Wait for upload to finish and UI to show Uploaded
-    await waitFor(() => expect(screen.getByText('Uploaded')).toBeInTheDocument());
+    // UI should show Selected: filename
+    await waitFor(() => expect(screen.getByText(/Selected: cert.pdf/)).toBeInTheDocument());
 
-    expect(apiCall).toHaveBeenCalledWith(expect.stringContaining('/s3/presign'), expect.any(Object));
-    expect(global.fetch).toHaveBeenCalledWith('https://example.com/upload', expect.objectContaining({ method: 'PUT' }));
+    // No network calls should have been made yet
+    expect(apiCall).not.toHaveBeenCalledWith(expect.stringContaining('/s3/presign'), expect.any(Object));
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('submits form with attached certificate as multipart/form-data', async () => {
+    // Mock backend response for applicants POST
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true }) });
+
+    render(<VolunteerSignupPage />);
+
+    // Step 1: agree consent
+    fireEvent.click(screen.getByLabelText('I Agree'));
+    fireEvent.click(screen.getByText('Next'));
+
+    // Step 2: personal info
+    fireEvent.change(screen.getByLabelText(/Last Name/i), { target: { value: 'Dela Cruz' } });
+    fireEvent.change(screen.getByLabelText(/First Name/i), { target: { value: 'Juan' } });
+    fireEvent.change(screen.getByLabelText(/Nickname/i), { target: { value: 'Juan' } });
+    fireEvent.change(screen.getByLabelText(/Birthdate/i), { target: { value: '1990-01-01' } });
+    fireEvent.click(screen.getByLabelText(/Male/i));
+    fireEvent.click(screen.getByText(/Next/i));
+
+    // Step 3: contact
+    fireEvent.change(screen.getByLabelText(/Mobile Number/i), { target: { value: '09171234567' } });
+    fireEvent.change(screen.getByLabelText(/Current City/i), { target: { value: 'Bacolod City' } });
+    fireEvent.click(screen.getByText(/Next/i));
+
+    // Step 4: Not Applicable -> Next
+    fireEvent.click(screen.getByLabelText(/Not Applicable/i));
+    fireEvent.click(screen.getByText(/Next/i));
+
+    // Step 7: Volunteer Profile - select training and attach file
+    fireEvent.click(screen.getByLabelText('HIV Testing'));
+    const input = await screen.findByTestId('upload-hiv-testing');
+    const file = new File(['dummy'], 'cert.pdf', { type: 'application/pdf' });
+    fireEvent.change(input, { target: { files: [file] } });
+
+    // proceed to declaration
+    fireEvent.click(screen.getByText('Next'));
+
+    // Step 8: agree declaration
+    fireEvent.click(screen.getByLabelText('I Agree'));
+
+    // Submit
+    fireEvent.click(screen.getByText('Submit'));
+
+    // Expect a POST to /api/applicants
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/applicants'), expect.objectContaining({ method: 'POST' })));
   });
 
   test('shows detailed error when upload fails', async () => {
@@ -104,7 +151,7 @@ describe('Volunteer signup upload flow', () => {
     // Click Next to trigger validation
     fireEvent.click(getByText('Next'));
 
-    // Expect validation message about missing certificate
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/Please upload certificates for: HIV Testing/));
+    // Expect validation message about missing certificate (attached required)
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/Please attach certificates for: HIV Testing/));
   });
 });

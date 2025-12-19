@@ -80,16 +80,48 @@ export async function getApplicantById(userId) {
 
 // Submit new volunteer application (public - no auth required)
 export async function submitVolunteerApplication(userData, formData) {
-  const res = await fetch(`${API_BASE}/applicants`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      user: userData,
-      form: formData,
-    }),
-  });
+  // If any trainingCertificates have an attached File, submit as multipart/form-data
+  const hasFiles = Array.isArray(formData.trainingCertificates) && formData.trainingCertificates.some(c => c && c.file instanceof File);
+
+  let res;
+  if (hasFiles) {
+    const fd = new FormData();
+    // Clone formData and strip File objects for JSON payload; but keep metadata
+    const formCopy = { ...formData, trainingCertificates: [] };
+
+    // For each certificate, if it has a file, append to FormData and reference field name
+    (formData.trainingCertificates || []).forEach((c, idx) => {
+      const trainingName = c.trainingName;
+      const slug = String(trainingName).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      if (c.file instanceof File) {
+        const fieldName = `trainingFile:${slug}`;
+        fd.append(fieldName, c.file, c.filename || c.file.name);
+        formCopy.trainingCertificates.push({ trainingName, filename: c.filename || c.file.name, mime: c.mime || c.file.type, size: c.size || c.file.size, fileField: fieldName });
+      } else if (c.s3Key) {
+        // Already uploaded earlier (unlikely in memory-only flow) - include metadata so backend can validate
+        formCopy.trainingCertificates.push({ trainingName, s3Key: c.s3Key, filename: c.filename, mime: c.mime, size: c.size });
+      }
+    });
+
+    fd.append('user', JSON.stringify(userData));
+    fd.append('form', JSON.stringify(formCopy));
+
+    res = await fetch(`${API_BASE}/applicants`, {
+      method: "POST",
+      body: fd,
+    });
+  } else {
+    res = await fetch(`${API_BASE}/applicants`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user: userData,
+        form: formData,
+      }),
+    });
+  }
 
   let data;
   try {

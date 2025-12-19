@@ -192,11 +192,12 @@ export default function VolunteerSignupPage() {
     });
   };
 
-  const handleFileSelect = async (e, trainingName) => {
+  // Memory-only attachment: store selected File in state and defer upload until final submit
+  const handleFileSelect = (e, trainingName) => {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    // clear any existing certificate-related global error when user starts a new upload
+    // clear any certificate errors
     setErrors(prev => ({ ...prev, trainingCertificates: undefined }));
 
     // basic client-side checks
@@ -211,30 +212,15 @@ export default function VolunteerSignupPage() {
       return;
     }
 
-    updateCertificateState(trainingName, { filename: file.name, mime: file.type, size: file.size, uploadStatus: 'uploading', lastError: undefined });
-    try {
-      // Request presigned URL
-      const presign = await apiCall(`${API_BASE}/s3/presign`, {
-        method: 'POST',
-        body: JSON.stringify({ fileName: file.name, contentType: file.type, trainingName }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!presign || !presign.uploadUrl) throw new Error('Failed to get upload URL');
-
-      // Upload directly to S3
-      const res = await fetch(presign.uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
-      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
-
-      updateCertificateState(trainingName, { s3Key: presign.s3Key, uploadStatus: 'done', lastError: undefined });
-      // clear any global certificate errors on success
-      setErrors(prev => ({ ...prev, trainingCertificates: undefined }));
-    } catch (err) {
-      // Use console.warn instead of console.error to avoid Next.js dev overlay for handled errors
-      console.warn('Upload error for', trainingName, err);
-      updateCertificateState(trainingName, { uploadStatus: 'failed', lastError: err.message });
-      setErrors(prev => ({ ...prev, trainingCertificates: `Upload failed for ${trainingName}: ${err.message}` }));
-    }
+    // Save file object in trainingCertificates state; mark as 'attached'
+    updateCertificateState(trainingName, {
+      filename: file.name,
+      mime: file.type,
+      size: file.size,
+      file, // actual File object in memory
+      uploadStatus: 'attached',
+      lastError: undefined,
+    });
   };
 
   const removeCertificate = (trainingName) => {
@@ -588,9 +574,10 @@ export default function VolunteerSignupPage() {
     const requiredTrainings = (form.volunteerTrainings || []).filter(t => t !== 'None in the list');
     if (requiredTrainings.length) {
       const certs = form.trainingCertificates || [];
-      const missing = requiredTrainings.filter(t => !certs.find(c => c.trainingName === t && c.s3Key && c.uploadStatus === 'done'));
+      // Consider a training satisfied if it has an s3Key (already uploaded) or has an attached File in memory
+      const missing = requiredTrainings.filter(t => !certs.find(c => c.trainingName === t && ((c.s3Key && c.uploadStatus === 'done') || c.file)));
       if (missing.length) {
-        newErrors.trainingCertificates = `Please upload certificates for: ${missing.join(', ')}`;
+        newErrors.trainingCertificates = `Please attach certificates for: ${missing.join(', ')}`;
       }
     }
     if (!form.volunteerReason.trim() || !isValidSmallText(form.volunteerReason, 600))
@@ -2062,14 +2049,17 @@ export default function VolunteerSignupPage() {
                         </label>
                         {selected && training !== 'None in the list' && (
                           <div className="ml-6 mt-1">
-                            {cert && cert.uploadStatus === 'done' ? (
+                            {cert && cert.s3Key ? (
                               <div className="flex items-center gap-3">
                                 <span className="text-sm text-gray-700">{cert.filename}</span>
                                 <span className="text-green-600 text-sm">Uploaded</span>
                                 <button type="button" className="text-red-600 text-sm" onClick={() => removeCertificate(training)}>Remove</button>
                               </div>
-                            ) : cert && cert.uploadStatus === 'uploading' ? (
-                              <div className="text-sm text-gray-700">Uploading...</div>
+                            ) : cert && cert.file ? (
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-gray-700">Selected: {cert.filename} ({Math.round((cert.size||0)/1024)} KB)</span>
+                                <button type="button" className="text-red-600 text-sm" onClick={() => removeCertificate(training)}>Remove</button>
+                              </div>
                             ) : cert && cert.uploadStatus === 'failed' ? (
                               <div className="flex items-center gap-3">
                                 <div className="text-sm text-red-600">Upload failed: {cert.lastError || 'Please try again.'}</div>
@@ -2089,8 +2079,6 @@ export default function VolunteerSignupPage() {
                                 accept="application/pdf,image/*"
                                 onChange={(e) => handleFileSelect(e, training)}
                                 className="mt-1 dark:text-gray-900 text-sm dark:border-gray-600 border border-gray-300 rounded px-2 py-1 touch-manipulation"
-                                disabled={cert && cert.uploadStatus === 'uploading'}
-                                aria-disabled={cert && cert.uploadStatus === 'uploading'}
                               />
                             )}
                           </div>
