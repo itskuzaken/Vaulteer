@@ -301,7 +301,7 @@ async function getApplicantStatusHistory(userId) {
 }
 
 // Create new applicant with complete profile data
-async function createApplicantWithProfile(userData, formData) {
+async function createApplicantWithProfile(userData, formData, options = {}) {
   const pool = getPool();
   const connection = await pool.getConnection();
 
@@ -502,16 +502,35 @@ async function createApplicantWithProfile(userData, formData) {
       }
     }
 
-    // 10. Persist uploaded certificate metadata (if provided)
+    // 10. If files were uploaded as part of the request (server-side upload), save them to S3 and add to trainingCertificates
+    if (options && options.uploadedFiles && Object.keys(options.uploadedFiles).length > 0) {
+      const s3svc = require('../services/s3Service');
+      formData.trainingCertificates = Array.isArray(formData.trainingCertificates) ? [...formData.trainingCertificates] : [];
+      const allowedTypes = ['application/pdf', 'image/png', 'image/jpeg', 'image/jpg'];
+      for (const [trainingName, fileInfo] of Object.entries(options.uploadedFiles)) {
+        if (!allowedTypes.includes((fileInfo.mime || '').toLowerCase())) {
+          throw new Error(`Invalid file type for ${trainingName}`);
+        }
+        const extMatch = (fileInfo.filename || '').match(/\.([a-zA-Z0-9]+)$/);
+        const ext = extMatch ? extMatch[1].toLowerCase() : 'pdf';
+        const slug = String(trainingName).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const timestamp = Date.now();
+        const s3Key = `vol-cert/${applicantId}/${timestamp}-${slug}.${ext}`;
+        // upload buffer to S3 using existing helper
+        await s3svc.uploadBadgeBuffer(fileInfo.buffer, s3Key, fileInfo.mime || 'application/octet-stream');
+        formData.trainingCertificates.push({ trainingName, s3Key, filename: fileInfo.filename, mime: fileInfo.mime, size: fileInfo.size });
+      }
+    }
+
+    // 11. Persist uploaded certificate metadata (if provided)
     // Expected format: formData.trainingCertificates = [{ trainingName, s3Key, filename, mime, size }]
-    // 10. Persist uploaded certificate metadata (if provided)
     if (formData.trainingCertificates && Array.isArray(formData.trainingCertificates) && formData.trainingCertificates.length > 0) {
       // Delegate validation + insertion to helper to allow easier testing and S3 verification
       await validateAndInsertCertificates({
         applicantId,
         profileId,
         formData,
-        currentUserId: req.currentUserId || userId,
+        currentUserId: userId,
         connection
       });
     }

@@ -58,8 +58,20 @@ async function getCurrentUserIdFromFirebaseUid(firebaseUid) {
 }
 
 // POST /api/applicants - Create new volunteer application
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// Helper middleware to conditionally run multer only for multipart requests
+function conditionalMulter(req, res, next) {
+  if (req.is('multipart/form-data')) {
+    return upload.any()(req, res, next);
+  }
+  return next();
+}
+
 router.post(
   "/",
+  conditionalMulter,
   asyncHandler(async (req, res) => {
     // Check if applications are open
     const settings = await applicationSettingsRepository.getSettings();
@@ -72,7 +84,18 @@ router.post(
       });
     }
 
-    const { user, form } = req.body;
+    // Support multipart/form-data where user + form are sent as fields
+    let user, form;
+    if (req.is('multipart/form-data')) {
+      try {
+        user = req.body.user ? JSON.parse(req.body.user) : null;
+        form = req.body.form ? JSON.parse(req.body.form) : null;
+      } catch (e) {
+        return res.status(400).json({ error: 'Invalid multipart payload: user/form JSON could not be parsed' });
+      }
+    } else {
+      ({ user, form } = req.body);
+    }
 
     // Validate required user fields
     if (!user || !user.uid || !user.name || !user.email) {
@@ -164,7 +187,30 @@ router.post(
     }
 
     try {
-      const result = await createApplicantWithProfile(user, form);
+      // If this request included uploaded files, map them and pass as options for server-side upload
+      let options = {};
+      if (req.files && req.files.length > 0) {
+        const uploadedFiles = {};
+        // form.trainingCertificates should include fileField entries indicating the field name used
+        const certs = Array.isArray(form.trainingCertificates) ? form.trainingCertificates : [];
+        for (const cert of certs) {
+          if (cert.fileField) {
+            const file = req.files.find(f => f.fieldname === cert.fileField);
+            if (file) {
+              uploadedFiles[cert.trainingName] = {
+                buffer: file.buffer,
+                filename: file.originalname,
+                mime: file.mimetype,
+                size: file.size,
+                field: file.fieldname,
+              };
+            }
+          }
+        }
+        options.uploadedFiles = uploadedFiles;
+      }
+
+      const result = await createApplicantWithProfile(user, form, options);
       res.status(201).json(result);
     } catch (error) {
       console.error("[POST /api/applicants] Error:", error);
