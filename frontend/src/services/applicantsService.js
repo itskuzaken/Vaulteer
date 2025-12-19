@@ -83,57 +83,85 @@ export async function submitVolunteerApplication(userData, formData) {
   // If any trainingCertificates have an attached File, submit as multipart/form-data
   const hasFiles = Array.isArray(formData.trainingCertificates) && formData.trainingCertificates.some(c => c && c.file instanceof File);
 
-  let res;
-  if (hasFiles) {
-    const fd = new FormData();
-    // Clone formData and strip File objects for JSON payload; but keep metadata
-    const formCopy = { ...formData, trainingCertificates: [] };
-
-    // For each certificate, if it has a file, append to FormData and reference field name
-    (formData.trainingCertificates || []).forEach((c, idx) => {
-      const trainingName = c.trainingName;
-      const slug = String(trainingName).toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      if (c.file instanceof File) {
-        const fieldName = `trainingFile:${slug}`;
-        fd.append(fieldName, c.file, c.filename || c.file.name);
-        formCopy.trainingCertificates.push({ trainingName, filename: c.filename || c.file.name, mime: c.mime || c.file.type, size: c.size || c.file.size, fileField: fieldName });
-      } else if (c.s3Key) {
-        // Already uploaded earlier (unlikely in memory-only flow) - include metadata so backend can validate
-        formCopy.trainingCertificates.push({ trainingName, s3Key: c.s3Key, filename: c.filename, mime: c.mime, size: c.size });
-      }
-    });
-
-    fd.append('user', JSON.stringify(userData));
-    fd.append('form', JSON.stringify(formCopy));
-
-    res = await fetch(`${API_BASE}/applicants`, {
-      method: "POST",
-      body: fd,
-    });
-  } else {
-    res = await fetch(`${API_BASE}/applicants`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        user: userData,
-        form: formData,
-      }),
-    });
-  }
-
-  let data;
   try {
-    data = await res.json();
-  } catch {
-    data = null;
-  }
+    let res;
 
-  if (!res.ok) {
-    const msg = data?.error || data?.message || "Failed to submit application";
-    throw new Error(msg);
-  }
+    if (hasFiles) {
+      const fd = new FormData();
+      // Clone formData and strip File objects for JSON payload; but keep metadata
+      const formCopy = { ...formData, trainingCertificates: [] };
 
-  return data;
+      // For each certificate, if it has a file, append to FormData and reference field name
+      (formData.trainingCertificates || []).forEach((c, idx) => {
+        const trainingName = c.trainingName;
+        const slug = String(trainingName).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        if (c.file instanceof File) {
+          const fieldName = `trainingFile:${slug}`;
+          fd.append(fieldName, c.file, c.filename || c.file.name);
+          formCopy.trainingCertificates.push({ trainingName, filename: c.filename || c.file.name, mime: c.mime || c.file.type, size: c.size || c.file.size, fileField: fieldName });
+        } else if (c.s3Key) {
+          // Already uploaded earlier (unlikely in memory-only flow) - include metadata so backend can validate
+          formCopy.trainingCertificates.push({ trainingName, s3Key: c.s3Key, filename: c.filename, mime: c.mime, size: c.size });
+        }
+      });
+
+      fd.append('user', JSON.stringify(userData));
+      fd.append('form', JSON.stringify(formCopy));
+
+      res = await fetch(`${API_BASE}/applicants`, {
+        method: "POST",
+        body: fd,
+        credentials: 'include',
+      });
+    } else {
+      res = await fetch(`${API_BASE}/applicants`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          user: userData,
+          form: formData,
+        }),
+        credentials: 'include',
+      });
+    }
+
+    // Parse response intelligently: prefer JSON, but fall back to text when needed
+    const contentType = res.headers.get('content-type') || '';
+    let data = null;
+
+    if (contentType.includes('application/json')) {
+      try {
+        data = await res.json();
+      } catch (e) {
+        data = null;
+      }
+    } else {
+      // try JSON first, then text
+      try {
+        data = await res.json();
+      } catch (e) {
+        try {
+          const text = await res.text();
+          data = text;
+        } catch {
+          data = null;
+        }
+      }
+    }
+
+    if (!res.ok) {
+      const msg = (data && (data.error || data.message)) || (typeof data === 'string' && data) || `${res.status} ${res.statusText}` || "Failed to submit application";
+      throw new Error(msg);
+    }
+
+    return data;
+  } catch (err) {
+    // Wrap network/fetch errors with useful message
+    if (err instanceof Error && err.message) {
+      throw new Error(`Failed to submit application: ${err.message}`);
+    }
+    throw new Error('Failed to submit application');
+  }
 }

@@ -4,8 +4,6 @@ const asyncHandler = require("../middleware/asyncHandler");
 const { authenticate } = require("../middleware/auth");
 const {
   listApplicants,
-  approveApplicant,
-  rejectApplicant,
   getAllApplicationStatuses,
   updateApplicantStatus,
   getApplicantStatusHistory,
@@ -22,7 +20,6 @@ const {
   isValidSocialUrl,
   isValidCity,
   isAlpha,
-  countSentences,
   isSentenceCountInRange,
 } = require("../utils/formValidators");
 const { getPool } = require("../db/pool");
@@ -62,11 +59,25 @@ const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 // Helper middleware to conditionally run multer only for multipart requests
+// Also capture Multer errors and return a friendly JSON response
 function conditionalMulter(req, res, next) {
-  if (req.is('multipart/form-data')) {
-    return upload.any()(req, res, next);
-  }
-  return next();
+  if (!req.is || !req.is('multipart/form-data')) return next();
+
+  // Run upload.any() and intercept errors (MulterError, file size, parse errors)
+  return upload.any()(req, res, function (err) {
+    if (!err) return next();
+
+    // Multer-specific errors (e.g., file too large)
+    // multer.MulterError is a named class - check for its properties
+    if (err && err.name === 'MulterError') {
+      // 413 Payload Too Large is appropriate for file size limits
+      const status = err.code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+      return res.status(status).json({ success: false, error: err.message || 'File upload error', code: err.code || 'MULTER_ERROR' });
+    }
+
+    // For other parsing errors, return 400 with message
+    return res.status(400).json({ success: false, error: err.message || 'Invalid multipart payload' });
+  });
 }
 
 router.post(
@@ -191,8 +202,14 @@ router.post(
       let options = {};
       if (req.files && req.files.length > 0) {
         const uploadedFiles = {};
+        const missingFiles = [];
+        const autoMatched = [];
         // form.trainingCertificates should include fileField entries indicating the field name used
         const certs = Array.isArray(form.trainingCertificates) ? form.trainingCertificates : [];
+
+        // Log incoming files for debugging (fieldname, originalname, size)
+        console.log('[POST /api/applicants] Incoming multipart files:', req.files.map(f => ({ field: f.fieldname, originalname: f.originalname, size: f.size })));
+
         for (const cert of certs) {
           if (cert.fileField) {
             const file = req.files.find(f => f.fieldname === cert.fileField);
@@ -204,22 +221,70 @@ router.post(
                 size: file.size,
                 field: file.fieldname,
               };
+            } else {
+              missingFiles.push(cert.trainingName || cert.fileField);
+            }
+          } else if (cert.filename) {
+            // Fallback: try to match uploaded file by original filename when no fileField was provided
+            const fileByName = req.files.find(f => f.originalname === cert.filename);
+            if (fileByName) {
+              uploadedFiles[cert.trainingName] = {
+                buffer: fileByName.buffer,
+                filename: fileByName.originalname,
+                mime: fileByName.mimetype,
+                size: fileByName.size,
+                field: fileByName.fieldname,
+                autoMatched: true,
+              };
+              autoMatched.push({ trainingName: cert.trainingName, filename: cert.filename, matchedField: fileByName.fieldname });
             }
           }
         }
+
+        if (missingFiles.length) {
+          // Provide more debugging info in the response to aid local dev (non-sensitive): list files present and expected
+          const presentFiles = req.files.map(f => f.fieldname + ' (' + f.originalname + ')');
+          return res.status(400).json({ error: `Missing uploaded file(s) for training(s): ${missingFiles.join(', ')}`, presentFiles, autoMatched });
+        }
+
+        if (autoMatched.length) {
+          console.log('[POST /api/applicants] Auto-matched files by filename:', autoMatched);
+        }
+
         options.uploadedFiles = uploadedFiles;
       }
 
       const result = await createApplicantWithProfile(user, form, options);
       res.status(201).json(result);
     } catch (error) {
-      console.error("[POST /api/applicants] Error:", error);
+      // Log full error stack for debugging
+      console.error("[POST /api/applicants] Error:", error && error.message ? error.message : error);
+      if (error && error.stack) console.error(error.stack);
 
       // Handle duplicate application
-      if (error.message.includes("already submitted")) {
+      if (error.message && error.message.includes("already submitted")) {
         return res.status(409).json({
           error: "Application already submitted",
           message: error.message,
+        });
+      }
+
+      // Map missing certificate / S3 verification failures to 400 (client error)
+      if (error.message && (error.message.includes('Missing certificate for required training') || error.message.includes('Certificate file not found on S3') || error.message.includes('Certificate verification failed'))) {
+        return res.status(400).json({
+          error: 'Invalid application: missing or invalid certificate',
+          message: error.message,
+          code: 'MISSING_CERTIFICATE'
+        });
+      }
+
+      // Handle S3 Access Denied (missing IAM permissions) specifically
+      if (error && (error.code === 'S3_ACCESS_DENIED' || (error.message && (error.message.includes('s3:PutObject') || error.message.includes('AccessDenied'))))) {
+        console.error('[POST /api/applicants] S3 Access denied while trying to upload training certificate.');
+        return res.status(403).json({
+          error: 'S3 upload permission denied',
+          message: error.message || 'Server is not authorized to upload files to S3. Check AWS credentials and IAM policy (s3:PutObject) for the configured S3 bucket.' ,
+          code: 'S3_ACCESS_DENIED'
         });
       }
 

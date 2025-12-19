@@ -71,6 +71,7 @@ export default function VolunteerSignupPage() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [applicationSettings, setApplicationSettings] = useState(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
+  const [settingsError, setSettingsError] = useState(null);
   const [timeRemaining, setTimeRemaining] = useState("");
 
   // Check Firebase auth state
@@ -98,11 +99,13 @@ export default function VolunteerSignupPage() {
   useEffect(() => {
     async function fetchSettings() {
       try {
+        setSettingsError(null);
         setLoadingSettings(true);
         const result = await getApplicationSettings();
         if (result?.success) setApplicationSettings(result.data);
       } catch (err) {
         console.error("Failed to fetch application settings:", err);
+        setSettingsError(err.message || 'Failed to fetch application settings');
       } finally {
         setLoadingSettings(false);
       }
@@ -571,13 +574,32 @@ export default function VolunteerSignupPage() {
       newErrors.volunteerTrainings = "Please select at least one training.";
 
     // Ensure required trainings have uploaded certificates (excluding 'None in the list')
+    // Use a normalization helper to be resilient to punctuation/hyphen/case differences between labels and certificate metadata
+    const normalizeName = (n) => String(n || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+
     const requiredTrainings = (form.volunteerTrainings || []).filter(t => t !== 'None in the list');
     if (requiredTrainings.length) {
       const certs = form.trainingCertificates || [];
-      // Consider a training satisfied if it has an s3Key (already uploaded) or has an attached File in memory
-      const missing = requiredTrainings.filter(t => !certs.find(c => c.trainingName === t && ((c.s3Key && c.uploadStatus === 'done') || c.file)));
+      const certMap = {};
+      for (const c of certs) {
+        if (c && c.trainingName) certMap[normalizeName(c.trainingName)] = c;
+      }
+
+      // Determine missing required trainings (normalized match)
+      const missing = requiredTrainings.filter(t => {
+        const norm = normalizeName(t);
+        const cert = certMap[norm] || certs.find(c => normalizeName(c.trainingName) === norm);
+        return !(cert && ((cert.s3Key && cert.uploadStatus === 'done') || cert.file));
+      });
       if (missing.length) {
         newErrors.trainingCertificates = `Please attach certificates for: ${missing.join(', ')}`;
+      }
+
+      // Extra check: ensure all attached certificates correspond to a selected training
+      const normRequiredSet = new Set(requiredTrainings.map(normalizeName));
+      const inconsistent = certs.filter(c => c && c.trainingName && !normRequiredSet.has(normalizeName(c.trainingName))).map(c => c.trainingName);
+      if (inconsistent.length) {
+        newErrors.trainingCertificates = `Attached certificate(s) for unselected training(s): ${inconsistent.join(', ')}. Please remove or select the matching training.`;
       }
     }
     if (!form.volunteerReason.trim() || !isValidSmallText(form.volunteerReason, 600))
@@ -691,6 +713,10 @@ export default function VolunteerSignupPage() {
 
     try {
       // Prevent submission if applications closed
+      if (settingsError) {
+        throw new Error("Cannot submit: application settings could not be loaded. Please try again later.");
+      }
+
       if (applicationSettings && !applicationSettings.is_open) {
         throw new Error(
           "Applications are currently closed. Please check for future openings."
@@ -744,7 +770,12 @@ export default function VolunteerSignupPage() {
       setSubmitted(true);
     } catch (error) {
       console.error("Error submitting application:", error);
-      setSubmitError(error.message);
+      // Provide a clearer message for network errors (backend unreachable)
+      if (error && (error.message === 'Failed to fetch' || error.message === 'NetworkError when attempting to fetch resource.')) {
+        setSubmitError(`Cannot reach backend at ${API_BASE}. Is the server running?`);
+      } else {
+        setSubmitError(error.message || "Failed to submit application");
+      }
       setIsSubmitting(false);
     }
   };
@@ -902,6 +933,29 @@ export default function VolunteerSignupPage() {
       
 
       {/* Applications Status Banner - Only show when OPEN */}
+      {/* Show an error banner when application settings could not be fetched */}
+      {settingsError && (
+        <div className="w-full max-w-xl mb-3 sm:mb-4 px-0">
+          <div className="bg-red-50 border border-red-400 text-red-800 px-3 py-3 rounded-lg text-sm">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <div className="font-semibold">Cannot load application settings</div>
+                <div className="text-xs text-red-700 mt-1">{settingsError}</div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => { setSettingsError(null); setLoadingSettings(true); (async () => { try { const r = await getApplicationSettings(); if (r?.success) setApplicationSettings(r.data); } catch (e) { setSettingsError(e.message || 'Failed to fetch application settings'); } finally { setLoadingSettings(false); } })(); }}
+                  className="bg-white border border-red-400 text-red-700 px-3 py-1 rounded hover:bg-red-100 text-sm"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {!loadingSettings && applicationSettings && applicationSettings.is_open && (
         <div className="w-full max-w-xl mb-3 sm:mb-4 px-0">
           {/* Applications Open with Deadline */}

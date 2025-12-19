@@ -154,4 +154,40 @@ describe('Volunteer signup upload flow', () => {
     // Expect validation message about missing certificate (attached required)
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/Please attach certificates for: HIV Testing/));
   });
+
+  test('accepts a certificate when training name differs only by punctuation/hyphen', async () => {
+    // Simulate saved draft with a selected training "Community-Based HIV Screening" but certificate labeled without hyphen
+    const savedForm = {
+      lastName: 'Dela Cruz',
+      firstName: 'Juan',
+      nickname: 'Juan',
+      birthdate: '1990-01-01',
+      gender: 'Male',
+      consent: 'agree',
+      mobileNumber: '09171234567',
+      city: 'Bacolod City',
+      currentStatus: 'Not Applicable',
+      declarationCommitment: 'agree',
+      volunteerReason: 'I want to help. I want to learn. I want to contribute. I want to grow. I want to support.',
+      volunteerFrequency: 'Often',
+      volunteerTrainings: ['Community-Based HIV Screening'],
+      trainingCertificates: [{ trainingName: 'Community Based HIV Screening', filename: 'cert.pdf', mime: 'application/pdf', size: 123, file: {} }]
+    };
+    window.localStorage.getItem = jest.fn().mockReturnValue(JSON.stringify(savedForm));
+
+    render(<VolunteerSignupPage />);
+
+    // Navigate to the volunteer profile step (component will load saved form)
+    fireEvent.click(screen.getByLabelText('I Agree'));
+    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Next'));
+    fireEvent.click(screen.getByText('Next'));
+
+    // At the Volunteer Profile step, click Next to trigger validation
+    fireEvent.click(screen.getByText('Next'));
+
+    // Since the certificate name differs only by punctuation/hyphen, validation should pass (no missing cert error)
+    await waitFor(() => expect(screen.queryByText(/Please attach certificates for/)).toBeNull());
+  });
 });

@@ -517,7 +517,18 @@ async function createApplicantWithProfile(userData, formData, options = {}) {
         const timestamp = Date.now();
         const s3Key = `vol-cert/${applicantId}/${timestamp}-${slug}.${ext}`;
         // upload buffer to S3 using existing helper
-        await s3svc.uploadBadgeBuffer(fileInfo.buffer, s3Key, fileInfo.mime || 'application/octet-stream');
+        try {
+          await s3svc.uploadBadgeBuffer(fileInfo.buffer, s3Key, fileInfo.mime || 'application/octet-stream');
+        } catch (err) {
+          console.error(`[createApplicantWithProfile] S3 upload failed for ${s3Key}:`, err && err.message ? err.message : err);
+          // Normalize AWS AccessDenied into a clear, actionable error that callers can map to 403
+          if (err && (err.Code === 'AccessDenied' || err.name === 'AccessDenied' || (err.message && err.message.includes('s3:PutObject')) || (err.message && err.message.includes('AccessDenied')))) {
+            const e = new Error(`S3 upload failed: AccessDenied. Ensure backend AWS credentials and IAM policy allow s3:PutObject on the target bucket (${s3svc.TRAINING_CERTIFICATES_BUCKET}).`);
+            e.code = 'S3_ACCESS_DENIED';
+            throw e;
+          }
+          throw err;
+        }
         formData.trainingCertificates.push({ trainingName, s3Key, filename: fileInfo.filename, mime: fileInfo.mime, size: fileInfo.size });
       }
     }
@@ -744,16 +755,24 @@ async function validateAndInsertCertificates({ applicantId, profileId, formData,
   const pool = getPool();
   const conn = connection || pool;
 
+  // Helper to normalize training names for resilient matching
+  const normalizeName = (n) => String(n || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ').trim();
+
   const requiredTrainings = (formData.volunteerTrainings || []).filter(t => t !== 'None in the list');
   const certs = Array.isArray(formData.trainingCertificates) ? formData.trainingCertificates : [];
   const certMap = {};
   for (const c of certs) {
-    if (c && c.trainingName) certMap[c.trainingName] = c;
+    if (c && c.trainingName) certMap[normalizeName(c.trainingName)] = c;
   }
 
   for (const reqTraining of requiredTrainings) {
-    const cert = certMap[reqTraining];
+    const normReq = normalizeName(reqTraining);
+    // Try normalized lookup first, then fall back to literal matches
+    let cert = certMap[normReq] || certs.find(c => normalizeName(c.trainingName) === normReq) || certs.find(c => c.trainingName === reqTraining);
+
     if (!cert || !cert.s3Key) {
+      const available = certs.map(c => c.trainingName || c.s3Key || JSON.stringify(c)).join(', ');
+      console.error(`[validateAndInsertCertificates] Missing certificate for applicant ${applicantId}: required="${reqTraining}"; availableCertificates=[${available}]`);
       throw new Error(`Missing certificate for required training: ${reqTraining}`);
     }
 
