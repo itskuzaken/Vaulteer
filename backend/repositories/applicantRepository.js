@@ -742,6 +742,7 @@ module.exports = {
   // Certificate helpers
   createCertificateRecord,
   getCertificatesForApplicant,
+  getCertificateById,
   validateAndInsertCertificates,
 };
 
@@ -851,4 +852,14 @@ async function getCertificatesForApplicant(applicantId) {
     [applicantId]
   );
   return rows || [];
+}
+
+async function getCertificateById(certId) {
+  const pool = getPool();
+  const [rows] = await pool.execute(
+    `SELECT id, applicant_id, training_name, s3_key, original_filename, mimetype, size, uploaded_by, uploaded_at
+     FROM user_training_certificates WHERE id = ? LIMIT 1`,
+    [certId]
+  );
+  return rows.length > 0 ? rows[0] : null;
 }

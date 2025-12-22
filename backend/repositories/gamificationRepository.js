@@ -387,11 +387,14 @@ class GamificationRepository {
 
     if (period === "monthly") {
       const [rows] = await pool.query(
-        `SELECT ge.user_id, u.name, u.email, SUM(ge.points_delta) AS points
+        `SELECT ge.user_id, u.name, u.email, u.profile_picture, ugs.current_level, r.role, SUM(ge.points_delta) AS points
            FROM gamification_events ge
            JOIN users u ON ge.user_id = u.user_id
+           LEFT JOIN user_gamification_stats ugs ON u.user_id = ugs.user_id
+           JOIN roles r ON u.role_id = r.role_id
           WHERE ge.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
-          GROUP BY ge.user_id, u.name, u.email
+            AND r.role = 'volunteer'
+          GROUP BY ge.user_id, u.name, u.email, u.profile_picture, ugs.current_level, r.role
           HAVING points > 0
           ORDER BY points DESC
           LIMIT ?`,
@@ -401,14 +404,130 @@ class GamificationRepository {
     }
 
     const [rows] = await pool.query(
-      `SELECT ugs.user_id, u.name, u.email, ugs.total_points AS points
+      `SELECT ugs.user_id, u.name, u.email, u.profile_picture, ugs.current_level, r.role, ugs.total_points AS points
          FROM user_gamification_stats ugs
          JOIN users u ON ugs.user_id = u.user_id
+         JOIN roles r ON u.role_id = r.role_id AND r.role = 'volunteer'
         ORDER BY ugs.total_points DESC
         LIMIT ?`,
       [safeLimit]
     );
     return rows;
+  }
+
+  async getLeaderboardFull({ period = 'all', limit = 100, offset = 0, aroundUserId = null } = {}) {
+    const pool = getPool();
+    const safeLimit = Math.max(1, Math.min(limit, 500));
+    let safeOffset = Math.max(0, Number(offset) || 0);
+
+    // If aroundUserId is provided, compute their rank and center the slice around them
+    if (aroundUserId) {
+      // compute rank for the user depending on period using point counts (no window functions)
+      if (period === 'monthly') {
+        const [[userPointsRow]] = await pool.query(
+          `SELECT SUM(ge.points_delta) AS user_points
+             FROM gamification_events ge
+             JOIN users u ON ge.user_id = u.user_id
+             JOIN roles r ON u.role_id = r.role_id
+            WHERE ge.user_id = ? AND ge.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND r.role = 'volunteer'
+            LIMIT 1`,
+          [aroundUserId]
+        );
+        const userPoints = (userPointsRow && userPointsRow.user_points) || 0;
+        const [[userRankRow]] = await pool.query(
+          `SELECT COUNT(*) + 1 AS rnk FROM (
+             SELECT SUM(ge.points_delta) AS points
+               FROM gamification_events ge
+               JOIN users u ON ge.user_id = u.user_id
+               JOIN roles r ON u.role_id = r.role_id
+              WHERE ge.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND r.role = 'volunteer'
+              GROUP BY ge.user_id
+              HAVING points > ?
+           ) t`,
+          [userPoints]
+        );
+        if (userRankRow && userRankRow.rnk) {
+          safeOffset = Math.max(0, userRankRow.rnk - Math.floor(safeLimit / 2));
+        }
+      } else {
+        const [[userPointsRow]] = await pool.query(
+          `SELECT ugs.total_points AS user_points FROM user_gamification_stats ugs WHERE ugs.user_id = ? LIMIT 1`,
+          [aroundUserId]
+        );
+        const userPoints = (userPointsRow && userPointsRow.user_points) || 0;
+        const [[userRankRow]] = await pool.query(
+          `SELECT COUNT(*) + 1 AS rnk
+             FROM user_gamification_stats ugs
+             JOIN users u ON ugs.user_id = u.user_id
+             JOIN roles r ON u.role_id = r.role_id
+            WHERE r.role = 'volunteer' AND ugs.total_points > ?`,
+          [userPoints]
+        );
+        if (userRankRow && userRankRow.rnk) {
+          safeOffset = Math.max(0, userRankRow.rnk - Math.floor(safeLimit / 2));
+        }
+      }
+    }
+
+    if (period === 'monthly') {
+      // total count of active monthly contributors (points > 0)
+      const [totalRows] = await pool.query(
+        `SELECT COUNT(*) AS total FROM (
+           SELECT ge.user_id, SUM(ge.points_delta) AS points
+             FROM gamification_events ge
+             JOIN users u ON ge.user_id = u.user_id
+             JOIN roles r ON u.role_id = r.role_id
+            WHERE ge.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND r.role = 'volunteer'
+            GROUP BY ge.user_id
+            HAVING points > 0
+         ) t`
+      );
+      const total = (totalRows && totalRows[0] && totalRows[0].total) || 0;
+
+      const [rowsRaw] = await pool.query(
+        `SELECT u.user_id, u.name, u.email, u.profile_picture, COALESCE(ugs.current_level, 1) AS current_level, SUM(ge.points_delta) AS points
+           FROM gamification_events ge
+           JOIN users u ON ge.user_id = u.user_id
+           LEFT JOIN user_gamification_stats ugs ON u.user_id = ugs.user_id
+           JOIN roles r ON u.role_id = r.role_id
+          WHERE ge.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) AND r.role = 'volunteer'
+          GROUP BY u.user_id, u.name, u.email, u.profile_picture, ugs.current_level
+          HAVING points > 0
+          ORDER BY points DESC
+          LIMIT ? OFFSET ?`,
+        [safeLimit, safeOffset]
+      );
+
+      const rows = (rowsRaw || []).map((row, idx) => ({ ...row, rank: safeOffset + idx + 1 }));
+
+      return { total, entries: rows };
+    }
+
+    // all-time leaderboard
+    const [totalRows] = await pool.query(
+      `SELECT COUNT(*) AS total
+         FROM user_gamification_stats ugs
+         JOIN users u ON ugs.user_id = u.user_id
+         JOIN roles r ON u.role_id = r.role_id
+        WHERE r.role = 'volunteer'`
+    );
+
+    const total = (totalRows && totalRows[0] && totalRows[0].total) || 0;
+
+    const [rowsRaw] = await pool.query(
+      `SELECT u.user_id, u.name, u.email, u.profile_picture, ugs.current_level, ugs.total_points AS points
+         FROM user_gamification_stats ugs
+         JOIN users u ON ugs.user_id = u.user_id
+         JOIN roles r ON u.role_id = r.role_id
+        WHERE r.role = 'volunteer'
+        ORDER BY ugs.total_points DESC
+        LIMIT ? OFFSET ?`,
+      [safeLimit, safeOffset]
+    );
+
+    const rows = (rowsRaw || []).map((row, idx) => ({ ...row, rank: safeOffset + idx + 1 }));
+
+    return { total, entries: rows };
   }
 
   async initializeUserLevelStats(userId) {

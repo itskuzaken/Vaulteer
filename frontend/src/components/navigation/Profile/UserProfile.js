@@ -41,6 +41,7 @@ import Achievements from "../../UserProfile/Achievements";
 import AdminControls from "../../UserProfile/AdminControls";
 import ApplicantAdminControls from "../../UserProfile/ApplicantAdminControls";
 import VolunteerProfile from "../../UserProfile/VolunteerProfile";
+import { getCertificates, getCertificateDownloadUrl } from "../../../services/profileService";
 
 const dedupeByKey = (items, key) => {
   if (!Array.isArray(items)) {
@@ -84,6 +85,8 @@ export default function UserProfile() {
   const [comprehensiveData, setComprehensiveData] = useState(null);
   const [activitySummary, setActivitySummary] = useState(null);
   const [profileCompletion, setProfileCompletion] = useState(0);
+  const [certificates, setCertificates] = useState([]);
+  const [certLoading, setCertLoading] = useState(false);
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false);
@@ -265,6 +268,33 @@ export default function UserProfile() {
         } else {
           setProfileCompletion(0);
         }
+
+        // Fetch certificates metadata and prefetch image previews
+        (async () => {
+          try {
+            setCertLoading(true);
+            const fetchedCerts = await getCertificates(normalizedUid);
+            const previewPromises = (fetchedCerts || []).map(async (c) => {
+              if (c && c.mimetype && c.mimetype.startsWith("image/")) {
+                try {
+                  const url = await getCertificateDownloadUrl(normalizedUid, c.id);
+                  return { ...c, previewUrl: url };
+                } catch (err) {
+                  // If preview presign fails, still include metadata without previewUrl
+                  return { ...c };
+                }
+              }
+              return { ...c };
+            });
+            const withPreviews = await Promise.all(previewPromises);
+            setCertificates(withPreviews || []);
+          } catch (certErr) {
+            console.warn("Failed to load certificates for profile preview:", certErr);
+            setCertificates([]);
+          } finally {
+            setCertLoading(false);
+          }
+        })();
 
         return true;
       } catch (err) {
@@ -989,7 +1019,9 @@ export default function UserProfile() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Trainings */}
         <Trainings
+          userUid={profileUserUid}
           trainings={comprehensiveData?.trainings}
+          certificates={certificates}
           isEditing={isEditing}
           editedTrainings={editedTrainings}
           onChange={setEditedTrainings}

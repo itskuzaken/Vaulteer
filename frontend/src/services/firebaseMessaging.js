@@ -9,7 +9,7 @@ let vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
  * Initialize Firebase Messaging
  * Should be called after Firebase app is initialized
  */
-export function initializeMessaging() {
+export async function initializeMessaging() {
   if (typeof window === "undefined") {
     // Server-side rendering
     return null;
@@ -17,7 +17,8 @@ export function initializeMessaging() {
 
   if (!messaging) {
     try {
-      const { app } = require("@/services/firebase");
+      const firebaseMod = await import("@/services/firebase");
+      const app = firebaseMod.app;
       messaging = getMessaging(app);
       console.log("Firebase Messaging initialized");
     } catch (error) {
@@ -64,7 +65,7 @@ export async function requestNotificationPermission() {
  */
 export async function getDeviceToken() {
   try {
-    const msg = initializeMessaging();
+    const msg = await initializeMessaging();
     if (!msg) {
       throw new Error("Firebase Messaging not initialized");
     }
@@ -141,7 +142,7 @@ export async function enablePushNotifications(onNotificationCallback) {
 
     // Setup foreground message handler
     if (onNotificationCallback) {
-      setupForegroundMessageHandler(onNotificationCallback);
+      await setupForegroundMessageHandler(onNotificationCallback);
     }
 
     return {
@@ -159,8 +160,8 @@ export async function enablePushNotifications(onNotificationCallback) {
  * Setup handler for foreground messages (when app is in focus)
  * @param {Function} callback - Callback function to handle notification
  */
-export function setupForegroundMessageHandler(callback) {
-  const msg = initializeMessaging();
+export async function setupForegroundMessageHandler(callback) {
+  const msg = await initializeMessaging();
   if (!msg) {
     console.warn("Firebase Messaging not initialized");
     return;

@@ -15,12 +15,17 @@ import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
 import PostDetailsContent from "../../../../components/navigation/Post/PostDetailsContent";
 import UserSettings from "../../../../components/navigation/Settings/UserSettings";
 import NotificationsPage from "../../../../components/notifications/NotificationsPage";
+import LeaderboardPage from "../../../../components/leaderboard/LeaderboardPage";
 
 const staffMainRoutes = {
   dashboard: {
     label: "Dashboard",
     component: StaffDashboard,
     withNavigate: true,
+  },
+  leaderboard: {
+    label: "Leaderboard",
+    component: LeaderboardPage,
   },
   "my-activity": {
     label: "My Activity",

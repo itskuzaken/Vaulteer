@@ -16,6 +16,7 @@ import CreateEvent from "../../../../components/navigation/Event/CreateEvent";
 import PostDetailsContent from "../../../../components/navigation/Post/PostDetailsContent";
 import UserSettings from "../../../../components/navigation/Settings/UserSettings";
 import NotificationsPage from "../../../../components/notifications/NotificationsPage";
+import LeaderboardPage from "../../../../components/leaderboard/LeaderboardPage";
 
 // System Settings Pages
 import GamificationSettings from "../../../../components/admin/settings/GamificationSettings";
@@ -29,6 +30,10 @@ const adminMainRoutes = {
     label: "Dashboard",
     component: AdminDashboard,
     withNavigate: true,
+  },
+  leaderboard: {
+    label: "Leaderboard",
+    component: LeaderboardPage,
   },
   "activity-logs": {
     label: "Activity Logs",

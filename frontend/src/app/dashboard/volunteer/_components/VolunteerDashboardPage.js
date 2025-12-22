@@ -11,6 +11,7 @@ import PostDetailsContent from "../../../../components/navigation/Post/PostDetai
 
 import UserSettings from "../../../../components/navigation/Settings/UserSettings";
 import NotificationsPage from "../../../../components/notifications/NotificationsPage";
+import LeaderboardPage from "../../../../components/leaderboard/LeaderboardPage";
 
 const volunteerMainRoutes = {
   dashboard: {
@@ -37,6 +38,10 @@ const volunteerMainRoutes = {
   notifications: {
     label: "Notifications",
     component: NotificationsPage,
+  },
+  leaderboard: {
+    label: "Leaderboard",
+    component: LeaderboardPage,
   },
   "hts-forms": {
     label: "HTS Forms",

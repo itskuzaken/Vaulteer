@@ -47,6 +47,21 @@ router.get(
   })
 );
 
+// Full view leaderboard (paginated, volunteer-only). Accessible to all authenticated roles
+router.get(
+  "/leaderboard/full",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const period = (req.query.period || "all").toLowerCase();
+    const limit = Math.min(500, Math.max(1, parseInt(req.query.limit, 10) || 100));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const aroundUserId = req.query.aroundUserId ? parseInt(req.query.aroundUserId, 10) : null;
+
+    const data = await gamificationService.getLeaderboardFull({ period, limit, offset, aroundUserId });
+    res.json({ success: true, data });
+  })
+);
+
 router.post(
   "/recalculate/:userId",
   authenticate,

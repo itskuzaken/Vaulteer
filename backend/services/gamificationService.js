@@ -375,6 +375,11 @@ class GamificationService {
     return gamificationRepository.getLeaderboard({ period, limit });
   }
 
+  async getLeaderboardFull({ period = 'all', limit = 100, offset = 0, aroundUserId = null } = {}) {
+    // Simple wrapper to repository implementation; can apply service-level caching or enrichment here later
+    return gamificationRepository.getLeaderboardFull({ period, limit, offset, aroundUserId });
+  }
+
   async recalculateUser(userId) {
     return gamificationRepository.recalculateUser(userId);
   }

@@ -26,6 +26,11 @@ const adminMenu = {
     icon: IoGridOutline,
     subSections: [],
   },
+  "leaderboard": {
+    label: "Leaderboard",
+    icon: IoTrophyOutline,
+    subSections: [],
+  },
   "hts-forms": {
     label: "HTS Forms",
     icon: IoDocumentTextOutline,
@@ -113,6 +118,11 @@ const staffMenu = {
     icon: IoGridOutline,
     subSections: [],
   },
+  "leaderboard": {
+    label: "Leaderboard",
+    icon: IoTrophyOutline,
+    subSections: [],
+  },
   "hts-forms": {
     label: "HTS Forms",
     icon: IoDocumentTextOutline,
@@ -161,6 +171,11 @@ const volunteerMenu = {
   dashboard: {
     label: "Dashboard",
     icon: IoGridOutline,
+    subSections: [],
+  },
+  "leaderboard": {
+    label: "Leaderboard",
+    icon: IoTrophyOutline,
     subSections: [],
   },
   "my-events": {

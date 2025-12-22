@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const { authenticate } = require("../middleware/auth");
 const { getPool } = require("../db/pool");
+const applicantRepository = require("../repositories/applicantRepository");
+const s3Service = require("../services/s3Service");
 
 // Helper function to get user from Firebase UID
 async function getUserFromFirebaseUid(firebaseUid) {
@@ -767,6 +769,128 @@ router.put("/:uid/trainings", authenticate, async (req, res) => {
   } catch (error) {
     console.error("Error updating trainings:", error);
     res.status(500).json({ error: "Failed to update trainings" });
+  }
+});
+
+/**
+ * @route   GET /api/profile/:uid/certificates
+ * @desc    List training certificates for a user (owner or admin/staff only)
+ * @access  Private
+ */
+router.get("/:uid/certificates", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
+
+    // Get requesting user
+    const requestingUser = await getUserFromFirebaseUid(req.firebaseUid);
+    if (!requestingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const canView =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid ||
+      requestingUser.role === "admin" ||
+      requestingUser.role === "staff";
+
+    if (!canView) {
+      return res.status(403).json({ error: "Unauthorized to view certificates" });
+    }
+
+    // Resolve applicant_id for this user (if any)
+    const [[applicant]] = await pool.query(
+      `SELECT applicant_id FROM applicants WHERE user_id = ? LIMIT 1`,
+      [userId]
+    );
+
+    if (!applicant) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const certs = await applicantRepository.getCertificatesForApplicant(applicant.applicant_id);
+
+    // Do not return raw s3_key by default — return metadata only
+    const publicCerts = (certs || []).map((c) => ({
+      id: c.id,
+      trainingName: c.training_name,
+      filename: c.original_filename,
+      mimetype: c.mimetype,
+      size: c.size,
+      uploadedBy: c.uploaded_by,
+      uploadedAt: c.uploaded_at,
+    }));
+
+    res.json({ success: true, data: publicCerts });
+  } catch (err) {
+    console.error("Error listing certificates:", err);
+    res.status(500).json({ error: "Failed to list certificates" });
+  }
+});
+
+/**
+ * @route   GET /api/profile/:uid/certificates/:certId/download
+ * @desc    Return presigned download URL for a certificate (owner or admin/staff only)
+ * @access  Private
+ */
+router.get("/:uid/certificates/:certId/download", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const profileUser = req.profileUser;
+    const userId = profileUser.user_id;
+    const certId = parseInt(req.params.certId, 10);
+
+    if (Number.isNaN(certId)) {
+      return res.status(400).json({ error: "Invalid certificate ID" });
+    }
+
+    // Get requesting user
+    const requestingUser = await getUserFromFirebaseUid(req.firebaseUid);
+    if (!requestingUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const canView =
+      requestingUser.user_id === userId ||
+      requestingUser.uid === profileUser.uid ||
+      requestingUser.role === "admin" ||
+      requestingUser.role === "staff";
+
+    if (!canView) {
+      return res.status(403).json({ error: "Unauthorized to download this certificate" });
+    }
+
+    // Resolve applicant_id
+    const [[applicant]] = await pool.query(
+      `SELECT applicant_id FROM applicants WHERE user_id = ? LIMIT 1`,
+      [userId]
+    );
+
+    if (!applicant) {
+      return res.status(404).json({ error: "Applicant record not found for this user" });
+    }
+
+    const cert = await applicantRepository.getCertificateById(certId);
+    if (!cert || cert.applicant_id !== applicant.applicant_id) {
+      return res.status(404).json({ error: "Certificate not found for this user" });
+    }
+
+    // Generate presigned download URL
+    let downloadUrl;
+    try {
+      downloadUrl = await s3Service.getPresignedDownloadUrl(cert.s3_key);
+    } catch (err) {
+      if (err && err.code === 'PRESIGNER_MISSING') {
+        return res.status(500).json({ error: 'S3 presigner not available on server', code: 'PRESIGNER_MISSING' });
+      }
+      throw err;
+    }
+
+    res.json({ success: true, downloadUrl });
+  } catch (err) {
+    console.error("Error generating certificate download URL:", err);
+    res.status(500).json({ error: "Failed to generate download URL" });
   }
 });
 

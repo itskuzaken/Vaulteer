@@ -395,6 +395,79 @@ export async function updateTrainings(userUid, trainingIds) {
 }
 
 /**
+ * Get certificates metadata for a user (owner or admin/staff)
+ * @param {string} userUid
+ * @returns {Promise<Array>} Array of certificate metadata
+ */
+export async function getCertificates(userUid) {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const token = await user.getIdToken();
+
+    const response = await fetch(`${API_BASE}/profile/${userUid}/certificates`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to fetch certificates");
+    }
+
+    const result = await response.json();
+    return result.data || [];
+  } catch (error) {
+    console.error("Error fetching certificates:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get a presigned download URL for a specific certificate by id
+ * @param {string} userUid
+ * @param {number} certId
+ * @returns {Promise<string>} download URL
+ */
+export async function getCertificateDownloadUrl(userUid, certId) {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const token = await user.getIdToken();
+
+    const response = await fetch(`${API_BASE}/profile/${userUid}/certificates/${certId}/download`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to get certificate download URL");
+    }
+
+    const result = await response.json();
+    return result.downloadUrl;
+  } catch (error) {
+    console.error("Error getting certificate download URL:", error);
+    throw error;
+  }
+}
+
+/**
  * Update user available days
  * @param {string} userUid - Firebase UID
  * @param {Array<number>} dayIds - Array of day IDs

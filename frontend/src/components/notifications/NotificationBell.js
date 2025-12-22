@@ -21,7 +21,7 @@ import {
   markAllAsRead,
   deleteNotification,
 } from "../../services/notificationService";
-import { buildEventDetailPath, buildPostDetailPath, buildNotificationsPath } from "@/utils/dashboardRouteHelpers";
+import { buildEventDetailPath, buildPostDetailPath, buildNotificationsPath, buildDashboardQueryPath } from "@/utils/dashboardRouteHelpers";
 import NotificationMessage from "./NotificationMessage";
 
 /**
@@ -49,10 +49,24 @@ const timeAgo = (timestamp) => {
   const seconds = Math.floor((now - date) / 1000);
 
   if (seconds < 60) return "Just now";
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} mins ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
+
+  if (seconds < 3600) {
+    const mins = Math.floor(seconds / 60);
+    return `${mins} ${mins === 1 ? 'min' : 'mins'} ago`;
+  }
+
+  if (seconds < 86400) {
+    const hours = Math.floor(seconds / 3600);
+    return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
+  }
+
   if (seconds < 172800) return "Yesterday";
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)} days ago`;
+
+  if (seconds < 604800) {
+    const days = Math.floor(seconds / 86400);
+    return `${days} ${days === 1 ? 'day' : 'days'} ago`;
+  }
+
   return date.toLocaleDateString();
 };
 
@@ -138,15 +152,37 @@ export default function NotificationBell({ currentUser }) {
       const userRole = currentUser.role?.toLowerCase() || "volunteer";
       let targetUrl = notification.action_url;
 
+      // If it's a dashboard link but missing the role segment (i.e. `/dashboard?content=...`), rebuild with role
+      if (targetUrl.startsWith("/dashboard")) {
+        try {
+          const urlObj = new URL(targetUrl, window.location.origin);
+          const pathSegments = urlObj.pathname.split("/").filter(Boolean);
+          // pathSegments === ['dashboard'] means role segment is missing
+          if (pathSegments.length === 1) {
+            const content = urlObj.searchParams.get("content") || undefined;
+            const params = {};
+            urlObj.searchParams.forEach((value, key) => {
+              if (key === "content") return;
+              params[key] = value;
+            });
+            targetUrl = buildDashboardQueryPath(userRole, { content, params });
+            console.log("[Notification] Rewrote dashboard action_url to include role:", targetUrl);
+          }
+        } catch (err) {
+          console.error("[Notification] Failed to parse action_url for role normalization:", err);
+          // proceed with original targetUrl
+        }
+      }
+
       // Check if it's an event notification
-      const eventUidMatch = notification.action_url.match(/eventUid=([a-zA-Z0-9-]+)/);
+      const eventUidMatch = targetUrl.match(/eventUid=([a-zA-Z0-9-]+)/);
       if (eventUidMatch) {
         const eventUid = eventUidMatch[1];
         targetUrl = buildEventDetailPath(userRole, eventUid);
       }
       // Check if it's a post notification
       else {
-        const postUidMatch = notification.action_url.match(/postUid=([a-zA-Z0-9-]+)/);
+        const postUidMatch = targetUrl.match(/postUid=([a-zA-Z0-9-]+)/);
         if (postUidMatch) {
           const postUid = postUidMatch[1];
           targetUrl = buildPostDetailPath(userRole, postUid);

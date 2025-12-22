@@ -29,3 +29,13 @@ export async function recalculateUserGamification(userId) {
   });
   return response.data;
 }
+
+export async function getFullLeaderboard({ period = 'monthly', page = 1, perPage = 50 } = {}) {
+  const params = new URLSearchParams();
+  params.set('period', period);
+  params.set('page', String(page));
+  params.set('perPage', String(perPage));
+
+  const response = await fetchWithAuth(`/gamification/leaderboard/full?${params.toString()}`);
+  return response.data || { top: [], entries: [], meta: { page, perPage, total: 0 } };
+}
