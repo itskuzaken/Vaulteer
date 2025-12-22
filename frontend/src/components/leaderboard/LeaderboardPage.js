@@ -58,10 +58,12 @@ export default function LeaderboardPage({ initialPeriod = "all" }) {
   const rest = data.entries.slice(3);
 
   return (
+    <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 p-3">
     <div className="space-y-6">
       <FiltersBar period={period} setPeriod={handleSetPeriod} />
       <Podium entries={top3} loading={loading} />
       <LeaderboardList entries={rest} loading={loading} total={data.total} page={page} setPage={setPage} perPage={perPage} />
+    </div>
     </div>
   );
 }

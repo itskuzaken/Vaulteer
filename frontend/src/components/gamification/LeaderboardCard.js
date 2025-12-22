@@ -144,7 +144,7 @@ export default function LeaderboardCard({ limit = 5 }) {
                 console.error('Failed to navigate to full leaderboard', e);
               }
             }}
-            className="ml-2 inline-flex items-center justify-center p-1 rounded-md text-gray-500 hover:text-gray-900 dark:hover:text-white bg-transparent focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary-red"
+            className="inline-flex items-center justify-center p-1 rounded-md text-gray-500 hover:text-gray-900 dark:hover:text-white bg-transparent focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-primary-red"
           >
             <IoExpandOutline className="w-4 h-4" />
           </button>
@@ -154,15 +154,28 @@ export default function LeaderboardCard({ limit = 5 }) {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: limit }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 p-3">
-              <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
-              <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 animate-pulse" />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 w-1/3 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
-                <div className="h-3 w-1/4 bg-gray-50 dark:bg-gray-800/50 rounded animate-pulse" />
-              </div>
-              <div className="w-12 h-8 bg-gray-100 dark:bg-gray-800 rounded animate-pulse" />
-            </div>
+            <li 
+                key={i} 
+                className="flex items-center gap-3 sm:gap-4 p-3 rounded-2xl border-[1.5px] border-gray-200 dark:border-gray-800 animate-pulse"
+              >
+                {/* Rank Skeleton */}
+                <div className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 flex-shrink-0" />
+                
+                {/* Avatar Skeleton */}
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-gray-100 dark:bg-gray-800 flex-shrink-0" />
+                
+                {/* User Info Skeleton */}
+                <div className="flex-1 min-w-0 space-y-2">
+                  <div className="h-3.5 sm:h-4 w-1/3 bg-gray-100 dark:bg-gray-800 rounded" />
+                  <div className="h-2.5 sm:h-3 w-1/4 bg-gray-50 dark:bg-gray-800/50 rounded" />
+                </div>
+                
+                {/* Points Skeleton */}
+                <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                  <div className="h-4 sm:h-5 w-12 bg-gray-100 dark:bg-gray-800 rounded" />
+                  <div className="h-2 w-8 bg-gray-50 dark:bg-gray-800/50 rounded" />
+                </div>
+              </li>
           ))}
         </div>
       ) : error ? (
