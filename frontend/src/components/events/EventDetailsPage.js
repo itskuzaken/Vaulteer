@@ -558,7 +558,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
                   <p className="mt-2 text-sm sm:text-base">No cover image</p>
                 </div>
               )}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 sm:p-6">
+              <div className="absolute inset-x-0 bottom-0 bg-linear-to-t from-black/70 to-transparent p-4 sm:p-6">
                 <p className="text-xs sm:text-sm text-white/80 uppercase tracking-wide">
                   {formatDate(eventData.start_datetime_local || eventData.start_datetime, "eeee, MMM dd")}
                 </p>

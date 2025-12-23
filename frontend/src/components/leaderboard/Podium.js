@@ -126,7 +126,7 @@ export default function Podium({ entries = [], loading = false }) {
                   <span
                     className={`
                     inline-flex items-center px-1 py-0.5 sm:px-1.5 
-                    rounded-full text-[8px] sm:text-[10px] font-bold uppercase tracking-wider
+                    rounded-full text-[8px] sm:text-[10px] font-bold tracking-wider
                     border-2 border-white dark:border-gray-900 shadow-sm
                     bg-gray-900 text-white dark:bg-black
                   `}
