@@ -397,16 +397,36 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
   if (isLoading) {
     return (
       <div className="space-y-4 sm:space-y-6 animate-pulse">
+        {/* Header Skeleton */}
         <div className="h-8 w-32 bg-gray-200 dark:bg-gray-800 rounded" />
-        <div className="h-48 sm:h-56 md:h-64 bg-gray-200 dark:bg-gray-800 rounded-2xl" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          <div className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl" />
-          <div className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl" />
-          <div className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl" />
-        </div>
-        <div className="space-y-4">
-          <div className="h-32 bg-gray-200 dark:bg-gray-800 rounded-xl" />
-          <div className="h-48 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+        
+        {/* Responsive Grid Skeleton (Updated to md) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+          {/* Main Content Area - Left Column */}
+          <div className="md:col-span-2 space-y-4 sm:space-y-6">
+            {/* Hero Image Skeleton */}
+            <div className="h-48 sm:h-56 md:h-72 bg-gray-200 dark:bg-gray-800 rounded-2xl" />
+            
+            {/* Info Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+              <div className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+              <div className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+            </div>
+            
+            {/* Description/Content Skeleton */}
+            <div className="space-y-4">
+              <div className="h-40 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+              <div className="h-40 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+            </div>
+          </div>
+
+          {/* Sidebar Area - Right Column on Desktop */}
+          <div className="space-y-4 sm:space-y-6">
+            <div className="h-32 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+            <div className="h-64 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+            <div className="h-32 bg-gray-200 dark:bg-gray-800 rounded-xl" />
+          </div>
         </div>
       </div>
     );
@@ -517,10 +537,10 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
         </div>
       </div>
 
-      {/* Main Content Layout - Mobile First */}
-      <div className="space-y-4 sm:space-y-6">
-        {/* Main Content */}
-        <div className="space-y-4 sm:space-y-6">
+      {/* Main Content Layout - Responsive Grid (Updated to md) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        {/* Main Content - Takes 2 columns on medium+ screens */}
+        <div className="md:col-span-2 space-y-4 sm:space-y-6">
           {/* Event Hero Section */}
           <section className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
             <div className="relative h-48 sm:h-56 md:h-72 w-full bg-gray-100 dark:bg-gray-800">
@@ -816,8 +836,8 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
           </section>
         </div>
 
-        {/* Sidebar - Mobile Responsive */}
-        <div className="space-y-4 sm:space-y-6">
+        {/* Sidebar - Right Side on Medium+ Screens */}
+        <div className="space-y-4 sm:space-y-6 h-fit">
           {/* Share Section */}
           <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 sm:p-6 space-y-4">
             <div>
