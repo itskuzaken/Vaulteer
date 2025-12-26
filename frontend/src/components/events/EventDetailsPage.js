@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Button from '@/components/ui/Button';
 import { format } from "date-fns";
@@ -210,9 +210,9 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
 
   const loadEventDetails = useCallback(async () => {
     if (!eventUid) {
-        setError("No event ID provided.");
-        setIsLoading(false);
-        return;
+      setError("No event ID provided.");
+      setIsLoading(false);
+      return;
     }
 
     setIsLoading(true);
@@ -227,6 +227,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
       setIsLoading(false);
     }
   }, [eventUid]);
+
 
   const loadParticipants = useCallback(async () => {
     if (!eventUid || !canViewParticipants) {
