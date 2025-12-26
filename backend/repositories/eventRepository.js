@@ -1076,6 +1076,7 @@ class EventRepository {
     let scanned = 0;
     let flagged = 0;
 
+    const startTs = Date.now();
     const batches = [];
     let batchIndex = 0;
 
@@ -1139,7 +1140,15 @@ class EventRepository {
       }
     }
 
-    const summary = { scanned, flagged, batches, durationMs: null };
+    // Aggregate skipped totals across batches
+    const skippedTotals = batches.reduce((acc, b) => {
+      acc.dedupe += (b.skipped && b.skipped.dedupe) || 0;
+      acc.already_absent += (b.skipped && b.skipped.already_absent) || 0;
+      acc.other += (b.skipped && b.skipped.other) || 0;
+      return acc;
+    }, { dedupe: 0, already_absent: 0, other: 0 });
+
+    const summary = { scanned, flagged, skipped: skippedTotals, batches, durationMs: Date.now() - startTs };
     console.log(JSON.stringify({ op: 'autoFlagAbsences.summary', event: eventUid, summary }));
     return summary;
   }
