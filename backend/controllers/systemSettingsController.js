@@ -191,12 +191,14 @@ async function updateSettingByKey(req, res) {
       });
     }
     
+    console.log(`[SystemSettings] updateSettingByKey called: category=${category}, key=${key}, value=${String(value)}, userId=${userId}`);
     const updatedSetting = await systemSettingsRepository.updateSettingByKey(
       category,
       key,
       String(value),
       userId
     );
+    console.log('[SystemSettings] updateSettingByKey returned', updatedSetting);
 
     // If badges were disabled, deactivate all achievements as well
     try {
@@ -204,7 +206,9 @@ async function updateSettingByKey(req, res) {
         const enabled = String(value) === 'true' || String(value) === '1';
         if (!enabled) {
           const achievementRepo = require('../repositories/achievementRepository');
+          console.log('[SystemSettings] Detected disable badges; attempting to deactivate achievements');
           const deactivatedCount = await achievementRepo.deactivateAllAchievements(userId);
+          console.log(`[SystemSettings] deactivateAllAchievements returned ${deactivatedCount}`);
           // Log this as an activity
           await activityLogService.createLog({
             type: 'SETTINGS',

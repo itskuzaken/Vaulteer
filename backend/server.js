@@ -236,6 +236,13 @@ async function start() {
 
     console.log('✓ Textract OCR queue initialized');
 
+    // When running tests we avoid calling `app.listen()` to prevent leaving
+    // an open server handle that can keep the Jest process from exiting.
+    if (CONFIG.NODE_ENV === 'test' || process.env.DISABLE_SERVER_LISTEN === 'true') {
+      console.log('[start] Skipping app.listen due to test mode or DISABLE_SERVER_LISTEN');
+      return;
+    }
+
     app.listen(CONFIG.PORT, "0.0.0.0", () => {
       console.log("\n🚀 Vaulteer Server");
       console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
@@ -256,7 +263,7 @@ if (require.main === module) {
 
 // Export the express app for testing. Tests use this app with supertest which will start
 // the server on an ephemeral port when needed.
-module.exports = { app, start };
+module.exports = app;
 // Also expose the `start` function for programmatic control (e.g., production startup)
 module.exports.start = start;
 

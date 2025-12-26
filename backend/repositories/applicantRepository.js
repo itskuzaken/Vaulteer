@@ -370,7 +370,7 @@ async function createApplicantWithProfile(userData, formData, options = {}) {
         formData.firstName,
         formData.middleInitial || null,
         formData.lastName,
-        formData.nickname,
+        (typeof formData.nickname !== 'undefined' && formData.nickname !== null) ? formData.nickname : '',
         formData.birthdate,
         formData.gender,
         formData.genderOther || null,
