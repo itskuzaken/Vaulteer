@@ -256,7 +256,7 @@ if (require.main === module) {
 
 // Export the express app for testing. Tests use this app with supertest which will start
 // the server on an ephemeral port when needed.
-module.exports = app;
+module.exports = { app, start };
 // Also expose the `start` function for programmatic control (e.g., production startup)
 module.exports.start = start;
 

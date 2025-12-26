@@ -122,6 +122,10 @@ jobs:
           mysql -h 127.0.0.1 -uroot -prootpass -e "CREATE DATABASE IF NOT EXISTS vaulteer_db;"
           mysql -h 127.0.0.1 -uroot -prootpass vaulteer_db < vaulteer_db.sql
 
+      - name: Check attendance schema
+        working-directory: ./backend
+        run: node scripts/check_attendance_schema.js
+
       - name: Run backend integration tests
         working-directory: ./
         run: npx jest "backend/**/__tests__/**/*.integration.test.js" --runInBand --testTimeout=200000

@@ -206,15 +206,23 @@ describe('EventRepository attendance methods', () => {
     // getEventByUid will use getPool().execute; stub it
     dbPool.getPool().execute = jest.fn().mockResolvedValueOnce([[{ event_id: 5, uid: 'evt-uid' }]]);
 
-    // For the batch loop: first call returns rows
+    // For the batch loop: first call returns rows (SELECT), then UPDATE/INSERT for each participant, then next SELECT returns empty
     mockConn.execute
+      // SELECT for batch -> two participants
       .mockResolvedValueOnce([[{ participant_id: 1, user_id: 10, attendance_status: 'unknown' }, { participant_id: 2, user_id: 11, attendance_status: null }]])
+      // UPDATE participant 1
       .mockResolvedValueOnce([{ affectedRows: 1 }])
+      // INSERT audit participant 1
       .mockResolvedValueOnce([{ affectedRows: 1 }])
-      // next iteration returns empty
+      // UPDATE participant 2
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      // INSERT audit participant 2
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      // next iteration SELECT returns empty
       .mockResolvedValueOnce([[]]);
 
     const res = await eventRepository.autoFlagAbsences('evt-uid', 10);
-    expect(res).toBe(true);
+    expect(res).toEqual(expect.objectContaining({ scanned: expect.any(Number), flagged: expect.any(Number) }));
+    expect(res.flagged).toBeGreaterThan(0);
   });
 });

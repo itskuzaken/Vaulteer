@@ -1073,6 +1073,9 @@ class EventRepository {
     if (!event) throw new Error('Event not found');
 
     const pool = getPool();
+    let scanned = 0;
+    let flagged = 0;
+
     while (true) {
       const conn = await pool.getConnection();
       try {
@@ -1088,16 +1091,22 @@ class EventRepository {
           break;
         }
 
+        scanned += rows.length;
+
         for (const r of rows) {
           await conn.execute(
             `UPDATE event_participants SET attendance_status = 'absent', attendance_marked_at = NOW(), attendance_marked_by = NULL, attendance_updated_at = NOW() WHERE participant_id = ?`,
             [r.participant_id]
           );
 
-          await conn.execute(
-            `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, reason, dedupe_key, performed_at) VALUES (?, ?, ?, NULL, 'mark_absent', ?, 'absent', 'auto-absent', CONCAT('auto-absent:', ?), NOW())`,
+          // Use INSERT IGNORE to avoid creating duplicate audit rows when a dedupe_key is already present.
+          const [insertRes] = await conn.execute(
+            `INSERT IGNORE INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, reason, dedupe_key, performed_at) VALUES (?, ?, ?, NULL, 'mark_absent', ?, 'absent', 'auto-absent', CONCAT('auto-absent:', ?), NOW())`,
             [event.event_id, r.participant_id, r.user_id, r.attendance_status || 'unknown', r.participant_id]
           );
+
+          // Only count as flagged when the INSERT actually inserted a new row (affectedRows > 0)
+          if (insertRes && insertRes.affectedRows) flagged += 1;
         }
 
         await conn.commit();
@@ -1109,7 +1118,8 @@ class EventRepository {
       }
     }
 
-    return true;
+    console.log(`[autoFlagAbsences] Event ${eventUid} scanned=${scanned} flagged=${flagged}`);
+    return { scanned, flagged };
   }
 
   /**
@@ -1316,12 +1326,38 @@ class EventRepository {
   }
 
   async markEventAsOngoing(eventUid) {
-    await getPool().execute(
-      `UPDATE events SET status = 'ongoing' WHERE uid = ? AND status = 'published'`,
-      [eventUid]
-    );
+    // Use a FOR UPDATE select to avoid race conditions and to ensure we only
+    // transition from 'published' -> 'ongoing'. This prevents accidental
+    // overwrites from other concurrent updates that could set an incorrect
+    // status (e.g., 'draft').
+    const pool = getPool();
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [rows] = await conn.execute(
+        `SELECT status FROM events WHERE uid = ? FOR UPDATE`,
+        [eventUid]
+      );
+      if (!rows || rows.length === 0) {
+        await conn.rollback();
+        return null;
+      }
+      const current = rows[0].status;
+      if ((current || '').toLowerCase() !== 'published') {
+        // Nothing to do; return the current event
+        await conn.rollback();
+        return this.getEventByUid(eventUid);
+      }
 
-    return this.getEventByUid(eventUid);
+      await conn.execute(`UPDATE events SET status = 'ongoing' WHERE uid = ?`, [eventUid]);
+      await conn.commit();
+      return this.getEventByUid(eventUid);
+    } catch (e) {
+      try { await conn.rollback(); } catch (er) {}
+      throw e;
+    } finally {
+      try { conn.release(); } catch (er) {}
+    }
   }
 
   // ============================================

@@ -32,6 +32,24 @@ async function runEventCompletionCheck() {
               previousStatus: prevStatus,
               newStatus: 'ongoing',
             });
+
+            // Defensive check: ensure status did not unexpectedly become 'draft'
+            if ((updated.status || '').toLowerCase() === 'draft') {
+              console.error(`[EventCompletionScheduler] Unexpected status 'draft' for event ${row.uid} after marking ongoing`);
+              try {
+                // Log a high-severity system alert to activity logs for operator attention
+                await require('../services/activityLogService').createLog({
+                  type: 'EVENT',
+                  action: 'UNEXPECTED_STATUS_TRANSITION',
+                  performedBy: { userId: 'system', name: 'system', role: 'system' },
+                  description: `Event ${row.uid} unexpectedly transitioned to 'draft' when it should be 'ongoing'`,
+                  severity: 'HIGH',
+                  metadata: { eventUid: row.uid, previousStatus: prevStatus, newStatus: updated.status },
+                });
+              } catch (logErr) {
+                console.warn('[EventCompletionScheduler] Failed to create system alert log', logErr);
+              }
+            }
           }
           console.log(`[EventCompletionScheduler] Marked event ${row.uid} as ongoing`);
         } catch (err) {
@@ -71,8 +89,8 @@ async function runEventCompletionCheck() {
           // Trigger auto-absencing to mark unknown participants as absent (idempotent)
           try {
             const attendanceService = require('../services/attendanceService');
-            await attendanceService.autoFlagAbsences(row.uid);
-            console.log(`[EventCompletionScheduler] Auto-absenced event ${row.uid}`);
+            const summary = await attendanceService.autoFlagAbsences(row.uid);
+            console.log(`[EventCompletionScheduler] Auto-absenced event ${row.uid} scanned=${summary.scanned} flagged=${summary.flagged}`);
           } catch (e) {
             console.error('[EventCompletionScheduler] Auto-absencing failed for', row.uid, e.message || e);
           }
@@ -120,4 +138,4 @@ function stopEventCompletionScheduler() {
   }
 }
 
-module.exports = { startEventCompletionScheduler, stopEventCompletionScheduler };
+module.exports = { startEventCompletionScheduler, stopEventCompletionScheduler, runEventCompletionCheck };
