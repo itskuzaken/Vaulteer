@@ -14,6 +14,7 @@ export default function LeaderboardRow({ entry }) {
       </div>
 
       <div className="relative flex-shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={getAvatarUrl(entry)}
           alt={formatName(entry)}

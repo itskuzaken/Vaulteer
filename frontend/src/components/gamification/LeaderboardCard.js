@@ -206,6 +206,7 @@ export default function LeaderboardCard({ limit = 5 }) {
 
               {/* Avatar with Level Badge */}
               <div className="relative flex-shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={getAvatarUrl(entry)}
                   alt={formatName(entry)}

@@ -391,8 +391,14 @@ async function deactivateAllAchievements(changedByUserId = null) {
   const [rows] = await pool.execute(`SELECT * FROM achievements WHERE is_active = 1`);
   if (!rows || rows.length === 0) return 0;
 
-  // Update all active achievements to inactive
-  await pool.execute(`UPDATE achievements SET is_active = 0, updated_at = NOW() WHERE is_active = 1`);
+  // Update all active achievements to inactive. If updated_at column doesn't exist (older test DB schema), omit it.
+  const [[colRow]] = await pool.execute(`SELECT COUNT(1) as c FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'achievements' AND COLUMN_NAME = 'updated_at'`);
+  const hasUpdatedAt = colRow?.c > 0;
+  if (hasUpdatedAt) {
+    await pool.execute(`UPDATE achievements SET is_active = 0, updated_at = NOW() WHERE is_active = 1`);
+  } else {
+    await pool.execute(`UPDATE achievements SET is_active = 0 WHERE is_active = 1`);
+  }
 
   // Insert change audit for each achievement
   for (const r of rows) {

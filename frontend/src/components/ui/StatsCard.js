@@ -20,6 +20,7 @@ export default function StatsCard({
   animationDuration = 1000,
   onClick = null,
   showRealtimeIndicator = false,
+  showNewIndicator = false,
   kpi = null,
   kpiPosition = "right",
 }) {
@@ -109,6 +110,10 @@ export default function StatsCard({
             onClick={onClick}
           >
               {title}
+              {/** Render a 'New' badge when parent indicates the stat is newly created (previous = 0, current > 0) */}
+              {showNewIndicator ? (
+                <span className="ml-2 inline-flex items-center rounded-full bg-amber-50 text-amber-700 px-2 py-0.5 text-[0.6rem] font-semibold">New</span>
+              ) : null}
             </p>
           </div>
         </div>

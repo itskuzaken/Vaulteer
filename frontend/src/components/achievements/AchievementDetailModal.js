@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React from 'react';
@@ -15,7 +16,6 @@ export default function AchievementDetailModal({ achievement, onClose }) {
         <div className="mt-4 flex gap-4">
           <div className="w-32 h-32 bg-gray-100 dark:bg-gray-700 rounded-md flex items-center justify-center">
             {achievement.badge_s3_url_map?.single ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={achievement.badge_s3_url_map.single} alt={`${achievement.achievement_name} badge`} className="w-full h-full object-contain" />
             ) : (
               <div className="text-gray-500">No image</div>

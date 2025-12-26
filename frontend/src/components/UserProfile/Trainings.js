@@ -3,6 +3,7 @@ import { removeDuplicates } from './ProfileUtils';
 import ImageLightbox from '../ui/ImageLightbox';
 import { getCertificateDownloadUrl } from '../../services/profileService';
 
+/* eslint-disable @next/next/no-img-element */
 export default function Trainings({ 
   userUid,
   trainings, 

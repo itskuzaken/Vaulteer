@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 import React from 'react';
 import { computeProgressPercent, selectBadgeUrl } from '../../utils/achievementUtils';
 
@@ -24,7 +25,7 @@ export default function AchievementCard({ achievement, onClick, onImageError }) 
     >
       <div className="w-16 h-16 flex-shrink-0 inline-flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-md overflow-hidden">
         {badgeUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+
           <img src={badgeUrl} alt={alt} role="img" loading="lazy" className="w-full h-full object-contain" onError={handleImgError} />
         ) : (
           <svg className="w-8 h-8 text-gray-400" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden>

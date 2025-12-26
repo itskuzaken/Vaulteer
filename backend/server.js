@@ -236,6 +236,13 @@ async function start() {
 
     console.log('✓ Textract OCR queue initialized');
 
+    // When running tests we avoid calling `app.listen()` to prevent leaving
+    // an open server handle that can keep the Jest process from exiting.
+    if (CONFIG.NODE_ENV === 'test' || process.env.DISABLE_SERVER_LISTEN === 'true') {
+      console.log('[start] Skipping app.listen due to test mode or DISABLE_SERVER_LISTEN');
+      return;
+    }
+
     app.listen(CONFIG.PORT, "0.0.0.0", () => {
       console.log("\n🚀 Vaulteer Server");
       console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);

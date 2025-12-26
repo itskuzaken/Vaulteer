@@ -2,9 +2,8 @@ import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import RealtimeStatsGrid from '../RealtimeStatsGrid';
 
-jest.mock('../../hooks/useRealtimeStats', () => ({
+jest.mock('../../../hooks/useRealtimeStats', () => ({
   useRealtimeStats: (fetchCb) => {
-    // call fetchCb to return mocked data
     const data = {
       range: 'last7',
       total_applicants: 4,
@@ -12,7 +11,8 @@ jest.mock('../../hooks/useRealtimeStats', () => ({
       deltas: { total_applicants: null },
     };
     return { data, loading: false, error: null, changedFields: [], refresh: () => {} };
-  }
+  },
+  useAnimatedCounter: (value) => value,
 }));
 
 const mockConfig = [

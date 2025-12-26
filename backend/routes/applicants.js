@@ -2,13 +2,7 @@ const express = require("express");
 const router = express.Router();
 const asyncHandler = require("../middleware/asyncHandler");
 const { authenticate } = require("../middleware/auth");
-const {
-  listApplicants,
-  getAllApplicationStatuses,
-  updateApplicantStatus,
-  getApplicantStatusHistory,
-  createApplicantWithProfile,
-} = require("../repositories/applicantRepository");
+const applicantRepository = require("../repositories/applicantRepository");
 const {
   isValidName,
   isValidMiddleInitial,
@@ -254,7 +248,7 @@ router.post(
         options.uploadedFiles = uploadedFiles;
       }
 
-      const result = await createApplicantWithProfile(user, form, options);
+      const result = await applicantRepository.createApplicantWithProfile(user, form, options);
       res.status(201).json(result);
     } catch (error) {
       // Log full error stack for debugging
@@ -312,7 +306,7 @@ router.get(
   "/statuses",
   authenticate,
   asyncHandler(async (req, res) => {
-    res.json(await getAllApplicationStatuses());
+    res.json(await applicantRepository.getAllApplicationStatuses());
   })
 );
 
@@ -323,7 +317,7 @@ router.get(
   asyncHandler(async (req, res) => {
     const id = req.params.id;
     const userId = isNaN(id) ? await getUserIdFromUid(id) : parseInt(id);
-    res.json(await getApplicantStatusHistory(userId));
+    res.json(await applicantRepository.getApplicantStatusHistory(userId));
   })
 );
 
@@ -435,7 +429,7 @@ router.put(
         return res.status(400).json({ error: "Rejection requires a message" });
       }
 
-      const result = await updateApplicantStatus(
+      const result = await applicantRepository.updateApplicantStatus(
         userId,
         normalizedStatus,
         currentUserId,
@@ -457,7 +451,7 @@ router.put(
 router.get(
   "/",
   asyncHandler(async (req, res) => {
-    res.json(await listApplicants());
+    res.json(await applicantRepository.listApplicants());
   })
 );
 router.put(
@@ -477,7 +471,7 @@ router.put(
     // Use current user id from auth middleware
     const changedByUserId = req.currentUserId || (req.firebaseUid && (await getCurrentUserIdFromFirebaseUid(req.firebaseUid)));
 
-    const result = await updateApplicantStatus(userId, "approved", changedByUserId);
+    const result = await applicantRepository.updateApplicantStatus(userId, "approved", changedByUserId);
     res.json(result);
   })
 );
@@ -502,7 +496,7 @@ router.put(
 
       // Use updateApplicantStatus so notes are logged and emailed
       const changedByUserId = req.currentUserId || (await getCurrentUserIdFromFirebaseUid(req.firebaseUid));
-      const result = await updateApplicantStatus(userId, "rejected", changedByUserId, notes);
+      const result = await applicantRepository.updateApplicantStatus(userId, "rejected", changedByUserId, notes);
       res.json(result);
         })
     );

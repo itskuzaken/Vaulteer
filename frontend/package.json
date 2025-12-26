@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@sendgrid/mail": "^8.1.6",
+    "backend": "file:../backend",
     "date-fns": "^4.1.0",
     "dompurify": "^3.3.0",
     "firebase": "^11.6.0",

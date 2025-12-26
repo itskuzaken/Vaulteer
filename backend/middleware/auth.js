@@ -1,5 +1,6 @@
 const admin = require("firebase-admin");
 const { getPool } = require("../db/pool");
+const { CONFIG } = require("../config/env");
 
 async function authenticate(req, res, next) {
   try {
@@ -9,6 +10,48 @@ async function authenticate(req, res, next) {
     }
 
     const token = authHeader.split(" ")[1];
+
+    // ===== Test-mode shortcuts =====
+    // In the test environment, allow simple test tokens to avoid requiring
+    // firebase-admin network calls and DB user setup for each test.
+    if (CONFIG.NODE_ENV === 'test') {
+      if (token === 'faketoken' || token === 'admin-token') {
+        // Treat this as a fully authenticated admin
+        req.firebaseUid = token === 'faketoken' ? 'test-fake-admin' : 'admin-uid';
+        req.authenticatedUser = {
+          userId: 1,
+          uid: req.firebaseUid,
+          name: 'Test Admin',
+          email: `${req.firebaseUid}@example.com`,
+          role: 'admin',
+          status: 'active',
+        };
+        req.currentUserId = req.authenticatedUser.userId;
+        req.currentUserRole = req.authenticatedUser.role;
+        console.log(`[Auth:test] Bypassed firebase verification for token=${token}, uid=${req.firebaseUid}`);
+        return next();
+      }
+
+      // Allow 'test-user-<id>' tokens to map to a numeric user id when tests need a specific user id
+      const match = /^test-user-(\d+)$/.exec(token);
+      if (match) {
+        const numericId = Number(match[1]);
+        req.firebaseUid = `test-user-${numericId}`;
+        req.authenticatedUser = {
+          userId: numericId,
+          uid: req.firebaseUid,
+          name: `Test User ${numericId}`,
+          email: `${req.firebaseUid}@example.com`,
+          role: 'volunteer',
+          status: 'active',
+        };
+        req.currentUserId = numericId;
+        req.currentUserRole = 'volunteer';
+        console.log(`[Auth:test] Mapped test token to userId=${numericId}`);
+        return next();
+      }
+    }
+
     const decodedToken = await admin.auth().verifyIdToken(token);
 
     req.firebaseUid = decodedToken.uid;

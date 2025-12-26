@@ -97,6 +97,13 @@ If your DB does not support SIGNAL in triggers, you can instead use a scheduled 
 - Confirm `event_participants` new columns exist and that auto-absencing behaves as expected (run manual job on a small event).
 - Confirm `event_attendance_audit` is append-only in behavior (no updates to existing rows).
 - Confirm integration tests (attendance, gamification mapping) pass.
+- Verify structured observability: the scheduler now emits JSON logs for auto-absencing summary and per-batch events. Example (run locally against staging DB):
+
+```bash
+# Run single scheduler check and watch logs for structured summary
+node -e "require('./jobs/eventCompletionScheduler').runEventCompletionCheck()" | jq -r 'select(.op=="EventCompletionScheduler.autoAbsenceSummary")'
+```
+
 - Monitor error logs and alert on spikes for 24–48 hours.
 
 ---

@@ -616,10 +616,14 @@ class EventsController {
         }
       }
 
+      const eventOut = { ...event };
+      if (event.start_datetime_local) eventOut.start_datetime = event.start_datetime_local;
+      if (event.end_datetime_local) eventOut.end_datetime = event.end_datetime_local;
+
       res.json({
         success: true,
         data: {
-          ...event,
+          ...eventOut,
           is_registered: isRegistered,
           participation_status: participationStatus,
           waitlist_position: waitlistPosition,
@@ -640,10 +644,21 @@ class EventsController {
       const limit = parseInt(req.query.limit) || 10;
       const events = await eventRepository.getUpcomingEvents(limit);
 
+      // Normalize timestamps: when local (+08) representation exists, prefer it in the API
+      const normalized = events.map((ev) => {
+        if (ev && ev.start_datetime_local) {
+          ev.start_datetime = ev.start_datetime_local;
+        }
+        if (ev && ev.end_datetime_local) {
+          ev.end_datetime = ev.end_datetime_local;
+        }
+        return ev;
+      });
+
       res.json({
         success: true,
-        data: events,
-        count: events.length,
+        data: normalized,
+        count: normalized.length,
       });
     } catch (error) {
       console.error("Get upcoming events error:", error);

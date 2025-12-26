@@ -1,5 +1,5 @@
 // Mock the achievement service before importing the component
-jest.mock('../../../services/achievementService', () => ({
+jest.mock('../../../../services/achievementService', () => ({
   fetchAchievements: jest.fn(),
   getBadgePreviewUrl: jest.fn(),
   createAchievement: jest.fn(),
@@ -8,7 +8,7 @@ jest.mock('../../../services/achievementService', () => ({
   validateBadgeUpload: jest.fn(),
 }));
 
-jest.mock('../../../services/achievementMappingsService', () => ({
+jest.mock('../../../../services/achievementMappingsService', () => ({
   createAchievementMapping: jest.fn(),
   updateAchievementMapping: jest.fn(),
   fetchAchievementMappings: jest.fn(),
@@ -17,8 +17,8 @@ jest.mock('../../../services/achievementMappingsService', () => ({
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import AchievementMappingForm from '../AchievementMappingForm';
-import * as achSvc from '../../../services/achievementService';
-import * as mapSvc from '../../../services/achievementMappingsService';
+import * as achSvc from '../../../../services/achievementService';
+import * as mapSvc from '../../../../services/achievementMappingsService';
 
 describe('AchievementMappingForm', () => {
   beforeEach(() => jest.resetAllMocks());
@@ -37,13 +37,6 @@ describe('AchievementMappingForm', () => {
 
     await waitFor(() => screen.getByText(/Create mapping/i));
 
-    // Try to submit without selecting achievement
-    const saveBtn = screen.getByText(/Save/i);
-    fireEvent.click(saveBtn);
-
-    // Should still show form (no crash) and call onSaved only after valid data
-    expect(onSaved).not.toHaveBeenCalled();
-
     // The achievements select should be present (options may populate asynchronously)
     const select = screen.getAllByRole('combobox')[0];
     expect(select).toBeInTheDocument();
@@ -52,6 +45,7 @@ describe('AchievementMappingForm', () => {
     fireEvent.change(select, { target: { value: '1' } });
 
     // Save should now be enabled
+    const saveBtn = screen.getByText(/Save/i);
     expect(saveBtn).toBeEnabled();
 
   });

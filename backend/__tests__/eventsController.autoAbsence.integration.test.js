@@ -6,10 +6,13 @@ const admin = require('firebase-admin');
 jest.mock('firebase-admin');
 
 // Stable mock function used by middleware
+let volunteerUid = null;
+let volunteer2Uid = null;
+let adminUid = null;
 const verifyFn = jest.fn((token) => {
-  if (token === 'volunteer-token') return Promise.resolve({ uid: 'volunteer-uid', email: 'vol@example.com' });
-  if (token === 'volunteer2-token') return Promise.resolve({ uid: 'volunteer2-uid', email: 'vol2@example.com' });
-  if (token === 'admin-token') return Promise.resolve({ uid: 'admin-uid', email: 'admin@example.com' });
+  if (token === 'volunteer-token') return Promise.resolve({ uid: volunteerUid, email: `${volunteerUid}@example.com` });
+  if (token === 'volunteer2-token') return Promise.resolve({ uid: volunteer2Uid, email: `${volunteer2Uid}@example.com` });
+  if (token === 'admin-token') return Promise.resolve({ uid: adminUid, email: `${adminUid}@example.com` });
   return Promise.reject(new Error('Invalid token'));
 });
 admin.auth = jest.fn(() => ({ verifyIdToken: verifyFn }));
@@ -31,21 +34,22 @@ describe('Events controller auto-absencing integration', () => {
   }, 20000);
 
   beforeEach(async () => {
-    // Clean possible leftover users
-    await pool.query(`DELETE FROM users WHERE uid IN ('volunteer-uid','volunteer2-uid','admin-uid')`);
+    // Create volunteer users (use unique uids to avoid collisions with other tests)
+    volunteerUid = `volunteer-uid-${Date.now()}-${Math.random().toString(36).slice(2,5)}`;
+    volunteer2Uid = `volunteer2-uid-${Date.now()}-${Math.random().toString(36).slice(2,5)}`;
+    adminUid = `admin-uid-${Date.now()}-${Math.random().toString(36).slice(2,5)}`;
 
-    // Create volunteer users
     const [[roleRow]] = await pool.query(`SELECT role_id FROM roles WHERE role = 'volunteer' LIMIT 1`);
     const volunteerRoleId = roleRow.role_id;
-    const res = await pool.query(`INSERT INTO users (uid, email, name, role_id, status) VALUES (?, ?, ?, ?, 'active')`, ['volunteer-uid', 'vol@example.com', 'Volunteer Test', volunteerRoleId]);
+    const res = await pool.query(`INSERT INTO users (uid, email, name, role_id, status) VALUES (?, ?, ?, ?, 'active')`, [volunteerUid, `${volunteerUid}@example.com`, 'Volunteer Test', volunteerRoleId]);
     volunteerUserId = res[0].insertId;
 
-    const res2 = await pool.query(`INSERT INTO users (uid, email, name, role_id, status) VALUES (?, ?, ?, ?, 'active')`, ['volunteer2-uid', 'vol2@example.com', 'Volunteer Test 2', volunteerRoleId]);
+    const res2 = await pool.query(`INSERT INTO users (uid, email, name, role_id, status) VALUES (?, ?, ?, ?, 'active')`, [volunteer2Uid, `${volunteer2Uid}@example.com`, 'Volunteer Test 2', volunteerRoleId]);
     volunteer2UserId = res2[0].insertId;
 
     const [[adminRoleRow]] = await pool.query(`SELECT role_id FROM roles WHERE role = 'admin' LIMIT 1`);
     const adminRoleId = adminRoleRow.role_id;
-    const r3 = await pool.query(`INSERT INTO users (uid, email, name, role_id, status) VALUES (?, ?, ?, ?, 'active')`, ['admin-uid', 'admin@example.com', 'Admin Test', adminRoleId]);
+    const r3 = await pool.query(`INSERT INTO users (uid, email, name, role_id, status) VALUES (?, ?, ?, ?, 'active')`, [adminUid, `${adminUid}@example.com`, 'Admin Test', adminRoleId]);
     adminUserId = r3[0].insertId;
 
     // Create event (start as 'published' so volunteers can register)

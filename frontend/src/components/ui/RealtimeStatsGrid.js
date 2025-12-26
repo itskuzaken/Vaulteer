@@ -64,6 +64,12 @@ export default function RealtimeStatsGrid({
     enableAnimations: true,
     onUpdate: onStatsUpdate,
   });
+
+  // Ensure an initial fetch happens on mount so tests and consumers get immediate data
+  React.useEffect(() => {
+    // fire and forget; use safeFetchCallback pattern in hook for errors
+    fetchWithRange().catch(() => {});
+  }, [fetchWithRange]);
   // derive breakdowns from central `data` returned by fetchCallback
   const [localFlash, setLocalFlash] = React.useState(false);
 
@@ -143,6 +149,9 @@ export default function RealtimeStatsGrid({
                 />
               ) : null;
 
+              // Determine if this stat should render a 'New' badge (previous was 0 and current > 0)
+              const isNew = Boolean(data && data.previous && typeof data.previous[config.key] !== 'undefined' && Number(data.previous[config.key]) === 0 && Number(value) > 0);
+
               return (
                 <StatsCard
                   key={config.key || index}
@@ -159,6 +168,7 @@ export default function RealtimeStatsGrid({
                   animationDuration={config.animationDuration || 1000}
                   onClick={config.onClick}
                   showRealtimeIndicator={config.showRealtimeIndicator || false}
+                  showNewIndicator={isNew}
                   kpi={kpiNode}
                   kpiPosition={kpiPositionResolved}
                 />

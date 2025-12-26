@@ -1073,6 +1073,13 @@ class EventRepository {
     if (!event) throw new Error('Event not found');
 
     const pool = getPool();
+    let scanned = 0;
+    let flagged = 0;
+
+    const startTs = Date.now();
+    const batches = [];
+    let batchIndex = 0;
+
     while (true) {
       const conn = await pool.getConnection();
       try {
@@ -1088,20 +1095,44 @@ class EventRepository {
           break;
         }
 
+        const batchStats = { scanned: rows.length, flagged: 0, skipped: { dedupe: 0, already_absent: 0, other: 0 } };
+
+        scanned += rows.length;
+
         for (const r of rows) {
+          // If the current row already appears to be absent, skip it (defensive)
+          if (r.attendance_status === 'absent') {
+            batchStats.skipped.already_absent += 1;
+            continue;
+          }
+
           await conn.execute(
             `UPDATE event_participants SET attendance_status = 'absent', attendance_marked_at = NOW(), attendance_marked_by = NULL, attendance_updated_at = NOW() WHERE participant_id = ?`,
             [r.participant_id]
           );
 
-          await conn.execute(
-            `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, reason, dedupe_key, performed_at) VALUES (?, ?, ?, NULL, 'mark_absent', ?, 'absent', 'auto-absent', CONCAT('auto-absent:', ?), NOW())`,
+          // Use INSERT IGNORE to avoid creating duplicate audit rows when a dedupe_key is already present.
+          const [insertRes] = await conn.execute(
+            `INSERT IGNORE INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, reason, dedupe_key, performed_at) VALUES (?, ?, ?, NULL, 'mark_absent', ?, 'absent', 'auto-absent', CONCAT('auto-absent:', ?), NOW())`,
             [event.event_id, r.participant_id, r.user_id, r.attendance_status || 'unknown', r.participant_id]
           );
+
+          if (insertRes && insertRes.affectedRows) {
+            flagged += 1;
+            batchStats.flagged += 1;
+          } else {
+            // affectedRows === 0 indicates INSERT IGNORE prevented duplicate; treat as dedupe
+            batchStats.skipped.dedupe += 1;
+          }
         }
 
         await conn.commit();
         conn.release();
+
+        // store and emit per-batch structured log
+        batches.push(batchStats);
+        console.log(JSON.stringify({ op: 'autoFlagAbsences.batch', event: eventUid, batchIndex, stats: batchStats }));
+        batchIndex += 1;
       } catch (err) {
         try { await conn.rollback(); } catch (e) {}
         conn.release();
@@ -1109,7 +1140,17 @@ class EventRepository {
       }
     }
 
-    return true;
+    // Aggregate skipped totals across batches
+    const skippedTotals = batches.reduce((acc, b) => {
+      acc.dedupe += (b.skipped && b.skipped.dedupe) || 0;
+      acc.already_absent += (b.skipped && b.skipped.already_absent) || 0;
+      acc.other += (b.skipped && b.skipped.other) || 0;
+      return acc;
+    }, { dedupe: 0, already_absent: 0, other: 0 });
+
+    const summary = { scanned, flagged, skipped: skippedTotals, batches, durationMs: Date.now() - startTs };
+    console.log(JSON.stringify({ op: 'autoFlagAbsences.summary', event: eventUid, summary }));
+    return summary;
   }
 
   /**
@@ -1130,11 +1171,13 @@ class EventRepository {
         [event.event_id]
       );
 
-      if (!rows.length) {
+        if (!rows.length) {
         await conn.commit();
         conn.release();
         return 0;
       }
+
+      const batchStats = { scanned: rows.length, finalized: 0 };
 
       for (const r of rows) {
         await conn.execute(
@@ -1146,7 +1189,16 @@ class EventRepository {
           `INSERT INTO event_attendance_audit (event_id, participant_id, user_id, marked_by, action, previous_status, new_status, performed_at) VALUES (?, ?, ?, ?, 'finalize_attended', ?, 'attended', NOW())`,
           [event.event_id, r.participant_id, r.user_id, r.attendance_marked_by, r.attendance_status || 'unknown']
         );
+
+        batchStats.finalized += 1;
       }
+
+      // emit per-batch structured log
+      console.log(JSON.stringify({ op: 'finalizeAttendedParticipants.batch', event: eventUid, stats: batchStats }));
+
+      await conn.commit();
+      conn.release();
+      return batchStats.finalized;
 
       await conn.commit();
       conn.release();
@@ -1316,12 +1368,38 @@ class EventRepository {
   }
 
   async markEventAsOngoing(eventUid) {
-    await getPool().execute(
-      `UPDATE events SET status = 'ongoing' WHERE uid = ? AND status = 'published'`,
-      [eventUid]
-    );
+    // Use a FOR UPDATE select to avoid race conditions and to ensure we only
+    // transition from 'published' -> 'ongoing'. This prevents accidental
+    // overwrites from other concurrent updates that could set an incorrect
+    // status (e.g., 'draft').
+    const pool = getPool();
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [rows] = await conn.execute(
+        `SELECT status FROM events WHERE uid = ? FOR UPDATE`,
+        [eventUid]
+      );
+      if (!rows || rows.length === 0) {
+        await conn.rollback();
+        return null;
+      }
+      const current = rows[0].status;
+      if ((current || '').toLowerCase() !== 'published') {
+        // Nothing to do; return the current event
+        await conn.rollback();
+        return this.getEventByUid(eventUid);
+      }
 
-    return this.getEventByUid(eventUid);
+      await conn.execute(`UPDATE events SET status = 'ongoing' WHERE uid = ?`, [eventUid]);
+      await conn.commit();
+      return this.getEventByUid(eventUid);
+    } catch (e) {
+      try { await conn.rollback(); } catch (er) {}
+      throw e;
+    } finally {
+      try { conn.release(); } catch (er) {}
+    }
   }
 
   // ============================================
