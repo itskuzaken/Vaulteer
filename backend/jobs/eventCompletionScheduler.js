@@ -90,7 +90,8 @@ async function runEventCompletionCheck() {
           try {
             const attendanceService = require('../services/attendanceService');
             const summary = await attendanceService.autoFlagAbsences(row.uid);
-            console.log(`[EventCompletionScheduler] Auto-absenced event ${row.uid} scanned=${summary.scanned} flagged=${summary.flagged}`);
+            // Emit structured summary for observability
+            console.log(JSON.stringify({ op: 'EventCompletionScheduler.autoAbsenceSummary', event: row.uid, summary }));
           } catch (e) {
             console.error('[EventCompletionScheduler] Auto-absencing failed for', row.uid, e.message || e);
           }

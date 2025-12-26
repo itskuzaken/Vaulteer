@@ -222,7 +222,10 @@ describe('EventRepository attendance methods', () => {
       .mockResolvedValueOnce([[]]);
 
     const res = await eventRepository.autoFlagAbsences('evt-uid', 10);
-    expect(res).toEqual(expect.objectContaining({ scanned: expect.any(Number), flagged: expect.any(Number) }));
+    expect(res).toEqual(expect.objectContaining({ scanned: expect.any(Number), flagged: expect.any(Number), batches: expect.any(Array) }));
     expect(res.flagged).toBeGreaterThan(0);
+    expect(res.batches.length).toBeGreaterThan(0);
+    expect(res.batches[0]).toHaveProperty('scanned');
+    expect(res.batches[0]).toHaveProperty('flagged');
   });
 });
