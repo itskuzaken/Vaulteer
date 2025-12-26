@@ -25,7 +25,19 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
         enableReadyCheck: false
       };
 
-      textractQueue = new Bull('textract-ocr', typeof redisOptions === 'string' ? redisOptions : { redis: redisOptions });
+      const q = new Bull('textract-ocr', typeof redisOptions === 'string' ? redisOptions : { redis: redisOptions });
+
+      // wire up client-level ready/connect events as some Bull versions emit on client
+      if (typeof q.client === 'object' && q.client && typeof q.client.on === 'function') {
+        q.client.on('ready', () => { _textractQueueErrorLogged = false; console.log('✅ Textract queue client ready'); });
+        q.client.on('connect', () => { _textractQueueErrorLogged = false; console.log('✅ Textract queue client connected'); });
+      }
+
+      // queue-level events
+      q.on('ready', () => { _textractQueueErrorLogged = false; console.log('✅ Textract queue client ready'); });
+      q.on('connect', () => { _textractQueueErrorLogged = false; console.log('✅ Textract queue client connected'); });
+
+      textractQueue = q;
       console.log('ℹ️ Textract queue client created (waiting for Redis connection)');
       return true;
     } catch (error) {
@@ -36,11 +48,51 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
   };
 
   if (!_create()) {
+    // In-memory fallback so jobs don't get skipped while Redis is down
+    textractQueue = {
+      jobs: [],
+      _processor: null,
+      add: async (data, opts = {}) => {
+        const job = { data, opts, _attempts: 0 };
+        textractQueue.jobs.push(job);
+        return job;
+      },
+      process: (handler) => { textractQueue._processor = handler; if (textractQueue.jobs.length > 0) textractQueue.drain(); },
+      async drain() {
+        if (!textractQueue._processor) return;
+        while (textractQueue.jobs.length) {
+          const job = textractQueue.jobs.shift();
+          try { await textractQueue._processor(job); } catch (err) {
+            job._attempts = (job._attempts || 0) + 1;
+            const maxAttempts = (job.opts && job.opts.attempts) || 1;
+            if (job._attempts < maxAttempts) {
+              const delay = (job.opts && job.opts.backoff && job.opts.backoff.delay) || 1000;
+              await new Promise((r) => setTimeout(r, delay));
+              textractQueue.jobs.push(job);
+            } else {
+              console.error('OCR job permanently failed:', err);
+            }
+          }
+        }
+      }
+    };
+
     const retryInterval = Number(process.env.QUEUES_RETRY_INTERVAL_MS) || 30000;
     const iv = setInterval(() => {
       if (_create()) {
         clearInterval(iv);
         console.log('✅ Textract queue reinitialized after Redis became available');
+
+        // Migrate in-memory jobs to Redis-backed queue
+        try {
+          if (textractQueue && textractQueue.jobs && Array.isArray(textractQueue.jobs) && textractQueue.jobs.length) {
+            const memJobs = textractQueue.jobs.slice();
+            textractQueue.jobs = [];
+            memJobs.forEach((j) => textractQueue.add(j.data, j.opts).catch(e => console.error('Failed to re-enqueue OCR job during migration', e)));
+          }
+        } catch (e) {
+          console.warn('Failed to migrate in-memory OCR jobs to Redis textractQueue:', e.message || e);
+        }
       }
     }, retryInterval);
   }
