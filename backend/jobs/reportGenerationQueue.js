@@ -81,82 +81,61 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
       }
     };
   } else {
-    try {
-      const Bull = require('bull');
-      const redisUrl = process.env.REDIS_URL || `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}`;
-      reportQueue = new Bull('report-generation-queue', redisUrl);
+    // Retry-safe Bull initialization. If Bull/Redis is unavailable at startup we'll use an in-memory queue
+    // and attempt reinitialization periodically. When reinitialized, migrate any pending in-memory jobs.
+    const _createBull = () => {
+      try {
+        const Bull = require('bull');
+        const redisUrl = process.env.REDIS_URL || `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}`;
+        const q = new Bull('report-generation-queue', redisUrl);
 
-      // Throttle error logs for this queue and degrade to in-memory fallback on connection refused
-      let _reportQueueErrorLogged = false;
-      function _isConnRefused(err) {
-        if (!err) return false;
-        if (err.code === 'ECONNREFUSED') return true;
-        if (Array.isArray(err.errors) && err.errors.length && err.errors.every(e => e && e.code === 'ECONNREFUSED')) return true;
-        if (typeof err.message === 'string' && err.message.includes('ECONNREFUSED')) return true;
-        return false;
-      }
-      reportQueue.on('error', (err) => {
-        if (_isConnRefused(err)) {
+        let _reportQueueErrorLogged = false;
+        function _isConnRefused(err) {
+          if (!err) return false;
+          if (err.code === 'ECONNREFUSED') return true;
+          if (Array.isArray(err.errors) && err.errors.length && err.errors.every(e => e && e.code === 'ECONNREFUSED')) return true;
+          if (typeof err.message === 'string' && err.message.includes('ECONNREFUSED')) return true;
+          return false;
+        }
+
+        q.on('error', (err) => {
+          if (_isConnRefused(err)) {
+            if (!_reportQueueErrorLogged) {
+              console.warn('⚠️ Redis connection refused for report queue. Falling back to in-memory queue until Redis is available.');
+              _reportQueueErrorLogged = true;
+            }
+            // Keep the Bull client alive so it can attempt reconnects automatically
+            return;
+          }
+
           if (!_reportQueueErrorLogged) {
-            console.warn('⚠️ Redis connection refused for report queue. Falling back to in-memory queue until Redis is available.');
+            console.error('Report queue error event:', err?.message || err);
             _reportQueueErrorLogged = true;
           }
-          // Replace reportQueue with in-memory fallback to avoid further connection attempts
-          reportQueue = {
-            jobs: [],
-            _processor: null,
-            add: async (data, opts = {}) => {
-              const job = { data, opts, _attempts: 0 };
-              reportQueue.jobs.push(job);
-              if (reportQueue._processor) reportQueue.drain();
-              return job;
-            },
-            process: (handler) => {
-              reportQueue._processor = handler;
-              if (reportQueue.jobs.length > 0) reportQueue.drain();
-            },
-            async drain() {
-              if (!reportQueue._processor) return;
-              while (reportQueue.jobs.length) {
-                const job = reportQueue.jobs.shift();
-                try { await reportQueue._processor(job); } catch (e) {
-                  job._attempts = (job._attempts || 0) + 1;
-                  const maxAttempts = (job.opts && job.opts.attempts) || 1;
-                  if (job._attempts < maxAttempts) {
-                    const delay = (job.opts && job.opts.backoff && job.opts.backoff.delay) || 1000;
-                    await new Promise((r) => setTimeout(r, delay));
-                    reportQueue.jobs.push(job);
-                  } else {
-                    console.error('Report job permanently failed:', e);
-                  }
-                }
-              }
-            }
-          };
-          return;
+        });
+
+        if (typeof q.client === 'object' && q.client && typeof q.client.on === 'function') {
+          q.client.on('ready', () => { _reportQueueErrorLogged = false; console.log('✅ Report queue client ready'); });
+          q.client.on('connect', () => { _reportQueueErrorLogged = false; console.log('✅ Report queue client connected'); });
         }
 
-        if (!_reportQueueErrorLogged) {
-          console.error('Report queue error event:', err?.message || err);
-          _reportQueueErrorLogged = true;
-        }
-      });
-
-      if (typeof reportQueue.client === 'object' && reportQueue.client && typeof reportQueue.client.on === 'function') {
-        reportQueue.client.on('ready', () => { _reportQueueErrorLogged = false; console.log('Report queue client ready'); });
-        reportQueue.client.on('connect', () => { _reportQueueErrorLogged = false; console.log('Report queue client connected'); });
+        reportQueue = q;
+        return true;
+      } catch (err) {
+        console.warn('Bull/Redis not available (report queue):', err?.message || err);
+        return false;
       }
+    };
 
-    } catch (err) {
-      console.warn('Bull/Redis not available - falling back to in-memory report queue', err?.message || err);
-      // Fallback to in-memory as above
+    if (!_createBull()) {
+      // In-memory fallback (same behaviour as before)
       reportQueue = {
         jobs: [],
         _processor: null,
         add: async (data, opts = {}) => {
           const job = { data, opts, _attempts: 0 };
           reportQueue.jobs.push(job);
-          if (reportQueue._processor) reportQueue.drain().catch(e => console.error("Queue drain error:", e));
+          if (reportQueue._processor) reportQueue.drain();
           return job;
         },
         process: (handler) => { reportQueue._processor = handler; if (reportQueue.jobs.length > 0) reportQueue.drain(); },
@@ -178,6 +157,26 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
           }
         }
       };
+
+      const retryInterval = Number(process.env.QUEUES_RETRY_INTERVAL_MS) || 30000;
+      const iv = setInterval(() => {
+        if (_createBull()) {
+          clearInterval(iv);
+          console.log('✅ Report queue reinitialized after Redis became available');
+
+          // If there were jobs in the in-memory queue, migrate them to the real queue
+          try {
+            if (reportQueue && reportQueue.jobs && Array.isArray(reportQueue.jobs) && reportQueue.jobs.length) {
+              const memJobs = reportQueue.jobs.slice();
+              // Clear the in-memory list before reassigning to avoid duplicates
+              reportQueue.jobs = [];
+              memJobs.forEach((j) => reportQueue.add(j.data, j.opts).catch(e => console.error('Failed to re-enqueue job during migration', e)));
+            }
+          } catch (e) {
+            console.warn('Failed to migrate in-memory jobs to Redis reportQueue:', e.message || e);
+          }
+        }
+      }, retryInterval);
     }
   }
 } // <--- THIS CLOSING BRACE WAS MISSING

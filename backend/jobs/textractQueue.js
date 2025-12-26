@@ -13,22 +13,36 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
   console.log('ℹ️ Textract queue disabled - no Redis configured (set REDIS_URL or REDIS_HOST to enable)');
   textractQueue = null;
 } else {
-  try {
-    const redisOptions = process.env.REDIS_URL || {
-      host: process.env.REDIS_HOST || '127.0.0.1',
-      port: Number(process.env.REDIS_PORT) || 6379,
-      password: process.env.REDIS_PASSWORD || undefined,
-      tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
-      // Prevents the client from giving up on the first failed connection attempt
-      maxRetriesPerRequest: null, 
-      enableReadyCheck: false
-    };
+  const _create = () => {
+    try {
+      const redisOptions = process.env.REDIS_URL || {
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: Number(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+        // Prevents the client from giving up on the first failed connection attempt
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false
+      };
 
-    textractQueue = new Bull('textract-ocr', typeof redisOptions === 'string' ? redisOptions : { redis: redisOptions });
-    console.log('ℹ️ Textract queue client created (waiting for Redis connection)');
-  } catch (error) {
-    console.warn('⚠️ Redis client creation failed - OCR jobs will be disabled', error?.message || error);
-    textractQueue = null;
+      textractQueue = new Bull('textract-ocr', typeof redisOptions === 'string' ? redisOptions : { redis: redisOptions });
+      console.log('ℹ️ Textract queue client created (waiting for Redis connection)');
+      return true;
+    } catch (error) {
+      console.warn('⚠️ Redis client creation failed - OCR jobs disabled (will retry):', error?.message || error);
+      textractQueue = null;
+      return false;
+    }
+  };
+
+  if (!_create()) {
+    const retryInterval = Number(process.env.QUEUES_RETRY_INTERVAL_MS) || 30000;
+    const iv = setInterval(() => {
+      if (_create()) {
+        clearInterval(iv);
+        console.log('✅ Textract queue reinitialized after Redis became available');
+      }
+    }, retryInterval);
   }
 }
 

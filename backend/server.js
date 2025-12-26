@@ -274,7 +274,17 @@ async function start() {
       startEventReminderScheduler();
     }
 
-    console.log('✓ Textract OCR queue initialized');
+    if (typeof textractQueue !== 'undefined' && textractQueue) {
+      console.log('✓ Textract OCR queue initialized');
+    } else {
+      console.warn('⚠️ Textract OCR queue failed to initialize (Redis unavailable or misconfigured)');
+    }
+
+    if (typeof achievementsQueue !== 'undefined' && achievementsQueue) {
+      console.log('✓ Achievements queue initialized');
+    } else {
+      console.warn('⚠️ Achievements queue failed to initialize (Redis unavailable or misconfigured)');
+    }
 
     // When running tests we avoid calling `app.listen()` to prevent leaving
     // an open server handle that can keep the Jest process from exiting.

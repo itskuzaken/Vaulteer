@@ -12,21 +12,36 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
   console.log('ℹ️ Achievements queue disabled - no Redis configured');
   achievementsQueue = null;
 } else {
-  try {
-    const redisOptions = process.env.REDIS_URL || {
-      host: process.env.REDIS_HOST || '127.0.0.1',
-      port: Number(process.env.REDIS_PORT) || 6379,
-      password: process.env.REDIS_PASSWORD || undefined,
-      tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false
-    };
+  const _create = () => {
+    try {
+      const redisOptions = process.env.REDIS_URL || {
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: Number(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+        maxRetriesPerRequest: null,
+        enableReadyCheck: false
+      };
 
-    achievementsQueue = new Bull('achievements-queue', typeof redisOptions === 'string' ? redisOptions : { redis: redisOptions });
-    console.log('ℹ️ Achievements queue client created (waiting for Redis connection)');
-  } catch (err) {
-    console.warn('⚠️ Redis not available - achievements jobs disabled', err.message);
-    achievementsQueue = null;
+      achievementsQueue = new Bull('achievements-queue', typeof redisOptions === 'string' ? redisOptions : { redis: redisOptions });
+      console.log('ℹ️ Achievements queue client created (waiting for Redis connection)');
+      return true;
+    } catch (err) {
+      console.warn('⚠️ Redis not available - achievements jobs disabled (will retry):', err.message);
+      achievementsQueue = null;
+      return false;
+    }
+  };
+
+  // Try immediately; if it fails, schedule retries so we can recover when Redis comes up
+  if (!_create()) {
+    const retryInterval = Number(process.env.QUEUES_RETRY_INTERVAL_MS) || 30000;
+    const iv = setInterval(() => {
+      if (_create()) {
+        clearInterval(iv);
+        console.log('✅ Achievements queue reinitialized after Redis became available');
+      }
+    }, retryInterval);
   }
 }
 
