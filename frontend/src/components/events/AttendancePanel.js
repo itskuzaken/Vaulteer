@@ -80,10 +80,23 @@ export default function AttendancePanel({ eventUid }) {
     return participants.filter(p => (p.name && p.name.toLowerCase().includes(lower)) || (p.email && p.email.toLowerCase().includes(lower)));
   }, [participants, searchQuery]);
 
+  const isAllVisibleSelected = useMemo(() => filteredParticipants.length > 0 && filteredParticipants.every(p => selected.has(p.participant_id)), [filteredParticipants, selected]);
+
   const selectAll = () => {
-    if (selected.size === filteredParticipants.length) setSelected(new Set());
+    if (isAllVisibleSelected) setSelected(new Set());
     else setSelected(new Set(filteredParticipants.map((p) => p.participant_id)));
   };
+
+  // Reconcile selection when participants list changes to prune stale ids
+  useEffect(() => {
+    setSelected(prev => {
+      if (prev.size === 0) return prev;
+      const currentIds = new Set(participants.map(p => p.participant_id));
+      const pruned = new Set([...prev].filter(id => currentIds.has(id)));
+      if (pruned.size === prev.size) return prev;
+      return pruned;
+    });
+  }, [participants]);
 
   const clearSelection = () => setSelected(new Set());
 
@@ -186,7 +199,7 @@ export default function AttendancePanel({ eventUid }) {
             className="w-full pl-9 pr-3 py-1.5 text-sm bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
         </div>
         <button onClick={selectAll} className="text-xs font-medium text-gray-500 hover:text-gray-900 dark:hover:text-white px-2">
-          {selected.size === filteredParticipants.length && filteredParticipants.length > 0 ? 'Deselect All' : 'Select All'}
+          {isAllVisibleSelected ? 'Deselect All' : 'Select visible'}
         </button>
       </div>
 
@@ -199,7 +212,7 @@ export default function AttendancePanel({ eventUid }) {
             <thead className="bg-gray-50 dark:bg-gray-800/50 text-xs uppercase text-gray-500 sticky top-0 z-0">
               <tr>
                 <th className="p-3 w-10 text-center">
-                  <input type="checkbox" checked={selected.size > 0 && selected.size === filteredParticipants.length} onChange={selectAll} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  <input type="checkbox" checked={isAllVisibleSelected} onChange={selectAll} className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
                 </th>
                 <th className="p-3">Participant</th>
                 <th className="p-3">Status</th>
@@ -220,8 +233,10 @@ export default function AttendancePanel({ eventUid }) {
                     </td>
                     <td className="p-3"><StatusBadge status={p.attendance_status} /></td>
                     <td className="p-3 text-right">
-                      {/* Intentionally no per-row actions - selection & footer action drive check-ins */}
-                      <span className="text-xs text-gray-400">{p.attendance_status === 'present' ? 'Present' : ''}</span>
+                      <div className="flex items-center justify-end gap-2">
+                        <button className="text-xs text-gray-500 hover:text-gray-900" onClick={() => { setAuditParticipant(p.participant_id); setAuditOpen(true); }}>History</button>
+                        <span className="text-xs text-gray-400">{p.attendance_status === 'present' ? 'Present' : ''}</span>
+                      </div>
                     </td>
                   </tr>
                 );

@@ -167,6 +167,36 @@ describe('EventRepository attendance methods', () => {
     expect(mockConn.commit).toHaveBeenCalled();
   });
 
+  test('checkInParticipant at exact window start is allowed and present', async () => {
+    const start = new Date(Date.now() + 15 * 60000).toISOString(); // windowStart == now
+    mockConn.execute
+      .mockResolvedValueOnce([[{ event_id: 5, status: 'published', start_datetime: start, attendance_checkin_window_mins: 15, attendance_grace_mins: 10 }]])
+      .mockResolvedValueOnce([[{ participant_id: 400, user_id: 90, status: 'registered', attendance_status: 'unknown' }]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    mockPool.execute.mockResolvedValueOnce([[{ participant_id: 400, attendance_status: 'present' }]]);
+
+    const res = await eventRepository.checkInParticipant('evt-uid', 400, 77);
+    expect(res.attendance_status).toBe('present');
+    expect(mockConn.commit).toHaveBeenCalled();
+  });
+
+  test('checkInParticipant at exactly start+grace is considered present (inclusive)', async () => {
+    const start = new Date(Date.now() - 10 * 60000).toISOString(); // start + grace == now
+    mockConn.execute
+      .mockResolvedValueOnce([[{ event_id: 5, status: 'published', start_datetime: start, attendance_checkin_window_mins: 15, attendance_grace_mins: 10 }]])
+      .mockResolvedValueOnce([[{ participant_id: 410, user_id: 92, status: 'registered', attendance_status: 'unknown' }]])
+      .mockResolvedValueOnce([{ affectedRows: 1 }])
+      .mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+    mockPool.execute.mockResolvedValueOnce([[{ participant_id: 410, attendance_status: 'present' }]]);
+
+    const res = await eventRepository.checkInParticipant('evt-uid', 410, 78);
+    expect(res.attendance_status).toBe('present');
+    expect(mockConn.commit).toHaveBeenCalled();
+  });
+
   test('autoFlagAbsences processes batches until none remain', async () => {
     // First iteration returns two participants
     mockPool.getConnection.mockResolvedValueOnce(mockConn);

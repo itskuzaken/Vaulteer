@@ -4,12 +4,7 @@ import {
   IoPeopleOutline,
   IoPersonOutline,
   IoCalendarOutline,
-  IoCreateOutline,
-  IoCheckmarkDoneOutline,
-  IoArchiveOutline,
-  IoTimeOutline,
   IoMegaphoneOutline,
-  IoEyeOutline,
   IoCheckmarkCircleOutline,
   IoAnalyticsOutline,
   IoGridOutline,
@@ -18,6 +13,7 @@ import {
   IoNotificationsOutline,
   IoServerOutline,
   IoScanOutline,
+  IoPodiumOutline
 } from "react-icons/io5";
 
 const adminMenu = {
@@ -28,7 +24,7 @@ const adminMenu = {
   },
   "leaderboard": {
     label: "Leaderboard",
-    icon: IoTrophyOutline,
+    icon: IoPodiumOutline,
     subSections: [],
   },
   "hts-forms": {
@@ -120,7 +116,7 @@ const staffMenu = {
   },
   "leaderboard": {
     label: "Leaderboard",
-    icon: IoTrophyOutline,
+    icon: IoPodiumOutline,
     subSections: [],
   },
   "hts-forms": {
@@ -175,12 +171,17 @@ const volunteerMenu = {
   },
   "leaderboard": {
     label: "Leaderboard",
-    icon: IoTrophyOutline,
+    icon: IoPodiumOutline,
     subSections: [],
   },
   "my-events": {
     label: "My Events",
     icon: IoCalendarOutline,
+    subSections: [],
+  },
+  "achievements": {
+    label: "Achievements",
+    icon: IoTrophyOutline,
     subSections: [],
   },
   "hts-forms": {

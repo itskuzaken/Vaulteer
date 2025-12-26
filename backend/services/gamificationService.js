@@ -390,6 +390,152 @@ class GamificationService {
     return { progress, earned };
   }
 
+  // Public listing for volunteer/catalog views (filters out inactive achievements)
+  async listPublicAchievements() {
+    const rows = await require('../repositories/achievementRepository').listAchievements();
+    const list = Array.isArray(rows) ? rows : [];
+    return list
+      .filter((r) => r && (r.is_active === 1 || r.is_active === true))
+      .map((r) => {
+        const badgeMap = r.badge_s3_keys ? (typeof r.badge_s3_keys === 'string' ? JSON.parse(r.badge_s3_keys) : r.badge_s3_keys) : null;
+        const singleKey = r.badge_s3_key || r.achievement_icon || null;
+        return {
+          achievement_id: r.achievement_id,
+          badge_code: r.badge_code,
+          achievement_name: r.achievement_name,
+          achievement_description: r.achievement_description,
+          thresholds: r.thresholds ? (typeof r.thresholds === 'string' ? JSON.parse(r.thresholds) : r.thresholds) : null,
+          threshold_type: r.threshold_type || null,
+          threshold_value: r.threshold_value || null,
+          tier_points: r.tier_points || null,
+          achievement_points: r.achievement_points || null,
+          badge_s3_keys: badgeMap || (singleKey ? { single: singleKey } : null),
+          display_order: r.display_order || 0,
+        };
+      });
+  }
+
+  // Returns merged catalog + user progress and presigned URLs for display
+  async getUserAchievementsFull(userId) {
+    const s3Service = require('./s3Service');
+    const repo = require('../repositories/achievementRepository');
+    const [catalog, progressRows, earnedRows] = await Promise.all([
+      this.listPublicAchievements(),
+      repo.getUserProgresses(userId),
+      repo.getUserEarned(userId),
+    ]);
+
+    const progressMap = (Array.isArray(progressRows) ? progressRows : []).reduce((acc, p) => {
+      if (p && p.achievement_code) acc[p.achievement_code] = p;
+      return acc;
+    }, {});
+
+    const earnedSet = new Set((Array.isArray(earnedRows) ? earnedRows : []).map((r) => r.achievement_id || r.badge_code));
+
+    // Build list of required s3 keys to presign (unique)
+    const s3KeysNeeded = new Set();
+    for (const ach of catalog) {
+      const keys = ach.badge_s3_keys || {};
+      for (const k of Object.values(keys || {})) {
+        if (k) s3KeysNeeded.add(k);
+      }
+    }
+
+    // Presign all keys in parallel (best-effort). Use a short TTL from s3Service default
+    const presignedMap = {};
+    await Promise.all(
+      Array.from(s3KeysNeeded).map(async (k) => {
+        try {
+          presignedMap[k] = await s3Service.getPresignedDownloadUrl(k);
+        } catch (err) {
+          // don't throw — just omit URL for that key
+          presignedMap[k] = null;
+        }
+      })
+    );
+
+    // Merge catalog with user progress
+    const merged = catalog.map((ach) => {
+      const code = ach.badge_code;
+      const p = progressMap[code] || { current_count: 0, badge_level: null, last_updated_at: null };
+      const earned = !!(earnedSet.has(ach.achievement_id) || earnedSet.has(code));
+
+      // Determine nextThreshold and progressPercent
+      let progressPercent = 0;
+      let nextThreshold = null;
+      if (ach.thresholds && typeof ach.thresholds === 'object') {
+        // thresholds object: { bronze, silver, gold }
+        const thresholds = ach.thresholds;
+        const levels = ['bronze','silver','gold'];
+        // find the next threshold after current_count
+        const currentCount = Number(p.current_count || 0);
+        let lower = 0; let upper = 0; let found = false;
+        for (const lvl of levels) {
+          if (typeof thresholds[lvl] === 'number' && Number.isFinite(thresholds[lvl])) {
+            const val = Number(thresholds[lvl]);
+            if (currentCount < val) {
+              lower = lower || 0;
+              upper = val;
+              nextThreshold = { tier: lvl, value: val };
+              progressPercent = Math.min(100, Math.round((currentCount / val) * 100));
+              found = true;
+              break;
+            }
+            lower = val;
+          }
+        }
+        if (!found) {
+          // either at or past the highest tier
+          progressPercent = earned ? 100 : 0;
+        }
+      } else if (ach.threshold_value && Number.isFinite(Number(ach.threshold_value))) {
+        const currentCount = Number(p.current_count || 0);
+        const target = Number(ach.threshold_value);
+        progressPercent = Math.min(100, Math.round((currentCount / target) * 100));
+        nextThreshold = { tier: 'default', value: target };
+      } else {
+        progressPercent = earned ? 100 : 0;
+      }
+
+      // Build badge_s3_url_map from presignedMap
+      const urlMap = {};
+      const keys = ach.badge_s3_keys || {};
+      for (const [tier, k] of Object.entries(keys || {})) {
+        urlMap[tier] = k ? presignedMap[k] || null : null;
+      }
+
+      return {
+        ...ach,
+        current_count: p.current_count || 0,
+        badge_level: p.badge_level || null,
+        last_updated_at: p.last_updated_at || null,
+        earned,
+        progressPercent,
+        nextThreshold,
+        badge_s3_url_map: urlMap,
+      };
+    });
+
+    return merged;
+  }
+
+  // Batch presign GET URLs for given keys
+  async presignBadgeGetUrls(keys = []) {
+    if (!Array.isArray(keys)) throw new Error('keys must be an array');
+    const s3Service = require('./s3Service');
+    const result = {};
+    await Promise.all(
+      keys.map(async (k) => {
+        try {
+          result[k] = await s3Service.getPresignedDownloadUrl(k);
+        } catch (err) {
+          result[k] = null;
+        }
+      })
+    );
+    return result;
+  }
+
   async getLevelThresholds() {
     return gamificationRepository.getPointsThresholds();
   }

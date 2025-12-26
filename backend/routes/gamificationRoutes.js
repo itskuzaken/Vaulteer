@@ -103,6 +103,57 @@ router.get(
   })
 );
 
+// Public (authenticated) achievements catalog (volunteer-facing)
+router.get(
+  "/achievements",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const data = await gamificationService.listPublicAchievements();
+    res.json({ success: true, data });
+  })
+);
+
+// Merged catalog + user progress (self or admin) — returns progressPercent and badge_s3_url_map
+router.get(
+  "/users/:userId/achievements/full",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const targetUserId = parseInt(req.params.userId, 10);
+    if (Number.isNaN(targetUserId)) return res.status(400).json({ success: false, message: 'Invalid user id' });
+
+    // Allow access if requesting own data or admin
+    if (req.currentUserId !== targetUserId && req.currentUserRole !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Forbidden' });
+    }
+
+    try {
+      const data = await gamificationService.getUserAchievementsFull(targetUserId);
+      res.json({ success: true, data });
+    } catch (err) {
+      res.status(500).json({ success: false, message: err?.message || 'Failed to fetch achievements' });
+    }
+  })
+);
+
+// Batch presign GET URLs for badge s3 keys (authenticated)
+router.post(
+  "/badges/presign",
+  authenticate,
+  asyncHandler(async (req, res) => {
+    const badgeKeys = req.body?.badge_keys || req.query?.badge_keys || null;
+    const keys = Array.isArray(badgeKeys) ? badgeKeys : (typeof badgeKeys === 'string' ? [badgeKeys] : []);
+    if (!keys || keys.length === 0) return res.status(400).json({ success: false, message: 'badge_keys (array) is required' });
+
+    try {
+      const data = await gamificationService.presignBadgeGetUrls(keys);
+      res.json({ success: true, data });
+    } catch (err) {
+      if (err && err.code === 'PRESIGNER_MISSING') return res.status(500).json({ success: false, message: err.message });
+      res.status(500).json({ success: false, message: err?.message || 'Failed to presign badges' });
+    }
+  })
+);
+
 // Admin: list achievements (badge catalog)
 router.get(
   "/admin/achievements",

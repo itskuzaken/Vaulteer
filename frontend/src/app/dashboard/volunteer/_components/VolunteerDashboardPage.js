@@ -12,6 +12,7 @@ import PostDetailsContent from "../../../../components/navigation/Post/PostDetai
 import UserSettings from "../../../../components/navigation/Settings/UserSettings";
 import NotificationsPage from "../../../../components/notifications/NotificationsPage";
 import LeaderboardPage from "../../../../components/leaderboard/LeaderboardPage";
+import AchievementCatalogPage from "../../../../components/navigation/Gamification/AchievementCatalogPage";
 
 const volunteerMainRoutes = {
   dashboard: {
@@ -42,6 +43,10 @@ const volunteerMainRoutes = {
   leaderboard: {
     label: "Leaderboard",
     component: LeaderboardPage,
+  },
+  achievements: {
+    label: "Achievements",
+    component: AchievementCatalogPage,
   },
   "hts-forms": {
     label: "HTS Forms",
