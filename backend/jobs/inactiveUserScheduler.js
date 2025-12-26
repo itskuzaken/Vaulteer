@@ -1,5 +1,5 @@
 const cron = require("node-cron");
-const { getPool } = require("../db/pool");
+const { getPool, isReady } = require("../db/pool");
 const {
   createLog,
   LOG_TYPES,
@@ -114,6 +114,10 @@ function scheduleInactiveUserJob() {
     "0 0 * * *",
     async () => {
       try {
+        if (!isReady()) {
+          console.warn('[InactiveUserJob] DB pool not ready; skipping scheduled run');
+          return;
+        }
         const affected = await markInactiveUsers();
         console.log(
           `✅ Inactive user cleanup job ran successfully. Users affected: ${affected}`

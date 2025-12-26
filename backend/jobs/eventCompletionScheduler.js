@@ -1,13 +1,18 @@
 const cron = require('node-cron');
 const eventRepository = require('../repositories/eventRepository');
 const { logHelpers } = require('../services/activityLogService');
-const { getPool } = require('../db/pool');
+const { getPool, isReady } = require('../db/pool');
 
 let _task = null;
 let _started = false;
 
 async function runEventCompletionCheck() {
   try {
+    if (!isReady()) {
+      console.warn('[EventCompletionScheduler] DB pool not ready; skipping scheduled run');
+      return;
+    }
+
     // Mark events as ongoing if their start_datetime has passed
     try {
       const [ongoingRows] = await getPool().execute(

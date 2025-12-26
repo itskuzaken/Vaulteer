@@ -10,6 +10,11 @@ function startDeadlineScheduler() {
   // Run every minute
   const job = cron.schedule('* * * * *', async () => {
     try {
+      const { isReady } = require('../db/pool');
+      if (!isReady()) {
+        console.warn('[ApplicationDeadlineScheduler] DB pool not ready; skipping scheduled run');
+        return;
+      }
       const settings = await applicationSettingsRepository.getSettings();
       
       // Skip if no settings or applications are already closed

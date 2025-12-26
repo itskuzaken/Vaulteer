@@ -14,6 +14,11 @@ function startEventReminderScheduler() {
   // Run every hour to send reminders for events starting within the next 24 hours
   _task = cron.schedule('0 * * * *', async () => {
     try {
+      const { isReady } = require('../db/pool');
+      if (!isReady()) {
+        console.warn('[EventReminderScheduler] DB pool not ready; skipping scheduled run');
+        return;
+      }
       const [events] = await getPool().execute(
         `SELECT uid, event_id, title, start_datetime FROM events
          WHERE start_datetime BETWEEN NOW() AND DATE_ADD(NOW(), INTERVAL 24 HOUR)

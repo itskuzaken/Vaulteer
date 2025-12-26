@@ -223,11 +223,17 @@ async function start() {
   try {
     await initPool();
 
-    scheduleInactiveUserJob();
-    startDeadlineScheduler();
-    startPostScheduler();
-    startEventCompletionScheduler();
-    startEventReminderScheduler();
+    const disableJobs = process.env.DISABLE_SCHEDULED_JOBS === 'true';
+    if (disableJobs) {
+      console.log('[config] Scheduled jobs disabled via DISABLE_SCHEDULED_JOBS=true');
+    } else {
+      scheduleInactiveUserJob();
+      startDeadlineScheduler();
+      startPostScheduler();
+      startEventCompletionScheduler();
+      startEventReminderScheduler();
+    }
+
     console.log('✓ Textract OCR queue initialized');
 
     app.listen(CONFIG.PORT, "0.0.0.0", () => {
