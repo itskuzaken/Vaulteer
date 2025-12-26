@@ -1,8 +1,8 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 // Mock mappings service BEFORE importing component
-jest.mock('../../../services/achievementMappingsService');
+jest.mock('../../../../services/achievementMappingsService');
 import AchievementMappingList from '../AchievementMappingList';
-import * as svc from '../../../services/achievementMappingsService';
+import * as svc from '../../../../services/achievementMappingsService';
 
 describe('AchievementMappingList', () => {
   beforeEach(() => jest.resetAllMocks());

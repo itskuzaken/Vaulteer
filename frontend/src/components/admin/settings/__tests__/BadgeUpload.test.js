@@ -1,9 +1,9 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 // Mock service BEFORE importing the component so module-level imports are replaced
-jest.mock('../../../services/achievementService');
+jest.mock('../../../../services/achievementService');
 import BadgeUpload from '../BadgeUpload';
-import * as achSvc from '../../../services/achievementService';
+import * as achSvc from '../../../../services/achievementService';
 
 describe('BadgeUpload', () => {
   beforeEach(() => jest.resetAllMocks());

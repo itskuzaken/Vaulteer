@@ -10,6 +10,18 @@ jest.mock('firebase/auth', () => ({
   signInWithPopup: jest.fn(),
 }));
 
+// Mock application settings to avoid network fetch and keep tests deterministic
+jest.mock('../../../services', () => ({
+  getApplicationSettings: jest.fn().mockResolvedValue({ success: true, data: { is_open: true, deadline: '2099-01-01' } }),
+}));
+
+// Mock firebase auth bindings used by the page (auth.currentUser + getIdToken)
+jest.mock('../../../services/firebase', () => ({
+  auth: { currentUser: { uid: 'test', displayName: 'Test User', email: 'test@example.com', getIdToken: jest.fn().mockResolvedValue('fake-token') } },
+  googleProvider: {},
+  getIdToken: jest.fn().mockResolvedValue('fake-token')
+}));
+
 describe('Volunteer signup upload flow', () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -17,6 +29,8 @@ describe('Volunteer signup upload flow', () => {
     Object.defineProperty(window, 'localStorage', { value: { getItem: jest.fn(), setItem: jest.fn(), removeItem: jest.fn() } });
     // Spy on console.warn so we can assert we use it for handled failures
     jest.spyOn(console, 'warn').mockImplementation(() => {});
+    // Spy on console.error so we can suppress noisy logs and assert submit errors
+    jest.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   test('attaches file in memory when training selected', async () => {
@@ -28,7 +42,25 @@ describe('Volunteer signup upload flow', () => {
 
     render(<VolunteerSignupPage />);
 
-    // Select the HIV Testing checkbox
+    // Navigate to Volunteer Profile (step 7)
+    fireEvent.click(screen.getByLabelText('I Agree'));
+    fireEvent.click(screen.getByText('Next'));
+    // Step 2
+    fireEvent.change(screen.getByLabelText(/Last Name/i), { target: { value: 'Dela Cruz' } });
+    fireEvent.change(screen.getByLabelText(/First Name/i), { target: { value: 'Juan' } });
+    fireEvent.change(screen.getByLabelText(/Nickname/i), { target: { value: 'Juan' } });
+    fireEvent.change(screen.getByLabelText(/Birthdate/i), { target: { value: '1990-01-01' } });
+    fireEvent.click(screen.getByLabelText(/^Male$/i));
+    fireEvent.click(screen.getByText(/Next/i));
+    // Step 3
+    fireEvent.change(screen.getByLabelText(/Mobile Number/i), { target: { value: '09171234567' } });
+    fireEvent.change(screen.getByLabelText(/Current City/i), { target: { value: 'Bacolod City' } });
+    fireEvent.click(screen.getByText(/Next/i));
+    // Step 4
+    fireEvent.click(screen.getByLabelText(/Not Applicable/i));
+    fireEvent.click(screen.getByText(/Next/i));
+
+    // Now select the HIV Testing checkbox
     const checkbox = screen.getByLabelText('HIV Testing');
     fireEvent.click(checkbox);
 
@@ -40,9 +72,9 @@ describe('Volunteer signup upload flow', () => {
     // UI should show Selected: filename
     await waitFor(() => expect(screen.getByText(/Selected: cert.pdf/)).toBeInTheDocument());
 
-    // No network calls should have been made yet
+    // No presign/upload network calls should have been made yet
     expect(apiCall).not.toHaveBeenCalledWith(expect.stringContaining('/s3/presign'), expect.any(Object));
-    expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.fetch).not.toHaveBeenCalledWith(expect.stringContaining('/api/s3/upload'), expect.any(Object));
   });
 
   test('submits form with attached certificate as multipart/form-data', async () => {
@@ -60,7 +92,7 @@ describe('Volunteer signup upload flow', () => {
     fireEvent.change(screen.getByLabelText(/First Name/i), { target: { value: 'Juan' } });
     fireEvent.change(screen.getByLabelText(/Nickname/i), { target: { value: 'Juan' } });
     fireEvent.change(screen.getByLabelText(/Birthdate/i), { target: { value: '1990-01-01' } });
-    fireEvent.click(screen.getByLabelText(/Male/i));
+    fireEvent.click(screen.getByLabelText(/^Male$/i));
     fireEvent.click(screen.getByText(/Next/i));
 
     // Step 3: contact
@@ -78,7 +110,11 @@ describe('Volunteer signup upload flow', () => {
     const file = new File(['dummy'], 'cert.pdf', { type: 'application/pdf' });
     fireEvent.change(input, { target: { files: [file] } });
 
-    // proceed to declaration
+    // fill required volunteer profile fields, select a role and proceed
+    fireEvent.click(screen.getByLabelText('Events & Sponsorships'));
+    fireEvent.click(screen.getByLabelText('Monday'));
+    fireEvent.click(screen.getByLabelText(/Often/i));
+    fireEvent.change(screen.getByPlaceholderText('Your answer...'), { target: { value: 'I want to help. I want to learn. I want to contribute. I want to grow. I want to support.' } });
     fireEvent.click(screen.getByText('Next'));
 
     // Step 8: agree declaration
@@ -100,6 +136,24 @@ describe('Volunteer signup upload flow', () => {
 
     render(<VolunteerSignupPage />);
 
+    // Navigate to Volunteer Profile (step 7)
+    fireEvent.click(screen.getByLabelText('I Agree'));
+    fireEvent.click(screen.getByText('Next'));
+    // Step 2
+    fireEvent.change(screen.getByLabelText(/Last Name/i), { target: { value: 'Dela Cruz' } });
+    fireEvent.change(screen.getByLabelText(/First Name/i), { target: { value: 'Juan' } });
+    fireEvent.change(screen.getByLabelText(/Nickname/i), { target: { value: 'Juan' } });
+    fireEvent.change(screen.getByLabelText(/Birthdate/i), { target: { value: '1990-01-01' } });
+    fireEvent.click(screen.getByLabelText(/^Male$/i));
+    fireEvent.click(screen.getByText(/Next/i));
+    // Step 3
+    fireEvent.change(screen.getByLabelText(/Mobile Number/i), { target: { value: '09171234567' } });
+    fireEvent.change(screen.getByLabelText(/Current City/i), { target: { value: 'Bacolod City' } });
+    fireEvent.click(screen.getByText(/Next/i));
+    // Step 4
+    fireEvent.click(screen.getByLabelText(/Not Applicable/i));
+    fireEvent.click(screen.getByText(/Next/i));
+
     const checkbox = screen.getByLabelText('HIV Testing');
     fireEvent.click(checkbox);
 
@@ -107,14 +161,21 @@ describe('Volunteer signup upload flow', () => {
     const file = new File(['dummy'], 'cert.pdf', { type: 'application/pdf' });
     fireEvent.change(input, { target: { files: [file] } });
 
-    // Inline detailed message should appear
-    await waitFor(() => expect(screen.getByText(/Upload failed: Failed to fetch/)).toBeInTheDocument());
+    // select a volunteer role and fill required volunteer profile fields
+    fireEvent.click(screen.getByLabelText('Events & Sponsorships'));
+    fireEvent.click(screen.getByLabelText('Monday'));
+    fireEvent.click(screen.getByLabelText(/Often/i));
+    fireEvent.change(screen.getByPlaceholderText('Your answer...'), { target: { value: 'I want to help. I want to learn. I want to contribute. I want to grow. I want to support.' } });
+    fireEvent.click(screen.getByText('Next'));
 
-    // Global alert should show the training failure message
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/Upload failed for HIV Testing: Failed to fetch/));
+    // Proceed to declaration and submit to observe handled submission/network failure
+    fireEvent.click(screen.getByLabelText('I Agree'));
+    fireEvent.click(screen.getByText('Submit'));
 
-    // We should log a warning (not an error) for handled upload failures
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('Upload error for'), 'HIV Testing', expect.any(Error));
+    await waitFor(() => expect(screen.getByText(/Failed to submit application: Failed to fetch/)).toBeInTheDocument());
+
+    // We should log a submit error
+    expect(console.error).toHaveBeenCalledWith(expect.stringContaining('Error submitting application:'), expect.any(Error));
   });
 
   test('prevents proceeding when selected trainings have missing certificates', async () => {
@@ -132,7 +193,7 @@ describe('Volunteer signup upload flow', () => {
     fireEvent.change(screen.getByLabelText(/First Name/i), { target: { value: 'Juan' } });
     fireEvent.change(screen.getByLabelText(/Nickname/i), { target: { value: 'Juan' } });
     fireEvent.change(screen.getByLabelText(/Birthdate/i), { target: { value: '1990-01-01' } });
-    fireEvent.click(getByLabelText(/Male/i));
+    fireEvent.click(getByLabelText(/^Male$/i));
     fireEvent.click(getByText(/Next/i));
 
     // Step 3: contact

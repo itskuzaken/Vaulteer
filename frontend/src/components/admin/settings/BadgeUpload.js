@@ -6,20 +6,25 @@ export default function BadgeUpload({ achievementId, currentKey, onUpdated, tier
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
+  const [deleted, setDeleted] = useState(false);
 
   // Load preview URL when component mounts or currentKey changes
   useEffect(() => {
     let mounted = true;
     setPreviewUrl(null);
+    setDeleted(false);
     if (!currentKey) return;
     (async () => {
       try {
         const data = await getBadgePreviewUrl(achievementId, tier);
         if (!mounted) return;
         setPreviewUrl(data?.url || null);
+        setError(null);
       } catch (err) {
         if (!mounted) return;
         setPreviewUrl(null);
+        // Clear any previously-stored errors so the UI doesn't show raw internal messages
+        setError(null);
       }
     })();
     return () => { mounted = false; };
@@ -73,7 +78,8 @@ export default function BadgeUpload({ achievementId, currentKey, onUpdated, tier
       }
       if (!didUpload) throw new Error('Upload failed');
     } catch (err) {
-      setError(err?.message || 'Upload failed');
+      const msg = err?.message || 'Upload failed';
+      setError(msg.includes('Cannot read properties of undefined') ? 'Upload failed' : msg);
     } finally {
       setUploading(false);
       if (localPreviewUrl) {
@@ -89,7 +95,8 @@ export default function BadgeUpload({ achievementId, currentKey, onUpdated, tier
       const row = await confirmBadge(achievementId, key, tier);
       if (onUpdated) onUpdated(row);
     } catch (err) {
-      setError(err?.message || 'Confirm failed');
+      const msg = err?.message || 'Confirm failed';
+      setError(msg.includes('Cannot read properties of undefined') ? 'Confirm failed' : msg);
     } finally {
       setUploading(false);
     }
@@ -100,9 +107,12 @@ export default function BadgeUpload({ achievementId, currentKey, onUpdated, tier
     setUploading(true);
     try {
       await deleteBadge(achievementId, tier);
+      setPreviewUrl(null);
+      setDeleted(true);
       if (onUpdated) onUpdated(null);
     } catch (err) {
-      setError(err?.message || 'Delete failed');
+      const msg = err?.message || 'Delete failed';
+      setError(msg.includes('Cannot read properties of undefined') ? 'Delete failed' : msg);
     } finally {
       setUploading(false);
     }
@@ -134,13 +144,13 @@ export default function BadgeUpload({ achievementId, currentKey, onUpdated, tier
       </div>
 
       {/* 2. Preview and Actions Area */}
-      {currentKey && (
+      {(currentKey && !deleted) || previewUrl ? (
         <div className="flex items-center gap-3 p-2 bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-md">
           {/* Badge Image */}
           <div className="flex-none bg-white dark:bg-black rounded p-1 border border-gray-100 dark:border-gray-800">
             {previewUrl ? (
               <div className="w-12 h-12 relative">
-                <Image src={previewUrl} alt={`${tier} badge`} width={48} height={48} unoptimized className="object-contain" />
+                <Image src={previewUrl} alt={currentKey ? `${tier} badge` : 'badge preview'} width={48} height={48} unoptimized className="object-contain" />
               </div>
             ) : (
               <div className="w-12 h-12 flex items-center justify-center text-xs text-gray-400">...</div>
@@ -149,14 +159,16 @@ export default function BadgeUpload({ achievementId, currentKey, onUpdated, tier
 
           {/* Vertical Action Buttons */}
           <div className="flex flex-col gap-1 w-full">
-            <button 
-              type="button"
-              onClick={() => handleConfirmByKey(currentKey)} 
-              disabled={uploading}
-              className="px-2 py-1 text-xs font-medium text-center bg-green-50 text-green-700 border border-green-200 rounded hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
-            >
-              Confirm
-            </button>
+            {currentKey && !deleted && previewUrl && (
+              <button 
+                type="button"
+                onClick={() => handleConfirmByKey(currentKey)} 
+                disabled={uploading}
+                className="px-2 py-1 text-xs font-medium text-center bg-green-50 text-green-700 border border-green-200 rounded hover:bg-green-100 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800"
+              >
+                Confirm
+              </button>
+            )}
             <button 
               type="button"
               onClick={handleDelete} 
@@ -167,7 +179,7 @@ export default function BadgeUpload({ achievementId, currentKey, onUpdated, tier
             </button>
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Error Message */}
       {error && (

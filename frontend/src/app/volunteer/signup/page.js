@@ -1123,10 +1123,11 @@ export default function VolunteerSignupPage() {
             </h2>
             <div className="flex flex-col gap-3 sm:gap-4">
               <div>
-                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
+                <label htmlFor="lastName" className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Last Name <span className="text-red-600">*</span>
                 </label>
                 <input
+                  id="lastName"
                   type="text"
                   name="lastName"
                   value={form.lastName}
@@ -1141,10 +1142,11 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
+                <label htmlFor="firstName" className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   First Name <span className="text-red-600">*</span>
                 </label>
                 <input
+                  id="firstName"
                   type="text"
                   name="firstName"
                   value={form.firstName}
@@ -1159,10 +1161,11 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label htmlFor="middleInitial" className="block font-semibold mb-1 text-gray-900">
                   Middle Initial
                 </label>
                 <input
+                  id="middleInitial"
                   type="text"
                   name="middleInitial"
                   value={form.middleInitial}
@@ -1173,10 +1176,11 @@ export default function VolunteerSignupPage() {
                 />
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label htmlFor="nickname" className="block font-semibold mb-1 text-gray-900">
                   Nickname / Alias <span className="text-red-600">*</span>
                 </label>
                 <input
+                  id="nickname"
                   type="text"
                   name="nickname"
                   value={form.nickname}
@@ -1191,10 +1195,11 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900">
+                <label htmlFor="birthdate" className="block font-semibold mb-1 text-gray-900">
                   Birthdate <span className="text-red-600">*</span>
                 </label>
                 <input
+                  id="birthdate"
                   type="date"
                   name="birthdate"
                   value={form.birthdate}
@@ -1327,10 +1332,11 @@ export default function VolunteerSignupPage() {
             </h2>
             <div className="flex flex-col gap-3 sm:gap-4">
               <div>
-                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
+                <label htmlFor="mobileNumber" className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Mobile Number <span className="text-red-600">*</span>
                 </label>
                 <input
+                  id="mobileNumber"
                   type="tel"
                   name="mobileNumber"
                   value={form.mobileNumber}
@@ -1351,11 +1357,12 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
               <div>
-                <label className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
+                <label htmlFor="city" className="block font-semibold mb-1 text-gray-900 text-sm sm:text-base">
                   Current City/Municipality of Residence{" "}
                   <span className="text-red-600">*</span>
                 </label>
                 <input
+                  id="city"
                   type="text"
                   name="city"
                   value={form.city}

@@ -15,11 +15,18 @@ export default function AchievementMappingList() {
     setLoading(true);
     try {
       const data = await fetchAchievementMappings({});
-      setMappings(data);
+      // Be defensive: service may return either an array directly or an object with a `data` property
+      const normalized = Array.isArray(data) ? data : (data && data.data) ? data.data : [];
+      setMappings(normalized);
       setError(null);
     } catch (err) {
-      // Store full error object so UI can make decisions based on status
-      setError(err || new Error('Failed to load mappings'));
+      // If error includes a status (e.g., 401) keep original object for UI handling.
+      // Otherwise, avoid exposing raw internal error messages to the user.
+      if (err && typeof err === 'object' && 'status' in err) {
+        setError(err);
+      } else {
+        setError(new Error('Failed to load mappings'));
+      }
     } finally {
       setLoading(false);
     }
