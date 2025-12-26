@@ -3,31 +3,29 @@ const achievementsWorker = require('../workers/achievementsWorker');
 
 let achievementsQueue;
 
-// Do not attempt to connect to Redis unless explicitly configured
 const achievementsRedisConfigured = Boolean(process.env.REDIS_URL || process.env.REDIS_HOST);
+
 if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'true') {
   console.log('ℹ️ Achievements queue disabled in test environment');
   achievementsQueue = null;
 } else if (!achievementsRedisConfigured) {
-  console.log('ℹ️ Achievements queue disabled - no Redis configured (set REDIS_URL or REDIS_HOST to enable)');
+  console.log('ℹ️ Achievements queue disabled - no Redis configured');
   achievementsQueue = null;
 } else {
   try {
-    // Use REDIS_URL if available, otherwise build redis options from env
-    if (process.env.REDIS_URL) {
-      achievementsQueue = new Bull('achievements-queue', process.env.REDIS_URL);
-    } else {
-      const redisOptions = {
-        host: process.env.REDIS_HOST || '127.0.0.1',
-        port: Number(process.env.REDIS_PORT) || 6379
-      };
-      if (process.env.REDIS_PASSWORD) redisOptions.password = process.env.REDIS_PASSWORD;
-      if (process.env.REDIS_TLS === 'true') redisOptions.tls = {};
-      achievementsQueue = new Bull('achievements-queue', { redis: redisOptions });
-    }
+    const redisOptions = process.env.REDIS_URL || {
+      host: process.env.REDIS_HOST || '127.0.0.1',
+      port: Number(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD || undefined,
+      tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false
+    };
+
+    achievementsQueue = new Bull('achievements-queue', typeof redisOptions === 'string' ? redisOptions : { redis: redisOptions });
     console.log('ℹ️ Achievements queue client created (waiting for Redis connection)');
   } catch (err) {
-    console.warn('⚠️ Redis not available - achievements jobs disabled');
+    console.warn('⚠️ Redis not available - achievements jobs disabled', err.message);
     achievementsQueue = null;
   }
 }
@@ -37,12 +35,8 @@ let _achievementsQueueErrorLogged = false;
 if (achievementsQueue) {
   achievementsQueue.process(async (job) => {
     const { type } = job.data;
-    if (type === 'eventCompleted') {
-      return achievementsWorker.processEventCompleted(job.data);
-    }
-    if (type === 'ocrApproved') {
-      return achievementsWorker.processOcrApproved(job.data);
-    }
+    if (type === 'eventCompleted') return achievementsWorker.processEventCompleted(job.data);
+    if (type === 'ocrApproved') return achievementsWorker.processOcrApproved(job.data);
     return null;
   });
 
@@ -54,44 +48,39 @@ if (achievementsQueue) {
     console.error(`Achievements job ${job.id} failed:`, err?.message || err);
   });
 
-  // Helper to detect connection refused errors
   function _isConnRefused(err) {
     if (!err) return false;
-    if (err.code === 'ECONNREFUSED') return true;
-    if (Array.isArray(err.errors) && err.errors.length && err.errors.every(e => e && e.code === 'ECONNREFUSED')) return true;
-    if (typeof err.message === 'string' && err.message.includes('ECONNREFUSED')) return true;
-    return false;
+    const msg = typeof err.message === 'string' ? err.message : '';
+    return err.code === 'ECONNREFUSED' || msg.includes('ECONNREFUSED');
   }
 
-  // Catch queue-level errors (throttled)
   achievementsQueue.on('error', (err) => {
     if (_isConnRefused(err)) {
       if (!_achievementsQueueErrorLogged) {
-        console.warn('⚠️ Redis connection refused for achievements queue. Achievements jobs will be disabled until Redis is available.');
+        console.warn('⚠️ Redis connection refused for achievements queue. Bull will keep retrying...');
         _achievementsQueueErrorLogged = true;
       }
-      achievementsQueue = null; // disable queue
       return;
     }
-
     if (!_achievementsQueueErrorLogged) {
       console.error('Achievements queue error event:', err?.message || err);
       _achievementsQueueErrorLogged = true;
     }
   });
 
-  // Reset throttle on client ready/connect
-  if (typeof achievementsQueue?.client === 'object' && achievementsQueue.client && typeof achievementsQueue.client.on === 'function') {
-    achievementsQueue.client.on('ready', () => { _achievementsQueueErrorLogged = false; console.log('Achievements queue client ready'); });
-    achievementsQueue.client.on('connect', () => { _achievementsQueueErrorLogged = false; console.log('Achievements queue client connected'); });
-  }
+  achievementsQueue.on('ready', () => { 
+    _achievementsQueueErrorLogged = false; 
+    console.log('✅ Achievements queue client ready'); 
+  });
+
+  achievementsQueue.on('connect', () => { 
+    _achievementsQueueErrorLogged = false; 
+    console.log('✅ Achievements queue client connected'); 
+  });
 }
 
 async function enqueueEventCompleted(eventId) {
-  if (!achievementsQueue) {
-    console.warn('Achievements job skipped - Redis not available');
-    return null;
-  }
+  if (!achievementsQueue) return null;
   return achievementsQueue.add({ type: 'eventCompleted', eventId }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
 }
 
@@ -99,6 +88,7 @@ async function enqueueOcrApproved({ submissionId, reviewerId, userId }) {
   if (!achievementsQueue) return null;
   return achievementsQueue.add({ type: 'ocrApproved', submissionId, reviewerId, userId }, { attempts: 3, backoff: { type: 'exponential', delay: 2000 } });
 }
+
 async function closeAchievementsQueue() {
   if (!achievementsQueue) return;
   try {

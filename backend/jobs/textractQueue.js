@@ -4,8 +4,8 @@ const { processEncryptedHTSForm } = require('../services/textractService');
 // Create queue with error handling
 let textractQueue;
 
-// Do not attempt to connect to Redis unless explicitly configured (avoid noisy ECONNREFUSED logs)
 const redisConfigured = Boolean(process.env.REDIS_URL || process.env.REDIS_HOST);
+
 if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'true') {
   console.log('ℹ️ Textract queue disabled in test environment');
   textractQueue = null;
@@ -14,18 +14,17 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
   textractQueue = null;
 } else {
   try {
-    // Support Redis URL (preferred) or individual host/port/password options.
-    if (process.env.REDIS_URL) {
-      textractQueue = new Bull('textract-ocr', process.env.REDIS_URL);
-    } else {
-      const redisOptions = {
-        host: process.env.REDIS_HOST || '127.0.0.1',
-        port: Number(process.env.REDIS_PORT) || 6379
-      };
-      if (process.env.REDIS_PASSWORD) redisOptions.password = process.env.REDIS_PASSWORD;
-      if (process.env.REDIS_TLS === 'true') redisOptions.tls = {};
-      textractQueue = new Bull('textract-ocr', { redis: redisOptions });
-    }
+    const redisOptions = process.env.REDIS_URL || {
+      host: process.env.REDIS_HOST || '127.0.0.1',
+      port: Number(process.env.REDIS_PORT) || 6379,
+      password: process.env.REDIS_PASSWORD || undefined,
+      tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+      // Prevents the client from giving up on the first failed connection attempt
+      maxRetriesPerRequest: null, 
+      enableReadyCheck: false
+    };
+
+    textractQueue = new Bull('textract-ocr', typeof redisOptions === 'string' ? redisOptions : { redis: redisOptions });
     console.log('ℹ️ Textract queue client created (waiting for Redis connection)');
   } catch (error) {
     console.warn('⚠️ Redis client creation failed - OCR jobs will be disabled', error?.message || error);
@@ -33,26 +32,20 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
   }
 }
 
-// Throttle repeated error logs to avoid noise when Redis is unreachable
 let _textractQueueErrorLogged = false;
 
-// Process jobs (only if queue is available)
 if (textractQueue) {
   textractQueue.process(async (job) => {
     const { formId } = job.data;
-    
     console.log(`Processing OCR for form ${formId}...`);
-    
     try {
-      const result = await processEncryptedHTSForm(formId);
-      return result;
+      return await processEncryptedHTSForm(formId);
     } catch (error) {
       console.error(`OCR job failed for form ${formId}:`, error);
       throw error;
     }
   });
 
-  // Event listeners
   textractQueue.on('completed', (job, result) => {
     console.log(`OCR completed for form ${result.formId} with confidence ${result.confidence}%`);
   });
@@ -61,24 +54,19 @@ if (textractQueue) {
     console.error(`OCR job ${job.id} failed:`, err?.message || err);
   });
 
-  // Helper to detect connection refused AggregateError or single error
   function _isConnectionRefusedError(err) {
     if (!err) return false;
-    if (err.code === 'ECONNREFUSED') return true;
-    if (Array.isArray(err.errors) && err.errors.length && err.errors.every(e => e && e.code === 'ECONNREFUSED')) return true;
-    if (typeof err.message === 'string' && err.message.includes('ECONNREFUSED')) return true;
-    return false;
+    const msg = typeof err.message === 'string' ? err.message : '';
+    return err.code === 'ECONNREFUSED' || msg.includes('ECONNREFUSED');
   }
 
-  // Log runtime errors from the queue client (throttled). If Redis is unreachable, disable the queue to avoid noisy logs.
+  // Handle errors without disabling the queue
   textractQueue.on('error', (err) => {
     if (_isConnectionRefusedError(err)) {
       if (!_textractQueueErrorLogged) {
-        console.warn('⚠️ Redis connection refused for textract queue. OCR queue will be disabled until Redis is available. Set REDIS_HOST or start Redis.');
+        console.warn('⚠️ Redis connection refused for textract queue. Bull will keep retrying...');
         _textractQueueErrorLogged = true;
       }
-      // Disable operational queue to prevent further enqueue attempts
-      textractQueue = null;
       return;
     }
 
@@ -88,42 +76,29 @@ if (textractQueue) {
     }
   });
 
-  // Reset the error throttle if the queue becomes ready/connected
-  if (typeof textractQueue?.client === 'object' && textractQueue.client && typeof textractQueue.client.on === 'function') {
-    textractQueue.client.on('ready', () => { _textractQueueErrorLogged = false; console.log('Textract queue client ready'); });
-    textractQueue.client.on('connect', () => { _textractQueueErrorLogged = false; console.log('Textract queue client connected'); });
-  }
+  // Success listeners
+  textractQueue.on('ready', () => { 
+    _textractQueueErrorLogged = false; 
+    console.log('✅ Textract queue client ready'); 
+  });
+
+  textractQueue.on('connect', () => { 
+    _textractQueueErrorLogged = false; 
+    console.log('✅ Textract queue client connected'); 
+  });
 }
 
-/**
- * Add OCR job to queue
- */
 async function enqueueOCRJob(formId) {
   if (!textractQueue) {
-    console.warn(`OCR job skipped for form ${formId} - Redis not available`);
+    console.warn(`OCR job skipped for form ${formId} - Queue not initialized`);
     return null;
   }
-  
-  const job = await textractQueue.add(
-    { formId },
-    {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 2000
-      },
-      removeOnComplete: true,
-      removeOnFail: false
-    }
-  );
-  
-  return job;
+  return await textractQueue.add({ formId }, {
+    attempts: 3,
+    backoff: { type: 'exponential', delay: 2000 },
+    removeOnComplete: true
+  });
 }
-
-module.exports = {
-  textractQueue,
-  enqueueOCRJob
-};
 
 async function closeTextractQueue() {
   if (!textractQueue) return;
@@ -135,4 +110,4 @@ async function closeTextractQueue() {
   }
 }
 
-module.exports.closeTextractQueue = closeTextractQueue;
+module.exports = { textractQueue, enqueueOCRJob, closeTextractQueue };
