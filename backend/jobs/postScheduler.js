@@ -3,6 +3,12 @@ const postRepository = require('../repositories/postRepository');
 const { isReady } = require('../db/pool');
 
 function startPostScheduler() {
+  // Safety: check if scheduled jobs are disabled
+  if (process.env.DISABLE_SCHEDULED_JOBS === 'true') {
+    console.log('[PostScheduler] Scheduling disabled via DISABLE_SCHEDULED_JOBS=true');
+    return;
+  }
+
   // Run every minute to check for posts to publish
   cron.schedule('* * * * *', async () => {
     try {

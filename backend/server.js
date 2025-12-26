@@ -223,6 +223,46 @@ async function start() {
   try {
     await initPool();
 
+    // Basic Redis health check (helps catch missing/incorrect REDIS_HOST in PM2 env)
+    try {
+      const IORedis = require('ioredis');
+      const redisOpts = process.env.REDIS_URL || (process.env.REDIS_HOST ? {
+        host: process.env.REDIS_HOST,
+        port: Number(process.env.REDIS_PORT) || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        tls: process.env.REDIS_TLS === 'true' ? {} : undefined,
+        // quick retry strategy with limited retries to avoid startup hang
+        retryStrategy: (times) => (times > 5 ? null : Math.min(times * 50, 2000))
+      } : null);
+
+      if (redisOpts) {
+        const redisTest = typeof redisOpts === 'string' ? new IORedis(redisOpts) : new IORedis(redisOpts);
+
+        // Wait for either connect or error for up to 2s
+        const ready = new Promise((resolve, reject) => {
+          const onError = (err) => { cleanup(); reject(err); };
+          const onReady = () => { cleanup(); resolve(); };
+          const cleanup = () => { redisTest.removeListener('error', onError); redisTest.removeListener('ready', onReady); };
+          redisTest.once('error', onError);
+          redisTest.once('ready', onReady);
+        });
+
+        try {
+          await Promise.race([ready, new Promise((_, r) => setTimeout(() => r(new Error('Redis connection timeout')), 2000))]);
+          console.log('✓ Redis connected successfully (health check)');
+        } catch (err) {
+          console.error('✗ Redis health check failed:', err.message || err);
+          // Don't abort startup; Jobs will detect Redis unavailability and disable themselves
+        } finally {
+          try { redisTest.quit().catch(() => redisTest.disconnect()); } catch (e) {}
+        }
+      } else {
+        console.log('[start] Redis not configured (no REDIS_URL or REDIS_HOST) — queues will remain disabled');
+      }
+    } catch (e) {
+      console.warn('[start] Redis health check skipped (ioredis not available):', e.message || e);
+    }
+
     const disableJobs = process.env.DISABLE_SCHEDULED_JOBS === 'true';
     if (disableJobs) {
       console.log('[config] Scheduled jobs disabled via DISABLE_SCHEDULED_JOBS=true');

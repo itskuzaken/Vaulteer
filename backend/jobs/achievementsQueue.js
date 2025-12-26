@@ -13,12 +13,18 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
   achievementsQueue = null;
 } else {
   try {
-    achievementsQueue = new Bull('achievements-queue', {
-      redis: {
-        host: process.env.REDIS_HOST || undefined,
-        port: process.env.REDIS_PORT || 6379
-      }
-    });
+    // Use REDIS_URL if available, otherwise build redis options from env
+    if (process.env.REDIS_URL) {
+      achievementsQueue = new Bull('achievements-queue', process.env.REDIS_URL);
+    } else {
+      const redisOptions = {
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: Number(process.env.REDIS_PORT) || 6379
+      };
+      if (process.env.REDIS_PASSWORD) redisOptions.password = process.env.REDIS_PASSWORD;
+      if (process.env.REDIS_TLS === 'true') redisOptions.tls = {};
+      achievementsQueue = new Bull('achievements-queue', { redis: redisOptions });
+    }
     console.log('ℹ️ Achievements queue client created (waiting for Redis connection)');
   } catch (err) {
     console.warn('⚠️ Redis not available - achievements jobs disabled');

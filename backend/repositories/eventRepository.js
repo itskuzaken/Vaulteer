@@ -1072,6 +1072,9 @@ class EventRepository {
     const event = await this.getEventByUid(eventUid);
     if (!event) throw new Error('Event not found');
 
+    // Start instrumentation
+    console.log(JSON.stringify({ op: 'autoFlagAbsences.start', event: eventUid, eventId: event.event_id, batchSize }));
+
     const pool = getPool();
     let scanned = 0;
     let flagged = 0;
@@ -1162,6 +1165,9 @@ class EventRepository {
     const event = await this.getEventByUid(eventUid);
     if (!event) throw new Error('Event not found');
 
+    // Start instrumentation
+    console.log(JSON.stringify({ op: 'finalizeAttendedParticipants.start', event: eventUid, eventId: event.event_id }));
+
     const pool = getPool();
     const conn = await pool.getConnection();
     try {
@@ -1198,6 +1204,11 @@ class EventRepository {
 
       await conn.commit();
       conn.release();
+
+      // Emit summary for observability
+      const summary = { scanned: batchStats.scanned, finalized: batchStats.finalized };
+      console.log(JSON.stringify({ op: 'finalizeAttendedParticipants.summary', event: eventUid, summary }));
+
       return batchStats.finalized;
 
       await conn.commit();
@@ -1393,7 +1404,11 @@ class EventRepository {
 
       await conn.execute(`UPDATE events SET status = 'ongoing' WHERE uid = ?`, [eventUid]);
       await conn.commit();
-      return this.getEventByUid(eventUid);
+      const updated = await this.getEventByUid(eventUid);
+      if ((updated.status || '').toLowerCase() !== 'ongoing') {
+        console.error(`[eventRepository] Unexpected status '${updated.status}' for event ${eventUid} after markEventAsOngoing`);
+      }
+      return updated;
     } catch (e) {
       try { await conn.rollback(); } catch (er) {}
       throw e;

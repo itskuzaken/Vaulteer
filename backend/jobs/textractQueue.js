@@ -14,12 +14,18 @@ if (process.env.NODE_ENV === 'test' && process.env.ENABLE_QUEUES_IN_TEST !== 'tr
   textractQueue = null;
 } else {
   try {
-    textractQueue = new Bull('textract-ocr', {
-      redis: {
-        host: process.env.REDIS_HOST || undefined,
-        port: process.env.REDIS_PORT || 6379
-      }
-    });
+    // Support Redis URL (preferred) or individual host/port/password options.
+    if (process.env.REDIS_URL) {
+      textractQueue = new Bull('textract-ocr', process.env.REDIS_URL);
+    } else {
+      const redisOptions = {
+        host: process.env.REDIS_HOST || '127.0.0.1',
+        port: Number(process.env.REDIS_PORT) || 6379
+      };
+      if (process.env.REDIS_PASSWORD) redisOptions.password = process.env.REDIS_PASSWORD;
+      if (process.env.REDIS_TLS === 'true') redisOptions.tls = {};
+      textractQueue = new Bull('textract-ocr', { redis: redisOptions });
+    }
     console.log('ℹ️ Textract queue client created (waiting for Redis connection)');
   } catch (error) {
     console.warn('⚠️ Redis client creation failed - OCR jobs will be disabled', error?.message || error);

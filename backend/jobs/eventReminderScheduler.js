@@ -9,6 +9,13 @@ let _started = false;
 
 function startEventReminderScheduler() {
   if (_started) return;
+
+  // Safety: if scheduled jobs are disabled, do not start
+  if (process.env.DISABLE_SCHEDULED_JOBS === 'true') {
+    console.log('[EventReminderScheduler] Scheduling disabled via DISABLE_SCHEDULED_JOBS=true');
+    return;
+  }
+
   _started = true;
 
   // Run every hour to send reminders for events starting within the next 24 hours

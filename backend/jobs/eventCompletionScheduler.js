@@ -117,6 +117,12 @@ async function runEventCompletionCheck() {
 
 function startEventCompletionScheduler() {
   if (_started) return;
+  // Safety: if scheduled jobs are disabled via env, do not start
+  if (process.env.DISABLE_SCHEDULED_JOBS === 'true') {
+    console.log('[EventCompletionScheduler] Scheduling disabled via DISABLE_SCHEDULED_JOBS=true');
+    return;
+  }
+
   _started = true;
 
   // Run every minute to mark events as completed if their end_datetime has passed
