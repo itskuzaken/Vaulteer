@@ -1386,4 +1386,176 @@ router.get("/:uid/settings", authenticate, async (req, res) => {
   }
 });
 
+// ============================================
+// Valid ID Endpoints
+// ============================================
+
+// GET /api/profile/:uid/valid-id - Get Valid ID metadata
+router.get("/:uid/valid-id", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const currentUser = await getUserFromFirebaseUid(req.user.uid);
+
+    if (!currentUser) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const profileUser = req.profileUser;
+
+    // Only admin/staff can view other users' Valid IDs, or the user themselves
+    const isOwner = currentUser.user_id === profileUser.user_id;
+    const isPrivileged = ["admin", "staff"].includes(currentUser.role);
+
+    if (!isOwner && !isPrivileged) {
+      return res.status(403).json({ error: "Not authorized to view this Valid ID" });
+    }
+
+    // Get Valid ID metadata from user_profiles
+    const [rows] = await pool.query(
+      `SELECT valid_id_s3_key, valid_id_filename, valid_id_mimetype, valid_id_size, valid_id_uploaded_at 
+       FROM user_profiles 
+       WHERE user_id = ?`,
+      [profileUser.user_id]
+    );
+
+    if (rows.length === 0 || !rows[0].valid_id_s3_key) {
+      return res.json({
+        success: true,
+        data: null,
+        message: "No Valid ID uploaded"
+      });
+    }
+
+    const validId = rows[0];
+    res.json({
+      success: true,
+      data: {
+        filename: validId.valid_id_filename,
+        mimetype: validId.valid_id_mimetype,
+        size: validId.valid_id_size,
+        uploadedAt: validId.valid_id_uploaded_at,
+        hasValidId: true
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching Valid ID metadata:", error);
+    res.status(500).json({ error: "Failed to fetch Valid ID" });
+  }
+});
+
+// GET /api/profile/:uid/valid-id/download - Get presigned URL for Valid ID download
+router.get("/:uid/valid-id/download", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const currentUser = await getUserFromFirebaseUid(req.user.uid);
+
+    if (!currentUser) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const profileUser = req.profileUser;
+
+    // Only admin/staff can download other users' Valid IDs, or the user themselves
+    const isOwner = currentUser.user_id === profileUser.user_id;
+    const isPrivileged = ["admin", "staff"].includes(currentUser.role);
+
+    if (!isOwner && !isPrivileged) {
+      return res.status(403).json({ error: "Not authorized to download this Valid ID" });
+    }
+
+    // Get Valid ID S3 key from user_profiles
+    const [rows] = await pool.query(
+      `SELECT valid_id_s3_key, valid_id_filename 
+       FROM user_profiles 
+       WHERE user_id = ?`,
+      [profileUser.user_id]
+    );
+
+    if (rows.length === 0 || !rows[0].valid_id_s3_key) {
+      return res.status(404).json({ error: "No Valid ID found" });
+    }
+
+    const s3Key = rows[0].valid_id_s3_key;
+    const filename = rows[0].valid_id_filename;
+
+    // Generate presigned URL for download
+    const presignedUrl = await s3Service.getPresignedDownloadUrl(s3Key);
+
+    res.json({
+      success: true,
+      data: {
+        url: presignedUrl,
+        filename: filename,
+        expiresIn: 3600
+      }
+    });
+  } catch (error) {
+    console.error("Error generating Valid ID download URL:", error);
+    res.status(500).json({ error: "Failed to generate download URL" });
+  }
+});
+
+// DELETE /api/profile/:uid/valid-id - Remove Valid ID
+router.delete("/:uid/valid-id", authenticate, async (req, res) => {
+  try {
+    const pool = getPool();
+    const currentUser = await getUserFromFirebaseUid(req.user.uid);
+
+    if (!currentUser) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const profileUser = req.profileUser;
+
+    // Only admin can delete other users' Valid IDs, or the user themselves
+    const isOwner = currentUser.user_id === profileUser.user_id;
+    const isAdmin = currentUser.role === "admin";
+
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: "Not authorized to delete this Valid ID" });
+    }
+
+    // Get current Valid ID S3 key
+    const [rows] = await pool.query(
+      `SELECT valid_id_s3_key FROM user_profiles WHERE user_id = ?`,
+      [profileUser.user_id]
+    );
+
+    if (rows.length === 0 || !rows[0].valid_id_s3_key) {
+      return res.status(404).json({ error: "No Valid ID found to delete" });
+    }
+
+    const s3Key = rows[0].valid_id_s3_key;
+
+    // Delete from S3
+    try {
+      await s3Service.deleteImage(s3Key);
+      console.log(`[DELETE Valid ID] Deleted from S3: ${s3Key}`);
+    } catch (s3Error) {
+      console.error(`[DELETE Valid ID] S3 delete failed:`, s3Error);
+      // Continue to clear metadata even if S3 delete fails
+    }
+
+    // Clear metadata from user_profiles
+    await pool.query(
+      `UPDATE user_profiles 
+       SET valid_id_s3_key = NULL, 
+           valid_id_filename = NULL, 
+           valid_id_mimetype = NULL, 
+           valid_id_size = NULL, 
+           valid_id_uploaded_at = NULL 
+       WHERE user_id = ?`,
+      [profileUser.user_id]
+    );
+
+    res.json({
+      success: true,
+      message: "Valid ID deleted successfully"
+    });
+  } catch (error) {
+    console.error("Error deleting Valid ID:", error);
+    res.status(500).json({ error: "Failed to delete Valid ID" });
+  }
+});
+
 module.exports = router;

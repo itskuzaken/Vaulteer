@@ -246,6 +246,34 @@ router.post(
         }
 
         options.uploadedFiles = uploadedFiles;
+
+        // Handle Valid ID file upload
+        const validIdFile = req.files.find(f => f.fieldname === 'validIdFile');
+        if (validIdFile) {
+          // Validate Valid ID file type (images only)
+          const allowedMimeTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+          if (!allowedMimeTypes.includes(validIdFile.mimetype)) {
+            return res.status(400).json({
+              error: 'Invalid Valid ID file type. Only PNG and JPEG images are allowed.',
+              code: 'INVALID_VALID_ID_TYPE'
+            });
+          }
+          // Validate file size (max 5MB)
+          const maxSize = 5 * 1024 * 1024;
+          if (validIdFile.size > maxSize) {
+            return res.status(400).json({
+              error: 'Valid ID file is too large (max 5MB)',
+              code: 'VALID_ID_TOO_LARGE'
+            });
+          }
+          options.validIdFile = {
+            buffer: validIdFile.buffer,
+            filename: validIdFile.originalname,
+            mime: validIdFile.mimetype,
+            size: validIdFile.size,
+          };
+          console.log('[POST /api/applicants] Valid ID file received:', { filename: validIdFile.originalname, size: validIdFile.size });
+        }
       }
 
       const result = await applicantRepository.createApplicantWithProfile(user, form, options);

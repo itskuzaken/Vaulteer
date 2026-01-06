@@ -546,6 +546,44 @@ async function createApplicantWithProfile(userData, formData, options = {}) {
       });
     }
 
+    // 12. Handle Valid ID file upload to S3 and save metadata
+    if (options && options.validIdFile) {
+      const s3svc = require('../services/s3Service');
+      const validIdFile = options.validIdFile;
+      
+      // Generate S3 key for Valid ID
+      const extMatch = (validIdFile.filename || '').match(/\.([a-zA-Z0-9]+)$/);
+      const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+      const timestamp = Date.now();
+      const s3Key = `valid-ids/${userId}/${timestamp}-valid-id.${ext}`;
+      
+      try {
+        await s3svc.uploadBadgeBuffer(validIdFile.buffer, s3Key, validIdFile.mime || 'image/jpeg');
+        console.log(`[createApplicantWithProfile] Valid ID uploaded to S3: ${s3Key}`);
+        
+        // Update user_profiles with Valid ID metadata
+        await connection.query(
+          `UPDATE user_profiles 
+           SET valid_id_s3_key = ?, 
+               valid_id_filename = ?, 
+               valid_id_mimetype = ?, 
+               valid_id_size = ?, 
+               valid_id_uploaded_at = NOW() 
+           WHERE profile_id = ?`,
+          [s3Key, validIdFile.filename, validIdFile.mime, validIdFile.size, profileId]
+        );
+        console.log(`[createApplicantWithProfile] Valid ID metadata saved to user_profiles`);
+      } catch (err) {
+        console.error(`[createApplicantWithProfile] Valid ID S3 upload failed:`, err && err.message ? err.message : err);
+        if (err && (err.Code === 'AccessDenied' || err.name === 'AccessDenied' || (err.message && err.message.includes('AccessDenied')))) {
+          const e = new Error(`Valid ID S3 upload failed: AccessDenied. Check AWS credentials and IAM policy.`);
+          e.code = 'S3_ACCESS_DENIED';
+          throw e;
+        }
+        throw err;
+      }
+    }
+
     await connection.commit();
 
     // Notify admins/staff about the new application (best-effort, non-blocking)

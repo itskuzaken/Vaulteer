@@ -586,3 +586,115 @@ export async function updateSchoolDays(userUid, dayIds) {
     throw error;
   }
 }
+
+// ============================================
+// Valid ID API Functions
+// ============================================
+
+/**
+ * Get Valid ID metadata for a user
+ * @param {string} userUid - Firebase UID
+ * @returns {Promise<Object|null>} Valid ID metadata or null if not uploaded
+ */
+export async function getValidIdMetadata(userUid) {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const token = await user.getIdToken();
+
+    const response = await fetch(`${API_BASE}/profile/${userUid}/valid-id`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to fetch Valid ID metadata");
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    console.error("Error fetching Valid ID metadata:", error);
+    throw error;
+  }
+}
+
+/**
+ * Get presigned download URL for Valid ID
+ * @param {string} userUid - Firebase UID
+ * @returns {Promise<Object>} Object with url, filename, and expiresIn
+ */
+export async function getValidIdDownloadUrl(userUid) {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const token = await user.getIdToken();
+
+    const response = await fetch(`${API_BASE}/profile/${userUid}/valid-id/download`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to get Valid ID download URL");
+    }
+
+    const result = await response.json();
+    return result.data;
+  } catch (error) {
+    console.error("Error getting Valid ID download URL:", error);
+    throw error;
+  }
+}
+
+/**
+ * Delete Valid ID for a user
+ * @param {string} userUid - Firebase UID
+ * @returns {Promise<Object>} Response with success message
+ */
+export async function deleteValidId(userUid) {
+  try {
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      throw new Error("User not authenticated");
+    }
+
+    const token = await user.getIdToken();
+
+    const response = await fetch(`${API_BASE}/profile/${userUid}/valid-id`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || "Failed to delete Valid ID");
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error deleting Valid ID:", error);
+    throw error;
+  }
+}

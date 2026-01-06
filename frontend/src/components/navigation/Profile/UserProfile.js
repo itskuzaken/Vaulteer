@@ -41,6 +41,7 @@ import Achievements from "../../UserProfile/Achievements";
 import AdminControls from "../../UserProfile/AdminControls";
 import ApplicantAdminControls from "../../UserProfile/ApplicantAdminControls";
 import VolunteerProfile from "../../UserProfile/VolunteerProfile";
+import ValidIdSection from "./ValidIdSection";
 import { getCertificates, getCertificateDownloadUrl } from "../../../services/profileService";
 
 const dedupeByKey = (items, key) => {
@@ -1043,6 +1044,15 @@ export default function UserProfile() {
 
       {/* Achievements */}
       <Achievements achievements={comprehensiveData?.achievements} />
+
+      {/* Valid ID Section - visible to admin/staff or profile owner */}
+      {(canManageStatus || isViewingSelf) && (
+        <ValidIdSection
+          userUid={targetUserUid}
+          canEdit={canManageStatus || isViewingSelf}
+          canDelete={currentUserRole === "admin" || isViewingSelf}
+        />
+      )}
     </div>
   );
 }

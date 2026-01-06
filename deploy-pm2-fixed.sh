@@ -13,6 +13,13 @@ pm2 stop all || true
 echo "🗑️  Removing old PM2 processes..."
 pm2 delete all || true
 
+# Build Frontend
+echo "🔨 Building Next.js frontend..."
+cd /opt/Vaulteer/frontend
+npm install --production=false
+npm run build
+cd /opt/Vaulteer
+
 # Verify system Redis is running (managed by systemctl, not PM2)
 echo "🔍 Checking system Redis service..."
 if ! redis-cli -h 127.0.0.1 -p 6379 ping > /dev/null 2>&1; then

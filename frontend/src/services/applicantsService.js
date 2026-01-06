@@ -80,8 +80,11 @@ export async function getApplicantById(userId) {
 
 // Submit new volunteer application (public - no auth required)
 export async function submitVolunteerApplication(userData, formData) {
-  // If any trainingCertificates have an attached File, submit as multipart/form-data
-  const hasFiles = Array.isArray(formData.trainingCertificates) && formData.trainingCertificates.some(c => c && c.file instanceof File);
+  // Check if any trainingCertificates have an attached File
+  const hasTrainingFiles = Array.isArray(formData.trainingCertificates) && formData.trainingCertificates.some(c => c && c.file instanceof File);
+  // Check if validIdFile is present
+  const hasValidId = formData.validIdFile instanceof File;
+  const hasFiles = hasTrainingFiles || hasValidId;
 
   try {
     let res;
@@ -89,7 +92,7 @@ export async function submitVolunteerApplication(userData, formData) {
     if (hasFiles) {
       const fd = new FormData();
       // Clone formData and strip File objects for JSON payload; but keep metadata
-      const formCopy = { ...formData, trainingCertificates: [] };
+      const formCopy = { ...formData, trainingCertificates: [], validIdFile: undefined };
 
       // For each certificate, if it has a file, append to FormData and reference field name
       (formData.trainingCertificates || []).forEach((c, idx) => {
@@ -104,6 +107,14 @@ export async function submitVolunteerApplication(userData, formData) {
           formCopy.trainingCertificates.push({ trainingName, s3Key: c.s3Key, filename: c.filename, mime: c.mime, size: c.size });
         }
       });
+
+      // Append Valid ID file if present
+      if (hasValidId) {
+        fd.append('validIdFile', formData.validIdFile, formData.validIdFile.name);
+        formCopy.validIdFilename = formData.validIdFile.name;
+        formCopy.validIdMimetype = formData.validIdFile.type;
+        formCopy.validIdSize = formData.validIdFile.size;
+      }
 
       fd.append('user', JSON.stringify(userData));
       fd.append('form', JSON.stringify(formCopy));

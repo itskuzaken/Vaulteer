@@ -61,6 +61,7 @@ export default function VolunteerSignupPage() {
     trainingCertificates: [],
     volunteerReason: "",
     declarationCommitment: "",
+    validIdFile: null, // Valid ID file for volunteer verification
   });
   const [errors, setErrors] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -68,6 +69,7 @@ export default function VolunteerSignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
   const [user, setUser] = useState(null);
+  const [validIdPreview, setValidIdPreview] = useState(null); // Preview URL for Valid ID
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [applicationSettings, setApplicationSettings] = useState(null);
@@ -232,6 +234,47 @@ export default function VolunteerSignupPage() {
     setErrors(prev => ({ ...prev, trainingCertificates: undefined }));
     setForm(prev => ({ ...prev, trainingCertificates: (prev.trainingCertificates || []).filter(c => c.trainingName !== trainingName)}));
   }; 
+
+  // Handle Valid ID file selection
+  const handleValidIdSelect = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    // Clear any previous Valid ID errors
+    setErrors(prev => ({ ...prev, validIdFile: undefined }));
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setErrors(prev => ({ ...prev, validIdFile: 'Valid ID file is too large (max 5MB)' }));
+      return;
+    }
+
+    // Validate file type (images only)
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg'];
+    if (!allowedTypes.includes(file.type)) {
+      setErrors(prev => ({ ...prev, validIdFile: 'Valid ID must be a PNG or JPEG image' }));
+      return;
+    }
+
+    // Store file in form state
+    setForm(prev => ({ ...prev, validIdFile: file }));
+
+    // Create preview URL
+    const previewUrl = URL.createObjectURL(file);
+    setValidIdPreview(previewUrl);
+  };
+
+  // Remove Valid ID
+  const removeValidId = () => {
+    // Revoke the preview URL to free memory
+    if (validIdPreview) {
+      URL.revokeObjectURL(validIdPreview);
+    }
+    setValidIdPreview(null);
+    setForm(prev => ({ ...prev, validIdFile: null }));
+    setErrors(prev => ({ ...prev, validIdFile: undefined }));
+  };
 
   // Today's date for date inputs (yyyy-mm-dd)
   const today = typeof window !== "undefined" ? new Date().toISOString().split("T")[0] : "";
@@ -534,6 +577,10 @@ export default function VolunteerSignupPage() {
     }
     if (form.tiktok && !isValidSocialUrl(form.tiktok, "tiktok")) {
       newErrors.tiktok = "Please provide a valid Tiktok URL.";
+    }
+    // Valid ID is required for volunteer verification
+    if (!form.validIdFile) {
+      newErrors.validIdFile = "A valid government-issued ID is required.";
     }
     return newErrors;
   };
@@ -1465,6 +1512,76 @@ export default function VolunteerSignupPage() {
                 )}
               </div>
             </div>
+
+            {/* Valid ID Upload Section */}
+            <div className="mt-6 sm:mt-8 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+              <label className="block font-semibold mb-2 text-gray-900 text-sm sm:text-base">
+                Upload Valid Government ID <span className="text-red-600">*</span>
+              </label>
+              <p className="text-gray-600 text-xs sm:text-sm mb-3">
+                Please upload a clear photo of a valid government-issued ID (e.g., Driver&apos;s License, Passport, National ID, SSS ID, PhilHealth ID, Voter&apos;s ID). Max 5MB, PNG or JPEG only.
+              </p>
+              
+              {!form.validIdFile ? (
+                <div className="flex flex-col items-center justify-center py-6">
+                  <input
+                    type="file"
+                    id="validIdFile"
+                    accept="image/png,image/jpeg,image/jpg"
+                    onChange={handleValidIdSelect}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="validIdFile"
+                    className="cursor-pointer bg-[var(--primary-red)] text-white font-semibold px-6 py-2.5 rounded hover:bg-red-800 transition text-sm sm:text-base touch-manipulation flex items-center gap-2"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    Select ID Image
+                  </label>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Preview */}
+                  {validIdPreview && (
+                    <div className="relative inline-block">
+                      <img
+                        src={validIdPreview}
+                        alt="Valid ID Preview"
+                        className="max-w-full max-h-48 rounded border border-gray-300 object-contain"
+                      />
+                    </div>
+                  )}
+                  {/* File info and remove button */}
+                  <div className="flex items-center justify-between bg-white p-3 rounded border border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-gray-700 text-sm truncate max-w-[200px]">
+                        {form.validIdFile.name}
+                      </span>
+                      <span className="text-gray-500 text-xs">
+                        ({(form.validIdFile.size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={removeValidId}
+                      className="text-red-600 hover:text-red-800 text-sm font-medium touch-manipulation"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {errors.validIdFile && (
+                <p className="text-red-600 text-xs sm:text-sm mt-2">{errors.validIdFile}</p>
+              )}
+            </div>
+
             <div className="flex flex-col sm:flex-row justify-between mt-6 sm:mt-8 gap-2 sm:gap-4">
               {/* First column: Back button */}
               <div className="w-full sm:w-auto">
