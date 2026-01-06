@@ -106,6 +106,19 @@ export const isNotFutureDate = (value) => {
   return input.getTime() <= today.getTime();
 };
 
+export const isMinimumAge = (value, minimumAge = 16) => {
+  if (!value) return false;
+  const birthDate = new Date(value);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  // Adjust age if birthday hasn't occurred this year
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age >= minimumAge;
+};
+
 export const isValidSmallText = (value, maxLength = 1000) => {
   if (!value) return false;
   return value.trim().length <= maxLength;

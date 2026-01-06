@@ -16,6 +16,7 @@ import {
   isValidSocialUrl,
   isValidGraduation,
   isNotFutureDate,
+  isMinimumAge,
   isValidSmallText,
   isAlpha,
   countSentences,
@@ -234,6 +235,13 @@ export default function VolunteerSignupPage() {
 
   // Today's date for date inputs (yyyy-mm-dd)
   const today = typeof window !== "undefined" ? new Date().toISOString().split("T")[0] : "";
+  
+  // Maximum birthdate (16 years ago from today) for age limit
+  const maxBirthdate = typeof window !== "undefined" ? (() => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - 16);
+    return date.toISOString().split("T")[0];
+  })() : "";
 
   // Validate a specific field and set/remove error for that field
   const validateField = (fieldName, value) => {
@@ -277,6 +285,8 @@ export default function VolunteerSignupPage() {
           newErrors[fieldName] = "Birthdate is required.";
         } else if (!isNotFutureDate(val)) {
           newErrors[fieldName] = "Birthdate cannot be a future date.";
+        } else if (!isMinimumAge(val, 16)) {
+          newErrors[fieldName] = "You must be at least 16 years old to apply.";
         } else {
           delete newErrors[fieldName];
         }
@@ -493,6 +503,10 @@ export default function VolunteerSignupPage() {
     // Validate birthdate not in future
     if (form.birthdate && !isNotFutureDate(form.birthdate)) {
       newErrors.birthdate = "Birthdate cannot be a future date.";
+    }
+    // Validate minimum age (16 years old)
+    if (form.birthdate && !isMinimumAge(form.birthdate, 16)) {
+      newErrors.birthdate = "You must be at least 16 years old to apply.";
     }
     // Validate middle initial if present
     if (form.middleInitial && !isValidMiddleInitial(form.middleInitial)) {
@@ -1205,7 +1219,7 @@ export default function VolunteerSignupPage() {
                   value={form.birthdate}
                   onChange={handleChange}
                   onBlur={(e) => validateField(e.target.name, e.target.value)}
-                  max={today}
+                  max={maxBirthdate}
                   className={`w-full border rounded px-3 py-2 text-gray-900 ${
                     errors.birthdate ? "border-red-500" : "border-gray-300"
                   }`}

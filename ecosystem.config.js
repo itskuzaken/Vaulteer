@@ -46,5 +46,21 @@ module.exports = {
       autorestart: true,
       restart_delay: 4000,
     },
+    {
+      // 3. Redis Server
+      name: "vaulteer-redis",
+      // Path to the redis-server binary (default for Ubuntu)
+      script: "/usr/bin/redis-server",
+      // Pass the config file path if you have custom settings
+      args: "--port 6379 --protected-mode no",
+      instances: 1,
+      exec_mode: "fork",
+      // Logs setup consistent with your other apps
+      error_file: "/home/ubuntu/vaulteer_logs/redis-error.log",
+      out_file: "/home/ubuntu/vaulteer_logs/redis-out.log",
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+      autorestart: true,
+      // No need for env_file here as Redis uses its own .conf file
+    },
   ],
 };
