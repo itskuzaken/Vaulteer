@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { signInWithPopup, onAuthStateChanged } from "firebase/auth";
 import Link from "next/link";
+import Image from "next/image";
 import { auth, googleProvider } from "../../../services/firebase";
 import { API_BASE } from "../../../config/config";
 import { submitVolunteerApplication } from "../../../services/applicantsService";
@@ -1564,11 +1565,14 @@ export default function VolunteerSignupPage() {
                 <div className="space-y-3">
                   {/* Preview */}
                   {validIdPreview && (
-                    <div className="relative inline-block">
-                      <img
+                    <div className="relative inline-block w-full h-48 max-h-48">
+                      <Image
                         src={validIdPreview}
                         alt="Valid ID Preview"
-                        className="max-w-full max-h-48 rounded border border-gray-300 object-contain"
+                        fill
+                        unoptimized
+                        style={{ objectFit: 'contain' }}
+                        className="rounded border border-gray-300"
                       />
                     </div>
                   )}
@@ -2259,19 +2263,19 @@ export default function VolunteerSignupPage() {
                           {training}
                         </label>
                         {selected && training !== 'None in the list' && (
-                          <div className="ml-6 mt-2 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                          <div className="ml-6 mt-2 p-3 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
                             {cert && cert.s3Key ? (
                               /* Uploaded state - shows success indicator */
                               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                 <div className="flex items-center gap-2 flex-1">
-                                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                                  <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px]">{cert.filename}</span>
-                                    <span className="text-xs text-green-600 dark:text-green-400">Uploaded successfully</span>
+                                    <span className="text-sm font-medium text-gray-800 truncate max-w-[200px]">{cert.filename}</span>
+                                    <span className="text-xs text-green-600">Uploaded successfully</span>
                                   </div>
                                 </div>
                                 <button 
@@ -2290,11 +2294,14 @@ export default function VolunteerSignupPage() {
                               <div className="flex flex-col gap-2">
                                 {/* Preview for images */}
                                 {certificatePreviews[training] && cert.mime?.startsWith('image/') && (
-                                  <div className="relative w-full max-w-[200px] mx-auto">
-                                    <img 
-                                      src={certificatePreviews[training]} 
+                                  <div className="relative w-full max-w-[200px] mx-auto h-[150px]">
+                                    <Image
+                                      src={certificatePreviews[training]}
                                       alt={`Preview of ${cert.filename}`}
-                                      className="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-600 object-contain max-h-[150px]"
+                                      fill
+                                      unoptimized
+                                      style={{ objectFit: 'contain' }}
+                                      className="rounded-lg border border-gray-200"
                                     />
                                   </div>
                                 )}
@@ -2304,20 +2311,20 @@ export default function VolunteerSignupPage() {
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                                     </svg>
-                                    <span className="text-sm text-gray-600 dark:text-gray-400">PDF Document</span>
+                                    <span className="text-sm text-gray-600">PDF Document</span>
                                   </div>
                                 )}
                                 {/* File info */}
                                 <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                   <div className="flex items-center gap-2 flex-1">
-                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
                                       <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
                                     </div>
                                     <div className="flex flex-col">
-                                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px]">{cert.filename}</span>
-                                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      <span className="text-sm font-medium text-gray-800 truncate max-w-[200px]">{cert.filename}</span>
+                                      <span className="text-xs text-gray-500">
                                         {cert.size >= 1048576 
                                           ? `${(cert.size / 1048576).toFixed(2)} MB` 
                                           : `${Math.round(cert.size / 1024)} KB`}
@@ -2340,14 +2347,14 @@ export default function VolunteerSignupPage() {
                               /* Failed state - shows error with retry option */
                               <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                                 <div className="flex items-center gap-2 flex-1">
-                                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                                  <div className="w-8 h-8 bg-red-100 rounded-full flex items-center justify-center">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                                     </svg>
                                   </div>
                                   <div className="flex flex-col">
                                     <span className="text-sm font-medium text-red-600">Upload failed</span>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">{cert.lastError || 'Please try again.'}</span>
+                                    <span className="text-xs text-gray-500">{cert.lastError || 'Please try again.'}</span>
                                   </div>
                                 </div>
                                 <button
@@ -2371,16 +2378,16 @@ export default function VolunteerSignupPage() {
                                   htmlFor={`file-${slug}`}
                                   className="cursor-pointer flex flex-col items-center gap-2 text-center"
                                 >
-                                  <div className="w-12 h-12 bg-[var(--primary-red)]/10 dark:bg-[var(--primary-red)]/20 rounded-full flex items-center justify-center">
+                                  <div className="w-12 h-12 bg-[var(--primary-red)]/10 rounded-full flex items-center justify-center">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[var(--primary-red)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                                     </svg>
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                    <span className="text-sm font-medium text-gray-900">
                                       Upload Certificate
                                     </span>
-                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                    <span className="text-xs text-gray-700">
                                       PDF, PNG, JPEG (max 10MB)
                                     </span>
                                   </div>
