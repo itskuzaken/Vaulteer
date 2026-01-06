@@ -70,6 +70,7 @@ export default function VolunteerSignupPage() {
   const [submitError, setSubmitError] = useState(null);
   const [user, setUser] = useState(null);
   const [validIdPreview, setValidIdPreview] = useState(null); // Preview URL for Valid ID
+  const [certificatePreviews, setCertificatePreviews] = useState({}); // Preview URLs for training certificates
   const [isLoadingAuth, setIsLoadingAuth] = useState(true);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [applicationSettings, setApplicationSettings] = useState(null);
@@ -218,6 +219,15 @@ export default function VolunteerSignupPage() {
       return;
     }
 
+    // Create preview URL for images
+    if (file.type.startsWith('image/')) {
+      const previewUrl = URL.createObjectURL(file);
+      setCertificatePreviews(prev => ({
+        ...prev,
+        [trainingName]: previewUrl
+      }));
+    }
+
     // Save file object in trainingCertificates state; mark as 'attached'
     updateCertificateState(trainingName, {
       filename: file.name,
@@ -230,6 +240,15 @@ export default function VolunteerSignupPage() {
   };
 
   const removeCertificate = (trainingName) => {
+    // Revoke preview URL if exists
+    if (certificatePreviews[trainingName]) {
+      URL.revokeObjectURL(certificatePreviews[trainingName]);
+      setCertificatePreviews(prev => {
+        const updated = { ...prev };
+        delete updated[trainingName];
+        return updated;
+      });
+    }
     // clear any certificate validation errors when user removes a certificate
     setErrors(prev => ({ ...prev, trainingCertificates: undefined }));
     setForm(prev => ({ ...prev, trainingCertificates: (prev.trainingCertificates || []).filter(c => c.trainingName !== trainingName)}));
@@ -2240,38 +2259,141 @@ export default function VolunteerSignupPage() {
                           {training}
                         </label>
                         {selected && training !== 'None in the list' && (
-                          <div className="ml-6 mt-1">
+                          <div className="ml-6 mt-2 p-3 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800/50">
                             {cert && cert.s3Key ? (
-                              <div className="flex items-center gap-3">
-                                <span className="text-sm text-gray-700">{cert.filename}</span>
-                                <span className="text-green-600 text-sm">Uploaded</span>
-                                <button type="button" className="text-red-600 text-sm" onClick={() => removeCertificate(training)}>Remove</button>
+                              /* Uploaded state - shows success indicator */
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px]">{cert.filename}</span>
+                                    <span className="text-xs text-green-600 dark:text-green-400">Uploaded successfully</span>
+                                  </div>
+                                </div>
+                                <button 
+                                  type="button" 
+                                  className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-1"
+                                  onClick={() => removeCertificate(training)}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                  Remove
+                                </button>
                               </div>
                             ) : cert && cert.file ? (
-                              <div className="flex items-center gap-3">
-                                <span className="text-sm text-gray-700">Selected: {cert.filename} ({Math.round((cert.size||0)/1024)} KB)</span>
-                                <button type="button" className="text-red-600 text-sm" onClick={() => removeCertificate(training)}>Remove</button>
+                              /* Selected state - shows preview for images, file info for PDFs */
+                              <div className="flex flex-col gap-2">
+                                {/* Preview for images */}
+                                {certificatePreviews[training] && cert.mime?.startsWith('image/') && (
+                                  <div className="relative w-full max-w-[200px] mx-auto">
+                                    <img 
+                                      src={certificatePreviews[training]} 
+                                      alt={`Preview of ${cert.filename}`}
+                                      className="w-full h-auto rounded-lg border border-gray-200 dark:border-gray-600 object-contain max-h-[150px]"
+                                    />
+                                  </div>
+                                )}
+                                {/* PDF indicator */}
+                                {cert.mime === 'application/pdf' && (
+                                  <div className="flex items-center justify-center gap-2 py-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                                    </svg>
+                                    <span className="text-sm text-gray-600 dark:text-gray-400">PDF Document</span>
+                                  </div>
+                                )}
+                                {/* File info */}
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                  <div className="flex items-center gap-2 flex-1">
+                                    <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
+                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                      </svg>
+                                    </div>
+                                    <div className="flex flex-col">
+                                      <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px]">{cert.filename}</span>
+                                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                                        {cert.size >= 1048576 
+                                          ? `${(cert.size / 1048576).toFixed(2)} MB` 
+                                          : `${Math.round(cert.size / 1024)} KB`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <button 
+                                    type="button" 
+                                    className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-1"
+                                    onClick={() => removeCertificate(training)}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                    Remove
+                                  </button>
+                                </div>
                               </div>
                             ) : cert && cert.uploadStatus === 'failed' ? (
-                              <div className="flex items-center gap-3">
-                                <div className="text-sm text-red-600">Upload failed: {cert.lastError || 'Please try again.'}</div>
+                              /* Failed state - shows error with retry option */
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <div className="flex items-center gap-2 flex-1">
+                                  <div className="w-8 h-8 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium text-red-600">Upload failed</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">{cert.lastError || 'Please try again.'}</span>
+                                  </div>
+                                </div>
                                 <button
                                   type="button"
-                                  className="text-blue-600 text-sm"
-                                  onClick={() => { setErrors(prev => ({ ...prev, trainingCertificates: undefined })); updateCertificateState(training, { uploadStatus: undefined, lastError: undefined, filename: undefined, s3Key: undefined }); }}
+                                  className="text-blue-600 hover:text-blue-700 text-sm font-medium flex items-center gap-1"
+                                  onClick={() => { 
+                                    setErrors(prev => ({ ...prev, trainingCertificates: undefined })); 
+                                    updateCertificateState(training, { uploadStatus: undefined, lastError: undefined, filename: undefined, s3Key: undefined }); 
+                                  }}
                                 >
+                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                  </svg>
                                   Retry
                                 </button>
                               </div>
                             ) : (
-                              <input
-                                data-testid={`upload-${slug}`}
-                                id={`file-${slug}`}
-                                type="file"
-                                accept="application/pdf,image/*"
-                                onChange={(e) => handleFileSelect(e, training)}
-                                className="mt-1 dark:text-gray-900 text-sm dark:border-gray-600 border border-gray-300 rounded px-2 py-1 touch-manipulation"
-                              />
+                              /* Empty state - upload button */
+                              <div className="flex flex-col items-center gap-2 py-2">
+                                <label 
+                                  htmlFor={`file-${slug}`}
+                                  className="cursor-pointer flex flex-col items-center gap-2 text-center"
+                                >
+                                  <div className="w-12 h-12 bg-[var(--primary-red)]/10 dark:bg-[var(--primary-red)]/20 rounded-full flex items-center justify-center">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-[var(--primary-red)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                                    </svg>
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                                      Upload Certificate
+                                    </span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                      PDF, PNG, JPEG (max 10MB)
+                                    </span>
+                                  </div>
+                                </label>
+                                <input
+                                  data-testid={`upload-${slug}`}
+                                  id={`file-${slug}`}
+                                  type="file"
+                                  accept="application/pdf,image/*"
+                                  onChange={(e) => handleFileSelect(e, training)}
+                                  className="hidden"
+                                />
+                              </div>
                             )}
                           </div>
                         )}
