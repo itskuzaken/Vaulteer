@@ -3,6 +3,7 @@ const router = express.Router();
 const { authenticate } = require("../middleware/auth");
 const { getPool } = require("../db/pool");
 const statsService = require("../services/statsService");
+const statsCache = require("../services/statsCache");
 
 /**
  * Helper function to get date range based on range parameter
@@ -81,59 +82,72 @@ router.get("/dashboard", authenticate, async (req, res) => {
       return res.status(403).json({ error: "Admin access required" });
     }
 
+    // Check cache first
+    const cacheKey = statsCache.generateKey('admin', { range, compare, start: start?.toISOString(), end: end?.toISOString() });
+    const cached = statsCache.get(cacheKey);
+    if (cached) {
+      console.log("[Stats Dashboard] Cache HIT");
+      return res.json(cached);
+    }
+
     // Date range for filtering is already computed above (from range or start/end params)
     
-    // Fetch total volunteers count (all statuses, regardless of date)
-    const [totalVolunteers] = await pool.query(
-      `SELECT COUNT(*) as count 
-       FROM users u 
-       JOIN roles r ON u.role_id = r.role_id 
-       WHERE r.role = 'volunteer'`
-    );
-
-    // Fetch volunteers breakdown by status
-    const [volunteersBreakdown] = await pool.query(
-      `SELECT u.status, COUNT(*) as count
+    // OPTIMIZED: Combined user stats query (volunteers + staff in single query)
+    const [userStats] = await pool.query(
+      `SELECT 
+         r.role,
+         u.status,
+         COUNT(*) as count
        FROM users u
        JOIN roles r ON u.role_id = r.role_id
-       WHERE r.role = 'volunteer'
-       GROUP BY u.status`
+       WHERE r.role IN ('volunteer', 'staff')
+       GROUP BY r.role, u.status`
     );
 
-    // Fetch total staff count (all statuses, regardless of date)
-    const [totalStaff] = await pool.query(
-      `SELECT COUNT(*) as count 
-       FROM users u 
-       JOIN roles r ON u.role_id = r.role_id 
-       WHERE r.role = 'staff'`
-    );
+    // Process combined results into separate breakdowns
+    let totalVolunteersCount = 0;
+    let totalStaffCount = 0;
+    const volunteersBreakdownObj = {};
+    const staffBreakdownObj = {};
+    
+    userStats.forEach(row => {
+      if (row.role === 'volunteer') {
+        volunteersBreakdownObj[row.status] = row.count;
+        totalVolunteersCount += row.count;
+      } else if (row.role === 'staff') {
+        staffBreakdownObj[row.status] = row.count;
+        totalStaffCount += row.count;
+      }
+    });
 
-    // Fetch staff breakdown by status
-    const [staffBreakdown] = await pool.query(
-      `SELECT u.status, COUNT(*) as count
-       FROM users u
-       JOIN roles r ON u.role_id = r.role_id
-       WHERE r.role = 'staff'
-       GROUP BY u.status`
-    );
-
-    // Fetch total applications count (filtered by date range)
-    const [totalApplicants] = await pool.query(
-      `SELECT COUNT(DISTINCT a.applicant_id) as count 
-       FROM applicants a 
-       WHERE a.application_date >= ? AND a.application_date <= ?`,
-      [start, end]
-    );
-
-    // Fetch applications breakdown by status (filtered by date range)
-    const [applicationsBreakdown] = await pool.query(
-      `SELECT s.status_name, COUNT(*) as count
+    // OPTIMIZED: Combined applicants query with status breakdown
+    const [applicantsData] = await pool.query(
+      `SELECT 
+         s.status_name,
+         COUNT(*) as count
        FROM applicants a
        JOIN application_statuses s ON a.status_id = s.status_id
        WHERE a.application_date >= ? AND a.application_date <= ?
        GROUP BY s.status_name`,
       [start, end]
     );
+
+    // Fetch all possible application statuses (for ensuring all are present)
+    const [allAppStatuses] = await pool.query(
+      `SELECT status_name FROM application_statuses`
+    );
+
+    // Build applicants breakdown with all statuses defaulting to 0
+    const applicationsBreakdownObj = {};
+    allAppStatuses.forEach(s => {
+      applicationsBreakdownObj[s.status_name] = 0;
+    });
+    
+    let totalApplicantsCount = 0;
+    applicantsData.forEach(row => {
+      applicationsBreakdownObj[row.status_name] = row.count;
+      totalApplicantsCount += row.count;
+    });
 
     // Fetch event participation stats. Use preset helper for known periods or custom helper for arbitrary ranges
     let eventStats = { periods: {} };
@@ -144,33 +158,8 @@ router.get("/dashboard", authenticate, async (req, res) => {
       eventStats.periods.custom = { current: ev.current, previous: ev.previous, deltas: ev.deltas };
     }
 
-    // Format breakdown data
-    const volunteersBreakdownObj = {};
-    volunteersBreakdown.forEach(row => {
-      volunteersBreakdownObj[row.status] = row.count;
-    });
-
-    const staffBreakdownObj = {};
-    staffBreakdown.forEach(row => {
-      staffBreakdownObj[row.status] = row.count;
-    });
-
-    // Ensure all possible application statuses are present (default 0)
-    const [allAppStatuses] = await pool.query(
-      `SELECT status_name FROM application_statuses`
-    );
-
-    const applicationsBreakdownObj = {};
-    allAppStatuses.forEach(s => {
-      applicationsBreakdownObj[s.status_name] = 0;
-    });
-
-    applicationsBreakdown.forEach(row => {
-      applicationsBreakdownObj[row.status_name] = row.count;
-    });
-
     // Format event participation breakdown
-    const eventParticipation = eventStats?.periods?.[range]?.current || {};
+    const eventParticipation = eventStats?.periods?.[range]?.current || eventStats?.periods?.custom?.current || {};
     const eventParticipationsBreakdownObj = {
       registered: eventParticipation.registered || 0,
       attended: eventParticipation.attended || 0,
@@ -221,8 +210,10 @@ router.get("/dashboard", authenticate, async (req, res) => {
           eventPrev = ev.previous;
         }
       } else {
-        const ev = await statsService.getEventStatsForRange(start.toISOString(), end.toISOString());
-        eventPrev = ev.previous || {};
+        const ev = eventStats?.periods?.custom;
+        if (ev && ev.previous) {
+          eventPrev = ev.previous;
+        }
       }
 
       // percent change helper
@@ -244,32 +235,53 @@ router.get("/dashboard", authenticate, async (req, res) => {
       };
 
       deltas = {
-        total_applicants: pct(totalApplicants[0]?.count || 0, previous.total_applicants),
+        total_applicants: pct(totalApplicantsCount, previous.total_applicants),
         event_participations: pct(eventParticipation.total || 0, previous.event_participations),
       };
     }
 
+    // Fetch 7-day trends for sparklines
+    const trends = await statsService.getDashboardTrends();
+
     const stats = {
       range,
-      total_volunteers: totalVolunteers[0]?.count || 0,
+      // All-time headcount (not filtered by date)
+      total_volunteers: totalVolunteersCount,
       volunteers_breakdown: volunteersBreakdownObj,
-      total_staff: totalStaff[0]?.count || 0,
+      volunteers_filter: 'all_time',
+      
+      total_staff: totalStaffCount,
       staff_breakdown: staffBreakdownObj,
-      total_applicants: totalApplicants[0]?.count || 0,
+      staff_filter: 'all_time',
+      
+      // Period-filtered activity
+      total_applicants: totalApplicantsCount,
       applications_breakdown: applicationsBreakdownObj,
+      applicants_filter: range,
+      
       event_participations: eventParticipation.total || 0,
       event_participations_breakdown: eventParticipationsBreakdownObj,
+      events_filter: range,
+      
+      // Trend data for sparklines
+      trends,
+      
       ...(previous ? { previous } : {}),
       ...(deltas ? { deltas } : {}),
     };
 
     console.log("[Stats Dashboard] Stats calculated:", stats);
 
-    res.json({
+    const response = {
       success: true,
       data: stats,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    // Cache the response
+    statsCache.set(cacheKey, response, statsCache.DEFAULT_TTL);
+
+    res.json(response);
   } catch (error) {
     console.error("Error fetching dashboard stats:", error);
     console.error("Error details:", error.message);
@@ -325,10 +337,31 @@ router.get("/staff", authenticate, async (req, res) => {
 
     const userDbId = userRows[0].user_id;
 
+    // Check cache first
+    const cacheKey = statsCache.generateKey('staff', { userId: userDbId });
+    const cached = statsCache.get(cacheKey);
+    if (cached) {
+      console.log("[Stats Staff] Cache HIT");
+      return res.json(cached);
+    }
+
     // Fetch staff-specific statistics
-    const [myVolunteers] = await pool.query(
-      "SELECT COUNT(*) as count FROM users u JOIN roles r ON u.role_id = r.role_id WHERE r.role = 'volunteer' AND u.status = 'active'"
+    // FIXED: Match admin dashboard behavior - count ALL volunteers, not just active
+    const [volunteerStats] = await pool.query(
+      `SELECT u.status, COUNT(*) as count 
+       FROM users u 
+       JOIN roles r ON u.role_id = r.role_id 
+       WHERE r.role = 'volunteer'
+       GROUP BY u.status`
     );
+
+    // Build volunteers breakdown and total
+    let totalVolunteersCount = 0;
+    const volunteersBreakdownObj = {};
+    volunteerStats.forEach(row => {
+      volunteersBreakdownObj[row.status] = row.count;
+      totalVolunteersCount += row.count;
+    });
 
     const [myTasks] = await pool.query(
       "SELECT COUNT(*) as count FROM activity_logs WHERE performed_by_user_id = ? AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)",
@@ -341,18 +374,25 @@ router.get("/staff", authenticate, async (req, res) => {
     );
 
     const stats = {
-      total_volunteers: myVolunteers[0]?.count || 0,
+      total_volunteers: totalVolunteersCount,
+      volunteers_breakdown: volunteersBreakdownObj,
+      volunteers_filter: 'all_time',
       my_tasks: myTasks[0]?.count || 0,
       my_activity_today: myActivity[0]?.count || 0,
     };
 
     console.log("[Stats Staff] Stats calculated:", stats);
 
-    res.json({
+    const response = {
       success: true,
       data: stats,
       timestamp: new Date().toISOString(),
-    });
+    };
+
+    // Cache the response
+    statsCache.set(cacheKey, response, statsCache.DEFAULT_TTL);
+
+    res.json(response);
   } catch (error) {
     console.error("Error fetching staff stats:", error);
     console.error("Error details:", error.message);

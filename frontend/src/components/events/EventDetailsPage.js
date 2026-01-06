@@ -42,7 +42,7 @@ import PostponeEventModal from "@/components/events/modals/PostponeEventModal";
 import ArchiveEventConfirmModal from "@/components/events/modals/ArchiveEventConfirmModal";
 import CancelEventConfirmModal from "@/components/events/modals/CancelEventConfirmModal";
 import AttendancePanel from '@/components/events/AttendancePanel';
-import EventReportsPanel from '@/components/events/EventReportsPanel';
+import EventReportPanel from '@/components/events/EventReportPanel';
 import Modal from '@/components/modals/ModalShell';
 
 const formatDate = (value, pattern = "MMMM dd, yyyy") => {
@@ -146,6 +146,27 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
     );
   }, [eventData]);
 
+  // Forward declare loadEventDetails before mutatingParticipantCount needs it
+  const loadEventDetails = useCallback(async () => {
+    if (!eventUid) {
+      setError("No event ID provided.");
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await getEventDetails(eventUid);
+      setEventData(response.data);
+    } catch (err) {
+      console.error("Failed to load event details", err);
+      setError(err.message || "Failed to load event details");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [eventUid]);
+
   const mutatingParticipantCount = useCallback((statusOrBool, meta = {}) => {
     setEventData((prev) => {
       if (!prev) return prev;
@@ -206,28 +227,7 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
 
       return prev;
     });
-  }, []);
-
-  const loadEventDetails = useCallback(async () => {
-    if (!eventUid) {
-      setError("No event ID provided.");
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await getEventDetails(eventUid);
-      setEventData(response.data);
-    } catch (err) {
-      console.error("Failed to load event details", err);
-      setError(err.message || "Failed to load event details");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [eventUid]);
-
+  }, [loadEventDetails]);
 
   const loadParticipants = useCallback(async () => {
     if (!eventUid || !canViewParticipants) {
@@ -951,11 +951,13 @@ export default function EventDetailsPage({ eventUid, currentUser, initialEdit = 
         </div>
       </div>
 
-      {canManageEvent && (
-        <div className="mt-6 flex flex-col gap-6">
-          <EventReportsPanel eventUid={eventUid} currentUser={currentUser} />
-        </div>
-      )}
+      {/* Analytics Report Panel - Shows only for completed events */}
+      <EventReportPanel
+        eventUid={eventUid}
+        currentUser={currentUser}
+        canManage={canManageEvent}
+        eventData={eventData}
+      />
 
       {/* --- ATTENDANCE MODAL (Using ModalShell) --- */}
       <Modal

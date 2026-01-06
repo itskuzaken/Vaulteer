@@ -216,9 +216,92 @@ async function getEventStatsForRange(startIso, endIso, eventTypes = []) {
   };
 }
 
+/**
+ * Helper to build a complete trend array with missing dates filled as 0
+ * @param {Array} rows - Database rows with date and count
+ * @param {number} days - Number of days to include
+ * @returns {Array} Array of {date, count} objects
+ */
+function buildTrendArray(rows, days) {
+  const trendMap = new Map();
+  rows.forEach(r => {
+    let dKey;
+    try {
+      dKey = (r.date instanceof Date ? r.date : new Date(r.date)).toISOString().slice(0, 10);
+    } catch (e) {
+      dKey = String(r.date).slice(0, 10);
+    }
+    trendMap.set(dKey, Number(r.count) || 0);
+  });
+
+  const trend = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const dt = new Date();
+    dt.setDate(dt.getDate() - i);
+    const key = dt.toISOString().slice(0, 10);
+    trend.push({ date: key, count: trendMap.get(key) || 0 });
+  }
+  return trend;
+}
+
+/**
+ * Get 7-day trend for applications
+ * @param {number} days - Number of days (default 7)
+ * @returns {Promise<Array>} Array of {date, count}
+ */
+async function getApplicationsTrend(days = 7) {
+  const pool = getPool();
+  const [rows] = await pool.query(`
+    SELECT DATE(application_date) as date, COUNT(*) as count
+    FROM applicants
+    WHERE application_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+    GROUP BY DATE(application_date)
+    ORDER BY date
+  `, [days - 1]);
+  
+  return buildTrendArray(rows, days);
+}
+
+/**
+ * Get 7-day trend for event participations
+ * @param {number} days - Number of days (default 7)
+ * @returns {Promise<Array>} Array of {date, count}
+ */
+async function getEventParticipationsTrend(days = 7) {
+  const pool = getPool();
+  const [rows] = await pool.query(`
+    SELECT DATE(registration_date) as date, COUNT(*) as count
+    FROM event_participants
+    WHERE registration_date >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+    GROUP BY DATE(registration_date)
+    ORDER BY date
+  `, [days - 1]);
+  
+  return buildTrendArray(rows, days);
+}
+
+/**
+ * Get all trends for dashboard
+ * @returns {Promise<Object>} Object with trend arrays for each metric
+ */
+async function getDashboardTrends() {
+  const [applicants, eventParticipations] = await Promise.all([
+    getApplicationsTrend(),
+    getEventParticipationsTrend(),
+  ]);
+  
+  return {
+    total_applicants: applicants,
+    event_participations: eventParticipations,
+  };
+}
+
 module.exports = { 
   getParticipationStats: getHtsParticipationStats,
   getHtsParticipationStats,
   getEventParticipationStats,
   getEventStatsForRange,
+  getApplicationsTrend,
+  getEventParticipationsTrend,
+  getDashboardTrends,
 };

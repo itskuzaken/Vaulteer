@@ -133,10 +133,18 @@ export default function RealtimeStatsGrid({
               // Get breakdown data if specified
               const breakdown = data && config.breakdownKey ? data[config.breakdownKey] : null;
 
-              // Comparison removed — no delta provided
-              const delta = null;
+              // Extract delta from API response if available (for date-filtered metrics)
+              // Uses deltaKey if specified, otherwise falls back to config.key
+              const deltaKey = config.deltaKey || config.key;
+              const delta = data?.deltas?.[deltaKey] ?? null;
+
+              // Get trend data for sparklines if available
+              const trendKey = config.trendKey || config.key;
+              const trendData = data?.trends?.[trendKey] ?? null;
 
               // Build DonutKPI node if breakdown exists
+              // Don't pass delta to DonutKPI when position="overlay" to avoid duplication
+              // (StatsCard will display the delta)
               const kpiNode = breakdown ? (
                 <DonutKPI
                   title={null}
@@ -164,6 +172,7 @@ export default function RealtimeStatsGrid({
                   trend={config.trend}
                   trendValue={config.trendValue}
                   delta={delta}
+                  trendData={trendData}
                   loading={loading && !data}
                   animationDuration={config.animationDuration || 1000}
                   onClick={config.onClick}

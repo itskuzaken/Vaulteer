@@ -35,26 +35,30 @@ export default function AdminDashboard({ onNavigate }) {
       title: "Total Volunteers",
       icon: IoPeopleOutline,
       color: "blue",
-      subtitle: "All volunteer members",
+      subtitle: "Current headcount",
       breakdownKey: "volunteers_breakdown",
       onClick: () => handleQuickAction("manage-volunteer"),
+      // No deltaKey - all-time count, no comparison
     },
     {
       key: "total_staff",
       title: "Staff Members",
       icon: IoPersonOutline,
       color: "green",
-      subtitle: "All staff members",
+      subtitle: "Current headcount",
       breakdownKey: "staff_breakdown",
       onClick: () => handleQuickAction("manage-staff"),
+      // No deltaKey - all-time count, no comparison
     },
     {
       key: "total_applicants",
       title: "Applications",
       icon: IoDocumentTextOutline,
       color: "amber",
-      subtitle: "All applications",
+      subtitle: "Past 7 days",
       breakdownKey: "applications_breakdown",
+      deltaKey: "total_applicants",
+      trendKey: "total_applicants",
       onClick: () => handleQuickAction("manage-applications"),
     },
     {
@@ -62,14 +66,16 @@ export default function AdminDashboard({ onNavigate }) {
       title: "Event Participations",
       icon: IoStatsChartOutline,
       color: "purple",
-      subtitle: "All event sign-ups",
+      subtitle: "Past 7 days",
       breakdownKey: "event_participations_breakdown",
+      deltaKey: "event_participations",
+      trendKey: "event_participations",
       onClick: () => handleQuickAction("manage-events"),
     },
   ];
 
-  // Fetch stats from API
-  const fetchStats = async (opts = 'last7') => {
+  // Fetch stats from API (with comparison enabled by default for delta display)
+  const fetchStats = async (opts = { range: 'last7', compare: true }) => {
     try {
       const auth = getAuth();
       const user = auth.currentUser;
@@ -89,10 +95,12 @@ export default function AdminDashboard({ onNavigate }) {
       // Build query string - support backwards compatibility where caller passes a string
       let qs = '';
       if (typeof opts === 'string') {
-        qs = `range=${opts}`;
+        qs = `range=${opts}&compare=true`;
       } else if (opts && typeof opts === 'object') {
         if (opts.range && opts.range !== 'custom') qs = `range=${opts.range}`;
-        if (opts.compare) qs += `${qs ? '&' : ''}compare=true`;
+        // Enable comparison by default for delta display
+        const shouldCompare = opts.compare !== false;
+        if (shouldCompare) qs += `${qs ? '&' : ''}compare=true`;
         if (opts.range === 'custom' && opts.start && opts.end) {
           qs += `${qs ? '&' : ''}start=${encodeURIComponent(opts.start)}&end=${encodeURIComponent(opts.end)}`;
         }

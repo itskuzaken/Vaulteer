@@ -16,6 +16,7 @@ export default function StatsCard({
   trend = null,
   trendValue = null,
   delta = null,
+  trendData = null, // NEW: Array of {date, count} for sparkline
   loading = false,
   animationDuration = 1000,
   onClick = null,
@@ -140,9 +141,9 @@ export default function StatsCard({
             onClick={onClick}
           >
             {loading ? (
-              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600" aria-hidden="true" />
-                <span>Loading</span>
+              <div className="animate-pulse space-y-2">
+                <div className="h-7 w-16 bg-gray-200 dark:bg-gray-700 rounded" />
+                <div className="h-3 w-24 bg-gray-100 dark:bg-gray-800 rounded" />
               </div>
             ) : (
               <div className="inline-flex items-center gap-2">
@@ -177,6 +178,44 @@ export default function StatsCard({
               {subtitle}
             </p>
           )}
+          {/* Sparkline for trend visualization */}
+          {!loading && trendData && trendData.length >= 2 && (() => {
+            const counts = trendData.map(t => t.count || 0);
+            const max = Math.max(...counts);
+            const min = Math.min(...counts);
+            const range = max - min || 1;
+            const width = 80;
+            const height = 24;
+            const points = trendData.map((t, i) => {
+              const x = (i / (trendData.length - 1)) * width;
+              const y = height - ((t.count - min) / range) * height;
+              return `${x},${y}`;
+            }).join(' ');
+            
+            // Determine sparkline color based on card color
+            const sparklineColors = {
+              gray: '#6b7280',
+              red: '#ef4444',
+              blue: '#3b82f6',
+              green: '#10b981',
+              amber: '#f59e0b',
+              purple: '#8b5cf6',
+            };
+            const strokeColor = sparklineColors[color] || sparklineColors.gray;
+            
+            return (
+              <svg width={width} height={height} className="mt-2 opacity-60" aria-label="Trend sparkline">
+                <polyline
+                  fill="none"
+                  stroke={strokeColor}
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  points={points}
+                />
+              </svg>
+            );
+          })()}
         </div>
 
         {/* Right side or Bottom: DonutKPI (if provided) */}

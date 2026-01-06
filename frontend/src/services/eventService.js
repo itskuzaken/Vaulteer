@@ -1,4 +1,6 @@
 import { fetchWithAuth } from "./apiClient";
+import { API_BASE } from "../config/config";
+import { getIdToken } from "./firebase";
 
 // ============================================
 // EVENT LISTING
@@ -177,4 +179,71 @@ export async function generateEventReport(eventUid, options = {}) {
 
 export async function getEventReportDownloadUrl(eventUid, reportId) {
   return fetchWithAuth(`/events/${eventUid}/reports/${reportId}/download`);
+}
+
+// ============================================
+// ANALYTICS REPORTS (NEW)
+// ============================================
+
+/**
+ * Get analytics report for a completed event
+ * @param {string} eventUid - Event UID
+ * @returns {Promise<Object>} Report data
+ */
+export async function getEventAnalyticsReport(eventUid) {
+  return fetchWithAuth(`/events/${eventUid}/analytics-report`);
+}
+
+/**
+ * Manually regenerate analytics report (admin/staff only)
+ * @param {string} eventUid - Event UID
+ * @returns {Promise<Object>} Regenerated report data
+ */
+export async function regenerateEventAnalyticsReport(eventUid) {
+  return fetchWithAuth(`/events/${eventUid}/analytics-report/regenerate`, {
+    method: 'POST',
+  });
+}
+
+/**
+ * Download analytics report as PDF (admin/staff only)
+ * Uses direct fetch with blob handling for file download
+ * @param {string} eventUid - Event UID
+ */
+export async function downloadEventAnalyticsReportPdf(eventUid) {
+  const token = await getIdToken();
+  if (!token) {
+    throw new Error('Authentication required');
+  }
+  
+  const response = await fetch(`${API_BASE}/events/${eventUid}/analytics-report/pdf`, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+  
+  if (!response.ok) {
+    // Try to get error message from JSON response
+    try {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Failed to download PDF');
+    } catch {
+      throw new Error(`Failed to download PDF (${response.status})`);
+    }
+  }
+  
+  // Get blob and trigger download
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `event-report-${eventUid}.pdf`;
+  document.body.appendChild(link);
+  link.click();
+  
+  // Cleanup
+  document.body.removeChild(link);
+  window.URL.revokeObjectURL(url);
 }

@@ -233,4 +233,31 @@ router.get(
   eventsController.downloadEventReport
 );
 
+// ============================================
+// ANALYTICS REPORT ENDPOINTS
+// ============================================
+
+// Get analytics report for a completed event
+router.get(
+  '/:uid/analytics-report',
+  authenticate,
+  eventsController.getAnalyticsReport
+);
+
+// Manually regenerate analytics report (admin/staff only)
+router.post(
+  '/:uid/analytics-report/regenerate',
+  authenticate,
+  authorizeRoles('admin', 'staff'),
+  eventsController.regenerateAnalyticsReport
+);
+
+// Download PDF report (admin/staff only)
+router.get(
+  '/:uid/analytics-report/pdf',
+  authenticate,
+  authorizeRoles('admin', 'staff'),
+  eventsController.downloadAnalyticsReportPdf
+);
+
 module.exports = router;

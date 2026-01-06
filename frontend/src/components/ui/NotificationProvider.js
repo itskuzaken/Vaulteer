@@ -126,5 +126,20 @@ export function NotificationProvider({ children }) {
 }
 
 export function useNotify() {
-  return useContext(ToastCtx);
+  const ctx = useContext(ToastCtx);
+  
+  // Return no-op during SSR/SSG to prevent build errors
+  if (typeof window === 'undefined') {
+    return {
+      push: () => {},
+      dismiss: () => {},
+    };
+  }
+  
+  // Runtime error if used outside provider
+  if (!ctx) {
+    throw new Error('useNotify must be used within a NotificationProvider');
+  }
+  
+  return ctx;
 }

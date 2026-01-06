@@ -116,3 +116,6 @@ Desktop.ini
 backend/# Join Waitlist Feature Plan.prompt.md
 backend/__tests__/*
 backend/scripts/*
+vaulteer_db_schema.sql
+vaulteer_db_reordered.sql
+vaulteer_db_clean.sql

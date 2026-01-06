@@ -894,9 +894,12 @@ class EventRepository {
     try {
       await conn.beginTransaction();
 
-      // Resolve event
+      // Resolve event - format start_datetime as UTC ISO string to avoid timezone ambiguity
       const [[event]] = await conn.execute(
-        `SELECT event_id, status, start_datetime, attendance_checkin_window_mins, attendance_grace_mins FROM events WHERE uid = ? FOR UPDATE`,
+        `SELECT event_id, status, 
+                DATE_FORMAT(start_datetime, '%Y-%m-%dT%H:%i:%sZ') as start_datetime,
+                attendance_checkin_window_mins, attendance_grace_mins 
+         FROM events WHERE uid = ? FOR UPDATE`,
         [eventUid]
       );
       if (!event) throw new Error('Event not found');
@@ -910,15 +913,19 @@ class EventRepository {
       // ---------------------------------
 
         // Determine check-in availability based on configured window
+        // Ensure all date comparisons are done in UTC milliseconds
         const startTs = event.start_datetime ? new Date(event.start_datetime) : null;
         const windowMins = Number(event.attendance_checkin_window_mins || 15);
         if (!startTs) {
           throw new Error('Event start time is not set');
         }
 
+        // Use UTC time for consistent timezone-independent comparisons
         const now = new Date();
-        const windowStart = new Date(startTs.getTime() - windowMins * 60000);
-        if (now < windowStart) {
+        const nowUtcMs = now.getTime(); // milliseconds since epoch (always UTC)
+        const startUtcMs = startTs.getTime(); // milliseconds since epoch (always UTC)
+        const windowStart = new Date(startUtcMs - windowMins * 60000);
+        if (nowUtcMs < windowStart.getTime()) {
           throw new Error('Event check-in is not yet available');
         }
 
@@ -945,17 +952,37 @@ class EventRepository {
       // Business rule: users are considered "present" if they check in at or before
       // the start time OR within the configured grace period after start.
       // They are only marked 'late' if they check in after start + grace minutes.
+      // All comparisons use UTC milliseconds for timezone-independent logic
       const graceMins = Number(event.attendance_grace_mins || 10);
       const graceMs = graceMins * 60000;
+      
+      // Debug logging to diagnose timezone issues
+      console.log('[checkInParticipant] Attendance status calculation:', {
+        eventUid,
+        participantId,
+        eventStartDatetime: event.start_datetime,
+        startUtcMs,
+        nowUtcMs,
+        graceMins,
+        startPlusGraceMs: startUtcMs + graceMs,
+        nowISO: new Date(nowUtcMs).toISOString(),
+        startISO: new Date(startUtcMs).toISOString(),
+        gracePeriodEndISO: new Date(startUtcMs + graceMs).toISOString(),
+        isBeforeStart: nowUtcMs < startUtcMs,
+        isWithinGrace: nowUtcMs <= (startUtcMs + graceMs),
+      });
+      
       let newStatus = 'late';
-      const startPlusGrace = startTs.getTime() + graceMs;
-      if (now.getTime() <= startPlusGrace) {
+      const startPlusGraceMs = startUtcMs + graceMs;
+      if (nowUtcMs <= startPlusGraceMs) {
         // On time (including early and within grace window)
         newStatus = 'present';
       } else {
         // After grace window -> late
         newStatus = 'late';
       }
+      
+      console.log(`[checkInParticipant] Final status for participant ${participantId}: ${newStatus}`);
 
       // Ensure we never pass `undefined` into SQL driver params — convert to `null` where appropriate
       const safeMarkedBy = typeof markedByUserId === 'undefined' ? null : markedByUserId;
@@ -1370,12 +1397,45 @@ class EventRepository {
   }
 
   async markEventAsCompleted(eventUid) {
-    await getPool().execute(
-      `UPDATE events SET status = 'completed' WHERE uid = ?`,
-      [eventUid]
-    );
+    // Use a FOR UPDATE select to avoid race conditions and to ensure we only
+    // transition from valid statuses -> 'completed'. This prevents accidental
+    // overwrites from other concurrent updates that could set an incorrect status.
+    const pool = getPool();
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      const [rows] = await conn.execute(
+        `SELECT status FROM events WHERE uid = ? FOR UPDATE`,
+        [eventUid]
+      );
+      if (!rows || rows.length === 0) {
+        await conn.rollback();
+        return null;
+      }
+      const current = (rows[0].status || '').toLowerCase();
+      
+      // Only mark as completed if event is in a valid active state
+      const validStatuses = ['published', 'ongoing'];
+      if (!validStatuses.includes(current)) {
+        // Already completed, cancelled, archived, or in draft - do nothing
+        await conn.rollback();
+        return this.getEventByUid(eventUid);
+      }
 
-    return this.getEventByUid(eventUid);
+      await conn.execute(`UPDATE events SET status = 'completed' WHERE uid = ?`, [eventUid]);
+      await conn.commit();
+      
+      const updated = await this.getEventByUid(eventUid);
+      if ((updated.status || '').toLowerCase() !== 'completed') {
+        console.error(`[eventRepository] Unexpected status '${updated.status}' for event ${eventUid} after markEventAsCompleted`);
+      }
+      return updated;
+    } catch (e) {
+      try { await conn.rollback(); } catch (er) {}
+      throw e;
+    } finally {
+      try { conn.release(); } catch (er) {}
+    }
   }
 
   async markEventAsOngoing(eventUid) {

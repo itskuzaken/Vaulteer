@@ -73,7 +73,7 @@ export const EVENT_STATUS_TABS = [
     label: "Completed",
     description: "Events that successfully wrapped up.",
     icon: IoDocumentTextOutline,
-    managerActions: [],
+    managerActions: ["archive"],
     emptyState: {
       title: "No completed events",
       message:
