@@ -1,5 +1,5 @@
 #!/bin/bash
-# deploy-pm2.sh - Proper deployment script for PM2 with Redis startup order
+# deploy-pm2.sh - PM2 deployment (Redis managed by system service)
 
 set -e
 
@@ -13,28 +13,22 @@ pm2 stop all || true
 echo "🗑️  Removing old PM2 processes..."
 pm2 delete all || true
 
-# Start Redis FIRST
-echo "📡 Starting Redis..."
-pm2 start ecosystem.config.js --only vaulteer-redis
-
-# Wait for Redis to be ready (max 10 seconds)
-echo "⏳ Waiting for Redis to be ready..."
-for i in {1..10}; do
-  if redis-cli -h 127.0.0.1 -p 6379 ping > /dev/null 2>&1; then
-    echo "✅ Redis is ready!"
-    break
-  fi
-  if [ $i -eq 10 ]; then
-    echo "❌ Redis failed to start after 10 seconds"
-    pm2 logs vaulteer-redis --lines 20 --nostream
+# Verify system Redis is running (managed by systemctl, not PM2)
+echo "🔍 Checking system Redis service..."
+if ! redis-cli -h 127.0.0.1 -p 6379 ping > /dev/null 2>&1; then
+  echo "⚠️  Redis not responding, attempting to start system service..."
+  sudo systemctl start redis-server || sudo systemctl start redis
+  sleep 2
+  if ! redis-cli -h 127.0.0.1 -p 6379 ping > /dev/null 2>&1; then
+    echo "❌ Failed to start Redis service"
+    echo "   Try: sudo systemctl status redis"
     exit 1
   fi
-  echo "   Attempt $i/10..."
-  sleep 1
-done
+fi
+echo "✅ Redis is ready!"
 
-# Start Backend (now that Redis is ready)
-echo "� Starting Backend..."
+# Start Backend
+echo "🔧 Starting Backend..."
 pm2 start ecosystem.config.js --only vaulteer-backend
 
 # Wait 3 seconds for backend to initialize

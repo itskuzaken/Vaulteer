@@ -1,22 +1,8 @@
 module.exports = {
   apps: [
     {
-      // Redis Server - MUST START FIRST
-      name: "vaulteer-redis",
-      script: "/usr/bin/redis-server",
-      // Bind only to localhost for security (no external access)
-      args: "--port 6379 --bind 127.0.0.1 --maxmemory 256mb --maxmemory-policy allkeys-lru",
-      instances: 1,
-      exec_mode: "fork",
-      autorestart: true,
-      max_memory_restart: "512M",
-      error_file: "/home/ubuntu/vaulteer_logs/redis-error.log",
-      out_file: "/home/ubuntu/vaulteer_logs/redis-out.log",
-      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
-      restart_delay: 2000,
-    },
-    {
-      // Backend: Express.js (Port 5000) - Starts after Redis
+      // Backend: Express.js (Port 5000)
+      // Note: Redis managed by system service (systemctl), not PM2
       name: "vaulteer-backend",
       cwd: "/opt/Vaulteer/backend",
       script: "server.js",
@@ -36,7 +22,7 @@ module.exports = {
       out_file: "/home/ubuntu/vaulteer_logs/backend-out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss Z",
       autorestart: true,
-      restart_delay: 5000, // 5s delay ensures Redis is ready
+      restart_delay: 3000, // 3s delay for clean startup
     },
     {
       // Frontend: Next.js (Port 3000)
