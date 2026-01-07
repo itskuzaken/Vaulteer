@@ -70,7 +70,9 @@ async function runEventCompletionCheck() {
         const existing = await eventRepository.getEventByUid(row.uid);
         const prevStatus = existing?.status || null;
         const updated = await eventRepository.markEventAsCompleted(row.uid);
-        if (updated) {
+        
+        // Only log and process if status actually changed to completed
+        if (updated && updated.status === 'completed' && prevStatus !== 'completed') {
           await logHelpers.logEventStatusChange({
             eventId: updated.event_id,
             eventUid: updated.uid,
@@ -113,8 +115,11 @@ async function runEventCompletionCheck() {
           } catch (reportErr) {
             console.error('[EventCompletionScheduler] Failed to generate analytics report for', row.uid, reportErr.message || reportErr);
           }
+          
+          console.log(`[EventCompletionScheduler] Marked event ${row.uid} as completed`);
+        } else if (updated) {
+          console.log(`[EventCompletionScheduler] Event ${row.uid} already in final state (${updated.status}), skipping`);
         }
-        console.log(`[EventCompletionScheduler] Marked event ${row.uid} as completed`);
       } catch (err) {
         console.error('[EventCompletionScheduler] Failed to mark event as completed', row.uid, err.message || err);
       }

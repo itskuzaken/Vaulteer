@@ -270,7 +270,7 @@ router.get("/dashboard", authenticate, async (req, res) => {
       ...(deltas ? { deltas } : {}),
     };
 
-    console.log("[Stats Dashboard] Stats calculated:", stats);
+    console.log("[Stats Dashboard] Stats calculated:", JSON.stringify(stats, null, 2));
 
     const response = {
       success: true,
