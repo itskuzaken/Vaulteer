@@ -19,9 +19,26 @@ const NEXT_PUBLIC_FIREBASE_JSON = isDev
 const nextConfig = {
   images: {
     // Allow loading profile/avatar images hosted on Google user content URLs (used for OAuth avatars)
-    // Use remotePatterns if you need finer-grained control. This is intentionally narrow to avoid
-    // enabling arbitrary external hosts.
-    domains: ["lh3.googleusercontent.com"],
+    // and S3 achievement badge images with presigned URLs
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
+        pathname: '/**',
+      },
+      {
+        // S3 bucket for achievement badges (v-training-certificates bucket)
+        protocol: 'https',
+        hostname: '*.s3.*.amazonaws.com',
+        pathname: '/**',
+      },
+      {
+        // Alternative S3 URL format
+        protocol: 'https',
+        hostname: 's3.*.amazonaws.com',
+        pathname: '/**',
+      },
+    ],
   },
   allowedDevOrigins: [
     "http://localhost:3000",

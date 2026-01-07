@@ -20,6 +20,42 @@
   --color-accent-info: #d32f2f; /* red-700 - matches primary */
   --color-accent-info-bg: #fff5f5;
 
+  /* Achievement Tier Colors - Light Mode */
+  --tier-bronze-border: #fb923c;
+  --tier-bronze-bg: rgba(251, 146, 60, 0.1);
+  --tier-bronze-text: #9a3412;
+  --tier-bronze-ring: rgba(251, 146, 60, 0.4);
+  
+  --tier-silver-border: #94a3b8;
+  --tier-silver-bg: rgba(148, 163, 184, 0.1);
+  --tier-silver-text: #475569;
+  --tier-silver-ring: rgba(148, 163, 184, 0.4);
+  
+  --tier-gold-border: #facc15;
+  --tier-gold-bg: rgba(250, 204, 21, 0.1);
+  --tier-gold-text: #854d0e;
+  --tier-gold-ring: rgba(250, 204, 21, 0.4);
+}
+
+/* Achievement Tier Colors - Dark Mode */
+.dark {
+  --tier-bronze-border: #f97316;
+  --tier-bronze-bg: rgba(251, 146, 60, 0.15);
+  --tier-bronze-text: #fdba74;
+  --tier-bronze-ring: rgba(251, 146, 60, 0.5);
+  
+  --tier-silver-border: #cbd5e1;
+  --tier-silver-bg: rgba(148, 163, 184, 0.15);
+  --tier-silver-text: #e2e8f0;
+  --tier-silver-ring: rgba(148, 163, 184, 0.5);
+  
+  --tier-gold-border: #fbbf24;
+  --tier-gold-bg: rgba(250, 204, 21, 0.15);
+  --tier-gold-text: #fde047;
+  --tier-gold-ring: rgba(250, 204, 21, 0.5);
+}
+
+:root {
   /* Spacing Scale (reference) */
   --space-1: 2px;
   --space-1_5: 6px;
