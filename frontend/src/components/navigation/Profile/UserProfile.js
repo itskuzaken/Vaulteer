@@ -1045,14 +1045,12 @@ export default function UserProfile() {
       {/* Achievements */}
       <Achievements achievements={comprehensiveData?.achievements} />
 
-      {/* Valid ID Section - visible to admin/staff or profile owner */}
-      {(canManageStatus || isViewingSelf) && (
-        <ValidIdSection
-          userUid={targetUserUid}
-          canEdit={canManageStatus || isViewingSelf}
-          canDelete={currentUserRole === "admin" || isViewingSelf}
-        />
-      )}
+      {/* Valid ID Section - visible to all, edit/delete restricted */}
+      <ValidIdSection
+        userUid={targetUserUid}
+        canEdit={canManageStatus || isViewingSelf}
+        canDelete={currentUserRole === "admin" || isViewingSelf}
+      />
     </div>
   );
 }

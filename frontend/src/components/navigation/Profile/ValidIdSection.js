@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { IoIdCard, IoDownload, IoTrash, IoRefresh, IoCheckmarkCircle, IoAlertCircle } from "react-icons/io5";
-import { getValidIdMetadata, getValidIdDownloadUrl, deleteValidId } from "../../../services/profileService";
+import { IoIdCard, IoCheckmarkCircle, IoAlertCircle } from "react-icons/io5";
+import { getValidIdMetadata, getValidIdDownloadUrl } from "../../../services/profileService";
+import ImageLightbox from "../../ui/ImageLightbox";
+
+/* eslint-disable @next/next/no-img-element */
 
 /**
  * ValidIdSection - Displays and manages Valid ID for user profiles
@@ -10,15 +13,16 @@ import { getValidIdMetadata, getValidIdDownloadUrl, deleteValidId } from "../../
  * @param {Object} props
  * @param {string} props.userUid - Firebase UID of the profile owner
  * @param {boolean} props.canEdit - Whether current user can edit (admin/staff or owner)
- * @param {boolean} props.canDelete - Whether current user can delete (admin or owner)
  */
-export default function ValidIdSection({ userUid, canEdit = false, canDelete = false }) {
+export default function ValidIdSection({ userUid, canEdit = false }) {
   const [validIdData, setValidIdData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [downloading, setDownloading] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  
+  // Lightbox state for Valid ID preview
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
 
   // Fetch Valid ID metadata on mount
   useEffect(() => {
@@ -31,6 +35,18 @@ export default function ValidIdSection({ userUid, canEdit = false, canDelete = f
       try {
         const data = await getValidIdMetadata(userUid);
         setValidIdData(data);
+        
+        // Prefetch preview URL if Valid ID exists and is an image
+        if (data?.hasValidId && data?.mimetype?.startsWith('image/')) {
+          try {
+            const urlResult = await getValidIdDownloadUrl(userUid);
+            if (urlResult?.url) {
+              setPreviewUrl(urlResult.url);
+            }
+          } catch (err) {
+            console.warn('Failed to prefetch Valid ID preview:', err);
+          }
+        }
       } catch (err) {
         console.error("Failed to fetch Valid ID:", err);
         setError(err.message || "Failed to load Valid ID information");
@@ -51,6 +67,18 @@ export default function ValidIdSection({ userUid, canEdit = false, canDelete = f
     try {
       const data = await getValidIdMetadata(userUid);
       setValidIdData(data);
+      
+      // Prefetch preview URL if Valid ID exists and is an image
+      if (data?.hasValidId && data?.mimetype?.startsWith('image/')) {
+        try {
+          const urlResult = await getValidIdDownloadUrl(userUid);
+          if (urlResult?.url) {
+            setPreviewUrl(urlResult.url);
+          }
+        } catch (err) {
+          console.warn('Failed to prefetch Valid ID preview:', err);
+        }
+      }
     } catch (err) {
       console.error("Failed to fetch Valid ID:", err);
       setError(err.message || "Failed to load Valid ID information");
@@ -59,45 +87,34 @@ export default function ValidIdSection({ userUid, canEdit = false, canDelete = f
     }
   };
 
-  const handleDownload = async () => {
-    if (downloading) return;
+  const handlePreview = async () => {
+    if (!validIdData) return;
     
-    setDownloading(true);
+    setPreviewLoading(true);
     try {
-      const result = await getValidIdDownloadUrl(userUid);
+      // Use cached preview URL if available, otherwise fetch
+      let url = previewUrl;
+      if (!url) {
+        const result = await getValidIdDownloadUrl(userUid);
+        url = result?.url;
+        if (url) {
+          setPreviewUrl(url);
+        }
+      }
       
-      if (result && result.url) {
-        // Open the presigned URL in a new tab for download
-        const link = document.createElement("a");
-        link.href = result.url;
-        link.download = result.filename || "valid-id";
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      if (url) {
+        if (validIdData.mimetype && validIdData.mimetype.startsWith('image/')) {
+          setLightboxOpen(true);
+        } else {
+          // For non-images, open in new tab
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
       }
     } catch (err) {
-      console.error("Failed to download Valid ID:", err);
-      setError(err.message || "Failed to download Valid ID");
+      console.error('Error previewing Valid ID:', err);
+      setError(err.message || 'Failed to preview Valid ID');
     } finally {
-      setDownloading(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (deleting) return;
-    
-    setDeleting(true);
-    try {
-      await deleteValidId(userUid);
-      setValidIdData(null);
-      setShowDeleteConfirm(false);
-    } catch (err) {
-      console.error("Failed to delete Valid ID:", err);
-      setError(err.message || "Failed to delete Valid ID");
-    } finally {
-      setDeleting(false);
+      setPreviewLoading(false);
     }
   };
 
@@ -140,18 +157,9 @@ export default function ValidIdSection({ userUid, canEdit = false, canDelete = f
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <IoIdCard className="w-5 h-5 text-[var(--primary-red)]" />
-          <h3 className="font-semibold text-gray-900 dark:text-white">Valid ID</h3>
-        </div>
-        <button
-          onClick={fetchValidIdData}
-          className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
-          title="Refresh"
-        >
-          <IoRefresh className="w-4 h-4" />
-        </button>
+      <div className="flex items-center gap-2 mb-3">
+        <IoIdCard className="w-5 h-5 text-[var(--primary-red)]" />
+        <h3 className="font-semibold text-gray-900 dark:text-white">Valid ID</h3>
       </div>
 
       {/* Error Display */}
@@ -186,6 +194,44 @@ export default function ValidIdSection({ userUid, canEdit = false, canDelete = f
             </span>
           </div>
 
+          {/* Preview Thumbnail (for images) */}
+          {validIdData.mimetype && validIdData.mimetype.startsWith('image/') && (
+            <div className="mb-3">
+              <button
+                type="button"
+                onClick={handlePreview}
+                className="relative w-full h-32 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden flex items-center justify-center group hover:border-[var(--primary-red)] transition"
+                title="Click to view full size"
+              >
+                {previewUrl ? (
+                  <>
+                    <img
+                      src={previewUrl}
+                      alt={validIdData.filename || 'Valid ID'}
+                      className="w-full h-full object-contain"
+                      draggable={false}
+                    />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition flex items-center justify-center">
+                      <span className="text-white text-sm font-medium opacity-0 group-hover:opacity-100 transition">
+                        Click to preview
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                    {validIdData.filename || 'Valid ID'}
+                  </div>
+                )}
+
+                {previewLoading && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-white border-t-transparent"></div>
+                  </div>
+                )}
+              </button>
+            </div>
+          )}
+
           {/* File Details */}
           <div className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3 space-y-2">
             <div className="flex justify-between text-sm">
@@ -207,52 +253,19 @@ export default function ValidIdSection({ userUid, canEdit = false, canDelete = f
               </span>
             </div>
           </div>
-
-          {/* Actions */}
-          <div className="flex gap-2 pt-2">
-            {/* Download Button */}
-            <button
-              onClick={handleDownload}
-              disabled={downloading}
-              className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-[var(--primary-red)] text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-            >
-              <IoDownload className="w-4 h-4" />
-              {downloading ? "Downloading..." : "Download"}
-            </button>
-
-            {/* Delete Button (if authorized) */}
-            {canDelete && (
-              <>
-                {!showDeleteConfirm ? (
-                  <button
-                    onClick={() => setShowDeleteConfirm(true)}
-                    className="flex items-center justify-center gap-2 px-3 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition text-sm font-medium"
-                  >
-                    <IoTrash className="w-4 h-4" />
-                    Delete
-                  </button>
-                ) : (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleDelete}
-                      disabled={deleting}
-                      className="flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 text-sm font-medium"
-                    >
-                      {deleting ? "Deleting..." : "Confirm"}
-                    </button>
-                    <button
-                      onClick={() => setShowDeleteConfirm(false)}
-                      className="px-3 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition text-sm"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
         </div>
       )}
+
+      {/* Image Lightbox for Valid ID preview */}
+      <ImageLightbox
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+        imageUrl={previewUrl}
+        imageName={validIdData?.filename || 'Valid ID'}
+        images={previewUrl ? [{ url: previewUrl, name: validIdData?.filename || 'Valid ID' }] : []}
+        currentIndex={0}
+        onNavigate={() => {}}
+      />
     </div>
   );
 }

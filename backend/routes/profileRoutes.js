@@ -1394,7 +1394,7 @@ router.get("/:uid/settings", authenticate, async (req, res) => {
 router.get("/:uid/valid-id", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const currentUser = await getUserFromFirebaseUid(req.user.uid);
+    const currentUser = await getUserFromFirebaseUid(req.firebaseUid);
 
     if (!currentUser) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -1447,7 +1447,7 @@ router.get("/:uid/valid-id", authenticate, async (req, res) => {
 router.get("/:uid/valid-id/download", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const currentUser = await getUserFromFirebaseUid(req.user.uid);
+    const currentUser = await getUserFromFirebaseUid(req.firebaseUid);
 
     if (!currentUser) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -1499,7 +1499,7 @@ router.get("/:uid/valid-id/download", authenticate, async (req, res) => {
 router.delete("/:uid/valid-id", authenticate, async (req, res) => {
   try {
     const pool = getPool();
-    const currentUser = await getUserFromFirebaseUid(req.user.uid);
+    const currentUser = await getUserFromFirebaseUid(req.firebaseUid);
 
     if (!currentUser) {
       return res.status(401).json({ error: "Unauthorized" });
